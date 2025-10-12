@@ -30,10 +30,19 @@ export function InvoiceDownloadButton({
   const fetchInvoiceData = async () => {
     setLoading(true);
     try {
+      // Fetch student and family info
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('id, full_name, family:families(name)')
+        .eq('id', studentId)
+        .single();
+
+      if (studentError) throw studentError;
+
       // Fetch invoice projection
       const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke(
         'calculate-tuition',
-        { body: { student_id: studentId, month } }
+        { body: { studentId: studentId, month } }
       );
 
       if (tuitionError) throw tuitionError;
@@ -48,14 +57,32 @@ export function InvoiceDownloadButton({
       if (bankError) throw bankError;
 
       if (!bankData) {
-        throw new Error('Bank information not configured');
+        throw new Error('Bank information not configured. Please configure in Account Info.');
+      }
+
+      // Group sessions by class
+      const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
+      
+      for (const session of tuitionData.sessionDetails || []) {
+        const className = 'Class'; // Since sessionDetails don't include class name
+        if (!classBreakdown[className]) {
+          classBreakdown[className] = { sessions: [], total: 0 };
+        }
+        classBreakdown[className].sessions.push(session);
+        classBreakdown[className].total += session.rate || 0;
       }
 
       // Map to invoice format
       const invoice = mapUpstreamToInvoice({
         ...tuitionData,
-        student_id: studentId,
-        month: month,
+        student_id: studentData.id,
+        student_name: studentData.full_name,
+        family_name: studentData.family?.name,
+        class_breakdown: Object.entries(classBreakdown).map(([name, data]) => ({
+          class_name: name,
+          sessions_count: data.sessions.length,
+          amount_vnd: data.total,
+        })),
       });
 
       setInvoiceData(invoice);

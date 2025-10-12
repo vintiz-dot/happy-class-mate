@@ -10,12 +10,17 @@ import { StudentTuitionOverview } from "@/components/admin/StudentTuitionOvervie
 import { TuitionCard } from "@/components/student/TuitionCard";
 import ProfilePicker from "@/components/ProfilePicker";
 import { AccountInfoManager } from "@/components/admin/AccountInfoManager";
-import { DollarSign, Percent, Users, GraduationCap, Building2 } from "lucide-react";
+import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
+import { DollarSign, Percent, Users, GraduationCap, Building2, Download } from "lucide-react";
 
 const Tuition = () => {
   const { role } = useAuth();
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [showProfilePicker, setShowProfilePicker] = useState(role === "family" && !selectedStudent);
+  const [currentMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const handleStudentSelect = (studentId: string) => {
     setSelectedStudent(studentId);
@@ -40,10 +45,14 @@ const Tuition = () => {
 
         {role === "admin" ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview" className="gap-2">
                 <GraduationCap className="h-4 w-4" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="bulk" className="gap-2">
+                <Download className="h-4 w-4" />
+                Bulk Download
               </TabsTrigger>
               <TabsTrigger value="payments" className="gap-2">
                 <DollarSign className="h-4 w-4" />
@@ -65,6 +74,10 @@ const Tuition = () => {
 
             <TabsContent value="overview" className="space-y-6">
               <StudentTuitionOverview />
+            </TabsContent>
+
+            <TabsContent value="bulk" className="space-y-6">
+              <BulkInvoiceDownload month={currentMonth} />
             </TabsContent>
 
             <TabsContent value="payments" className="space-y-6">
