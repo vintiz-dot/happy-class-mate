@@ -38,11 +38,16 @@ export function useAuth() {
               .from("user_roles")
               .select("role")
               .eq("user_id", session.user.id)
-              .single();
+              .order("role", { ascending: true }); // admin < student < teacher alphabetically
+
+            // Prioritize admin role if present
+            const userRole = roleData?.find(r => r.role === "admin")?.role || 
+                           roleData?.find(r => r.role === "teacher")?.role ||
+                           roleData?.[0]?.role;
 
             setAuthState(prev => ({
               ...prev,
-              role: roleData?.role as UserRole || null,
+              role: userRole as UserRole || null,
               loading: false,
             }));
           }, 0);
@@ -65,11 +70,16 @@ export function useAuth() {
           .from("user_roles")
           .select("role")
           .eq("user_id", session.user.id)
-          .single()
+          .order("role", { ascending: true })
           .then(({ data: roleData }) => {
+            // Prioritize admin role if present
+            const userRole = roleData?.find(r => r.role === "admin")?.role || 
+                           roleData?.find(r => r.role === "teacher")?.role ||
+                           roleData?.[0]?.role;
+
             setAuthState(prev => ({
               ...prev,
-              role: roleData?.role as UserRole || null,
+              role: userRole as UserRole || null,
               loading: false,
             }));
           });
