@@ -7,12 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 
-const statusColors = {
-  Present: "bg-green-500",
-  Absent: "bg-red-500",
-  Excused: "bg-gray-500",
-  Canceled: "bg-amber-500",
-  Holiday: "bg-purple-500",
+const getAttendanceColor = (sessionStatus: string, attendanceStatus?: string) => {
+  // If session is canceled or holiday, show that first
+  if (sessionStatus === "Canceled") return "bg-amber-500";
+  if (sessionStatus === "Holiday") return "bg-purple-500";
+  
+  // If session is Held, check attendance status
+  if (sessionStatus === "Held") {
+    if (attendanceStatus === "Present") return "bg-green-500";
+    if (attendanceStatus === "Absent") return "bg-red-500";
+    if (attendanceStatus === "Excused") return "bg-gray-500";
+  }
+  
+  // Default for Scheduled (no attendance marked yet)
+  return "bg-muted";
 };
 
 export function StudentAttendanceTab({ studentId }: { studentId: string }) {
@@ -36,16 +44,17 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
 
       const classIds = enrollments.map((e) => e.class_id);
 
-      // Get sessions for these classes
+      // Get sessions for these classes with attendance
       const { data: sessionsData, error } = await supabase
         .from("sessions")
         .select(`
           *,
           class:classes(id, name),
           teacher:teachers(id, full_name),
-          attendance(status, notes)
+          attendance!inner(status, notes, student_id)
         `)
         .in("class_id", classIds)
+        .eq("attendance.student_id", studentId)
         .gte("date", start)
         .lte("date", end)
         .order("date", { ascending: true })
@@ -53,7 +62,11 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
 
       if (error) throw error;
 
-      return sessionsData || [];
+      // Filter and map to include only this student's attendance
+      return sessionsData?.map((session: any) => ({
+        ...session,
+        attendance: session.attendance?.[0], // Get first matching attendance record
+      })) || [];
     },
   });
 
@@ -86,12 +99,30 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            {Object.entries(statusColors).map(([status, color]) => (
-              <div key={status} className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded ${color}`} />
-                <span className="text-sm">{status}</span>
-              </div>
-            ))}
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500" />
+              <span className="text-sm">Present</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-500" />
+              <span className="text-sm">Absent</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gray-500" />
+              <span className="text-sm">Excused</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-amber-500" />
+              <span className="text-sm">Canceled</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-purple-500" />
+              <span className="text-sm">Holiday</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-muted" />
+              <span className="text-sm">Scheduled</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -124,18 +155,16 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
                   <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
                   <div className="space-y-1">
                     {daySessions.map((session: any) => {
-                      const attendance = session.attendance?.[0];
-                      const status = session.status === "Canceled" 
-                        ? "Canceled" 
-                        : attendance?.status || "Scheduled";
+                      const attendanceStatus = session.attendance?.status;
+                      const color = getAttendanceColor(session.status, attendanceStatus);
                       
                       return (
                         <Badge
                           key={session.id}
                           variant="outline"
                           className={cn(
-                            "text-xs block truncate",
-                            statusColors[status as keyof typeof statusColors] && `${statusColors[status as keyof typeof statusColors]} text-white`
+                            "text-xs block truncate text-white",
+                            color
                           )}
                         >
                           {format(new Date(`2000-01-01T${session.start_time}`), "HH:mm")} {session.class?.name}

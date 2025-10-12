@@ -3,13 +3,71 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
+import { Users } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
+  // Fetch family and siblings
+  const { data: familyData } = useQuery({
+    queryKey: ["student-family", student.id],
+    queryFn: async () => {
+      if (!student.family_id) return null;
+      
+      const { data, error } = await supabase
+        .from("families")
+        .select(`
+          id,
+          name,
+          students(id, full_name)
+        `)
+        .eq("id", student.family_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!student.family_id,
+  });
+
   return (
     <>
+      {/* Family & Siblings Card */}
+      {familyData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Family Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Family</p>
+              <p className="font-medium">{familyData.name}</p>
+            </div>
+            
+            {familyData.students && familyData.students.length > 1 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Siblings</p>
+                <div className="flex flex-wrap gap-2">
+                  {familyData.students
+                    .filter((s: any) => s.id !== student.id)
+                    .map((sibling: any) => (
+                      <Badge key={sibling.id} variant="outline">
+                        {sibling.full_name}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Profile</CardTitle>

@@ -967,6 +967,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _attendance_seed_for_class_dates: {
+        Args: { p_class: string; p_from: string; p_to: string }
+        Returns: undefined
+      }
       can_view_family: {
         Args: { family_id: string; user_id: string }
         Returns: boolean
