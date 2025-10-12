@@ -9,7 +9,8 @@ import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog } from "lucide-react";
+import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog, Home } from "lucide-react";
+import { OverviewStats } from "@/components/admin/OverviewStats";
 
 const Index = () => {
   const { user, role, loading } = useAuth();
@@ -59,6 +60,8 @@ const Index = () => {
               <p className="text-muted-foreground">Quick access to all management sections</p>
             </div>
 
+            <OverviewStats />
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <Card 
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -76,6 +79,26 @@ const Index = () => {
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
                     View, create, and manage student information
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/families")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5 text-primary" />
+                    Families
+                  </CardTitle>
+                  <CardDescription>
+                    Manage family accounts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Create and manage family records
                   </p>
                 </CardContent>
               </Card>
@@ -100,7 +123,7 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              <Card 
+              <Card
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/classes")}
               >
@@ -160,25 +183,6 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-primary" />
-                    Overview
-                  </CardTitle>
-                  <CardDescription>
-                    System statistics and reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    View overall system metrics and generate reports
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}

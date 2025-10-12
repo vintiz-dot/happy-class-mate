@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.create-teacher]
 verify_jwt = true
+
+[functions.create-family]
+verify_jwt = true

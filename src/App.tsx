@@ -11,6 +11,7 @@ import Teachers from "./pages/Teachers";
 import Classes from "./pages/Classes";
 import Finance from "./pages/Finance";
 import Schedule from "./pages/Schedule";
+import Families from "./pages/Families";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/classes" element={<Classes />} />
           <Route path="/finance" element={<Finance />} />
           <Route path="/schedule" element={<Schedule />} />
+          <Route path="/families" element={<Families />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
