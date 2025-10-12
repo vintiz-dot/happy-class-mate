@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      bank_info: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          id: number
+          updated_at: string
+          vietqr_storage_key: string | null
+        }
+        Insert: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+          vietqr_storage_key?: string | null
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+          vietqr_storage_key?: string | null
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -292,6 +322,188 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          base_amount: number
+          created_at: string
+          created_by: string | null
+          discount_amount: number
+          id: string
+          month: string
+          number: string | null
+          paid_amount: number
+          pdf_storage_key: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          student_id: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_amount?: number
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          id?: string
+          month: string
+          number?: string | null
+          paid_amount?: number
+          pdf_storage_key?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          student_id: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_amount?: number
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          id?: string
+          month?: string
+          number?: string | null
+          paid_amount?: number
+          pdf_storage_key?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          student_id?: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_accounts: {
+        Row: {
+          code: Database["public"]["Enums"]["account_code"]
+          created_at: string
+          id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: Database["public"]["Enums"]["account_code"]
+          created_at?: string
+          id?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: Database["public"]["Enums"]["account_code"]
+          created_at?: string
+          id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          credit: number
+          debit: number
+          id: string
+          memo: string | null
+          month: string
+          occurred_at: string
+          tx_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          debit?: number
+          id?: string
+          memo?: string | null
+          month: string
+          occurred_at?: string
+          tx_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          debit?: number
+          id?: string
+          memo?: string | null
+          month?: string
+          occurred_at?: string
+          tx_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          memo: string | null
+          method: string
+          occurred_at: string
+          student_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          memo?: string | null
+          method: string
+          occurred_at?: string
+          student_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          memo?: string | null
+          method?: string
+          occurred_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -595,9 +807,11 @@ export type Database = {
       }
     }
     Enums: {
+      account_code: "AR" | "REVENUE" | "DISCOUNT" | "CASH" | "BANK" | "CREDIT"
       app_role: "admin" | "teacher" | "family" | "student"
       discount_cadence: "once" | "monthly"
       discount_type: "percent" | "amount"
+      invoice_status: "draft" | "issued" | "paid" | "partial" | "credit"
       session_status: "Scheduled" | "Held" | "Canceled"
     }
     CompositeTypes: {
@@ -726,9 +940,11 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_code: ["AR", "REVENUE", "DISCOUNT", "CASH", "BANK", "CREDIT"],
       app_role: ["admin", "teacher", "family", "student"],
       discount_cadence: ["once", "monthly"],
       discount_type: ["percent", "amount"],
+      invoice_status: ["draft", "issued", "paid", "partial", "credit"],
       session_status: ["Scheduled", "Held", "Canceled"],
     },
   },

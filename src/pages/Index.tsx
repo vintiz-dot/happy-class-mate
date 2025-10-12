@@ -6,6 +6,8 @@ import { ClassesList } from "@/components/admin/ClassesList";
 import { SessionGenerator } from "@/components/admin/SessionGenerator";
 import { EnrollmentManager } from "@/components/admin/EnrollmentManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
+import { PaymentManager } from "@/components/admin/PaymentManager";
+import { TuitionCard } from "@/components/student/TuitionCard";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
 import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
@@ -84,6 +86,11 @@ const Index = () => {
             </div>
 
             <div>
+              <h3 className="text-xl font-semibold mb-4">Quản lý thanh toán</h3>
+              <PaymentManager />
+            </div>
+
+            <div>
               <h3 className="text-xl font-semibold mb-4">Lịch học</h3>
               <ScheduleCalendar role={role} />
             </div>
@@ -113,6 +120,7 @@ const Index = () => {
               <h2 className="text-2xl font-bold mb-2">Học viên</h2>
               <p className="text-muted-foreground">Lịch học và bài tập của bạn</p>
             </div>
+            {selectedStudent && <TuitionCard studentId={selectedStudent} />}
             <ScheduleCalendar role={role} />
             <AssignmentsList />
           </div>
