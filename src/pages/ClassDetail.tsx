@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import ClassCalendar from "@/components/admin/class/ClassCalendar";
+import ClassCalendarEnhanced from "@/components/admin/class/ClassCalendarEnhanced";
 import ClassEnrollments from "@/components/admin/class/ClassEnrollments";
 import ClassHomework from "@/components/admin/class/ClassHomework";
 import ClassSettings from "@/components/admin/class/ClassSettings";
@@ -61,7 +61,7 @@ const ClassDetail = () => {
           </TabsList>
 
           <TabsContent value="calendar" className="mt-6">
-            <ClassCalendar classId={id} />
+            <ClassCalendarEnhanced classId={id} />
           </TabsContent>
           <TabsContent value="enrollments" className="mt-6">
             <ClassEnrollments classId={id} />

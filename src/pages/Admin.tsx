@@ -9,6 +9,7 @@ import FinanceTab from "@/components/admin/tabs/FinanceTab";
 import ReportsTab from "@/components/admin/tabs/ReportsTab";
 import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
+import DataTab from "@/components/admin/tabs/DataTab";
 
 const Admin = () => {
   const [searchParams] = useSearchParams();
@@ -37,6 +38,7 @@ const Admin = () => {
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="account">Account Info</TabsTrigger>
             <TabsTrigger value="automation">Automation</TabsTrigger>
+            <TabsTrigger value="data">Data</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -62,6 +64,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="automation" className="mt-6">
             <AutomationTab />
+          </TabsContent>
+          <TabsContent value="data" className="mt-6">
+            <DataTab />
           </TabsContent>
         </Tabs>
       </div>
