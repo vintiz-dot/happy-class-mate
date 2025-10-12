@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.calculate-payroll]
 verify_jwt = false
+
+[functions.manage-admin-users]
+verify_jwt = false

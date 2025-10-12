@@ -9,6 +9,7 @@ import { DiscountManager } from "@/components/admin/DiscountManager";
 import { PaymentManager } from "@/components/admin/PaymentManager";
 import { PayrollManager } from "@/components/admin/PayrollManager";
 import { DataImportExport } from "@/components/admin/DataImportExport";
+import { AdminUsersManager } from "@/components/admin/AdminUsersManager";
 import { TuitionCard } from "@/components/student/TuitionCard";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
@@ -100,6 +101,11 @@ const Index = () => {
             <div>
               <h3 className="text-xl font-semibold mb-4">Import / Export Data</h3>
               <DataImportExport />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Admin Users</h3>
+              <AdminUsersManager />
             </div>
 
             <div>
