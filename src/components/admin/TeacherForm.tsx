@@ -42,6 +42,7 @@ export function TeacherForm({ onSuccess }: { onSuccess?: () => void }) {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Success",
@@ -58,7 +59,7 @@ export function TeacherForm({ onSuccess }: { onSuccess?: () => void }) {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create teacher",
         variant: "destructive",
       });
     } finally {

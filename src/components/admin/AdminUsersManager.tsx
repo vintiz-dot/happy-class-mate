@@ -107,6 +107,7 @@ export function AdminUsersManager() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Admin created",
@@ -120,7 +121,7 @@ export function AdminUsersManager() {
     } catch (error: any) {
       toast({
         title: "Error creating admin",
-        description: error.message,
+        description: error.message || "Failed to create admin user",
         variant: "destructive",
       });
     } finally {
@@ -135,6 +136,7 @@ export function AdminUsersManager() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "User promoted",
@@ -145,7 +147,7 @@ export function AdminUsersManager() {
     } catch (error: any) {
       toast({
         title: "Error promoting user",
-        description: error.message,
+        description: error.message || "Failed to promote user",
         variant: "destructive",
       });
     }
@@ -160,6 +162,7 @@ export function AdminUsersManager() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Admin revoked",
@@ -172,7 +175,7 @@ export function AdminUsersManager() {
     } catch (error: any) {
       toast({
         title: "Error revoking admin",
-        description: error.message,
+        description: error.message || "Failed to revoke admin role",
         variant: "destructive",
       });
     }
