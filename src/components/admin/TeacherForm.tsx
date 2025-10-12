@@ -31,33 +31,21 @@ export function TeacherForm({ onSuccess }: { onSuccess?: () => void }) {
 
     setIsSubmitting(true);
     try {
-      // First, create auth user for the teacher
-      const tempPassword = Math.random().toString(36).slice(-8) + "!Aa1";
-      
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { role: "teacher" }
+      const { data, error } = await supabase.functions.invoke('create-teacher', {
+        body: {
+          fullName,
+          email,
+          phone,
+          hourlyRate,
+          bio
+        }
       });
 
-      if (authError) throw authError;
-
-      // Then create teacher record
-      const { error: teacherError } = await supabase.from("teachers").insert([{
-        user_id: authData.user.id,
-        full_name: fullName,
-        email,
-        phone: phone || null,
-        hourly_rate_vnd: parseInt(hourlyRate),
-        bio: bio || null,
-      }]);
-
-      if (teacherError) throw teacherError;
+      if (error) throw error;
 
       toast({
         title: "Success",
-        description: `Teacher created. Temp password: ${tempPassword}`,
+        description: `Teacher created. Temp password: ${data.tempPassword}`,
       });
 
       // Reset form
