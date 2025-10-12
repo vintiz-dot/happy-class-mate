@@ -883,6 +883,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_family: {
+        Args: { family_id: string; user_id: string }
+        Returns: boolean
+      }
       can_view_student: {
         Args: { student_id: string; user_id: string }
         Returns: boolean

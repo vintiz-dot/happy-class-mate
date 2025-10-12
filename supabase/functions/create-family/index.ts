@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       throw new Error('User is not authorized to create families')
     }
 
-    const { name, email, phone, address, primaryUserId } = await req.json()
+    const { name, email, phone, address, primaryUserId, students } = await req.json()
 
     if (!name) {
       return new Response(
@@ -79,8 +79,66 @@ Deno.serve(async (req) => {
 
     console.log('Family created successfully:', family.id)
 
+    // Create students if provided
+    const createdStudents = []
+    if (students && Array.isArray(students) && students.length > 0) {
+      for (const student of students) {
+        const { data: newStudent, error: studentError } = await supabase
+          .from('students')
+          .insert([
+            {
+              full_name: student.fullName,
+              email: student.email || null,
+              phone: student.phone || null,
+              date_of_birth: student.dateOfBirth || null,
+              family_id: family.id,
+              notes: student.notes || null,
+              created_by: user.id,
+              updated_by: user.id,
+            },
+          ])
+          .select()
+          .single()
+
+        if (studentError) {
+          console.error('Error creating student:', studentError)
+          throw studentError
+        }
+
+        createdStudents.push(newStudent)
+
+        // Create enrollments if provided
+        if (student.enrollments && Array.isArray(student.enrollments)) {
+          for (const enrollment of student.enrollments) {
+            const enrollmentData: any = {
+              student_id: newStudent.id,
+              class_id: enrollment.classId,
+              start_date: enrollment.startDate || new Date().toISOString().split('T')[0],
+              created_by: user.id,
+              updated_by: user.id,
+            }
+
+            if (enrollment.discountType && enrollment.discountValue && enrollment.discountCadence) {
+              enrollmentData.discount_type = enrollment.discountType
+              enrollmentData.discount_value = enrollment.discountValue
+              enrollmentData.discount_cadence = enrollment.discountCadence
+            }
+
+            const { error: enrollmentError } = await supabase
+              .from('enrollments')
+              .insert([enrollmentData])
+
+            if (enrollmentError) {
+              console.error('Error creating enrollment:', enrollmentError)
+              throw enrollmentError
+            }
+          }
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ family }),
+      JSON.stringify({ family, students: createdStudents }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
