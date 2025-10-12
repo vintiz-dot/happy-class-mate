@@ -102,6 +102,8 @@ export type Database = {
           bank_name: string
           created_at: string
           id: number
+          org_address: string | null
+          org_name: string | null
           updated_at: string
           vietqr_storage_key: string | null
         }
@@ -111,6 +113,8 @@ export type Database = {
           bank_name?: string
           created_at?: string
           id?: number
+          org_address?: string | null
+          org_name?: string | null
           updated_at?: string
           vietqr_storage_key?: string | null
         }
@@ -120,6 +124,8 @@ export type Database = {
           bank_name?: string
           created_at?: string
           id?: number
+          org_address?: string | null
+          org_name?: string | null
           updated_at?: string
           vietqr_storage_key?: string | null
         }

@@ -9,7 +9,8 @@ import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountComput
 import { StudentTuitionOverview } from "@/components/admin/StudentTuitionOverview";
 import { TuitionCard } from "@/components/student/TuitionCard";
 import ProfilePicker from "@/components/ProfilePicker";
-import { DollarSign, Percent, Users, GraduationCap } from "lucide-react";
+import { AccountInfoManager } from "@/components/admin/AccountInfoManager";
+import { DollarSign, Percent, Users, GraduationCap, Building2 } from "lucide-react";
 
 const Tuition = () => {
   const { role } = useAuth();
@@ -39,7 +40,7 @@ const Tuition = () => {
 
         {role === "admin" ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview" className="gap-2">
                 <GraduationCap className="h-4 w-4" />
                 Overview
@@ -55,6 +56,10 @@ const Tuition = () => {
               <TabsTrigger value="siblings" className="gap-2">
                 <Users className="h-4 w-4" />
                 Sibling Discounts
+              </TabsTrigger>
+              <TabsTrigger value="account" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                Account Info
               </TabsTrigger>
             </TabsList>
 
@@ -102,6 +107,10 @@ const Tuition = () => {
                   <SiblingDiscountCompute />
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="account" className="space-y-6">
+              <AccountInfoManager />
             </TabsContent>
           </Tabs>
         ) : (

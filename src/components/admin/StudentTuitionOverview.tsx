@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Award, Loader2 } from "lucide-react";
+import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -136,6 +137,7 @@ export function StudentTuitionOverview() {
                 <TableHead className="text-right">Discounts</TableHead>
                 <TableHead className="text-right">Total Payable</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Invoice</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -177,6 +179,16 @@ export function StudentTuitionOverview() {
                         <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                           Pending
                         </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {tuition && (
+                        <InvoiceDownloadButton 
+                          studentId={student.id} 
+                          month={selectedMonth}
+                          variant="ghost"
+                          size="sm"
+                        />
                       )}
                     </TableCell>
                   </TableRow>

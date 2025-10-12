@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign, TrendingDown, Award, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 
 interface TuitionData {
   baseAmount: number;
@@ -88,11 +89,21 @@ export function TuitionCard({ studentId }: { studentId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5" />
-          Tuition - {format(new Date(), "MMMM yyyy")}
-        </CardTitle>
-        <CardDescription>{currentMonth.sessionCount} sessions this month</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Tuition - {format(new Date(), "MMMM yyyy")}
+            </CardTitle>
+            <CardDescription>{currentMonth.sessionCount} sessions this month</CardDescription>
+          </div>
+          <InvoiceDownloadButton 
+            studentId={studentId} 
+            month={format(new Date(), "yyyy-MM")}
+            variant="outline"
+            size="sm"
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {currentMonth.siblingState && (
