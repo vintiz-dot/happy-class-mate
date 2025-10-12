@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Students from "./pages/Students";
+import StudentDetail from "./pages/StudentDetail";
 import Teachers from "./pages/Teachers";
 import Classes from "./pages/Classes";
 import Finance from "./pages/Finance";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/students" element={<Students />} />
+          <Route path="/students/:id" element={<StudentDetail />} />
           <Route path="/teachers" element={<Teachers />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/finance" element={<Finance />} />

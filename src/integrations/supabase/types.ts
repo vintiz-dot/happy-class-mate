@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          created_at: string
+          id: string
+          marked_at: string
+          marked_by: string | null
+          notes: string | null
+          session_id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          notes?: string | null
+          session_id: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          notes?: string | null
+          session_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -76,38 +127,53 @@ export type Database = {
       }
       classes: {
         Row: {
+          allow_teacher_override: boolean
+          class_notes: string | null
           created_at: string
           created_by: string | null
+          default_session_length_minutes: number
           default_teacher_id: string | null
           id: string
           is_active: boolean
           name: string
           schedule_template: Json
           session_rate_vnd: number
+          teacher_lock_window_hours: number
+          typical_start_times: Json | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          allow_teacher_override?: boolean
+          class_notes?: string | null
           created_at?: string
           created_by?: string | null
+          default_session_length_minutes?: number
           default_teacher_id?: string | null
           id?: string
           is_active?: boolean
           name: string
           schedule_template?: Json
           session_rate_vnd?: number
+          teacher_lock_window_hours?: number
+          typical_start_times?: Json | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          allow_teacher_override?: boolean
+          class_notes?: string | null
           created_at?: string
           created_by?: string | null
+          default_session_length_minutes?: number
           default_teacher_id?: string | null
           id?: string
           is_active?: boolean
           name?: string
           schedule_template?: Json
           session_rate_vnd?: number
+          teacher_lock_window_hours?: number
+          typical_start_times?: Json | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -355,6 +421,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invoice_sequences: {
+        Row: {
+          created_at: string
+          last_number: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          last_number?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
       }
       invoices: {
         Row: {
