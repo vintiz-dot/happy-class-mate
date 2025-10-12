@@ -1,0 +1,66 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { ClassForm } from "@/components/admin/ClassForm";
+import { useQueryClient } from "@tanstack/react-query";
+import { Users, Clock } from "lucide-react";
+
+const ClassesTab = () => {
+  const queryClient = useQueryClient();
+
+  const { data: classes, isLoading } = useQuery({
+    queryKey: ["classes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("classes")
+        .select("*, enrollments(count)")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  return (
+    <div className="space-y-8">
+      <ClassForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })} />
+      
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Active Classes</h2>
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading classes...</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {classes?.map((cls) => (
+              <Link key={cls.id} to={`/admin/classes/${cls.id}`}>
+                <Card className="hover:border-primary transition-colors cursor-pointer">
+                  <CardHeader>
+                    <CardTitle>{cls.name}</CardTitle>
+                    <CardDescription className="flex items-center gap-4 mt-2">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {cls.enrollments?.[0]?.count || 0} students
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {cls.default_session_length_minutes}min
+                      </span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Rate: {cls.session_rate_vnd?.toLocaleString('vi-VN')} ₫/session
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ClassesTab;

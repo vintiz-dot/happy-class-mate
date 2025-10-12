@@ -428,6 +428,79 @@ export type Database = {
           },
         ]
       }
+      homework_files: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          homework_id: string
+          id: string
+          size_bytes: number
+          storage_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          homework_id: string
+          id?: string
+          size_bytes: number
+          storage_key: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          homework_id?: string
+          id?: string
+          size_bytes?: number
+          storage_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_files_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homeworks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homeworks: {
+        Row: {
+          body: string | null
+          class_id: string
+          created_at: string | null
+          created_by: string | null
+          due_date: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          class_id: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          class_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homeworks_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_sequences: {
         Row: {
           created_at: string
@@ -752,6 +825,7 @@ export type Database = {
           end_time: string
           id: string
           notes: string | null
+          rate_override_vnd: number | null
           start_time: string
           status: Database["public"]["Enums"]["session_status"]
           teacher_id: string
@@ -766,6 +840,7 @@ export type Database = {
           end_time: string
           id?: string
           notes?: string | null
+          rate_override_vnd?: number | null
           start_time: string
           status?: Database["public"]["Enums"]["session_status"]
           teacher_id: string
@@ -780,6 +855,7 @@ export type Database = {
           end_time?: string
           id?: string
           notes?: string | null
+          rate_override_vnd?: number | null
           start_time?: string
           status?: Database["public"]["Enums"]["session_status"]
           teacher_id?: string
@@ -1090,6 +1166,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_teacher_of_class: {
+        Args: { class_id: string; user_id: string }
         Returns: boolean
       }
       post_sibling_retro_credit: {
