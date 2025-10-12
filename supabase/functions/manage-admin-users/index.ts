@@ -15,9 +15,127 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify requester is admin
+    const { action, email, password, userId } = await req.json();
+
+    console.log('Action requested:', action);
+
+    // Special actions that don't require authentication
+    if (action === 'checkAdmins') {
+      console.log('Checking if admin users exist');
+      const { count, error: countError } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin');
+
+      if (countError) {
+        console.error('Error checking for admins:', countError);
+        return new Response(JSON.stringify({ error: countError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Admin count:', count);
+      return new Response(JSON.stringify({ hasAdmins: (count ?? 0) > 0 }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'bootstrap') {
+      console.log('Bootstrap action requested - checking if admins exist');
+      
+      // Check if any admins exist
+      const { count, error: countError } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin');
+
+      if (countError) {
+        console.error('Error checking for admins:', countError);
+        return new Response(JSON.stringify({ error: countError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if ((count ?? 0) > 0) {
+        console.log('Bootstrap denied: Admin users already exist');
+        return new Response(JSON.stringify({ 
+          error: 'Bootstrap denied: Admin users already exist' 
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Create the test admin user
+      const testEmail = 'test@admin.com';
+      const testPassword = 'abcabc!';
+
+      console.log('Creating bootstrap admin user:', testEmail);
+
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: testEmail,
+        password: testPassword,
+        email_confirm: true,
+      });
+
+      if (createError) {
+        console.error('Error creating bootstrap admin user:', createError);
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Bootstrap admin user created, assigning admin role');
+
+      // Assign admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: newUser.user.id,
+          role: 'admin',
+        });
+
+      if (roleError) {
+        console.error('Error assigning admin role:', roleError);
+        return new Response(JSON.stringify({ error: roleError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Log the bootstrap action
+      const { error: auditError } = await supabase
+        .from('audit_log')
+        .insert({
+          action: 'bootstrap_admin',
+          entity: 'user',
+          entity_id: newUser.user.id,
+          diff: { email: testEmail, role: 'admin' },
+        });
+
+      if (auditError) {
+        console.error('Error logging bootstrap action:', auditError);
+      }
+
+      console.log('Bootstrap admin created successfully');
+      return new Response(JSON.stringify({ 
+        success: true, 
+        userId: newUser.user.id,
+        email: testEmail 
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // All other actions require authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -50,8 +168,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-
-    const { action, email, password, userId } = await req.json();
 
     if (action === 'create') {
       // Create new admin user

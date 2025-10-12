@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,73 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
   const [loading, setLoading] = useState(false);
+  const [showBootstrap, setShowBootstrap] = useState(false);
+  const [checkingAdmins, setCheckingAdmins] = useState(true);
+  const [bootstrapping, setBootstrapping] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const checkForAdmins = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-admin-users', {
+        body: { action: 'checkAdmins' }
+      });
+
+      if (error) {
+        console.error('Error checking for admins:', error);
+      } else {
+        setShowBootstrap(!data.hasAdmins);
+      }
+    } catch (error) {
+      console.error('Error checking for admins:', error);
+    } finally {
+      setCheckingAdmins(false);
+    }
+  };
+
+  const handleBootstrap = async () => {
+    setBootstrapping(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-admin-users', {
+        body: { action: 'bootstrap' }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Bootstrap successful!",
+        description: "First admin created: test@admin.com / abcabc!",
+      });
+
+      // Auto-login with the new admin credentials
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: 'test@admin.com',
+        password: 'abcabc!',
+      });
+
+      if (loginError) throw loginError;
+
+      // Hide bootstrap button and navigate
+      setShowBootstrap(false);
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Bootstrap failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setBootstrapping(false);
+    }
+  };
+
+  useEffect(() => {
+    checkForAdmins();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +154,26 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {showBootstrap && !checkingAdmins && (
+            <div className="mb-6 p-4 border border-primary/20 rounded-lg bg-primary/5">
+              <h3 className="font-semibold text-sm mb-2">No Admin Accounts Exist</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Create the first admin account to get started with the system.
+              </p>
+              <Button 
+                onClick={handleBootstrap} 
+                disabled={bootstrapping}
+                variant="outline"
+                className="w-full"
+              >
+                {bootstrapping ? "Creating Admin..." : "Bootstrap First Admin"}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                This will create: test@admin.com / abcabc!
+              </p>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
