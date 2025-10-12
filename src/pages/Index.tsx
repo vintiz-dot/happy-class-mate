@@ -5,6 +5,9 @@ import { ClassForm } from "@/components/admin/ClassForm";
 import { ClassesList } from "@/components/admin/ClassesList";
 import { SessionGenerator } from "@/components/admin/SessionGenerator";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
+import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
+import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
+import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -79,16 +82,27 @@ const Index = () => {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold mb-2">Giáo viên</h2>
-              <p className="text-muted-foreground">Lịch dạy của bạn</p>
+              <p className="text-muted-foreground">Quản lý điểm danh và bài tập</p>
             </div>
-            <ScheduleCalendar role={role} />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <AttendanceMarking />
+              <AssignmentUpload />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Lịch dạy</h3>
+              <ScheduleCalendar role={role} />
+            </div>
           </div>
         )}
 
         {(role === "family" || role === "student") && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Lịch học</h2>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Học viên</h2>
+              <p className="text-muted-foreground">Lịch học và bài tập của bạn</p>
+            </div>
             <ScheduleCalendar role={role} />
+            <AssignmentsList />
           </div>
         )}
       </div>

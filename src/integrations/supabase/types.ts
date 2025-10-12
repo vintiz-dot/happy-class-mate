@@ -61,6 +61,72 @@ export type Database = {
           },
         ]
       }
+      enrollments: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          discount_cadence:
+            | Database["public"]["Enums"]["discount_cadence"]
+            | null
+          discount_type: Database["public"]["Enums"]["discount_type"] | null
+          discount_value: number | null
+          end_date: string | null
+          id: string
+          start_date: string
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          discount_cadence?:
+            | Database["public"]["Enums"]["discount_cadence"]
+            | null
+          discount_type?: Database["public"]["Enums"]["discount_type"] | null
+          discount_value?: number | null
+          end_date?: string | null
+          id?: string
+          start_date?: string
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          discount_cadence?:
+            | Database["public"]["Enums"]["discount_cadence"]
+            | null
+          discount_type?: Database["public"]["Enums"]["discount_type"] | null
+          discount_value?: number | null
+          end_date?: string | null
+          id?: string
+          start_date?: string
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           address: string | null
@@ -375,6 +441,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "teacher" | "family" | "student"
+      discount_cadence: "once" | "monthly"
+      discount_type: "percent" | "amount"
       session_status: "Scheduled" | "Held" | "Canceled"
     }
     CompositeTypes: {
@@ -504,6 +572,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "teacher", "family", "student"],
+      discount_cadence: ["once", "monthly"],
+      discount_type: ["percent", "amount"],
       session_status: ["Scheduled", "Held", "Canceled"],
     },
   },
