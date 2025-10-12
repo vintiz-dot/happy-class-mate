@@ -41,33 +41,18 @@ export function AdminUsersManager() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Get all users from auth.users via a query
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase.functions.invoke("manage-admin-users", {
+        body: { action: "listUsers" },
+      });
 
-      if (authError) throw authError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Get admin roles
-      const { data: adminRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin");
-
-      if (rolesError) throw rolesError;
-
-      const adminIds = new Set(adminRoles?.map(r => r.user_id) || []);
-
-      const usersWithRoles: UserWithRole[] = (authUsers.users || []).map(u => ({
-        id: u.id,
-        email: u.email || '',
-        created_at: u.created_at,
-        isAdmin: adminIds.has(u.id)
-      }));
-
-      setUsers(usersWithRoles);
+      setUsers(data.users || []);
     } catch (error: any) {
       toast({
         title: "Error loading users",
-        description: error.message,
+        description: error.message || "Failed to load users",
         variant: "destructive",
       });
     } finally {

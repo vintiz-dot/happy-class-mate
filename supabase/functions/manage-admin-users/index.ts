@@ -169,7 +169,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === 'create') {
+    if (action === 'listUsers') {
+      // List all users with their admin status
+      console.log('Listing all users');
+      
+      const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
+      
+      if (listError) {
+        console.error('Error listing users:', listError);
+        return new Response(JSON.stringify({ error: listError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Get admin roles
+      const { data: adminRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError);
+        return new Response(JSON.stringify({ error: rolesError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const adminIds = new Set(adminRoles?.map(r => r.user_id) || []);
+
+      const usersWithRoles = (authUsers.users || []).map(u => ({
+        id: u.id,
+        email: u.email || '',
+        created_at: u.created_at,
+        isAdmin: adminIds.has(u.id)
+      }));
+
+      console.log(`Listed ${usersWithRoles.length} users`);
+
+      return new Response(JSON.stringify({ users: usersWithRoles }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'create') {
       // Create new admin user
       if (!email || !password) {
         return new Response(JSON.stringify({ error: 'Email and password required' }), {
