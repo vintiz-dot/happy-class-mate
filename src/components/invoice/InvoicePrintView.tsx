@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 import { formatVND, formatDate, formatMonth } from "@/lib/invoice/formatter";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InvoicePrintViewProps {
   invoice: InvoiceData;
@@ -7,8 +9,19 @@ interface InvoicePrintViewProps {
 }
 
 export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (bankInfo.vietqr_storage_key) {
+      const { data } = supabase.storage
+        .from('qr-codes')
+        .getPublicUrl(bankInfo.vietqr_storage_key);
+      setQrUrl(data.publicUrl);
+    }
+  }, [bankInfo.vietqr_storage_key]);
+
   return (
-    <div className="invoice-print-view bg-white text-black p-8 max-w-[210mm] mx-auto relative min-h-[297mm]">
+    <div className="invoice-print-view bg-white text-black p-8 max-w-[210mm] mx-auto relative min-h-[297mm]" style={{ paddingTop: '20%' }}>
       {/* Background */}
       <div 
         className="absolute inset-0 opacity-95 pointer-events-none"
@@ -131,6 +144,15 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
               <div><span className="font-medium">Account Number:</span> {bankInfo.account_number}</div>
               <div><span className="font-medium">Account Name:</span> {bankInfo.account_name}</div>
             </div>
+            {qrUrl && (
+              <div className="flex justify-center items-center">
+                <img 
+                  src={qrUrl} 
+                  alt="VietQR Payment Code" 
+                  className="h-32 w-32 object-contain border rounded bg-white"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -145,7 +167,8 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
         @media print {
           .invoice-print-view {
             margin: 0;
-            padding: 20mm;
+            padding: 20%;
+            padding-top: 20%;
             max-width: 100%;
           }
           @page {

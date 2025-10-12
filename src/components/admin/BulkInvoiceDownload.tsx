@@ -8,6 +8,8 @@ import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
+import JSZip from "jszip";
+import html2pdf from "html2pdf.js";
 
 export function BulkInvoiceDownload({ month }: { month: string }) {
   const { toast } = useToast();
@@ -94,28 +96,34 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
         throw new Error('Bank information not configured. Please configure in Account Info.');
       }
 
-      // Download invoices one by one (open print dialog for each)
-      for (const studentId of studentIds) {
-        // Fetch student info
-        const { data: studentData, error: studentError } = await supabase
+      const zip = new JSZip();
+      const { createRoot } = await import('react-dom/client');
+
+      // Generate PDFs for each student
+      for (let i = 0; i < studentIds.length; i++) {
+        const studentId = studentIds[i];
+        
+        toast({
+          title: "Generating...",
+          description: `Processing invoice ${i + 1} of ${studentIds.length}`,
+        });
+
+        const { data: studentData } = await supabase
           .from('students')
           .select('id, full_name, family:families(name)')
           .eq('id', studentId)
           .single();
 
-        if (studentError) continue;
+        if (!studentData) continue;
 
-        // Fetch tuition data
-        const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke(
+        const { data: tuitionData } = await supabase.functions.invoke(
           'calculate-tuition',
-          { body: { studentId: studentId, month } }
+          { body: { studentId, month } }
         );
 
-        if (tuitionError) continue;
+        if (!tuitionData) continue;
 
-        // Group sessions by class
         const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
-        
         for (const session of tuitionData.sessionDetails || []) {
           const className = 'Class';
           if (!classBreakdown[className]) {
@@ -137,45 +145,49 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
           })),
         });
 
-        // Create a temporary container for printing
-        const printContainer = document.createElement('div');
-        printContainer.style.display = 'none';
-        document.body.appendChild(printContainer);
-        
+        // Create temporary container
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.width = '210mm';
+        document.body.appendChild(container);
+
         // Render invoice
-        const root = document.createElement('div');
-        printContainer.appendChild(root);
-        
-        // Note: This is a simplified approach. In production, you'd want to use
-        // a proper React rendering solution or a backend PDF generation service
-        const invoiceHTML = `
-          <html>
-            <head>
-              <title>Invoice - ${studentData.full_name}</title>
-            </head>
-            <body>
-              <div>Invoice for ${studentData.full_name} - ${month}</div>
-            </body>
-          </html>
-        `;
-        
-        // Open in new window for printing
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(invoiceHTML);
-          printWindow.document.close();
-          printWindow.print();
-        }
-        
-        document.body.removeChild(printContainer);
-        
-        // Add delay between prints
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const root = createRoot(container);
+        await new Promise<void>((resolve) => {
+          root.render(<InvoicePrintView invoice={invoice} bankInfo={bankData} />);
+          setTimeout(resolve, 500);
+        });
+
+        // Convert to PDF
+        const opt = {
+          margin: 0,
+          filename: `invoice-${month}-${studentData.full_name.replace(/\s+/g, '_')}.pdf`,
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+        };
+
+        const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
+        zip.file(opt.filename, pdfBlob);
+
+        // Cleanup
+        root.unmount();
+        document.body.removeChild(container);
       }
 
+      // Generate and download ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoices-${month}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
       toast({
-        title: "Bulk download initiated",
-        description: `Opening ${studentIds.length} invoice(s) for printing.`,
+        title: "Download complete",
+        description: `Generated ${studentIds.length} invoice(s) in ZIP file`,
       });
     } catch (error: any) {
       toast({

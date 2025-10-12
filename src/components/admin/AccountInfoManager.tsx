@@ -6,19 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 
 export function AccountInfoManager() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     org_name: '',
     org_address: '',
     bank_name: '',
     account_number: '',
     account_name: '',
+    vietqr_storage_key: '',
   });
+  const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBankInfo();
@@ -41,7 +44,16 @@ export function AccountInfoManager() {
           bank_name: data.bank_name || '',
           account_number: data.account_number || '',
           account_name: data.account_name || '',
+          vietqr_storage_key: data.vietqr_storage_key || '',
         });
+        
+        // Load QR code preview if exists
+        if (data.vietqr_storage_key) {
+          const { data: urlData } = supabase.storage
+            .from('qr-codes')
+            .getPublicUrl(data.vietqr_storage_key);
+          setQrPreviewUrl(urlData.publicUrl);
+        }
       }
     } catch (error: any) {
       toast({
@@ -51,6 +63,69 @@ export function AccountInfoManager() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `qr-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('qr-codes')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('qr-codes')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, vietqr_storage_key: fileName });
+      setQrPreviewUrl(urlData.publicUrl);
+
+      toast({
+        title: "Uploaded",
+        description: "QR code uploaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error uploading",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveQr = async () => {
+    if (!formData.vietqr_storage_key) return;
+
+    try {
+      const { error } = await supabase.storage
+        .from('qr-codes')
+        .remove([formData.vietqr_storage_key]);
+
+      if (error) throw error;
+
+      setFormData({ ...formData, vietqr_storage_key: '' });
+      setQrPreviewUrl(null);
+
+      toast({
+        title: "Removed",
+        description: "QR code removed successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error removing",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -150,6 +225,44 @@ export function AccountInfoManager() {
             onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
             placeholder="020975679889"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>VietQR Code</Label>
+          <div className="flex flex-col gap-3">
+            {qrPreviewUrl ? (
+              <div className="relative inline-block">
+                <img 
+                  src={qrPreviewUrl} 
+                  alt="QR Code Preview" 
+                  className="h-32 w-32 object-contain border rounded"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute -top-2 -right-2"
+                  onClick={handleRemoveQr}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrUpload}
+                  disabled={uploading}
+                  className="flex-1"
+                />
+                {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Upload a QR code image to display on invoices for easy payment
+            </p>
+          </div>
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto">
