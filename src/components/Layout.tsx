@@ -26,6 +26,7 @@ const Layout = ({ children }: LayoutProps) => {
           { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
           { icon: DollarSign, label: "Finance", path: "/finance" },
+          { icon: GraduationCap, label: "Tuition", path: "/tuition" },
         ];
       case "teacher":
         return [

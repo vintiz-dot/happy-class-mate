@@ -186,6 +186,26 @@ const Index = () => {
                 </CardContent>
               </Card>
 
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/tuition")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                    Tuition
+                  </CardTitle>
+                  <CardDescription>
+                    Manage student tuition
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    View tuition details, payments, and discounts
+                  </p>
+                </CardContent>
+              </Card>
+
             </div>
           </div>
         )}
