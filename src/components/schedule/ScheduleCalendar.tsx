@@ -79,14 +79,14 @@ export function ScheduleCalendar({ role }: { role: string }) {
   };
 
   if (isLoading) {
-    return <div>Đang tải lịch học...</div>;
+    return <div>Loading schedule...</div>;
   }
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Lịch học tháng {monthName}</CardTitle>
+          <CardTitle>Schedule for {monthName}</CardTitle>
           <div className="flex gap-2">
             <Button onClick={goToPreviousMonth} variant="outline" size="icon">
               <ChevronLeft className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function ScheduleCalendar({ role }: { role: string }) {
         <div className="space-y-4">
           {Object.keys(sessionsByDate).length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Không có buổi học nào trong tháng này
+              No sessions this month
             </p>
           ) : (
             Object.entries(sessionsByDate)
@@ -127,13 +127,13 @@ export function ScheduleCalendar({ role }: { role: string }) {
                             {session.start_time} - {session.end_time}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            GV: {session.teachers?.full_name}
+                            Teacher: {session.teachers?.full_name}
                           </p>
                         </div>
                         <Badge className={getStatusColor(session.status)}>
-                          {session.status === "Scheduled" && "Đã lên lịch"}
-                          {session.status === "Held" && "Đã học"}
-                          {session.status === "Canceled" && "Đã hủy"}
+                          {session.status === "Scheduled" && "Scheduled"}
+                          {session.status === "Held" && "Held"}
+                          {session.status === "Canceled" && "Canceled"}
                         </Badge>
                       </div>
                     ))}

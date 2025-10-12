@@ -22,7 +22,7 @@ export function ClassesList() {
   });
 
   if (isLoading) {
-    return <div>Đang tải...</div>;
+    return <div>Loading...</div>;
   }
 
   return (

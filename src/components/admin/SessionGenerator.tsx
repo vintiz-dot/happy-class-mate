@@ -25,14 +25,14 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
       if (error) throw error;
 
       toast({
-        title: "Thành công",
-        description: `Đã tạo ${data.sessionsCreated} buổi học cho tháng ${month}`,
+        title: "Success",
+        description: `Created ${data.sessionsCreated} sessions for month ${month}`,
       });
 
       onSuccess?.();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -46,12 +46,12 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5" />
-          Tạo lịch học tháng
+          Generate Monthly Schedule
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="month">Chọn tháng</Label>
+          <Label htmlFor="month">Select Month</Label>
           <Input
             id="month"
             type="month"
@@ -60,11 +60,11 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
           />
         </div>
         <Button onClick={handleGenerate} disabled={isGenerating} className="w-full">
-          {isGenerating ? "Đang tạo lịch..." : "Tạo lịch học"}
+          {isGenerating ? "Generating schedule..." : "Generate Schedule"}
         </Button>
         <p className="text-sm text-muted-foreground">
-          Hệ thống sẽ tự động tạo buổi học dựa trên lịch học hàng tuần của các lớp.
-          Nếu buổi học đã tồn tại hoặc giáo viên bận, buổi học sẽ được bỏ qua.
+          The system will automatically create sessions based on weekly class schedules.
+          If a session already exists or the teacher is busy, it will be skipped.
         </p>
       </CardContent>
     </Card>

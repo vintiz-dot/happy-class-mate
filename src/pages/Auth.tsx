@@ -35,8 +35,8 @@ const Auth = () => {
         if (error) throw error;
 
         toast({
-          title: "Đăng nhập thành công",
-          description: "Chào mừng bạn trở lại!",
+          title: "Login successful",
+          description: "Welcome back!",
         });
         navigate("/");
       } else {
@@ -56,14 +56,14 @@ const Auth = () => {
         if (error) throw error;
 
         toast({
-          title: "Đăng ký thành công",
-          description: "Tài khoản của bạn đã được tạo!",
+          title: "Registration successful",
+          description: "Your account has been created!",
         });
         navigate("/");
       }
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -82,7 +82,7 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
-            {mode === "login" ? "Đăng nhập" : "Đăng ký"}
+            {mode === "login" ? "Sign In" : "Sign Up"}
           </CardTitle>
           <CardDescription className="text-center">
             Tuition Manager - Happy English Club
@@ -102,7 +102,7 @@ const Auth = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mật khẩu</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -115,21 +115,21 @@ const Auth = () => {
             </div>
             {mode === "signup" && (
               <div className="space-y-2">
-                <Label htmlFor="role">Vai trò</Label>
+                <Label htmlFor="role">Role</Label>
                 <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn vai trò" />
+                    <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="student">Học sinh</SelectItem>
-                    <SelectItem value="family">Phụ huynh</SelectItem>
-                    <SelectItem value="teacher">Giáo viên</SelectItem>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="family">Parent</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
+              {loading ? "Processing..." : mode === "login" ? "Sign In" : "Sign Up"}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
@@ -138,7 +138,7 @@ const Auth = () => {
               onClick={() => setMode(mode === "login" ? "signup" : "login")}
               className="text-primary hover:underline"
             >
-              {mode === "login" ? "Chưa có tài khoản? Đăng ký" : "Đã có tài khoản? Đăng nhập"}
+              {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
           </div>
         </CardContent>

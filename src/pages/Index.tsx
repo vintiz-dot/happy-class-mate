@@ -42,7 +42,7 @@ const Index = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground">Đang tải...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -57,14 +57,14 @@ const Index = () => {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Chào mừng đến với Tuition Manager</p>
+          <p className="text-muted-foreground">Welcome to Tuition Manager</p>
         </div>
 
         {role === "admin" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Quản lý Admin</h2>
-              <p className="text-muted-foreground">Quản lý lớp học và lịch học</p>
+              <h2 className="text-2xl font-bold mb-2">Admin Management</h2>
+              <p className="text-muted-foreground">Manage classes and schedules</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -73,37 +73,37 @@ const Index = () => {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Danh sách lớp học</h3>
+              <h3 className="text-xl font-semibold mb-4">Class List</h3>
               <ClassesList />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Quản lý đăng ký lớp học</h3>
+              <h3 className="text-xl font-semibold mb-4">Enrollment Management</h3>
               <EnrollmentManager />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Quản lý giảm giá</h3>
+              <h3 className="text-xl font-semibold mb-4">Discount Management</h3>
               <DiscountManager />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Quản lý thanh toán</h3>
+              <h3 className="text-xl font-semibold mb-4">Payment Management</h3>
               <PaymentManager />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Bảng lương giáo viên</h3>
+              <h3 className="text-xl font-semibold mb-4">Teacher Payroll</h3>
               <PayrollManager />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Nhập / Xuất dữ liệu</h3>
+              <h3 className="text-xl font-semibold mb-4">Import / Export Data</h3>
               <DataImportExport />
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold mb-4">Lịch học</h3>
+              <h3 className="text-xl font-semibold mb-4">Schedule</h3>
               <ScheduleCalendar role={role} />
             </div>
           </div>
@@ -112,15 +112,15 @@ const Index = () => {
         {role === "teacher" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Giáo viên</h2>
-              <p className="text-muted-foreground">Quản lý điểm danh và bài tập</p>
+              <h2 className="text-2xl font-bold mb-2">Teacher</h2>
+              <p className="text-muted-foreground">Manage attendance and assignments</p>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <AttendanceMarking />
               <AssignmentUpload />
             </div>
             <div>
-              <h3 className="text-xl font-semibold mb-4">Lịch dạy</h3>
+              <h3 className="text-xl font-semibold mb-4">Teaching Schedule</h3>
               <ScheduleCalendar role={role} />
             </div>
           </div>
@@ -129,8 +129,8 @@ const Index = () => {
         {(role === "family" || role === "student") && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Học viên</h2>
-              <p className="text-muted-foreground">Lịch học và bài tập của bạn</p>
+              <h2 className="text-2xl font-bold mb-2">Student</h2>
+              <p className="text-muted-foreground">Your schedule and assignments</p>
             </div>
             {selectedStudent && <TuitionCard studentId={selectedStudent} />}
             <ScheduleCalendar role={role} />

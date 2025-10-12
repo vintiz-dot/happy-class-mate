@@ -21,28 +21,28 @@ const Layout = ({ children }: LayoutProps) => {
       case "admin":
         return [
           { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: Users, label: "Học sinh", path: "/students" },
-          { icon: BookOpen, label: "Lớp học", path: "/classes" },
-          { icon: Calendar, label: "Lịch học", path: "/schedule" },
-          { icon: DollarSign, label: "Tài chính", path: "/finance" },
+          { icon: Users, label: "Students", path: "/students" },
+          { icon: BookOpen, label: "Classes", path: "/classes" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: DollarSign, label: "Finance", path: "/finance" },
         ];
       case "teacher":
         return [
           { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: BookOpen, label: "Lớp của tôi", path: "/my-classes" },
-          { icon: Calendar, label: "Lịch dạy", path: "/schedule" },
+          { icon: BookOpen, label: "My Classes", path: "/my-classes" },
+          { icon: Calendar, label: "Teaching Schedule", path: "/schedule" },
         ];
       case "family":
         return [
           { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: Users, label: "Con em", path: "/students" },
-          { icon: DollarSign, label: "Học phí", path: "/tuition" },
+          { icon: Users, label: "Children", path: "/students" },
+          { icon: DollarSign, label: "Tuition", path: "/tuition" },
         ];
       case "student":
         return [
           { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: BookOpen, label: "Lớp học", path: "/classes" },
-          { icon: Calendar, label: "Lịch học", path: "/schedule" },
+          { icon: BookOpen, label: "Classes", path: "/classes" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
         ];
       default:
         return [];
@@ -72,7 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
             </div>
             <Button onClick={signOut} variant="outline" size="sm">
               <LogOut className="h-4 w-4 mr-2" />
-              Đăng xuất
+              Sign Out
             </Button>
           </div>
         </div>

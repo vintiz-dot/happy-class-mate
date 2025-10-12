@@ -58,7 +58,7 @@ const ProfilePicker = ({ onSelect }: ProfilePickerProps) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground">Đang tải...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -69,9 +69,9 @@ const ProfilePicker = ({ onSelect }: ProfilePickerProps) => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Chưa có học sinh</CardTitle>
+            <CardTitle>No Students</CardTitle>
             <CardDescription>
-              Tài khoản gia đình của bạn chưa được liên kết với học sinh nào. Vui lòng liên hệ quản trị viên.
+              Your family account is not linked to any students. Please contact the administrator.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -83,9 +83,9 @@ const ProfilePicker = ({ onSelect }: ProfilePickerProps) => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-2xl">Chọn hồ sơ học sinh</CardTitle>
+          <CardTitle className="text-2xl">Select Student Profile</CardTitle>
           <CardDescription>
-            Chọn học sinh để xem thông tin và quản lý
+            Choose a student to view information and manage
           </CardDescription>
         </CardHeader>
         <CardContent>

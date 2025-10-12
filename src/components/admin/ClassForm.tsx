@@ -16,13 +16,13 @@ interface WeeklySlot {
 }
 
 const DAYS = [
-  { value: 0, label: "Chủ Nhật" },
-  { value: 1, label: "Thứ Hai" },
-  { value: 2, label: "Thứ Ba" },
-  { value: 3, label: "Thứ Tư" },
-  { value: 4, label: "Thứ Năm" },
-  { value: 5, label: "Thứ Sáu" },
-  { value: 6, label: "Thứ Bảy" },
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
 ];
 
 const SESSION_RATES = [
@@ -70,8 +70,8 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
     
     if (!name || !teacherId || weeklySlots.length === 0) {
       toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng điền đầy đủ thông tin và thêm ít nhất một buổi học",
+        title: "Missing Information",
+        description: "Please fill in all information and add at least one session",
         variant: "destructive",
       });
       return;
@@ -89,8 +89,8 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
       if (error) throw error;
 
       toast({
-        title: "Thành công",
-        description: "Đã tạo lớp học mới",
+        title: "Success",
+        description: "New class created",
       });
 
       setName("");
@@ -100,7 +100,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
       onSuccess?.();
     } catch (error: any) {
       toast({
-        title: "Lỗi",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -112,25 +112,25 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tạo lớp học mới</CardTitle>
+        <CardTitle>Create New Class</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name">Tên lớp</Label>
+            <Label htmlFor="name">Class Name</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Lớp A1 - Sáng"
+              placeholder="e.g: Class A1 - Morning"
             />
           </div>
 
           <div>
-            <Label htmlFor="teacher">Giáo viên</Label>
+            <Label htmlFor="teacher">Teacher</Label>
             <Select value={teacherId} onValueChange={setTeacherId}>
               <SelectTrigger>
-                <SelectValue placeholder="Chọn giáo viên" />
+                <SelectValue placeholder="Select Teacher" />
               </SelectTrigger>
               <SelectContent>
                 {teachers?.map((teacher) => (
@@ -143,7 +143,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
           </div>
 
           <div>
-            <Label htmlFor="rate">Học phí mỗi buổi</Label>
+            <Label htmlFor="rate">Session Fee</Label>
             <Select value={sessionRate.toString()} onValueChange={(v) => setSessionRate(Number(v))}>
               <SelectTrigger>
                 <SelectValue />
@@ -160,17 +160,17 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Lịch học hàng tuần</Label>
+              <Label>Weekly Schedule</Label>
               <Button type="button" onClick={addSlot} size="sm" variant="outline">
                 <Plus className="h-4 w-4 mr-1" />
-                Thêm buổi học
+                Add Session
               </Button>
             </div>
 
             {weeklySlots.map((slot, index) => (
               <div key={index} className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <Label>Ngày</Label>
+                  <Label>Day</Label>
                   <Select
                     value={slot.dayOfWeek.toString()}
                     onValueChange={(v) => updateSlot(index, "dayOfWeek", Number(v))}
@@ -189,7 +189,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
                 </div>
 
                 <div className="flex-1">
-                  <Label>Bắt đầu</Label>
+                  <Label>Start</Label>
                   <Input
                     type="time"
                     value={slot.startTime}
@@ -198,7 +198,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
                 </div>
 
                 <div className="flex-1">
-                  <Label>Kết thúc</Label>
+                  <Label>End</Label>
                   <Input
                     type="time"
                     value={slot.endTime}
@@ -219,7 +219,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
           </div>
 
           <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Đang tạo..." : "Tạo lớp học"}
+            {isSubmitting ? "Creating..." : "Create Class"}
           </Button>
         </form>
       </CardContent>
