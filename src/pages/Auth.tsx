@@ -124,7 +124,6 @@ const Auth = () => {
                     <SelectItem value="student">Học sinh</SelectItem>
                     <SelectItem value="family">Phụ huynh</SelectItem>
                     <SelectItem value="teacher">Giáo viên</SelectItem>
-                    <SelectItem value="admin">Quản trị viên</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

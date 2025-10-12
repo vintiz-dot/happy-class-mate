@@ -34,15 +34,15 @@ export function useAuth() {
         // Fetch role after state update
         if (session?.user) {
           setTimeout(async () => {
-            const { data: userData } = await supabase
-              .from("users")
+            const { data: roleData } = await supabase
+              .from("user_roles")
               .select("role")
-              .eq("id", session.user.id)
+              .eq("user_id", session.user.id)
               .single();
 
             setAuthState(prev => ({
               ...prev,
-              role: userData?.role as UserRole || null,
+              role: roleData?.role as UserRole || null,
               loading: false,
             }));
           }, 0);
@@ -62,14 +62,14 @@ export function useAuth() {
 
       if (session?.user) {
         supabase
-          .from("users")
+          .from("user_roles")
           .select("role")
-          .eq("id", session.user.id)
+          .eq("user_id", session.user.id)
           .single()
-          .then(({ data: userData }) => {
+          .then(({ data: roleData }) => {
             setAuthState(prev => ({
               ...prev,
-              role: userData?.role as UserRole || null,
+              role: roleData?.role as UserRole || null,
               loading: false,
             }));
           });
