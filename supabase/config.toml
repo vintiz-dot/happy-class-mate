@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.calculate-tuition]
 verify_jwt = false
 
+[functions.compute-sibling-discounts]
+verify_jwt = false
+
 [functions.post-payment]
 verify_jwt = false
 

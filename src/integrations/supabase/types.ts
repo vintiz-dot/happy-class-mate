@@ -776,6 +776,51 @@ export type Database = {
           },
         ]
       }
+      sibling_discount_state: {
+        Row: {
+          computed_at: string
+          family_id: string
+          month: string
+          reason: string | null
+          sibling_percent: number
+          status: string
+          winner_student_id: string | null
+        }
+        Insert: {
+          computed_at?: string
+          family_id: string
+          month: string
+          reason?: string | null
+          sibling_percent: number
+          status: string
+          winner_student_id?: string | null
+        }
+        Update: {
+          computed_at?: string
+          family_id?: string
+          month?: string
+          reason?: string | null
+          sibling_percent?: number
+          status?: string
+          winner_student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sibling_discount_state_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sibling_discount_state_winner_student_id_fkey"
+            columns: ["winner_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           created_at: string

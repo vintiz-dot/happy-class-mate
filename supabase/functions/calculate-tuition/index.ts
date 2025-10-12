@@ -170,33 +170,28 @@ Deno.serve(async (req) => {
       totalDiscount += discountAmount
     }
 
-    // 4. Sibling discount - only ONE student per family gets this
+    // 4. Sibling discount - check state table for assignment
     if (student.families?.id) {
-      // Get all students in family with enrollments
-      const { data: familyStudents } = await supabase
-        .from('students')
-        .select('id')
+      const { data: siblingState } = await supabase
+        .from('sibling_discount_state')
+        .select('status, winner_student_id, sibling_percent')
         .eq('family_id', student.families.id)
-        .eq('is_active', true)
+        .eq('month', month)
+        .single()
 
-      if (familyStudents && familyStudents.length > 1) {
-        // Determine sibling discount winner (simplified - just give to this student if lowest ID)
-        const studentIds = familyStudents.map(s => s.id).sort()
-        const isSiblingWinner = studentIds[0] === studentId
-
-        if (isSiblingWinner) {
-          const siblingPercent = student.families.sibling_percent_override || 5
-          const siblingDiscount = Math.round(baseAmount * siblingPercent / 100)
-          
-          discounts.push({
-            name: 'Sibling Discount',
-            type: 'percent',
-            value: siblingPercent,
-            amount: siblingDiscount,
-            isSiblingWinner: true
-          })
-          totalDiscount += siblingDiscount
-        }
+      // Only apply if status is 'assigned' and this student is the winner
+      if (siblingState?.status === 'assigned' && siblingState.winner_student_id === studentId) {
+        const siblingPercent = siblingState.sibling_percent
+        const siblingDiscount = Math.round(baseAmount * siblingPercent / 100)
+        
+        discounts.push({
+          name: 'Sibling Discount',
+          type: 'percent',
+          value: siblingPercent,
+          amount: siblingDiscount,
+          isSiblingWinner: true
+        })
+        totalDiscount += siblingDiscount
       }
     }
 
