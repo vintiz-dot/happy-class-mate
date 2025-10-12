@@ -1,27 +1,18 @@
 import Layout from "@/components/Layout";
 import ProfilePicker from "@/components/ProfilePicker";
 import { useAuth } from "@/hooks/useAuth";
-import { ClassForm } from "@/components/admin/ClassForm";
-import { ClassesList } from "@/components/admin/ClassesList";
-import { SessionGenerator } from "@/components/admin/SessionGenerator";
-import { EnrollmentManager } from "@/components/admin/EnrollmentManager";
-import { DiscountManager } from "@/components/admin/DiscountManager";
-import { PaymentManager } from "@/components/admin/PaymentManager";
-import { PayrollManager } from "@/components/admin/PayrollManager";
-import { DataImportExport } from "@/components/admin/DataImportExport";
-import { AdminUsersManager } from "@/components/admin/AdminUsersManager";
 import { TuitionCard } from "@/components/student/TuitionCard";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
 import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
 import { AssignmentsList } from "@/components/student/AssignmentsList";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog } from "lucide-react";
 
 const Index = () => {
   const { user, role, loading } = useAuth();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
@@ -64,53 +55,130 @@ const Index = () => {
         {role === "admin" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Admin Management</h2>
-              <p className="text-muted-foreground">Manage classes and schedules</p>
+              <h2 className="text-2xl font-bold mb-2">Admin Dashboard</h2>
+              <p className="text-muted-foreground">Quick access to all management sections</p>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <ClassForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })} />
-              <SessionGenerator onSuccess={() => queryClient.invalidateQueries({ queryKey: ["sessions"] })} />
-            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/students")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Students
+                  </CardTitle>
+                  <CardDescription>
+                    Manage student records and enrollments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    View, create, and manage student information
+                  </p>
+                </CardContent>
+              </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Class List</h3>
-              <ClassesList />
-            </div>
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/teachers")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCog className="h-5 w-5 text-primary" />
+                    Teachers
+                  </CardTitle>
+                  <CardDescription>
+                    Manage teacher accounts and payroll
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Create teachers, manage admin users, and process payroll
+                  </p>
+                </CardContent>
+              </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Enrollment Management</h3>
-              <EnrollmentManager />
-            </div>
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/classes")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    Classes
+                  </CardTitle>
+                  <CardDescription>
+                    Manage classes and enrollments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Create classes, manage enrollments, and assign students
+                  </p>
+                </CardContent>
+              </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Discount Management</h3>
-              <DiscountManager />
-            </div>
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/schedule")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Schedule
+                  </CardTitle>
+                  <CardDescription>
+                    Manage sessions and timetables
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Generate sessions and view the class schedule
+                  </p>
+                </CardContent>
+              </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Payment Management</h3>
-              <PaymentManager />
-            </div>
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/finance")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Finance
+                  </CardTitle>
+                  <CardDescription>
+                    Manage payments and discounts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Process payments, manage discounts, and handle tuition
+                  </p>
+                </CardContent>
+              </Card>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Teacher Payroll</h3>
-              <PayrollManager />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Import / Export Data</h3>
-              <DataImportExport />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Admin Users</h3>
-              <AdminUsersManager />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Schedule</h3>
-              <ScheduleCalendar role={role} />
+              <Card 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate("/")}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                    Overview
+                  </CardTitle>
+                  <CardDescription>
+                    System statistics and reports
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    View overall system metrics and generate reports
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
