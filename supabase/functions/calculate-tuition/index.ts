@@ -170,28 +170,36 @@ Deno.serve(async (req) => {
       totalDiscount += discountAmount
     }
 
-    // 4. Sibling discount - check state table for assignment
+    // 4. Sibling discount - get state and apply if assigned
+    let siblingState = null
     if (student.families?.id) {
-      const { data: siblingState } = await supabase
+      const { data: stateData } = await supabase
         .from('sibling_discount_state')
-        .select('status, winner_student_id, sibling_percent')
+        .select('status, winner_student_id, sibling_percent, reason')
         .eq('family_id', student.families.id)
         .eq('month', month)
-        .single()
+        .maybeSingle()
 
-      // Only apply if status is 'assigned' and this student is the winner
-      if (siblingState?.status === 'assigned' && siblingState.winner_student_id === studentId) {
-        const siblingPercent = siblingState.sibling_percent
-        const siblingDiscount = Math.round(baseAmount * siblingPercent / 100)
-        
-        discounts.push({
-          name: 'Sibling Discount',
-          type: 'percent',
-          value: siblingPercent,
-          amount: siblingDiscount,
-          isSiblingWinner: true
-        })
-        totalDiscount += siblingDiscount
+      if (stateData) {
+        siblingState = {
+          status: stateData.status,
+          percent: stateData.sibling_percent,
+          reason: stateData.reason,
+          isWinner: stateData.winner_student_id === studentId
+        }
+
+        // Only apply discount if assigned and this student is the winner
+        if (stateData.status === 'assigned' && stateData.winner_student_id === studentId) {
+          const siblingAmount = Math.round(baseAmount * (stateData.sibling_percent / 100))
+          discounts.push({
+            name: 'Sibling Discount',
+            type: 'percent',
+            value: stateData.sibling_percent,
+            amount: siblingAmount,
+            isSiblingWinner: true
+          })
+          totalDiscount += siblingAmount
+        }
       }
     }
 
@@ -205,7 +213,8 @@ Deno.serve(async (req) => {
       totalDiscount,
       totalAmount,
       sessionDetails,
-      sessionCount: sessionDetails.length
+      sessionCount: sessionDetails.length,
+      siblingState
     }
 
     console.log('Tuition calculation:', response)

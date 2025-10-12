@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.compute-sibling-discounts]
 verify_jwt = false
 
+[functions.watch-sibling-threshold]
+verify_jwt = false
+
 [functions.post-payment]
 verify_jwt = false
 

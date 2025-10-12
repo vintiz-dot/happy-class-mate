@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, TrendingDown, Award } from "lucide-react";
+import { DollarSign, TrendingDown, Award, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface TuitionData {
@@ -18,6 +18,12 @@ interface TuitionData {
   totalDiscount: number;
   totalAmount: number;
   sessionCount: number;
+  siblingState?: {
+    status: 'assigned' | 'pending' | 'none';
+    percent: number;
+    reason?: string;
+    isWinner: boolean;
+  } | null;
 }
 
 export function TuitionCard({ studentId }: { studentId: string }) {
@@ -79,8 +85,6 @@ export function TuitionCard({ studentId }: { studentId: string }) {
     );
   }
 
-  const siblingDiscount = currentMonth.discounts.find(d => d.isSiblingWinner);
-
   return (
     <Card>
       <CardHeader>
@@ -91,12 +95,37 @@ export function TuitionCard({ studentId }: { studentId: string }) {
         <CardDescription>{currentMonth.sessionCount} sessions this month</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {siblingDiscount && (
-          <div className="p-3 bg-primary/10 rounded-lg flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
-            <p className="text-sm font-medium">
-              Sibling Discount Recipient ({siblingDiscount.value}%)
-            </p>
+        {currentMonth.siblingState && (
+          <div 
+            className={`p-3 rounded-lg flex items-start gap-2 ${
+              currentMonth.siblingState.status === 'assigned' && currentMonth.siblingState.isWinner
+                ? 'bg-primary/10' 
+                : currentMonth.siblingState.status === 'pending'
+                ? 'bg-yellow-50 dark:bg-yellow-950'
+                : 'bg-muted'
+            }`}
+          >
+            {currentMonth.siblingState.status === 'assigned' && currentMonth.siblingState.isWinner ? (
+              <>
+                <Award className="h-5 w-5 text-primary mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Sibling Discount Recipient ({currentMonth.siblingState.percent}%)</p>
+                  <p className="text-xs text-muted-foreground">You have the lowest tuition among siblings</p>
+                </div>
+              </>
+            ) : currentMonth.siblingState.status === 'pending' ? (
+              <>
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                    Sibling Discount Pending
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                    Requires ≥2 siblings with tuition this month
+                  </p>
+                </div>
+              </>
+            ) : null}
           </div>
         )}
 

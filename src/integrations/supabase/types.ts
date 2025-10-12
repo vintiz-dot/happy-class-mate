@@ -499,6 +499,27 @@ export type Database = {
           },
         ]
       }
+      job_lock: {
+        Row: {
+          finished_at: string | null
+          job: string
+          month: string
+          started_at: string
+        }
+        Insert: {
+          finished_at?: string | null
+          job: string
+          month: string
+          started_at?: string
+        }
+        Update: {
+          finished_at?: string | null
+          job?: string
+          month?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
       ledger_accounts: {
         Row: {
           code: Database["public"]["Enums"]["account_code"]
@@ -781,6 +802,7 @@ export type Database = {
           computed_at: string
           family_id: string
           month: string
+          projected_base_snapshot: number | null
           reason: string | null
           sibling_percent: number
           status: string
@@ -790,6 +812,7 @@ export type Database = {
           computed_at?: string
           family_id: string
           month: string
+          projected_base_snapshot?: number | null
           reason?: string | null
           sibling_percent: number
           status: string
@@ -799,6 +822,7 @@ export type Database = {
           computed_at?: string
           family_id?: string
           month?: string
+          projected_base_snapshot?: number | null
           reason?: string | null
           sibling_percent?: number
           status?: string
@@ -1009,7 +1033,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_projected_base: {
+        Row: {
+          month_start: string | null
+          projected_base: number | null
+          projected_sessions: number | null
+          student_id: string | null
+          ym: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _attendance_seed_for_class_dates: {
@@ -1044,6 +1085,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      post_sibling_retro_credit: {
+        Args: {
+          p_amount: number
+          p_memo: string
+          p_month: string
+          p_student_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

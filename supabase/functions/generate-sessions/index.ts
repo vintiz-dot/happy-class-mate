@@ -1,47 +1,55 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { acquireLock, releaseLock, ymNowBangkok } from '../_lib/lock.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 interface WeeklySlot {
-  dayOfWeek: number; // 0=Sunday, 1=Monday, etc.
-  startTime: string; // HH:mm format
-  endTime: string;   // HH:mm format
+  dayOfWeek: number
+  startTime: string
+  endTime: string
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          persistSession: false,
-        },
-      }
-    );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { month } = await req.json(); // Format: YYYY-MM
+  try {
+    const body = await req.json().catch(() => ({}))
+    const month = body?.month ?? ymNowBangkok()
     
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      throw new Error('Invalid month format. Expected YYYY-MM');
+      throw new Error('Invalid month format. Expected YYYY-MM')
     }
 
-    console.log(`Generating sessions for month: ${month}`);
+    console.log(`Generating sessions for month: ${month}`)
+
+    // Acquire lock
+    const lockAcquired = await acquireLock(supabase, 'generate-sessions', month)
+    if (!lockAcquired) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        reason: 'Job already running for this month' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
 
     // Get all active classes
-    const { data: classes, error: classesError } = await supabaseClient
+    const { data: classes, error: classesError } = await supabase
       .from('classes')
       .select('id, name, default_teacher_id, session_rate_vnd, schedule_template')
-      .eq('is_active', true);
+      .eq('is_active', true)
 
-    if (classesError) throw classesError;
+    if (classesError) throw classesError
 
     const [year, monthNum] = month.split('-').map(Number);
     const startDate = new Date(year, monthNum - 1, 1);
@@ -71,21 +79,21 @@ Deno.serve(async (req) => {
           // Check if session already exists
           const dateStr = d.toISOString().split('T')[0];
           
-          const { data: existing } = await supabaseClient
+          const { data: existing } = await supabase
             .from('sessions')
             .select('id')
             .eq('class_id', cls.id)
             .eq('date', dateStr)
             .eq('start_time', slot.startTime)
-            .maybeSingle();
+            .maybeSingle()
 
           if (existing) {
-            console.log(`Session already exists for ${cls.name} on ${dateStr} at ${slot.startTime}`);
-            continue;
+            console.log(`Session already exists for ${cls.name} on ${dateStr} at ${slot.startTime}`)
+            continue
           }
 
           // Check teacher availability
-          const { data: available } = await supabaseClient.rpc(
+          const { data: available } = await supabase.rpc(
             'check_teacher_availability',
             {
               p_teacher_id: cls.default_teacher_id,
@@ -93,11 +101,11 @@ Deno.serve(async (req) => {
               p_start_time: slot.startTime,
               p_end_time: slot.endTime,
             }
-          );
+          )
 
           if (!available) {
-            console.log(`Teacher conflict for ${cls.name} on ${dateStr} at ${slot.startTime}`);
-            continue;
+            console.log(`Teacher conflict for ${cls.name} on ${dateStr} at ${slot.startTime}`)
+            continue
           }
 
           sessionsToCreate.push({
@@ -112,49 +120,45 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Creating ${sessionsToCreate.length} sessions`);
+    console.log(`Creating ${sessionsToCreate.length} sessions`)
 
     if (sessionsToCreate.length > 0) {
-      const { data, error: insertError } = await supabaseClient
+      const { data, error: insertError } = await supabase
         .from('sessions')
         .insert(sessionsToCreate)
-        .select();
+        .select()
 
-      if (insertError) throw insertError;
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          sessionsCreated: data?.length || 0,
-          sessions: data,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
+      if (insertError) throw insertError
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        sessionsCreated: 0,
-        message: 'No new sessions to create',
+        month,
+        sessionsCreated: sessionsToCreate.length
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
-    );
-
+    )
   } catch (error: any) {
-    console.error('Error generating sessions:', error);
+    console.error('Error generating sessions:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       }
-    );
+    )
+  } finally {
+    // Always release lock
+    try {
+      const body = await req.clone().json().catch(() => ({}))
+      const month = body?.month ?? ymNowBangkok()
+      await releaseLock(supabase, 'generate-sessions', month)
+    } catch (e) {
+      console.error('Error releasing lock:', e)
+    }
   }
-});
+})
