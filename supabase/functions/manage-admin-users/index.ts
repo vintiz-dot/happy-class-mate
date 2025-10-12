@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { action, email, password, userId } = await req.json();
+    const { action, email, password, userId, teacherId, familyId, newEmail, role } = await req.json();
 
     console.log('Action requested:', action);
 
@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'listUsers') {
-      // List all users with their admin status
+      // List all users with their roles and links
       console.log('Listing all users');
       
       const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
@@ -183,11 +183,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get admin roles
-      const { data: adminRoles, error: rolesError } = await supabase
+      // Get all roles
+      const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin');
+        .select('user_id, role');
 
       if (rolesError) {
         console.error('Error fetching roles:', rolesError);
@@ -197,13 +196,32 @@ Deno.serve(async (req) => {
         });
       }
 
-      const adminIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      // Get teacher links
+      const { data: teachers } = await supabase
+        .from('teachers')
+        .select('user_id, id, full_name');
+
+      // Get family links
+      const { data: families } = await supabase
+        .from('families')
+        .select('primary_user_id, id, name');
+
+      const roleMap = new Map();
+      userRoles?.forEach(r => {
+        if (!roleMap.has(r.user_id)) roleMap.set(r.user_id, []);
+        roleMap.get(r.user_id).push(r.role);
+      });
+
+      const teacherMap = new Map(teachers?.map(t => [t.user_id, { id: t.id, name: t.full_name }]) || []);
+      const familyMap = new Map(families?.map(f => [f.primary_user_id, { id: f.id, name: f.name }]) || []);
 
       const usersWithRoles = (authUsers.users || []).map(u => ({
         id: u.id,
         email: u.email || '',
         created_at: u.created_at,
-        isAdmin: adminIds.has(u.id)
+        roles: roleMap.get(u.id) || [],
+        teacher: teacherMap.get(u.id),
+        family: familyMap.get(u.id)
       }));
 
       console.log(`Listed ${usersWithRoles.length} users`);
@@ -373,6 +391,210 @@ Deno.serve(async (req) => {
       });
 
       console.log('Admin role revoked:', userId);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'delete') {
+      // Delete user
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'User ID required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Prevent self-deletion
+      if (userId === user.id) {
+        return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+
+      if (deleteError) {
+        console.error('User delete error:', deleteError);
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        actor_user_id: user.id,
+        action: 'delete_user',
+        entity: 'user',
+        entity_id: userId
+      });
+
+      console.log('User deleted:', userId);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'updateEmail') {
+      // Update user email
+      if (!userId || !newEmail) {
+        return new Response(JSON.stringify({ error: 'User ID and new email required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        userId,
+        { email: newEmail }
+      );
+
+      if (updateError) {
+        console.error('Email update error:', updateError);
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        actor_user_id: user.id,
+        action: 'update_user_email',
+        entity: 'user',
+        entity_id: userId,
+        diff: { newEmail }
+      });
+
+      console.log('User email updated:', userId, newEmail);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'linkToTeacher') {
+      // Link user to teacher
+      if (!userId || !teacherId) {
+        return new Response(JSON.stringify({ error: 'User ID and Teacher ID required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { error: linkError } = await supabase
+        .from('teachers')
+        .update({ user_id: userId })
+        .eq('id', teacherId);
+
+      if (linkError) {
+        console.error('Teacher link error:', linkError);
+        return new Response(JSON.stringify({ error: linkError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Add teacher role if not exists
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .upsert({ user_id: userId, role: 'teacher' }, { onConflict: 'user_id,role' });
+
+      if (roleError) {
+        console.error('Role upsert error:', roleError);
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        actor_user_id: user.id,
+        action: 'link_user_to_teacher',
+        entity: 'user',
+        entity_id: userId,
+        diff: { teacherId }
+      });
+
+      console.log('User linked to teacher:', userId, teacherId);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'linkToFamily') {
+      // Link user to family
+      if (!userId || !familyId) {
+        return new Response(JSON.stringify({ error: 'User ID and Family ID required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { error: linkError } = await supabase
+        .from('families')
+        .update({ primary_user_id: userId })
+        .eq('id', familyId);
+
+      if (linkError) {
+        console.error('Family link error:', linkError);
+        return new Response(JSON.stringify({ error: linkError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        actor_user_id: user.id,
+        action: 'link_user_to_family',
+        entity: 'user',
+        entity_id: userId,
+        diff: { familyId }
+      });
+
+      console.log('User linked to family:', userId, familyId);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } else if (action === 'updateRole') {
+      // Update user role
+      if (!userId || !role) {
+        return new Response(JSON.stringify({ error: 'User ID and role required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Delete existing roles
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Insert new role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+
+      if (roleError) {
+        console.error('Role update error:', roleError);
+        return new Response(JSON.stringify({ error: roleError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        actor_user_id: user.id,
+        action: 'update_user_role',
+        entity: 'user',
+        entity_id: userId,
+        diff: { role }
+      });
+
+      console.log('User role updated:', userId, role);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

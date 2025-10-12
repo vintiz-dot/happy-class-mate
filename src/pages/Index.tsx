@@ -9,8 +9,9 @@ import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog, Home } from "lucide-react";
+import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog, Home, UserCheck } from "lucide-react";
 import { OverviewStats } from "@/components/admin/OverviewStats";
+import { UsersManager } from "@/components/admin/UsersManager";
 
 const Index = () => {
   const { user, role, loading } = useAuth();
@@ -61,6 +62,8 @@ const Index = () => {
             </div>
 
             <OverviewStats />
+
+            <UsersManager />
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <Card 
