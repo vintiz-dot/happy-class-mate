@@ -1,10 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock, User, Trash2, Edit } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function ClassesList() {
+  const queryClient = useQueryClient();
+  
   const { data: classes, isLoading } = useQuery({
     queryKey: ["classes"],
     queryFn: async () => {
@@ -18,6 +33,23 @@ export function ClassesList() {
         .order("name");
       if (error) throw error;
       return data;
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (classId: string) => {
+      const { error } = await supabase
+        .from("classes")
+        .update({ is_active: false })
+        .eq("id", classId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class deleted successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete class: " + error.message);
     },
   });
 
@@ -57,6 +89,31 @@ export function ClassesList() {
                     <span>{slot.startTime} - {slot.endTime}</span>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex gap-2 pt-3 border-t">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="flex-1">
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Class</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete {cls.name}? This will mark it as inactive.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate(cls.id)}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>
