@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          diff: Json | null
+          entity: string
+          entity_id: string | null
+          id: string
+          occurred_at: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          diff?: Json | null
+          entity: string
+          entity_id?: string | null
+          id?: string
+          occurred_at?: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          diff?: Json | null
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          occurred_at?: string
+        }
+        Relationships: []
+      }
       bank_info: {
         Row: {
           account_name: string
@@ -508,6 +538,47 @@ export type Database = {
           },
         ]
       }
+      payroll_summaries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          sessions_count: number
+          teacher_id: string
+          total_amount: number
+          total_hours: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          sessions_count?: number
+          teacher_id: string
+          total_amount?: number
+          total_hours?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          sessions_count?: number
+          teacher_id?: string
+          total_amount?: number
+          total_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_summaries_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_bonuses: {
         Row: {
           cadence: Database["public"]["Enums"]["discount_cadence"]
@@ -791,6 +862,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_student: {
+        Args: { student_id: string; user_id: string }
+        Returns: boolean
+      }
       check_teacher_availability: {
         Args: {
           p_date: string
