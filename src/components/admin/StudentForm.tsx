@@ -141,7 +141,6 @@ export function StudentForm({ onSuccess }: { onSuccess?: () => void }) {
                   <SelectValue placeholder="Select family or leave blank" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No family</SelectItem>
                   {families?.map((family) => (
                     <SelectItem key={family.id} value={family.id}>
                       {family.name}
