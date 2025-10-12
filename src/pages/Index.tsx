@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { ClassForm } from "@/components/admin/ClassForm";
 import { ClassesList } from "@/components/admin/ClassesList";
 import { SessionGenerator } from "@/components/admin/SessionGenerator";
+import { EnrollmentManager } from "@/components/admin/EnrollmentManager";
+import { DiscountManager } from "@/components/admin/DiscountManager";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
 import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
@@ -69,6 +71,16 @@ const Index = () => {
             <div>
               <h3 className="text-xl font-semibold mb-4">Danh sách lớp học</h3>
               <ClassesList />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Quản lý đăng ký lớp học</h3>
+              <EnrollmentManager />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Quản lý giảm giá</h3>
+              <DiscountManager />
             </div>
 
             <div>

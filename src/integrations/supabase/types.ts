@@ -61,6 +61,108 @@ export type Database = {
           },
         ]
       }
+      discount_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          discount_def_id: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          note: string | null
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          discount_def_id: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          note?: string | null
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          discount_def_id?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          note?: string | null
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_assignments_discount_def_id_fkey"
+            columns: ["discount_def_id"]
+            isOneToOne: false
+            referencedRelation: "discount_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_definitions: {
+        Row: {
+          amortize_yearly: boolean
+          cadence: Database["public"]["Enums"]["discount_cadence"]
+          created_at: string
+          created_by: string | null
+          end_month: string | null
+          id: string
+          is_active: boolean
+          name: string
+          start_month: string
+          type: Database["public"]["Enums"]["discount_type"]
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          amortize_yearly?: boolean
+          cadence: Database["public"]["Enums"]["discount_cadence"]
+          created_at?: string
+          created_by?: string | null
+          end_month?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          start_month: string
+          type: Database["public"]["Enums"]["discount_type"]
+          updated_at?: string
+          updated_by?: string | null
+          value: number
+        }
+        Update: {
+          amortize_yearly?: boolean
+          cadence?: Database["public"]["Enums"]["discount_cadence"]
+          created_at?: string
+          created_by?: string | null
+          end_month?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_month?: string
+          type?: Database["public"]["Enums"]["discount_type"]
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           class_id: string
@@ -190,6 +292,59 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_bonuses: {
+        Row: {
+          cadence: Database["public"]["Enums"]["discount_cadence"]
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          id: string
+          note: string | null
+          student_id: string
+          type: Database["public"]["Enums"]["discount_type"]
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          cadence: Database["public"]["Enums"]["discount_cadence"]
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          note?: string | null
+          student_id: string
+          type: Database["public"]["Enums"]["discount_type"]
+          updated_at?: string
+          updated_by?: string | null
+          value: number
+        }
+        Update: {
+          cadence?: Database["public"]["Enums"]["discount_cadence"]
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          note?: string | null
+          student_id?: string
+          type?: Database["public"]["Enums"]["discount_type"]
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_bonuses_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
