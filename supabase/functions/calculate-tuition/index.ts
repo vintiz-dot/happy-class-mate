@@ -62,13 +62,14 @@ Deno.serve(async (req) => {
 
     const classIds = enrollments?.map(e => e.class_id) || []
     
+    // Get PROJECTED sessions (Scheduled or Held) for UI display
     const { data: sessions } = await supabase
       .from('sessions')
       .select('id, date, status, classes(session_rate_vnd)')
       .in('class_id', classIds)
       .gte('date', startDate)
       .lte('date', endDate)
-      .eq('status', 'Held')
+      .in('status', ['Scheduled', 'Held'])
 
     console.log('Found sessions:', sessions?.length)
 

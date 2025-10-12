@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.create-family]
 verify_jwt = true
+
+[functions.link-student-user]
+verify_jwt = true

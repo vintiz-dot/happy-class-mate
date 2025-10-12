@@ -7,9 +7,14 @@ import { StudentOverviewTab } from "@/components/student/StudentOverviewTab";
 import { StudentTuitionTab } from "@/components/student/StudentTuitionTab";
 import { StudentAttendanceTab } from "@/components/student/StudentAttendanceTab";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Link } from "lucide-react";
+import { useState } from "react";
+import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
 
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student-detail", id],
@@ -62,11 +67,18 @@ const StudentDetail = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{student.full_name}</h1>
-          <p className="text-muted-foreground">
-            Family: {student.family?.name || "No family"}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{student.full_name}</h1>
+            <p className="text-muted-foreground">
+              Family: {student.family?.name || "No family"}
+              {student.linked_user_id && ` • Linked to user: ${student.linked_user_id.substring(0, 8)}...`}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowLinkDialog(true)}>
+            <Link className="h-4 w-4 mr-2" />
+            Link User
+          </Button>
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
@@ -88,6 +100,14 @@ const StudentDetail = () => {
             <StudentAttendanceTab studentId={student.id} />
           </TabsContent>
         </Tabs>
+
+        <StudentLinkDialog
+          open={showLinkDialog}
+          onOpenChange={setShowLinkDialog}
+          studentId={student.id}
+          studentName={student.full_name}
+          currentUserId={student.linked_user_id}
+        />
       </div>
     </Layout>
   );

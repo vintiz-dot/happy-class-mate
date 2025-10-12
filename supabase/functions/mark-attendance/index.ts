@@ -64,6 +64,13 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to mark attendance: ${attendanceError.message}`);
     }
 
+    // Auto-mark session as Held when attendance is marked (only if currently Scheduled)
+    await supabase
+      .from('sessions')
+      .update({ status: 'Held' })
+      .eq('id', sessionId)
+      .eq('status', 'Scheduled');
+
     console.log('Attendance marked successfully:', attendance.id);
 
     return new Response(
