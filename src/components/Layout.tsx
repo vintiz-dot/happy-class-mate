@@ -22,6 +22,7 @@ const Layout = ({ children }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/" },
           { icon: Users, label: "Students", path: "/students" },
+          { icon: Users, label: "Teachers", path: "/teachers" },
           { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
           { icon: DollarSign, label: "Finance", path: "/finance" },
