@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      classes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_teacher_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          schedule_template: Json
+          session_rate_vnd: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_teacher_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          schedule_template?: Json
+          session_rate_vnd?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_teacher_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          schedule_template?: Json
+          session_rate_vnd?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_default_teacher_id_fkey"
+            columns: ["default_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           address: string | null
@@ -77,6 +124,66 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          date: string
+          end_time: string
+          id: string
+          notes: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["session_status"]
+          teacher_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          end_time: string
+          id?: string
+          notes?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["session_status"]
+          teacher_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          end_time?: string
+          id?: string
+          notes?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["session_status"]
+          teacher_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
         ]
@@ -251,6 +358,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_teacher_availability: {
+        Args: {
+          p_date: string
+          p_end_time: string
+          p_exclude_session_id?: string
+          p_start_time: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -258,6 +375,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "teacher" | "family" | "student"
+      session_status: "Scheduled" | "Held" | "Canceled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -386,6 +504,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "teacher", "family", "student"],
+      session_status: ["Scheduled", "Held", "Canceled"],
     },
   },
 } as const

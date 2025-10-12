@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/Layout";
 import ProfilePicker from "@/components/ProfilePicker";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, BookOpen, Calendar, DollarSign } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { ClassForm } from "@/components/admin/ClassForm";
+import { ClassesList } from "@/components/admin/ClassesList";
+import { SessionGenerator } from "@/components/admin/SessionGenerator";
+import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { user, role, loading } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
@@ -39,74 +43,54 @@ const Index = () => {
     return <ProfilePicker onSelect={handleStudentSelect} />;
   }
 
-  const getDashboardStats = () => {
-    switch (role) {
-      case "admin":
-        return [
-          { icon: Users, label: "Tổng học sinh", value: "0", color: "text-primary" },
-          { icon: BookOpen, label: "Lớp học", value: "0", color: "text-accent" },
-          { icon: Calendar, label: "Buổi học hôm nay", value: "0", color: "text-success" },
-          { icon: DollarSign, label: "Doanh thu tháng", value: "0 ₫", color: "text-warning" },
-        ];
-      case "teacher":
-        return [
-          { icon: BookOpen, label: "Lớp của tôi", value: "0", color: "text-primary" },
-          { icon: Calendar, label: "Buổi học hôm nay", value: "0", color: "text-accent" },
-          { icon: Users, label: "Tổng học sinh", value: "0", color: "text-success" },
-        ];
-      case "family":
-      case "student":
-        return [
-          { icon: BookOpen, label: "Lớp đang học", value: "0", color: "text-primary" },
-          { icon: Calendar, label: "Buổi học tuần này", value: "0", color: "text-accent" },
-          { icon: DollarSign, label: "Học phí tháng này", value: "0 ₫", color: "text-warning" },
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const stats = getDashboardStats();
-
   return (
     <Layout>
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Chào mừng đến với Tuition Manager
-          </p>
+          <p className="text-muted-foreground">Chào mừng đến với Tuition Manager</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.label}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {role === "admin" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Quản lý Admin</h2>
+              <p className="text-muted-foreground">Quản lý lớp học và lịch học</p>
+            </div>
 
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Hoạt động gần đây</CardTitle>
-            <CardDescription>
-              Các hoạt động và thông báo mới nhất
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Chưa có hoạt động nào
-            </p>
-          </CardContent>
-        </Card>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <ClassForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })} />
+              <SessionGenerator onSuccess={() => queryClient.invalidateQueries({ queryKey: ["sessions"] })} />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Danh sách lớp học</h3>
+              <ClassesList />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Lịch học</h3>
+              <ScheduleCalendar role={role} />
+            </div>
+          </div>
+        )}
+
+        {role === "teacher" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Giáo viên</h2>
+              <p className="text-muted-foreground">Lịch dạy của bạn</p>
+            </div>
+            <ScheduleCalendar role={role} />
+          </div>
+        )}
+
+        {(role === "family" || role === "student") && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Lịch học</h2>
+            <ScheduleCalendar role={role} />
+          </div>
+        )}
       </div>
     </Layout>
   );
