@@ -98,7 +98,7 @@ const ClassSettings = ({ classId }: { classId: string }) => {
               <SelectValue placeholder="Select default teacher" />
             </SelectTrigger>
             <SelectContent>
-              {teachers?.map((teacher) => (
+              {teachers?.filter(t => t.id).map((teacher) => (
                 <SelectItem key={teacher.id} value={teacher.id}>
                   {teacher.full_name}
                 </SelectItem>

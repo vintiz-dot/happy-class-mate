@@ -1,48 +1,55 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import EditSessionModal from "./EditSessionModal";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import CalendarMonth from "@/components/calendar/CalendarMonth";
+import SessionDetailDrawer from "./SessionDetailDrawer";
+import AddSessionModal from "@/components/admin/AddSessionModal";
 
-interface AttendanceRecord {
-  student_id: string;
-  status: string;
+interface ClassCalendarProps {
+  classId: string;
 }
 
-interface SessionRow {
-  id: string;
-  date: string;
-  status: string;
-  start_time: string;
-  end_time: string;
-  teacher_id: string;
-  rate_override_vnd: number | null;
-  attendance: AttendanceRecord[];
-}
+const ClassCalendar = ({ classId }: ClassCalendarProps) => {
+  const [month, setMonth] = useState(new Date());
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [addSessionDate, setAddSessionDate] = useState<Date | null>(null);
 
-const ClassCalendar = ({ classId }: { classId: string }) => {
-  const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
-  const [editing, setEditing] = useState<SessionRow | null>(null);
+  const { data: classData } = useQuery({
+    queryKey: ["class", classId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("classes")
+        .select("name")
+        .eq("id", classId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: sessions, refetch } = useQuery({
-    queryKey: ["class-sessions", classId, month],
+    queryKey: ["class-calendar-sessions", classId, format(month, "yyyy-MM")],
     queryFn: async () => {
-      const startDate = format(startOfMonth(new Date(month)), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(new Date(month)), "yyyy-MM-dd");
+      const startDate = format(startOfMonth(month), "yyyy-MM-dd");
+      const endDate = format(endOfMonth(month), "yyyy-MM-dd");
 
-      const { data: sessionsData, error } = await supabase
+      const { data, error } = await supabase
         .from("sessions")
         .select(`
           id,
           date,
-          status,
           start_time,
           end_time,
+          status,
+          notes,
           teacher_id,
           rate_override_vnd,
-          attendance(student_id, status)
+          teachers (id, full_name),
+          attendance (student_id, status)
         `)
         .eq("class_id", classId)
         .gte("date", startDate)
@@ -50,101 +57,117 @@ const ClassCalendar = ({ classId }: { classId: string }) => {
         .order("date");
 
       if (error) throw error;
-      return sessionsData as SessionRow[];
+      return data || [];
     },
   });
 
-  const getSessionColor = (session: SessionRow) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sessionDate = new Date(session.date);
-    sessionDate.setHours(0, 0, 0, 0);
+  const { data: enrolledCount } = useQuery({
+    queryKey: ["class-enrolled-count", classId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("enrollments")
+        .select("*", { count: "exact", head: true })
+        .eq("class_id", classId)
+        .is("end_date", null);
 
-    if (session.status === "Canceled") return "bg-amber-200 text-amber-900";
-    if (session.status === "Holiday") return "bg-purple-200 text-purple-900";
-    if (sessionDate > today) return "bg-muted text-muted-foreground";
+      if (error) throw error;
+      return count || 0;
+    },
+  });
 
-    const attendance = session.attendance || [];
-    if (attendance.length === 0) return "bg-muted text-muted-foreground";
+  const calendarEvents = sessions?.map(s => ({
+    id: s.id,
+    date: s.date,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    class_name: classData?.name || "Class",
+    status: s.status,
+    enrolled_count: enrolledCount,
+    notes: s.notes
+  })) || [];
 
-    const present = attendance.filter((a) => a.status === "Present").length;
-    const absent = attendance.filter((a) => a.status === "Absent").length;
-    const excused = attendance.filter((a) => a.status === "Excused").length;
-
-    if (present >= absent && present >= excused) return "bg-green-200 text-green-900";
-    if (absent >= present && absent >= excused) return "bg-red-200 text-red-900";
-    return "bg-gray-300 text-gray-900";
+  const handleEventClick = (event: any) => {
+    const session = sessions?.find(s => s.id === event.id);
+    if (session) {
+      setSelectedSession({
+        ...session,
+        teacher: session.teachers
+      });
+    }
   };
 
-  const getMonthOptions = () => {
-    const options = [];
-    for (let i = -2; i <= 2; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i);
-      const value = format(date, "yyyy-MM");
-      const label = format(date, "MMMM yyyy");
-      options.push({ value, label });
-    }
-    return options;
+  const handleDayClick = (date: string) => {
+    setAddSessionDate(new Date(date));
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {getMonthOptions().map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMonth(subMonths(month, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setMonth(new Date())}
+          >
+            Today
+          </Button>
+          <h2 className="text-xl font-semibold min-w-[200px] text-center">
+            {format(month, "MMMM yyyy")}
+          </h2>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMonth(addMonths(month, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Button onClick={() => setAddSessionDate(new Date())} size="sm">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Session
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Calendar</CardTitle>
+          <CardTitle>{classData?.name || "Class"} Calendar</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {sessions?.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => setEditing(session)}
-                className={`p-3 rounded text-left hover:opacity-80 transition-opacity ${getSessionColor(session)}`}
-              >
-                <div className="text-xs font-medium">
-                  {format(new Date(session.date), "dd MMM")}
-                </div>
-                <div className="text-[11px] mt-1">
-                  {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6 text-xs">
-            <span className="px-2 py-1 rounded bg-green-200 text-green-900">Present</span>
-            <span className="px-2 py-1 rounded bg-red-200 text-red-900">Absent</span>
-            <span className="px-2 py-1 rounded bg-gray-300 text-gray-900">Excused</span>
-            <span className="px-2 py-1 rounded bg-amber-200 text-amber-900">Canceled</span>
-            <span className="px-2 py-1 rounded bg-purple-200 text-purple-900">Holiday</span>
-            <span className="px-2 py-1 rounded bg-muted text-muted-foreground">Scheduled</span>
-          </div>
+          <CalendarMonth
+            month={format(month, "yyyy-MM")}
+            events={calendarEvents}
+            onSelectDay={handleDayClick}
+            onSelectEvent={handleEventClick}
+          />
         </CardContent>
       </Card>
 
-      {editing && (
-        <EditSessionModal
-          session={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
+      {selectedSession && (
+        <SessionDetailDrawer
+          session={selectedSession}
+          onClose={() => {
+            setSelectedSession(null);
             refetch();
-            setEditing(null);
+          }}
+        />
+      )}
+
+      {addSessionDate && (
+        <AddSessionModal
+          classId={classId}
+          date={addSessionDate}
+          open={!!addSessionDate}
+          onClose={() => setAddSessionDate(null)}
+          onSuccess={() => {
+            refetch();
+            setAddSessionDate(null);
           }}
         />
       )}

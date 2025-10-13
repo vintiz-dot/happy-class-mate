@@ -44,21 +44,21 @@ Deno.serve(async (req) => {
 
     console.log('Recording payment:', { studentId, amount, method, occurredAt });
 
-    // Get student's ledger account
-    const { data: account, error: accountError } = await supabase
+    // Get student's AR ledger account (not tuition - that's not a valid code)
+    let { data: account, error: accountError } = await supabase
       .from('ledger_accounts')
       .select('id')
       .eq('student_id', studentId)
-      .eq('code', 'tuition')
-      .single();
+      .eq('code', 'AR')
+      .maybeSingle();
 
-    if (accountError || !account) {
-      // Create ledger account if it doesn't exist
+    if (!account) {
+      // Create AR ledger account if it doesn't exist
       const { data: newAccount, error: createError } = await supabase
         .from('ledger_accounts')
         .insert({
           student_id: studentId,
-          code: 'tuition'
+          code: 'AR'
         })
         .select('id')
         .single();
@@ -66,6 +66,12 @@ Deno.serve(async (req) => {
       if (createError) {
         throw new Error(`Failed to create ledger account: ${createError.message}`);
       }
+      
+      account = newAccount;
+    }
+    
+    if (accountError) {
+      throw new Error(`Failed to fetch ledger account: ${accountError.message}`);
     }
 
     // Record payment
@@ -91,13 +97,13 @@ Deno.serve(async (req) => {
     const month = new Date(occurredAt).toISOString().slice(0, 7); // YYYY-MM
 
     // Post ledger entries (double-entry bookkeeping)
-    // Credit to tuition account (reduces amount owed)
+    // Credit to AR account (reduces amount owed)
     const { error: ledgerError } = await supabase
       .from('ledger_entries')
       .insert([
         {
           tx_id: txId,
-          account_id: account?.id,
+          account_id: account.id,
           credit: amount,
           debit: 0,
           month,
