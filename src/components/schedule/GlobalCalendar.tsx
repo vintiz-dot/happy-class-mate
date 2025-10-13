@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, DollarSign } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameDay, isToday } from "date-fns";
+import { dayjs } from "@/lib/date";
 import SessionDrawer from "@/components/admin/class/SessionDrawer";
 
 interface GlobalCalendarProps {
@@ -16,14 +16,14 @@ interface GlobalCalendarProps {
 }
 
 const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCalendarProps) => {
-  const [month, setMonth] = useState(new Date());
+  const [month, setMonth] = useState(dayjs());
   const [selectedSession, setSelectedSession] = useState<any>(null);
 
   const { data: sessions = [], refetch } = useQuery({
-    queryKey: ["calendar-sessions", role, classId, format(month, "yyyy-MM")],
+    queryKey: ["calendar-sessions", role, classId, month.format("YYYY-MM")],
     queryFn: async () => {
-      const startDate = format(startOfMonth(month), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(month), "yyyy-MM-dd");
+      const startDate = month.startOf("month").format("YYYY-MM-DD");
+      const endDate = month.endOf("month").format("YYYY-MM-DD");
 
       let query = supabase
         .from("sessions")
@@ -86,10 +86,15 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
   });
 
   const monthDays = useMemo(() => {
-    return eachDayOfInterval({
-      start: startOfMonth(month),
-      end: endOfMonth(month),
-    });
+    const start = month.startOf("month").startOf("isoWeek");
+    const end = month.endOf("month").endOf("isoWeek");
+    const days = [];
+    let current = start;
+    while (current.isBefore(end) || current.isSame(end, "day")) {
+      days.push(current);
+      current = current.add(1, "day");
+    }
+    return days;
   }, [month]);
 
   const monthStats = useMemo(() => {
@@ -99,25 +104,26 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     return { totalSessions, uniqueStudents, totalCost };
   }, [sessions]);
 
-  const getSessionsForDay = (day: Date) => {
-    return sessions.filter(s => isSameDay(new Date(s.date), day));
+  const getSessionsForDay = (day: dayjs.Dayjs) => {
+    return sessions.filter(s => dayjs.tz(s.date).isSame(day, "day"));
   };
 
   const getSessionColor = (session: any) => {
-    if (isToday(new Date(session.date))) return "bg-amber-100 border-amber-300";
+    const sessionDate = dayjs.tz(session.date);
+    if (sessionDate.isSame(dayjs(), "day")) return "bg-amber-100 border-amber-300";
     if (session.status === "Canceled") return "bg-red-100 border-red-300";
     if (session.status === "Holiday") return "bg-purple-100 border-purple-300";
     if (session.status === "Held") return "bg-gray-100 border-gray-300";
     return "bg-green-100 border-green-300";
   };
 
-  const handleDayClick = (day: Date, daySessions: any[]) => {
+  const handleDayClick = (day: dayjs.Dayjs, daySessions: any[]) => {
     if (daySessions.length === 1) {
       setSelectedSession(daySessions[0]);
     } else if (daySessions.length === 0 && role === "admin" && onAddSession) {
-      onAddSession(day);
+      onAddSession(day.toDate());
     } else if (daySessions.length > 1) {
-      setSelectedSession({ multiple: true, sessions: daySessions, date: day });
+      setSelectedSession({ multiple: true, sessions: daySessions, date: day.toDate() });
     }
   };
 
@@ -128,23 +134,23 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setMonth(subMonths(month, 1))}
+            onClick={() => setMonth(month.subtract(1, "month"))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            onClick={() => setMonth(new Date())}
+            onClick={() => setMonth(dayjs())}
           >
             Today
           </Button>
           <h2 className="text-xl font-semibold min-w-[200px] text-center">
-            {format(month, "MMMM yyyy")}
+            {month.format("MMMM YYYY")}
           </h2>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setMonth(addMonths(month, 1))}
+            onClick={() => setMonth(month.add(1, "month"))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -182,7 +188,7 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2 mb-4">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
               <div key={day} className="text-center text-sm font-medium text-muted-foreground">
                 {day}
               </div>
@@ -193,6 +199,7 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
             {monthDays.map((day, idx) => {
               const daySessions = getSessionsForDay(day);
               const isClickable = daySessions.length > 0 || (role === "admin" && onAddSession);
+              const isCurrentMonth = day.isSame(month, "month");
 
               return (
                 <button
@@ -200,10 +207,12 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
                   onClick={() => isClickable && handleDayClick(day, daySessions)}
                   className={`min-h-[100px] p-2 border rounded-lg text-left transition-all hover:shadow-md ${
                     isClickable ? "cursor-pointer" : "cursor-default"
-                  } ${isToday(day) ? "ring-2 ring-primary" : ""}`}
+                  } ${day.isSame(dayjs(), "day") ? "ring-2 ring-primary" : ""} ${
+                    !isCurrentMonth ? "opacity-40" : ""
+                  }`}
                   disabled={!isClickable}
                 >
-                  <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
+                  <div className="text-sm font-medium mb-1">{day.format("D")}</div>
                   <div className="space-y-1">
                     {daySessions.map(session => (
                       <div
