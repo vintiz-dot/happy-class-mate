@@ -41,12 +41,16 @@ export default function CalendarMonth({
   const weekdayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const statusClass = (s: CalendarEvent["status"], d: string) => {
+    const isToday = d === todayKey();
+    const isFuture = dayjs.tz(d).isAfter(dayjs(), "day");
+    
+    // Priority order: Canceled > Holiday > Held > Today > Future > Scheduled
     if (s === "Canceled") return "bg-red-200 dark:bg-red-900";
     if (s === "Holiday") return "bg-purple-200 dark:bg-purple-900";
     if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
-    if (d === todayKey()) return "bg-amber-200 dark:bg-amber-900";
-    if (dayjs.tz(d).isAfter(dayjs(), "day")) return "bg-muted";
-    return "bg-green-200 dark:bg-green-900";
+    if (isToday) return "bg-amber-200 dark:bg-amber-900";
+    if (isFuture) return "bg-muted";
+    return "bg-green-200 dark:bg-green-900"; // Scheduled (past/present)
   };
 
   return (

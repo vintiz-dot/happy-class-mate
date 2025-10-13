@@ -40,6 +40,7 @@ export default function TeacherPayroll() {
         .eq("month", month)
         .maybeSingle();
 
+      // Fetch both held and scheduled sessions
       const { data: sessions } = await supabase
         .from("sessions")
         .select(`
@@ -54,7 +55,7 @@ export default function TeacherPayroll() {
         .eq("teacher_id", teacher.id)
         .gte("date", `${month}-01`)
         .lte("date", `${month}-31`)
-        .eq("status", "Held")
+        .in("status", ["Held", "Scheduled"])
         .order("date", { ascending: true });
 
       return {
@@ -85,7 +86,7 @@ export default function TeacherPayroll() {
 
   const exportPayroll = () => {
     const csv = [
-      ["Date", "Class", "Start Time", "End Time", "Duration (hrs)", "Rate", "Amount"].join(","),
+      ["Date", "Class", "Start Time", "End Time", "Status", "Duration (hrs)", "Rate", "Amount"].join(","),
       ...(payrollData?.sessions || []).map((s: any) => {
         const startTime = dayjs(`${s.date} ${s.start_time}`);
         const endTime = dayjs(`${s.date} ${s.end_time}`);
@@ -97,12 +98,15 @@ export default function TeacherPayroll() {
           s.classes.name,
           s.start_time,
           s.end_time,
+          s.status,
           hours,
           rate,
           amount
         ].join(",");
       }),
-      ["", "", "", "", "", "Total", payrollData?.summary?.total_amount || 0].join(",")
+      ["", "", "", "", "", "", "Held Total", totalEarned].join(","),
+      ["", "", "", "", "", "", "Projected", projectedEarnings].join(","),
+      ["", "", "", "", "", "", "Total Projected", totalProjected].join(",")
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
@@ -118,8 +122,18 @@ export default function TeacherPayroll() {
     return <Layout title="Payroll">Loading...</Layout>;
   }
 
-  const totalAmount = payrollData?.summary?.total_amount || 
-    payrollData?.sessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s), 0) || 0;
+  const heldSessions = payrollData?.sessions.filter((s: any) => s.status === "Held") || [];
+  const scheduledSessions = payrollData?.sessions.filter((s: any) => s.status === "Scheduled") || [];
+
+  const totalEarned = heldSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s), 0);
+  const projectedEarnings = scheduledSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s), 0);
+  const totalProjected = totalEarned + projectedEarnings;
+
+  const totalHours = heldSessions.reduce((sum: number, s: any) => {
+    const start = dayjs(`${s.date} ${s.start_time}`);
+    const end = dayjs(`${s.date} ${s.end_time}`);
+    return sum + end.diff(start, "hour", true);
+  }, 0);
 
   return (
     <Layout title="Payroll">
@@ -147,7 +161,7 @@ export default function TeacherPayroll() {
           </Button>
         </div>
 
-        {!payrollData?.summary && payrollData?.sessions.length === 0 ? (
+        {payrollData?.sessions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
@@ -157,35 +171,35 @@ export default function TeacherPayroll() {
           </Card>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Total Sessions</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {payrollData?.sessions.length || 0}
-                  </CardTitle>
+                  <CardDescription>Held Sessions</CardDescription>
+                  <CardTitle className="text-3xl">{heldSessions.length}</CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Total Hours</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {payrollData?.summary?.total_hours || 
-                      payrollData?.sessions.reduce((sum: number, s: any) => {
-                        const start = dayjs(`${s.date} ${s.start_time}`);
-                        const end = dayjs(`${s.date} ${s.end_time}`);
-                        return sum + end.diff(start, "hour", true);
-                      }, 0).toFixed(1) || 0}
-                  </CardTitle>
+                  <CardTitle className="text-3xl">{totalHours.toFixed(1)}</CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Total Amount</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {totalAmount.toLocaleString()} ₫
+                  <CardDescription>Amount Earned</CardDescription>
+                  <CardTitle className="text-3xl">{totalEarned.toLocaleString()} ₫</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Projected Total</CardDescription>
+                  <CardTitle className="text-3xl text-primary">
+                    {totalProjected.toLocaleString()} ₫
                   </CardTitle>
                 </CardHeader>
+                <CardContent className="text-xs text-muted-foreground">
+                  +{projectedEarnings.toLocaleString()} ₫ from {scheduledSessions.length} scheduled
+                </CardContent>
               </Card>
             </div>
 
@@ -193,13 +207,13 @@ export default function TeacherPayroll() {
               <CardHeader>
                 <CardTitle>Session Details</CardTitle>
                 <CardDescription>
-                  Sessions taught during {dayjs(month).format("MMMM YYYY")}
+                  Sessions during {dayjs(month).format("MMMM YYYY")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {payrollData?.sessions.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">
-                    No sessions held this month
+                    No sessions this month
                   </p>
                 ) : (
                   <Table>
@@ -208,18 +222,24 @@ export default function TeacherPayroll() {
                         <TableHead>Date</TableHead>
                         <TableHead>Class</TableHead>
                         <TableHead>Time</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {payrollData?.sessions.map((session: any) => (
-                        <TableRow key={session.id}>
+                        <TableRow key={session.id} className={session.status === "Scheduled" ? "opacity-60" : ""}>
                           <TableCell>
                             {dayjs(session.date).format("MMM D, YYYY")}
                           </TableCell>
                           <TableCell>{session.classes.name}</TableCell>
                           <TableCell>
                             {session.start_time.slice(0, 5)} - {session.end_time.slice(0, 5)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={session.status === "Held" ? "default" : "secondary"}>
+                              {session.status}
+                            </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             {calculateSessionAmount(session).toLocaleString()} ₫

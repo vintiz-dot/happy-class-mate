@@ -205,6 +205,25 @@ Deno.serve(async (req) => {
 
     const totalAmount = Math.max(0, baseAmount - totalDiscount)
 
+    // Save/update invoice record
+    const { error: invoiceError } = await supabase
+      .from('invoices')
+      .upsert({
+        student_id: studentId,
+        month,
+        base_amount: baseAmount,
+        discount_amount: totalDiscount,
+        total_amount: totalAmount,
+        status: 'issued',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'student_id,month'
+      })
+
+    if (invoiceError) {
+      console.error('Error saving invoice:', invoiceError)
+    }
+
     const response = {
       studentId,
       month,
