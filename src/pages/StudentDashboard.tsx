@@ -10,18 +10,32 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
 export default function StudentDashboard() {
-  const { selectedProfile } = useStudentProfile();
+  const { studentId } = useStudentProfile();
   const currentMonth = dayjs().format("YYYY-MM");
 
-  const { data: upcomingSessions } = useQuery({
-    queryKey: ["student-upcoming-sessions", selectedProfile?.id],
+  const { data: studentProfile } = useQuery({
+    queryKey: ["student-profile", studentId],
     queryFn: async () => {
-      if (!selectedProfile?.id) return [];
+      if (!studentId) return null;
+      const { data } = await supabase
+        .from("students")
+        .select("id, full_name")
+        .eq("id", studentId)
+        .single();
+      return data;
+    },
+    enabled: !!studentId,
+  });
+
+  const { data: upcomingSessions } = useQuery({
+    queryKey: ["student-upcoming-sessions", studentId],
+    queryFn: async () => {
+      if (!studentId) return [];
 
       const { data: enrollments } = await supabase
         .from("enrollments")
         .select("class_id")
-        .eq("student_id", selectedProfile.id)
+        .eq("student_id", studentId)
         .is("end_date", null);
 
       const classIds = enrollments?.map(e => e.class_id) || [];
@@ -45,18 +59,18 @@ export default function StudentDashboard() {
 
       return data || [];
     },
-    enabled: !!selectedProfile?.id,
+    enabled: !!studentId,
   });
 
   const { data: pendingHomework } = useQuery({
-    queryKey: ["student-pending-homework", selectedProfile?.id],
+    queryKey: ["student-pending-homework", studentId],
     queryFn: async () => {
-      if (!selectedProfile?.id) return [];
+      if (!studentId) return [];
 
       const { data: enrollments } = await supabase
         .from("enrollments")
         .select("class_id")
-        .eq("student_id", selectedProfile.id)
+        .eq("student_id", studentId)
         .is("end_date", null);
 
       const classIds = enrollments?.map(e => e.class_id) || [];
@@ -79,7 +93,7 @@ export default function StudentDashboard() {
           .from("homework_submissions")
           .select("id, status")
           .eq("homework_id", hw.id)
-          .eq("student_id", selectedProfile.id)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (!submission || submission.status === "pending") {
@@ -89,16 +103,16 @@ export default function StudentDashboard() {
 
       return pending.slice(0, 5);
     },
-    enabled: !!selectedProfile?.id,
+    enabled: !!studentId,
   });
 
   const { data: tuitionData } = useQuery({
-    queryKey: ["student-tuition-summary", selectedProfile?.id, currentMonth],
+    queryKey: ["student-tuition-summary", studentId, currentMonth],
     queryFn: async () => {
-      if (!selectedProfile?.id) return null;
+      if (!studentId) return null;
 
       const { data, error } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId: selectedProfile.id, month: currentMonth },
+        body: { studentId: studentId, month: currentMonth },
       });
 
       if (error) throw error;
@@ -106,7 +120,7 @@ export default function StudentDashboard() {
       const { data: payments } = await supabase
         .from("payments")
         .select("amount")
-        .eq("student_id", selectedProfile.id);
+        .eq("student_id", studentId);
 
       const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
@@ -115,10 +129,10 @@ export default function StudentDashboard() {
         balance: data.totalAmount - totalPaid,
       };
     },
-    enabled: !!selectedProfile?.id,
+    enabled: !!studentId,
   });
 
-  if (!selectedProfile) {
+  if (!studentId || !studentProfile) {
     return (
       <Layout title="Dashboard">
         <p className="text-center text-muted-foreground">Please select a student profile.</p>
@@ -127,7 +141,7 @@ export default function StudentDashboard() {
   }
 
   return (
-    <Layout title={`Dashboard - ${selectedProfile.full_name}`}>
+    <Layout title={`Dashboard - ${studentProfile.full_name}`}>
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -251,7 +265,7 @@ export default function StudentDashboard() {
             </Card>
           </Link>
 
-          <Link to={`/students/${selectedProfile.id}/tuition`}>
+          <Link to={`/students/${studentId}/tuition`}>
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

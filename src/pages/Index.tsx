@@ -4,7 +4,7 @@ import { TuitionCard } from "@/components/student/TuitionCard";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
 import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
-import { AssignmentsList } from "@/components/student/AssignmentsList";
+import AssignmentsList from "@/components/student/AssignmentsList";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navigate } from "react-router-dom";
@@ -228,7 +228,7 @@ const Index = () => {
             </div>
             <TuitionCard studentId={studentId} />
             <ScheduleCalendar role={role} />
-            <AssignmentsList />
+            <AssignmentsList studentId={studentId} />
           </div>
         )}
       </div>

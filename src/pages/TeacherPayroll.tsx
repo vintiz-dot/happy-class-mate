@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import {

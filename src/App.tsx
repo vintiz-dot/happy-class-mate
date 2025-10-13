@@ -20,7 +20,10 @@ import ClassDetail from "./pages/ClassDetail";
 import Dashboard from "./pages/Dashboard";
 import TeacherClassDetail from "./pages/TeacherClassDetail";
 import TeacherPayroll from "./pages/TeacherPayroll";
+import TeacherAttendance from "./pages/TeacherAttendance";
 import TeacherAssignments from "./pages/TeacherAssignments";
+import StudentDashboard from "./pages/StudentDashboard";
+import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentAssignments from "./pages/StudentAssignments";
 import Tuition from "./pages/Tuition";
 
@@ -41,9 +44,12 @@ const App = () => (
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentDetail />} />
             <Route path="/teachers" element={<Teachers />} />
+            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/classes/:id" element={<TeacherClassDetail />} />
             <Route path="/teacher/payroll" element={<TeacherPayroll />} />
+            <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/finance" element={<Finance />} />
