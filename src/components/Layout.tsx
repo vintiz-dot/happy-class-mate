@@ -12,8 +12,11 @@ import {
   BarChart3,
   Receipt,
   Wallet,
-  LayoutDashboard
+  LayoutDashboard,
+  FileText,
+  ClipboardList
 } from "lucide-react";
+import ProfileSwitcher from "@/components/ProfileSwitcher";
 
 interface LayoutProps {
   children: ReactNode;
@@ -44,7 +47,10 @@ const Layout = ({ children, title }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
+          { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
+          { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
         ];
       case "family":
         return [
@@ -56,7 +62,9 @@ const Layout = ({ children, title }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Receipt, label: "Tuition", path: "/tuition" },
+          { icon: FileText, label: "Assignments", path: "/student/assignments" },
         ];
       default:
         return [];
@@ -82,6 +90,7 @@ const Layout = ({ children, title }: LayoutProps) => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {(role === "student" || role === "family") && <ProfileSwitcher />}
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{user.email}</p>
               <p className="text-xs text-muted-foreground capitalize">{role}</p>

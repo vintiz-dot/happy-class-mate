@@ -19,6 +19,10 @@ import Admin from "./pages/Admin";
 import ClassDetail from "./pages/ClassDetail";
 import Dashboard from "./pages/Dashboard";
 import TeacherClassDetail from "./pages/TeacherClassDetail";
+import TeacherPayroll from "./pages/TeacherPayroll";
+import TeacherAssignments from "./pages/TeacherAssignments";
+import StudentAssignments from "./pages/StudentAssignments";
+import Tuition from "./pages/Tuition";
 
 const queryClient = new QueryClient();
 
@@ -38,13 +42,16 @@ const App = () => (
             <Route path="/students/:id" element={<StudentDetail />} />
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/teacher/classes/:id" element={<TeacherClassDetail />} />
+            <Route path="/teacher/payroll" element={<TeacherPayroll />} />
+            <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+            <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/families" element={<Families />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/classes/:id" element={<ClassDetail />} />
-            <Route path="/tuition" element={<Navigate to="/admin?tab=finance" replace />} />
+            <Route path="/tuition" element={<Tuition />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

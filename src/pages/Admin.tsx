@@ -11,10 +11,10 @@ import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
 import DataTab from "@/components/admin/tabs/DataTab";
 
-const Admin = () => {
+const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const tab = searchParams.get("tab") || "overview";
+  const tab = defaultTab || searchParams.get("tab") || "overview";
 
   const handleTabChange = (value: string) => {
     navigate(`/admin?tab=${value}`);

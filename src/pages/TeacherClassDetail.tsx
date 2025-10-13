@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { monthKey, dayjs } from "@/lib/date";
 import CalendarMonth from "@/components/calendar/CalendarMonth";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight, ArrowLeft, Mail } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -110,7 +111,32 @@ export default function TeacherClassDetail() {
   }
 
   if (!classData) {
-    return <Navigate to="/teacher" replace />;
+    return (
+      <Layout title="No Access">
+        <Card>
+          <CardHeader>
+            <CardTitle>No Access to This Class</CardTitle>
+            <CardDescription>
+              You are not assigned to teach this class. If you believe this is an error, please contact an administrator.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4">
+              <Button asChild variant="outline">
+                <Link to="/classes">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  View My Classes
+                </Link>
+              </Button>
+              <Button variant="outline">
+                <Mail className="h-4 w-4 mr-2" />
+                Contact Admin
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
   }
 
   const prevMonth = () => {
@@ -127,39 +153,68 @@ export default function TeacherClassDetail() {
 
   return (
     <Layout title={classData.name}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-lg font-semibold min-w-[200px] text-center">
-            {dayjs.tz(`${month}-01`).format("MMMM YYYY")}
-          </div>
-          <Button variant="outline" size="icon" onClick={nextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={goToday} className="ml-2">
-            Today
-          </Button>
-        </div>
+      <Tabs defaultValue="calendar" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="materials">Materials</TabsTrigger>
+        </TabsList>
 
-        <CalendarMonth month={month} events={events} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Class Roster ({roster.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {roster.map((student: any) => (
-                <div key={student.id} className="border rounded-lg px-3 py-2">
-                  {student.full_name}
-                </div>
-              ))}
+        <TabsContent value="calendar" className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-lg font-semibold min-w-[200px] text-center">
+              {dayjs.tz(`${month}-01`).format("MMMM YYYY")}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Button variant="outline" size="icon" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" onClick={goToday} className="ml-2">
+              Today
+            </Button>
+          </div>
+
+          <CalendarMonth month={month} events={events} />
+        </TabsContent>
+
+        <TabsContent value="roster">
+          <Card>
+            <CardHeader>
+              <CardTitle>Class Roster</CardTitle>
+              <CardDescription>
+                {roster.length} {roster.length === 1 ? "student" : "students"} enrolled
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {roster.map((student: any) => (
+                  <div key={student.id} className="border rounded-lg px-3 py-2">
+                    {student.full_name}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="materials">
+          <Card>
+            <CardHeader>
+              <CardTitle>Class Materials</CardTitle>
+              <CardDescription>
+                Assignments and resources for this class
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-center py-8 text-muted-foreground">
+                No materials yet. Go to <Link to="/teacher/assignments" className="text-primary hover:underline">Assignments</Link> to create materials for this class.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 }
