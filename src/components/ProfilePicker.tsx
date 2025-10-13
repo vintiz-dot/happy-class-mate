@@ -1,123 +1,95 @@
 import { useEffect, useState } from "react";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User } from "lucide-react";
 
-interface Student {
-  id: string;
-  full_name: string;
-  date_of_birth: string | null;
-}
-
-interface ProfilePickerProps {
-  onSelect: (studentId: string) => void;
-}
-
-const ProfilePicker = ({ onSelect }: ProfilePickerProps) => {
-  const [students, setStudents] = useState<Student[]>([]);
+export default function ProfilePicker() {
+  const { studentId, setStudentId } = useStudentProfile();
+  const [students, setStudents] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchFamilyStudents();
-  }, []);
+    async function loadStudents() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-  const fetchFamilyStudents = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+        // Get students linked to user or in their family
+        const { data: familyData } = await supabase
+          .from("families")
+          .select("id")
+          .eq("primary_user_id", user.id)
+          .single();
 
-      // Get family ID from primary_user_id
-      const { data: familyData } = await supabase
-        .from("families")
-        .select("id")
-        .eq("primary_user_id", user.id)
-        .single();
+        let studentData;
+        if (familyData) {
+          const { data } = await supabase
+            .from("students")
+            .select("id, full_name, date_of_birth")
+            .eq("family_id", familyData.id)
+            .eq("is_active", true)
+            .order("full_name");
+          studentData = data;
+        } else {
+          const { data } = await supabase
+            .from("students")
+            .select("id, full_name, date_of_birth")
+            .eq("linked_user_id", user.id)
+            .eq("is_active", true)
+            .order("full_name");
+          studentData = data;
+        }
 
-      if (!familyData) {
+        setStudents(studentData || []);
+        
+        if (studentData && studentData.length === 1 && !studentId) {
+          setStudentId(studentData[0].id);
+        }
+      } catch (error) {
+        console.error("Error loading students:", error);
+        setStudents([]);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      // Get all students in this family
-      const { data: studentsData } = await supabase
-        .from("students")
-        .select("id, full_name, date_of_birth")
-        .eq("family_id", familyData.id)
-        .eq("is_active", true);
-
-      setStudents(studentsData || []);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+    loadStudents();
+  }, [studentId, setStudentId]);
 
-  if (students.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>No Students</CardTitle>
-            <CardDescription>
-              Your family account is not linked to any students. Please contact the administrator.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+  if (loading || !students || students.length < 2 || studentId) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Card className="w-full max-w-2xl">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <Card className="w-[400px]">
         <CardHeader>
-          <CardTitle className="text-2xl">Select Student Profile</CardTitle>
+          <CardTitle>Select Student Profile</CardTitle>
           <CardDescription>
-            Choose a student to view information and manage
+            This account has multiple students. Please select one to continue.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            {students.map((student) => (
-              <Card
-                key={student.id}
-                className="cursor-pointer hover:border-primary transition-colors"
-                onClick={() => onSelect(student.id)}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{student.full_name}</h3>
-                      {student.date_of_birth && (
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(student.date_of_birth).toLocaleDateString("vi-VN")}
-                        </p>
-                      )}
-                    </div>
+        <CardContent className="space-y-2">
+          {students.map((student) => (
+            <Button
+              key={student.id}
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setStudentId(student.id)}
+            >
+              <div className="text-left">
+                <div className="font-medium">{student.full_name}</div>
+                {student.date_of_birth && (
+                  <div className="text-xs text-muted-foreground">
+                    DOB: {new Date(student.date_of_birth).toLocaleDateString()}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                )}
+              </div>
+            </Button>
+          ))}
         </CardContent>
       </Card>
     </div>
   );
-};
-
-export default ProfilePicker;
+}

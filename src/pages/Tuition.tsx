@@ -8,28 +8,18 @@ import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { StudentTuitionOverview } from "@/components/admin/StudentTuitionOverview";
 import { TuitionCard } from "@/components/student/TuitionCard";
-import ProfilePicker from "@/components/ProfilePicker";
 import { AccountInfoManager } from "@/components/admin/AccountInfoManager";
 import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
 import { DollarSign, Percent, Users, GraduationCap, Building2, Download } from "lucide-react";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 const Tuition = () => {
   const { role } = useAuth();
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  const [showProfilePicker, setShowProfilePicker] = useState(role === "family" && !selectedStudent);
+  const { studentId } = useStudentProfile();
   const [currentMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-
-  const handleStudentSelect = (studentId: string) => {
-    setSelectedStudent(studentId);
-    setShowProfilePicker(false);
-  };
-
-  if (showProfilePicker && role === "family") {
-    return <ProfilePicker onSelect={handleStudentSelect} />;
-  }
 
   return (
     <Layout>
@@ -128,7 +118,11 @@ const Tuition = () => {
           </Tabs>
         ) : (
           <div className="space-y-6">
-            {selectedStudent && <TuitionCard studentId={selectedStudent} />}
+            {studentId ? (
+              <TuitionCard studentId={studentId} />
+            ) : (
+              <p className="text-muted-foreground">Please select a student profile to view tuition.</p>
+            )}
           </div>
         )}
       </div>

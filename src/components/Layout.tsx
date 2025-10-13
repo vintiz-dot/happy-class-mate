@@ -2,13 +2,25 @@ import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Users, BookOpen, Calendar, DollarSign, BarChart3 } from "lucide-react";
+import { 
+  GraduationCap, 
+  LogOut, 
+  Users, 
+  BookOpen, 
+  Calendar, 
+  DollarSign, 
+  BarChart3,
+  Receipt,
+  Wallet,
+  LayoutDashboard
+} from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
+  title?: string;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, title }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -20,31 +32,31 @@ const Layout = ({ children }: LayoutProps) => {
     switch (role) {
       case "admin":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/" },
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
+          { icon: LayoutDashboard, label: "Admin", path: "/admin" },
           { icon: Users, label: "Students", path: "/students" },
           { icon: Users, label: "Teachers", path: "/teachers" },
           { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
           { icon: DollarSign, label: "Finance", path: "/finance" },
-          { icon: GraduationCap, label: "Tuition", path: "/tuition" },
         ];
       case "teacher":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: BookOpen, label: "My Classes", path: "/my-classes" },
-          { icon: Calendar, label: "Teaching Schedule", path: "/schedule" },
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
         ];
       case "family":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/" },
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Users, label: "Children", path: "/students" },
-          { icon: DollarSign, label: "Tuition", path: "/tuition" },
+          { icon: Receipt, label: "Tuition", path: "/tuition" },
         ];
       case "student":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/" },
-          { icon: BookOpen, label: "Classes", path: "/classes" },
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: Receipt, label: "Tuition", path: "/tuition" },
         ];
       default:
         return [];
@@ -63,7 +75,9 @@ const Layout = ({ children }: LayoutProps) => {
               <GraduationCap className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Tuition Manager</h1>
+              <h1 className="text-xl font-bold text-foreground">
+                {title || "Tuition Manager"}
+              </h1>
               <p className="text-xs text-muted-foreground">Happy English Club</p>
             </div>
           </div>

@@ -1,36 +1,29 @@
 import Layout from "@/components/Layout";
-import ProfilePicker from "@/components/ProfilePicker";
 import { useAuth } from "@/hooks/useAuth";
 import { TuitionCard } from "@/components/student/TuitionCard";
 import { ScheduleCalendar } from "@/components/schedule/ScheduleCalendar";
 import { AttendanceMarking } from "@/components/teacher/AttendanceMarking";
 import { AssignmentUpload } from "@/components/teacher/AssignmentUpload";
 import { AssignmentsList } from "@/components/student/AssignmentsList";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog, Home, UserCheck } from "lucide-react";
+import { Users, BookOpen, Calendar, DollarSign, GraduationCap, UserCog, Home } from "lucide-react";
 import { OverviewStats } from "@/components/admin/OverviewStats";
 import { UsersManager } from "@/components/admin/UsersManager";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 const Index = () => {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  const [showProfilePicker, setShowProfilePicker] = useState(false);
+  const { studentId } = useStudentProfile();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
-    } else if (role === "family" && !selectedStudent) {
-      setShowProfilePicker(true);
     }
-  }, [user, role, loading, navigate, selectedStudent]);
-
-  const handleStudentSelect = (studentId: string) => {
-    setSelectedStudent(studentId);
-    setShowProfilePicker(false);
-  };
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (
@@ -42,8 +35,8 @@ const Index = () => {
     );
   }
 
-  if (showProfilePicker && role === "family") {
-    return <ProfilePicker onSelect={handleStudentSelect} />;
+  if (role === "student") {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -227,13 +220,13 @@ const Index = () => {
           </div>
         )}
 
-        {(role === "family" || role === "student") && (
+        {role === "family" && studentId && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold mb-2">Student</h2>
               <p className="text-muted-foreground">Your schedule and assignments</p>
             </div>
-            {selectedStudent && <TuitionCard studentId={selectedStudent} />}
+            <TuitionCard studentId={studentId} />
             <ScheduleCalendar role={role} />
             <AssignmentsList />
           </div>
