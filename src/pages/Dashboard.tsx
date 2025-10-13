@@ -4,7 +4,18 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, loading } = useAuth();
+
+  // Wait for auth to load before making decisions
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!user) {
