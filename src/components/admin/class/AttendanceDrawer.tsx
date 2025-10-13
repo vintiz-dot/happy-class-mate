@@ -11,10 +11,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Save } from "lucide-react";
+import { Users, Save, Award } from "lucide-react";
 import { toast } from "sonner";
 import { dayjs } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
+import { ParticipationPoints } from "@/components/admin/ParticipationPoints";
 
 interface AttendanceDrawerProps {
   session: any;
@@ -24,6 +25,7 @@ interface AttendanceDrawerProps {
 const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [attendance, setAttendance] = useState<Record<string, string>>({});
+  const [showParticipationPoints, setShowParticipationPoints] = useState(false);
   const queryClient = useQueryClient();
   const { role } = useAuth();
 
@@ -179,17 +181,38 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
           </div>
 
           {canEdit && (
-            <Button
-              onClick={saveAllAttendance}
-              disabled={markAttendanceMutation.isPending}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save All Attendance
-            </Button>
+            <>
+              <Button
+                onClick={saveAllAttendance}
+                disabled={markAttendanceMutation.isPending}
+                className="w-full"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save All Attendance
+              </Button>
+              
+              {role === "admin" || role === "teacher" && (
+                <Button
+                  onClick={() => setShowParticipationPoints(true)}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Award className="h-4 w-4 mr-2" />
+                  Add Participation Points
+                </Button>
+              )}
+            </>
           )}
         </div>
       </SheetContent>
+      
+      {showParticipationPoints && (
+        <ParticipationPoints
+          session={session}
+          students={filteredStudents || []}
+          onClose={() => setShowParticipationPoints(false)}
+        />
+      )}
     </Sheet>
   );
 };

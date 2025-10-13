@@ -26,6 +26,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [grade, setGrade] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [points, setPoints] = useState("");
   const queryClient = useQueryClient();
 
   const { data: submissions } = useQuery({
@@ -47,7 +48,16 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   });
 
   const gradeMutation = useMutation({
-    mutationFn: async ({ submissionId, grade, feedback }: any) => {
+    mutationFn: async ({ submissionId, grade, feedback, points }: any) => {
+      const { data: submission, error: fetchError } = await supabase
+        .from("homework_submissions")
+        .select("student_id, homework_id")
+        .eq("id", submissionId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update submission with grade
       const { error } = await supabase
         .from("homework_submissions")
         .update({
@@ -59,13 +69,42 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         .eq("id", submissionId);
 
       if (error) throw error;
+
+      // Update or create student points for homework
+      if (points !== undefined && points !== null) {
+        const month = new Date().toISOString().slice(0, 7);
+        
+        // Get class_id from homework
+        const { data: homework } = await supabase
+          .from("homeworks")
+          .select("class_id")
+          .eq("id", submission.homework_id)
+          .single();
+
+        if (homework) {
+          const { error: pointsError } = await supabase
+            .from("student_points")
+            .upsert({
+              student_id: submission.student_id,
+              class_id: homework.class_id,
+              month,
+              homework_points: points,
+            }, {
+              onConflict: "student_id,class_id,month",
+            });
+
+          if (pointsError) throw pointsError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["homework-submissions", homeworkId] });
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
       toast.success("Grade submitted successfully");
       setSelectedSubmission(null);
       setGrade("");
       setFeedback("");
+      setPoints("");
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit grade");
@@ -96,10 +135,17 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const handleGradeSubmit = () => {
     if (!selectedSubmission) return;
 
+    const pointsValue = points ? parseInt(points) : undefined;
+    if (pointsValue !== undefined && (pointsValue < 0 || pointsValue > 100)) {
+      toast.error("Points must be between 0 and 100");
+      return;
+    }
+
     gradeMutation.mutate({
       submissionId: selectedSubmission.id,
       grade,
       feedback,
+      points: pointsValue,
     });
   };
 
@@ -187,6 +233,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
                         setSelectedSubmission(submission);
                         setGrade(submission.grade || "");
                         setFeedback(submission.teacher_feedback || "");
+                        setPoints("");
                       }}
                     >
                       Grade Submission
@@ -218,6 +265,22 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
                   onChange={(e) => setGrade(e.target.value)}
                   placeholder="e.g., A, 95/100, Excellent"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="points">Points (0-100)</Label>
+                <Input
+                  id="points"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={points}
+                  onChange={(e) => setPoints(e.target.value)}
+                  placeholder="Enter points for leaderboard (max 100)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  These points will be added to the student's homework score on the leaderboard
+                </p>
               </div>
 
               <div className="space-y-2">

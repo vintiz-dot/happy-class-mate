@@ -34,15 +34,7 @@ const Layout = ({ children, title }: LayoutProps) => {
   const getNavigationItems = () => {
     switch (role) {
       case "admin":
-        return [
-          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
-          { icon: LayoutDashboard, label: "Admin", path: "/admin" },
-          { icon: Users, label: "Students", path: "/students" },
-          { icon: Users, label: "Teachers", path: "/teachers" },
-          { icon: BookOpen, label: "Classes", path: "/classes" },
-          { icon: Calendar, label: "Schedule", path: "/schedule" },
-          { icon: DollarSign, label: "Finance", path: "/finance" },
-        ];
+        return [];
       case "teacher":
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },

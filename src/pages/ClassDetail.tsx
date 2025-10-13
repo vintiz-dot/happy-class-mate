@@ -9,6 +9,7 @@ import ClassCalendarEnhanced from "@/components/admin/class/ClassCalendarEnhance
 import ClassEnrollments from "@/components/admin/class/ClassEnrollments";
 import ClassHomework from "@/components/admin/class/ClassHomework";
 import ClassSettings from "@/components/admin/class/ClassSettings";
+import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 
 const ClassDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +58,7 @@ const ClassDetail = () => {
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
             <TabsTrigger value="homework">Homework</TabsTrigger>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -68,6 +70,9 @@ const ClassDetail = () => {
           </TabsContent>
           <TabsContent value="homework" className="mt-6">
             <ClassHomework classId={id} />
+          </TabsContent>
+          <TabsContent value="leaderboard" className="mt-6">
+            <ClassLeaderboard classId={id} />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
             <ClassSettings classId={id} />

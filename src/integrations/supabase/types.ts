@@ -747,6 +747,48 @@ export type Database = {
           },
         ]
       }
+      monthly_leaders: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          month: string
+          student_id: string
+          total_points: number
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          month: string
+          student_id: string
+          total_points: number
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          month?: string
+          student_id?: string
+          total_points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_leaders_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_leaders_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -987,6 +1029,57 @@ export type Database = {
           {
             foreignKeyName: "sibling_discount_state_winner_student_id_fkey"
             columns: ["winner_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_points: {
+        Row: {
+          class_id: string
+          created_at: string
+          homework_points: number
+          id: string
+          month: string
+          participation_points: number
+          student_id: string
+          total_points: number | null
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          homework_points?: number
+          id?: string
+          month: string
+          participation_points?: number
+          student_id: string
+          total_points?: number | null
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          homework_points?: number
+          id?: string
+          month?: string
+          participation_points?: number
+          student_id?: string
+          total_points?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_points_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_points_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]

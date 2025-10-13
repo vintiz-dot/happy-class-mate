@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
+import { TeacherEditDrawer } from "./TeacherEditDrawer";
 
 export function TeachersList() {
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  
   const { data: teachers, isLoading } = useQuery({
     queryKey: ["teachers"],
     queryFn: async () => {
@@ -36,7 +40,11 @@ export function TeachersList() {
         ) : (
           <div className="space-y-3">
             {teachers?.map((teacher) => (
-              <div key={teacher.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div 
+                key={teacher.id} 
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => setSelectedTeacher(teacher)}
+              >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{teacher.full_name}</p>
@@ -57,6 +65,13 @@ export function TeachersList() {
           </div>
         )}
       </CardContent>
+      
+      {selectedTeacher && (
+        <TeacherEditDrawer
+          teacher={selectedTeacher}
+          onClose={() => setSelectedTeacher(null)}
+        />
+      )}
     </Card>
   );
 }
