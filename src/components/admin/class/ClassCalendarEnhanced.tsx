@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus } from "lucide-react";
 import SessionDrawer from "./SessionDrawer";
-import AttendanceDrawer from "./AttendanceDrawer";
+import SessionDetailDrawer from "./SessionDetailDrawer";
 import AddSessionModal from "@/components/admin/AddSessionModal";
 import EditSessionModal from "./EditSessionModal";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from "date-fns";
@@ -261,7 +261,7 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
       </Card>
 
       {selectedSession && enrolledStudents && (
-        <AttendanceDrawer
+        <SessionDetailDrawer
           session={{
             ...selectedSession,
             teacher: selectedSession.teachers

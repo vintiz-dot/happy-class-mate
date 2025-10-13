@@ -9,6 +9,7 @@ import ClassCalendarEnhanced from "@/components/admin/class/ClassCalendarEnhance
 import ClassEnrollments from "@/components/admin/class/ClassEnrollments";
 import ClassHomework from "@/components/admin/class/ClassHomework";
 import ClassSettings from "@/components/admin/class/ClassSettings";
+import RecurringSessionsManager from "@/components/admin/class/RecurringSessionsManager";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 
 const ClassDetail = () => {
@@ -75,7 +76,10 @@ const ClassDetail = () => {
             <ClassLeaderboard classId={id} />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
-            <ClassSettings classId={id} />
+            <div className="space-y-6">
+              <ClassSettings classId={id} />
+              <RecurringSessionsManager classId={id} />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

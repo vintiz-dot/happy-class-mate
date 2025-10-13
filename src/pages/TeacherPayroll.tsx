@@ -15,10 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TeacherPayrollCalendar from "@/components/teacher/TeacherPayrollCalendar";
 
 export default function TeacherPayroll() {
-  const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
+  const [monthStr, setMonthStr] = useState(dayjs().format("YYYY-MM"));
+  const [monthDate, setMonthDate] = useState(new Date());
   const currentMonth = dayjs().format("YYYY-MM");
+  
+  const month = monthStr;
 
   const { data: payrollData, isLoading } = useQuery({
     queryKey: ["teacher-payroll", month],
@@ -28,20 +32,23 @@ export default function TeacherPayroll() {
 
       const { data: teacher } = await supabase
         .from("teachers")
-        .select("id")
+        .select("id, hourly_rate_vnd")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (!teacher) throw new Error("Not a teacher");
 
-      const { data: summary } = await supabase
-        .from("payroll_summaries")
-        .select("*")
-        .eq("teacher_id", teacher.id)
-        .eq("month", month)
-        .maybeSingle();
+      // Call the payroll edge function to get accurate calculations
+      const { data: payrollResult, error: payrollError } = await supabase.functions.invoke("calculate-payroll", {
+        body: { month, teacherId: teacher.id },
+      });
 
-      // Fetch both held and scheduled sessions
+      if (payrollError) throw payrollError;
+
+      // Get the teacher's payroll data from the result
+      const teacherPayroll = payrollResult.payrollData?.[0];
+
+      // Fetch both held and scheduled sessions for display
       const { data: sessions } = await supabase
         .from("sessions")
         .select(`
@@ -60,29 +67,38 @@ export default function TeacherPayroll() {
         .order("date", { ascending: true });
 
       return {
-        summary,
+        payrollResult: teacherPayroll,
         sessions: sessions || [],
+        hourlyRate: teacher.hourly_rate_vnd,
       };
     },
   });
 
   const prevMonth = () => {
-    setMonth(dayjs(month).subtract(1, "month").format("YYYY-MM"));
+    const newMonth = dayjs(month).subtract(1, "month").format("YYYY-MM");
+    setMonthStr(newMonth);
+    setMonthDate(dayjs(newMonth).toDate());
   };
 
   const nextMonth = () => {
     const next = dayjs(month).add(1, "month").format("YYYY-MM");
     if (next <= currentMonth) {
-      setMonth(next);
+      setMonthStr(next);
+      setMonthDate(dayjs(next).toDate());
     }
   };
 
-  const calculateSessionAmount = (session: any) => {
-    const rate = session.rate_override_vnd || session.classes.session_rate_vnd;
+  const handleMonthChange = (date: Date) => {
+    const newMonth = dayjs(date).format("YYYY-MM");
+    setMonthStr(newMonth);
+    setMonthDate(date);
+  };
+
+  const calculateSessionAmount = (session: any, hourlyRate: number) => {
     const startTime = dayjs(`${session.date} ${session.start_time}`);
     const endTime = dayjs(`${session.date} ${session.end_time}`);
     const hours = endTime.diff(startTime, "hour", true);
-    return Math.round(rate * hours / 1.5); // Assuming 1.5 hour default
+    return Math.round(hours * hourlyRate);
   };
 
   const exportPayroll = () => {
@@ -92,8 +108,7 @@ export default function TeacherPayroll() {
         const startTime = dayjs(`${s.date} ${s.start_time}`);
         const endTime = dayjs(`${s.date} ${s.end_time}`);
         const hours = endTime.diff(startTime, "hour", true).toFixed(2);
-        const rate = s.rate_override_vnd || s.classes.session_rate_vnd;
-        const amount = calculateSessionAmount(s);
+        const amount = calculateSessionAmount(s, hourlyRate);
         return [
           s.date,
           s.classes.name,
@@ -101,7 +116,7 @@ export default function TeacherPayroll() {
           s.end_time,
           s.status,
           hours,
-          rate,
+          hourlyRate,
           amount
         ].join(",");
       }),
@@ -125,9 +140,11 @@ export default function TeacherPayroll() {
 
   const heldSessions = payrollData?.sessions.filter((s: any) => s.status === "Held") || [];
   const scheduledSessions = payrollData?.sessions.filter((s: any) => s.status === "Scheduled") || [];
+  const hourlyRate = payrollData?.hourlyRate || 200000;
 
-  const totalEarned = heldSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s), 0);
-  const projectedEarnings = scheduledSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s), 0);
+  // Use the edge function's calculated amounts
+  const totalEarned = payrollData?.payrollResult?.totalAmount || 0;
+  const projectedEarnings = scheduledSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s, hourlyRate), 0);
   const totalProjected = totalEarned + projectedEarnings;
 
   const totalHours = heldSessions.reduce((sum: number, s: any) => {
@@ -204,6 +221,13 @@ export default function TeacherPayroll() {
               </Card>
             </div>
 
+            <TeacherPayrollCalendar
+              sessions={payrollData?.sessions || []}
+              hourlyRate={hourlyRate}
+              month={monthDate}
+              onMonthChange={handleMonthChange}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle>Session Details</CardTitle>
@@ -243,7 +267,7 @@ export default function TeacherPayroll() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            {calculateSessionAmount(session).toLocaleString()} ₫
+                            {calculateSessionAmount(session, hourlyRate).toLocaleString()} ₫
                           </TableCell>
                         </TableRow>
                       ))}

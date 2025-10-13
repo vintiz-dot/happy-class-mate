@@ -5,7 +5,7 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
@@ -132,6 +132,38 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
+  const { data: leaderboards } = useQuery({
+    queryKey: ["student-leaderboards", studentId, currentMonth],
+    queryFn: async () => {
+      if (!studentId) return [];
+
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("class_id, classes(name)")
+        .eq("student_id", studentId)
+        .is("end_date", null);
+
+      const classIds = enrollments?.map(e => e.class_id) || [];
+
+      const { data } = await supabase
+        .from("student_points")
+        .select(`
+          id,
+          class_id,
+          total_points,
+          participation_points,
+          homework_points,
+          classes(name)
+        `)
+        .eq("student_id", studentId)
+        .in("class_id", classIds)
+        .eq("month", currentMonth);
+
+      return data || [];
+    },
+    enabled: !!studentId,
+  });
+
   if (!studentId || !studentProfile) {
     return (
       <Layout title="Dashboard">
@@ -241,6 +273,41 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {leaderboards && leaderboards.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                My Class Rankings
+              </CardTitle>
+              <CardDescription>{dayjs().format("MMMM YYYY")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {leaderboards.map((lb: any) => (
+                  <Card key={lb.id} className="p-4">
+                    <h3 className="font-semibold mb-2">{lb.classes.name}</h3>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Points:</span>
+                        <span className="font-semibold">{lb.total_points || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Participation:</span>
+                        <span>{lb.participation_points || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Homework:</span>
+                        <span>{lb.homework_points || 0}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link to="/schedule">
