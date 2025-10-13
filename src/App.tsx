@@ -23,8 +23,6 @@ import TeacherPayroll from "./pages/TeacherPayroll";
 import TeacherAssignments from "./pages/TeacherAssignments";
 import TeacherAttendance from "./pages/TeacherAttendance";
 import StudentAssignments from "./pages/StudentAssignments";
-import StudentDashboard from "./pages/StudentDashboard";
-import TeacherDashboard from "./pages/TeacherDashboard";
 import Tuition from "./pages/Tuition";
 
 const queryClient = new QueryClient();
