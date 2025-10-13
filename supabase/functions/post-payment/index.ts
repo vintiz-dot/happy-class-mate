@@ -14,43 +14,65 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
+    console.log('Environment check:', { 
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!supabaseKey 
+    })
+    
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase configuration')
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { studentId, amount, method, memo, occurredAt } = await req.json()
-    console.log('Posting payment:', { studentId, amount, method })
+    const body = await req.json()
+    const { studentId, amount, method, memo, occurredAt } = body
+    console.log('Posting payment:', { studentId, amount, method, memo, occurredAt })
 
     if (!studentId || !amount || !method) {
-      throw new Error('Missing required fields')
+      throw new Error('Missing required fields: studentId, amount, or method')
+    }
+
+    if (amount <= 0) {
+      throw new Error('Amount must be greater than 0')
     }
 
     const txId = crypto.randomUUID()
     const userId = req.headers.get('x-user-id')
 
     // Ensure ledger accounts exist for student
+    console.log('Creating/checking ledger accounts for student:', studentId)
     const accountCodes = ['AR', 'REVENUE', 'DISCOUNT', 'CASH', 'BANK', 'CREDIT']
     for (const code of accountCodes) {
-      await supabase
+      const { error: upsertError } = await supabase
         .from('ledger_accounts')
         .upsert(
           { student_id: studentId, code },
           { onConflict: 'student_id,code', ignoreDuplicates: true }
         )
+      
+      if (upsertError) {
+        console.error(`Error upserting ${code} account:`, upsertError)
+        throw new Error(`Failed to create ${code} account: ${upsertError.message}`)
+      }
     }
 
     // Get account IDs
-    const { data: accounts } = await supabase
+    console.log('Fetching account IDs')
+    const { data: accounts, error: accountsError } = await supabase
       .from('ledger_accounts')
       .select('id, code')
       .eq('student_id', studentId)
 
+    if (accountsError) throw new Error(`Failed to fetch accounts: ${accountsError.message}`)
+    if (!accounts || accounts.length === 0) throw new Error('No accounts found for student')
+
     const accountMap = new Map(accounts?.map(a => [a.code, a.id]))
+    console.log('Account map created with', accountMap.size, 'accounts')
 
     // Record payment
-    await supabase.from('payments').insert({
+    console.log('Recording payment in payments table')
+    const { error: paymentError } = await supabase.from('payments').insert({
       student_id: studentId,
       amount,
       method,
@@ -59,11 +81,14 @@ Deno.serve(async (req) => {
       created_by: userId
     })
 
+    if (paymentError) throw new Error(`Failed to record payment: ${paymentError.message}`)
+
     const month = (occurredAt || new Date().toISOString()).slice(0, 7)
     const accountId = method === 'cash' ? accountMap.get('CASH') : accountMap.get('BANK')
 
     // Post to ledger: Dr CASH/BANK, Cr AR
-    await supabase.from('ledger_entries').insert([
+    console.log('Creating ledger entries')
+    const { error: ledgerError } = await supabase.from('ledger_entries').insert([
       {
         tx_id: txId,
         account_id: accountId,
@@ -85,6 +110,8 @@ Deno.serve(async (req) => {
         created_by: userId
       }
     ])
+
+    if (ledgerError) throw new Error(`Failed to create ledger entries: ${ledgerError.message}`)
 
     // Apply FIFO to open invoices
     let remainingAmount = amount

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -28,6 +28,7 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
   const [startTime, setStartTime] = useState("17:30");
   const [endTime, setEndTime] = useState("19:00");
   const [teacherId, setTeacherId] = useState("");
+  const [useDefaultTeacher, setUseDefaultTeacher] = useState(true);
   const [rateOverride, setRateOverride] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,13 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
     },
     enabled: !!classId,
   });
+
+  // Auto-select default teacher when class data loads
+  useEffect(() => {
+    if (classData?.default_teacher_id && useDefaultTeacher && !teacherId) {
+      setTeacherId(classData.default_teacher_id);
+    }
+  }, [classData, useDefaultTeacher, teacherId]);
 
   const handleSubmit = async () => {
     if (!teacherId) {
@@ -128,12 +136,17 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="teacher">Teacher</Label>
+            <Label htmlFor="teacher">Teacher *</Label>
             <Select value={teacherId} onValueChange={setTeacherId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select teacher" />
+                <SelectValue placeholder={classData?.default_teacher_id ? "Using default teacher" : "Select teacher"} />
               </SelectTrigger>
               <SelectContent>
+                {classData?.default_teacher_id && (
+                  <SelectItem value={classData.default_teacher_id}>
+                    Default Teacher: {teachers.find(t => t.id === classData.default_teacher_id)?.full_name}
+                  </SelectItem>
+                )}
                 {teachers.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
                     {teacher.full_name}
@@ -141,6 +154,11 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
                 ))}
               </SelectContent>
             </Select>
+            {classData?.default_teacher_id && (
+              <p className="text-xs text-muted-foreground">
+                Default teacher will be used if not specified
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

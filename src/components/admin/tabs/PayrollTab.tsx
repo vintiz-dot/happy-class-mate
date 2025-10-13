@@ -54,11 +54,11 @@ export function PayrollTab() {
 
           const calculateAmount = (sessionsList: any[]) => {
             return sessionsList.reduce((sum, s) => {
-              const rate = s.rate_override_vnd || (s.classes as any).session_rate_vnd;
               const start = dayjs(`${s.date} ${s.start_time}`);
               const end = dayjs(`${s.date} ${s.end_time}`);
               const hours = end.diff(start, "hour", true);
-              return sum + Math.round(rate * hours / 1.5);
+              // Multiply hours by teacher's hourly rate
+              return sum + Math.round(hours * teacher.hourly_rate_vnd);
             }, 0);
           };
 

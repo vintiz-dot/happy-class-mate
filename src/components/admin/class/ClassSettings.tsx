@@ -11,6 +11,9 @@ import { toast } from "sonner";
 const ClassSettings = ({ classId }: { classId: string }) => {
   const [defaultTeacherId, setDefaultTeacherId] = useState("");
   const [sessionRate, setSessionRate] = useState(0);
+  const [defaultStartTime, setDefaultStartTime] = useState("");
+  const [defaultEndTime, setDefaultEndTime] = useState("");
+  const [defaultSessionLength, setDefaultSessionLength] = useState(90);
   const [saving, setSaving] = useState(false);
 
   const { data: classData } = useQuery({
@@ -43,18 +46,32 @@ const ClassSettings = ({ classId }: { classId: string }) => {
     if (classData) {
       setDefaultTeacherId(classData.default_teacher_id || "");
       setSessionRate(classData.session_rate_vnd || 0);
+      setDefaultSessionLength(classData.default_session_length_minutes || 90);
+      
+      // Parse typical start times if available
+      if (classData.typical_start_times && Array.isArray(classData.typical_start_times)) {
+        const firstTime = classData.typical_start_times[0];
+        setDefaultStartTime(typeof firstTime === 'string' ? firstTime : "");
+      }
     }
   }, [classData]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const updateData: any = {
+        default_teacher_id: defaultTeacherId || null,
+        session_rate_vnd: sessionRate,
+        default_session_length_minutes: defaultSessionLength,
+      };
+
+      if (defaultStartTime) {
+        updateData.typical_start_times = [defaultStartTime];
+      }
+
       const { error } = await supabase
         .from("classes")
-        .update({
-          default_teacher_id: defaultTeacherId || null,
-          session_rate_vnd: sessionRate,
-        })
+        .update(updateData)
         .eq("id", classId);
 
       if (error) throw error;
@@ -69,7 +86,7 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   };
 
   return (
-    <Card className="max-w-md">
+    <Card className="max-w-2xl">
       <CardHeader>
         <CardTitle>Class Settings</CardTitle>
       </CardHeader>
@@ -98,6 +115,28 @@ const ClassSettings = ({ classId }: { classId: string }) => {
             onChange={(e) => setSessionRate(Number(e.target.value) || 0)}
             placeholder="Enter session rate"
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Default Session Length (minutes)</Label>
+            <Input
+              type="number"
+              value={defaultSessionLength}
+              onChange={(e) => setDefaultSessionLength(Number(e.target.value) || 90)}
+              placeholder="90"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Default Start Time</Label>
+            <Input
+              type="time"
+              value={defaultStartTime}
+              onChange={(e) => setDefaultStartTime(e.target.value)}
+              placeholder="17:30"
+            />
+          </div>
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full">
