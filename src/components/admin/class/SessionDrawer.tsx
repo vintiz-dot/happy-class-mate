@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Calendar, Clock, User, Users } from "lucide-react";
 import { format } from "date-fns";
 
@@ -9,9 +10,10 @@ interface SessionDrawerProps {
   session: any;
   students: any[];
   onClose: () => void;
+  onEdit?: (session: any) => void;
 }
 
-const SessionDrawer = ({ session, students, onClose }: SessionDrawerProps) => {
+const SessionDrawer = ({ session, students, onClose, onEdit }: SessionDrawerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStudents = useMemo(() => {
@@ -35,7 +37,18 @@ const SessionDrawer = ({ session, students, onClose }: SessionDrawerProps) => {
     <Sheet open={true} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Session Details</SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle>Session Details</SheetTitle>
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(session)}
+              >
+                Edit
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="space-y-6 mt-6">

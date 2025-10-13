@@ -1,0 +1,253 @@
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, DollarSign } from "lucide-react";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameDay, isToday } from "date-fns";
+import SessionDrawer from "@/components/admin/class/SessionDrawer";
+
+interface GlobalCalendarProps {
+  role: "admin" | "teacher" | "student";
+  classId?: string;
+  onAddSession?: (date: Date) => void;
+  onEditSession?: (session: any) => void;
+}
+
+const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCalendarProps) => {
+  const [month, setMonth] = useState(new Date());
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+
+  const { data: sessions = [], refetch } = useQuery({
+    queryKey: ["calendar-sessions", role, classId, format(month, "yyyy-MM")],
+    queryFn: async () => {
+      const startDate = format(startOfMonth(month), "yyyy-MM-dd");
+      const endDate = format(endOfMonth(month), "yyyy-MM-dd");
+
+      let query = supabase
+        .from("sessions")
+        .select(`
+          id,
+          date,
+          start_time,
+          end_time,
+          status,
+          notes,
+          rate_override_vnd,
+          class_id,
+          teacher_id,
+          classes!inner (id, name),
+          teachers (id, full_name),
+          attendance (student_id, status)
+        `)
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date");
+
+      if (classId) {
+        query = query.eq("class_id", classId);
+      } else if (role === "teacher") {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: teacher } = await supabase
+          .from("teachers")
+          .select("id")
+          .eq("user_id", user?.id)
+          .single();
+        
+        if (teacher) {
+          query = query.eq("teacher_id", teacher.id);
+        }
+      } else if (role === "student") {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: student } = await supabase
+          .from("students")
+          .select("id")
+          .eq("linked_user_id", user?.id)
+          .single();
+        
+        if (student) {
+          const { data: enrollments } = await supabase
+            .from("enrollments")
+            .select("class_id")
+            .eq("student_id", student.id);
+          
+          const classIds = enrollments?.map(e => e.class_id) || [];
+          if (classIds.length > 0) {
+            query = query.in("class_id", classIds);
+          }
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const monthDays = useMemo(() => {
+    return eachDayOfInterval({
+      start: startOfMonth(month),
+      end: endOfMonth(month),
+    });
+  }, [month]);
+
+  const monthStats = useMemo(() => {
+    const totalSessions = sessions.length;
+    const uniqueStudents = new Set(sessions.flatMap(s => s.attendance?.map((a: any) => a.student_id) || [])).size;
+    const totalCost = sessions.reduce((sum, s) => sum + (s.rate_override_vnd || 0), 0);
+    return { totalSessions, uniqueStudents, totalCost };
+  }, [sessions]);
+
+  const getSessionsForDay = (day: Date) => {
+    return sessions.filter(s => isSameDay(new Date(s.date), day));
+  };
+
+  const getSessionColor = (session: any) => {
+    if (isToday(new Date(session.date))) return "bg-amber-100 border-amber-300";
+    if (session.status === "Canceled") return "bg-red-100 border-red-300";
+    if (session.status === "Holiday") return "bg-purple-100 border-purple-300";
+    if (session.status === "Held") return "bg-gray-100 border-gray-300";
+    return "bg-green-100 border-green-300";
+  };
+
+  const handleDayClick = (day: Date, daySessions: any[]) => {
+    if (daySessions.length === 1) {
+      setSelectedSession(daySessions[0]);
+    } else if (daySessions.length === 0 && role === "admin" && onAddSession) {
+      onAddSession(day);
+    } else if (daySessions.length > 1) {
+      setSelectedSession({ multiple: true, sessions: daySessions, date: day });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMonth(subMonths(month, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setMonth(new Date())}
+          >
+            Today
+          </Button>
+          <h2 className="text-xl font-semibold min-w-[200px] text-center">
+            {format(month, "MMMM yyyy")}
+          </h2>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMonth(addMonths(month, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex gap-3 flex-wrap">
+          <Card className="px-4 py-2">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{monthStats.totalSessions} sessions</span>
+            </div>
+          </Card>
+          <Card className="px-4 py-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{monthStats.uniqueStudents} students</span>
+            </div>
+          </Card>
+          {monthStats.totalCost > 0 && (
+            <Card className="px-4 py-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {monthStats.totalCost.toLocaleString('vi-VN')} ₫
+                </span>
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Schedule</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-7 gap-2 mb-4">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+              <div key={day} className="text-center text-sm font-medium text-muted-foreground">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {monthDays.map((day, idx) => {
+              const daySessions = getSessionsForDay(day);
+              const isClickable = daySessions.length > 0 || (role === "admin" && onAddSession);
+
+              return (
+                <button
+                  key={idx}
+                  onClick={() => isClickable && handleDayClick(day, daySessions)}
+                  className={`min-h-[100px] p-2 border rounded-lg text-left transition-all hover:shadow-md ${
+                    isClickable ? "cursor-pointer" : "cursor-default"
+                  } ${isToday(day) ? "ring-2 ring-primary" : ""}`}
+                  disabled={!isClickable}
+                >
+                  <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
+                  <div className="space-y-1">
+                    {daySessions.map(session => (
+                      <div
+                        key={session.id}
+                        className={`text-xs p-1 rounded border ${getSessionColor(session)}`}
+                      >
+                        <div className="font-medium truncate">{session.classes?.name}</div>
+                        <div className="text-[10px]">
+                          {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
+                        </div>
+                        <Badge variant="secondary" className="text-[9px] mt-1">
+                          {session.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap gap-3 mt-6 text-xs">
+            <span className="px-3 py-1 rounded bg-green-100 border border-green-300">Scheduled</span>
+            <span className="px-3 py-1 rounded bg-amber-100 border border-amber-300">Today</span>
+            <span className="px-3 py-1 rounded bg-gray-100 border border-gray-300">Held</span>
+            <span className="px-3 py-1 rounded bg-red-100 border border-red-300">Canceled</span>
+            <span className="px-3 py-1 rounded bg-purple-100 border border-purple-300">Holiday</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedSession && !selectedSession.multiple && (
+        <SessionDrawer
+          session={selectedSession}
+          students={[]}
+          onClose={() => {
+            setSelectedSession(null);
+            refetch();
+          }}
+          onEdit={onEditSession}
+        />
+      )}
+    </div>
+  );
+};
+
+export default GlobalCalendar;

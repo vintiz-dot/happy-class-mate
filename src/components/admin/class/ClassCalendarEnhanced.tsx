@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus } from "lucide-react";
 import SessionDrawer from "./SessionDrawer";
+import AddSessionModal from "@/components/admin/AddSessionModal";
+import EditSessionModal from "./EditSessionModal";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from "date-fns";
 
 interface EnhancedClassCalendarProps {
@@ -19,6 +21,8 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [studentSearch, setStudentSearch] = useState("");
+  const [addSessionDate, setAddSessionDate] = useState<Date | null>(null);
+  const [editingSession, setEditingSession] = useState<any>(null);
 
   const { data: sessions, refetch } = useQuery({
     queryKey: ["enhanced-class-sessions", classId, format(month, "yyyy-MM")],
@@ -126,6 +130,12 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setMonth(new Date())}
+          >
+            Today
+          </Button>
           <h2 className="text-xl font-semibold min-w-[200px] text-center">
             {format(month, "MMMM yyyy")}
           </h2>
@@ -188,7 +198,16 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Sessions</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Monthly Sessions</CardTitle>
+            <Button
+              onClick={() => setAddSessionDate(new Date())}
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Session
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -247,7 +266,38 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
             teacher: selectedSession.teachers
           }}
           students={enrolledStudents}
-          onClose={() => setSelectedSession(null)}
+          onClose={() => {
+            setSelectedSession(null);
+            refetch();
+          }}
+          onEdit={(session) => {
+            setEditingSession(session);
+            setSelectedSession(null);
+          }}
+        />
+      )}
+
+      {addSessionDate && (
+        <AddSessionModal
+          classId={classId}
+          date={addSessionDate}
+          open={!!addSessionDate}
+          onClose={() => setAddSessionDate(null)}
+          onSuccess={() => {
+            refetch();
+            setAddSessionDate(null);
+          }}
+        />
+      )}
+
+      {editingSession && (
+        <EditSessionModal
+          session={editingSession}
+          onClose={() => setEditingSession(null)}
+          onSaved={() => {
+            refetch();
+            setEditingSession(null);
+          }}
         />
       )}
     </div>
@@ -255,3 +305,4 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
 };
 
 export default ClassCalendarEnhanced;
+

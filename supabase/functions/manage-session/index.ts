@@ -11,143 +11,125 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Check if user is admin
-    const { data: roleData } = await supabase
+    const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
 
-    if (roleData?.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
+    if (!roles?.some(r => r.role === 'admin')) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const { action, sessionId, updates } = await req.json();
-
-    console.log('Managing session:', { action, sessionId, updates });
+    const { action, data } = await req.json();
 
     if (action === 'update') {
-      const { data: session, error: updateError } = await supabase
-        .from('sessions')
-        .update({
-          ...updates,
-          updated_by: user.id
-        })
-        .eq('id', sessionId)
-        .select()
-        .single();
+      const { id, teacher_id, rate_override_vnd, status, notes } = data;
+      const { data: oldSession } = await supabase.from('sessions').select('*').eq('id', id).single();
 
-      if (updateError) {
-        throw new Error(`Failed to update session: ${updateError.message}`);
-      }
+      const { error } = await supabase.from('sessions').update({
+        teacher_id: teacher_id !== undefined ? teacher_id : oldSession?.teacher_id,
+        rate_override_vnd: rate_override_vnd !== undefined ? rate_override_vnd : oldSession?.rate_override_vnd,
+        status: status || oldSession?.status,
+        notes: notes !== undefined ? notes : oldSession?.notes,
+        updated_by: user.id,
+      }).eq('id', id);
 
-      // Log audit
+      if (error) throw error;
+
       await supabase.from('audit_log').insert({
+        action: 'session_update',
+        entity: 'sessions',
+        entity_id: id,
         actor_user_id: user.id,
-        entity: 'session',
-        entity_id: sessionId,
-        action: 'update',
-        diff: updates
+        diff: { before: oldSession, after: data }
       });
 
-      return new Response(
-        JSON.stringify({ success: true, session }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else if (action === 'cancel') {
-      const { data: session, error: cancelError } = await supabase
-        .from('sessions')
-        .update({
-          status: 'Canceled',
-          notes: updates?.reason || 'Canceled by admin',
-          updated_by: user.id
-        })
-        .eq('id', sessionId)
-        .select()
-        .single();
-
-      if (cancelError) {
-        throw new Error(`Failed to cancel session: ${cancelError.message}`);
-      }
-
-      // Log audit
-      await supabase.from('audit_log').insert({
-        actor_user_id: user.id,
-        entity: 'session',
-        entity_id: sessionId,
-        action: 'cancel',
-        diff: { status: 'Canceled', reason: updates?.reason }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-      return new Response(
-        JSON.stringify({ success: true, session }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else if (action === 'create') {
-      const { classId, date, startTime, endTime, teacherId, status = 'Scheduled' } = updates;
-
-      // Check teacher availability
-      const { data: conflicts } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('teacher_id', teacherId)
-        .eq('date', date)
-        .neq('status', 'Canceled')
-        .or(`and(start_time.lte.${endTime},end_time.gte.${startTime})`);
-
-      if (conflicts && conflicts.length > 0) {
-        throw new Error('Teacher has a conflicting session at this time');
-      }
-
-      const { data: session, error: createError } = await supabase
-        .from('sessions')
-        .insert({
-          class_id: classId,
-          teacher_id: teacherId,
-          date,
-          start_time: startTime,
-          end_time: endTime,
-          status,
-          created_by: user.id,
-          updated_by: user.id
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        throw new Error(`Failed to create session: ${createError.message}`);
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, session }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
-    throw new Error('Invalid action');
+    if (action === 'delete') {
+      const { id } = data;
+      const { data: oldSession } = await supabase.from('sessions').select('*').eq('id', id).single();
+      const { error } = await supabase.from('sessions').delete().eq('id', id);
+      if (error) throw error;
+
+      await supabase.from('audit_log').insert({
+        action: 'session_delete',
+        entity: 'sessions',
+        entity_id: id,
+        actor_user_id: user.id,
+        diff: { deleted: oldSession }
+      });
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'create') {
+      const { class_id, date, start_time, end_time, teacher_id, rate_override_vnd, notes, status } = data;
+
+      const { data: newSession, error } = await supabase.from('sessions').insert({
+        class_id, date, start_time, end_time, teacher_id,
+        rate_override_vnd: rate_override_vnd || null,
+        notes: notes || null,
+        status: status || 'Scheduled',
+        created_by: user.id,
+      }).select().single();
+
+      if (error) throw error;
+
+      await supabase.from('audit_log').insert({
+        action: 'session_create',
+        entity: 'sessions',
+        entity_id: newSession.id,
+        actor_user_id: user.id,
+        diff: { created: newSession }
+      });
+
+      return new Response(JSON.stringify({ ok: true, session: newSession }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: 'Invalid action' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error: any) {
-    console.error('Error managing session:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('Session management error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
