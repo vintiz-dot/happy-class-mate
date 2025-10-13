@@ -6,18 +6,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, role, loading } = useAuth();
 
-  // Wait for auth to load before making decisions
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
+    if (loading) return;
+
     if (!user) {
       navigate("/auth");
       return;
@@ -31,7 +22,17 @@ export default function Dashboard() {
     } else if (role === "student") {
       navigate("/student/dashboard");
     }
-  }, [user, role, navigate]);
+  }, [user, role, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return null;
 }
