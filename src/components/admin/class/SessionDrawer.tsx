@@ -11,13 +11,40 @@ import { toast } from "sonner";
 
 interface SessionDrawerProps {
   session: any;
-  students: any[];
   onClose: () => void;
   onEdit?: (session: any) => void;
 }
 
-const SessionDrawer = ({ session, students, onClose, onEdit }: SessionDrawerProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
+const SessionDrawer = ({ session, onClose, onEdit }: SessionDrawerProps) => {
+  const { data: studentAttendance } = useQuery({
+    queryKey: ["session-student-attendance", session?.id],
+    queryFn: async () => {
+      if (!session?.id) return null;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Get student ID for this user
+      const { data: student } = await supabase
+        .from("students")
+        .select("id")
+        .eq("linked_user_id", user.id)
+        .maybeSingle();
+      
+      if (!student) return null;
+
+      // Get attendance for this student and session
+      const { data: attendance } = await supabase
+        .from("attendance")
+        .select("status")
+        .eq("session_id", session.id)
+        .eq("student_id", student.id)
+        .maybeSingle();
+
+      return attendance;
+    },
+    enabled: !!session?.id,
+  });
 
   const { data: homework } = useQuery({
     queryKey: ["session-homework", session?.class_id],
@@ -43,12 +70,6 @@ const SessionDrawer = ({ session, students, onClose, onEdit }: SessionDrawerProp
     enabled: !!session?.class_id,
   });
 
-  const filteredStudents = useMemo(() => {
-    if (!searchQuery) return students;
-    return students.filter(s => 
-      s.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [students, searchQuery]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -132,6 +153,11 @@ const SessionDrawer = ({ session, students, onClose, onEdit }: SessionDrawerProp
               <Badge className={statusColor(session.status)}>
                 {session.status}
               </Badge>
+              {studentAttendance && (
+                <Badge className={attendanceColor(studentAttendance.status)}>
+                  {studentAttendance.status}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -170,45 +196,6 @@ const SessionDrawer = ({ session, students, onClose, onEdit }: SessionDrawerProp
               </div>
             </div>
           )}
-
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Enrolled Students ({students.length})
-              </h3>
-            </div>
-
-            <Input
-              placeholder="Search students..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="mb-3"
-            />
-
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {filteredStudents.map((student) => (
-                <div
-                  key={student.id}
-                  className="p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{student.full_name}</div>
-                    {student.attendance_status && (
-                      <Badge className={attendanceColor(student.attendance_status)}>
-                        {student.attendance_status}
-                      </Badge>
-                    )}
-                  </div>
-                  {student.enrolled_since && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Enrolled since {format(new Date(student.enrolled_since), "MMM d, yyyy")}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </SheetContent>
     </Sheet>

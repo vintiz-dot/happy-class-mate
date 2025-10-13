@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
@@ -6,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileText, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 
 export default function StudentAssignments() {
   const { studentId } = useStudentProfile();
+  const [selectedHomework, setSelectedHomework] = useState<any>(null);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["student-assignments", studentId],
@@ -25,7 +28,7 @@ export default function StudentAssignments() {
 
       const classIds = enrollments.map(e => e.class_id);
 
-      const { data } = await supabase
+      const { data: homeworks } = await supabase
         .from("homeworks")
         .select(`
           *,
@@ -35,7 +38,21 @@ export default function StudentAssignments() {
         .in("class_id", classIds)
         .order("due_date", { ascending: true, nullsFirst: false });
 
-      return data || [];
+      // Get submission status for each homework
+      const homeworksWithStatus = await Promise.all(
+        (homeworks || []).map(async (hw) => {
+          const { data: submission } = await supabase
+            .from("homework_submissions")
+            .select("id, status")
+            .eq("homework_id", hw.id)
+            .eq("student_id", studentId)
+            .maybeSingle();
+
+          return { ...hw, submissionStatus: submission?.status };
+        })
+      );
+
+      return homeworksWithStatus;
     },
     enabled: !!studentId,
   });
@@ -104,7 +121,11 @@ export default function StudentAssignments() {
                 <h2 className="text-xl font-semibold">Current & Upcoming</h2>
                 <div className="grid gap-4">
                   {upcomingAssignments.map((assignment: any) => (
-                    <Card key={assignment.id}>
+                    <Card 
+                      key={assignment.id} 
+                      className="cursor-pointer hover:shadow-lg transition-shadow"
+                      onClick={() => setSelectedHomework(assignment)}
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -114,35 +135,27 @@ export default function StudentAssignments() {
                               {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                             </CardDescription>
                           </div>
-                          {assignment.due_date && (
-                            <Badge variant="outline">
-                              Due {new Date(assignment.due_date).toLocaleDateString()}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {assignment.submissionStatus === "graded" && (
+                              <Badge className="bg-green-100 text-green-800">Graded</Badge>
+                            )}
+                            {assignment.submissionStatus === "submitted" && (
+                              <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
+                            )}
+                            {!assignment.submissionStatus && (
+                              <Badge variant="outline">Not Submitted</Badge>
+                            )}
+                            {assignment.due_date && (
+                              <Badge variant="outline">
+                                Due {new Date(assignment.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       {assignment.body && (
                         <CardContent>
-                          <p className="text-sm whitespace-pre-wrap mb-4">{assignment.body}</p>
-                          {assignment.homework_files?.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-sm font-medium">Attachments:</p>
-                              <div className="space-y-1">
-                                {assignment.homework_files.map((file: any) => (
-                                  <Button
-                                    key={file.id}
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadFile(file.storage_key, file.file_name)}
-                                    className="w-full justify-start"
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    {file.file_name}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          <p className="text-sm whitespace-pre-wrap line-clamp-3">{assignment.body}</p>
                         </CardContent>
                       )}
                     </Card>
@@ -156,7 +169,11 @@ export default function StudentAssignments() {
                 <h2 className="text-xl font-semibold">Past Assignments</h2>
                 <div className="grid gap-4">
                   {pastAssignments.map((assignment: any) => (
-                    <Card key={assignment.id} className="opacity-60">
+                    <Card 
+                      key={assignment.id} 
+                      className="opacity-60 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setSelectedHomework(assignment)}
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -166,11 +183,19 @@ export default function StudentAssignments() {
                               {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                             </CardDescription>
                           </div>
-                          {assignment.due_date && (
-                            <Badge variant="secondary">
-                              Due {new Date(assignment.due_date).toLocaleDateString()}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {assignment.submissionStatus === "graded" && (
+                              <Badge className="bg-green-100 text-green-800">Graded</Badge>
+                            )}
+                            {assignment.submissionStatus === "submitted" && (
+                              <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
+                            )}
+                            {assignment.due_date && (
+                              <Badge variant="secondary">
+                                Due {new Date(assignment.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                     </Card>
@@ -181,6 +206,14 @@ export default function StudentAssignments() {
           </>
         )}
       </div>
+
+      {selectedHomework && studentId && (
+        <HomeworkDetailDialog
+          homework={selectedHomework}
+          studentId={studentId}
+          onClose={() => setSelectedHomework(null)}
+        />
+      )}
     </Layout>
   );
 }

@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, DollarSign 
 import { dayjs } from "@/lib/date";
 import SessionDrawer from "@/components/admin/class/SessionDrawer";
 import AttendanceDrawer from "@/components/admin/class/AttendanceDrawer";
+import ClassSelector from "./ClassSelector";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 interface GlobalCalendarProps {
@@ -20,6 +21,8 @@ interface GlobalCalendarProps {
 const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCalendarProps) => {
   const [month, setMonth] = useState(dayjs());
   const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [showClassSelector, setShowClassSelector] = useState(false);
+  const [multipleSessions, setMultipleSessions] = useState<{ date: Date; sessions: any[] } | null>(null);
   const { studentId } = useStudentProfile();
 
   const { data: sessions = [], refetch } = useQuery({
@@ -175,7 +178,8 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     } else if (daySessions.length === 0 && role === "admin" && onAddSession) {
       onAddSession(day.toDate());
     } else if (daySessions.length > 1) {
-      setSelectedSession({ multiple: true, sessions: daySessions, date: day.toDate() });
+      setMultipleSessions({ date: day.toDate(), sessions: daySessions });
+      setShowClassSelector(true);
     }
   };
 
@@ -304,7 +308,22 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         </CardContent>
       </Card>
 
-      {selectedSession && !selectedSession.multiple && role !== "student" && (
+      {showClassSelector && multipleSessions && (
+        <ClassSelector
+          date={multipleSessions.date}
+          sessions={multipleSessions.sessions}
+          onSelectSession={(session) => {
+            setSelectedSession(session);
+            setShowClassSelector(false);
+          }}
+          onClose={() => {
+            setShowClassSelector(false);
+            setMultipleSessions(null);
+          }}
+        />
+      )}
+
+      {selectedSession && role !== "student" && (
         <AttendanceDrawer
           session={selectedSession}
           onClose={() => {
@@ -314,10 +333,9 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         />
       )}
 
-      {selectedSession && !selectedSession.multiple && role === "student" && (
+      {selectedSession && role === "student" && (
         <SessionDrawer
           session={selectedSession}
-          students={[]}
           onClose={() => {
             setSelectedSession(null);
             refetch();
