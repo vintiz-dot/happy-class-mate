@@ -111,6 +111,7 @@ export default function StudentAssignments() {
                             <CardTitle>{assignment.title}</CardTitle>
                             <CardDescription>
                               {assignment.classes.name}
+                              {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                             </CardDescription>
                           </div>
                           {assignment.due_date && (
@@ -162,6 +163,7 @@ export default function StudentAssignments() {
                             <CardTitle>{assignment.title}</CardTitle>
                             <CardDescription>
                               {assignment.classes.name}
+                              {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                             </CardDescription>
                           </div>
                           {assignment.due_date && (

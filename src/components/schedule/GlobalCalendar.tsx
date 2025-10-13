@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, DollarSign } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import SessionDrawer from "@/components/admin/class/SessionDrawer";
+import AttendanceDrawer from "@/components/admin/class/AttendanceDrawer";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 interface GlobalCalendarProps {
@@ -303,7 +304,17 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         </CardContent>
       </Card>
 
-      {selectedSession && !selectedSession.multiple && (
+      {selectedSession && !selectedSession.multiple && role !== "student" && (
+        <AttendanceDrawer
+          session={selectedSession}
+          onClose={() => {
+            setSelectedSession(null);
+            refetch();
+          }}
+        />
+      )}
+
+      {selectedSession && !selectedSession.multiple && role === "student" && (
         <SessionDrawer
           session={selectedSession}
           students={[]}

@@ -24,9 +24,11 @@ import {
 } from "@/components/ui/select";
 import { Plus, FileText, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { HomeworkGrading } from "@/components/teacher/HomeworkGrading";
 
 export default function TeacherAssignments() {
   const [open, setOpen] = useState(false);
+  const [gradingHomeworkId, setGradingHomeworkId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -291,8 +293,16 @@ export default function TeacherAssignments() {
                       <CardDescription>
                         {assignment.classes.name}
                         {assignment.due_date && ` • Due ${new Date(assignment.due_date).toLocaleDateString()}`}
+                        {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                       </CardDescription>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGradingHomeworkId(assignment.id)}
+                    >
+                      View Submissions
+                    </Button>
                   </div>
                 </CardHeader>
                 {assignment.body && (
@@ -315,6 +325,13 @@ export default function TeacherAssignments() {
             ))
           )}
         </div>
+
+        {gradingHomeworkId && (
+          <HomeworkGrading
+            homeworkId={gradingHomeworkId}
+            onClose={() => setGradingHomeworkId(null)}
+          />
+        )}
       </div>
     </Layout>
   );

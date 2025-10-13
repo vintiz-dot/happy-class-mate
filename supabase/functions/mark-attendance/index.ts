@@ -73,6 +73,33 @@ Deno.serve(async (req) => {
 
     console.log('Attendance marked successfully:', attendance.id);
 
+    // Trigger tuition recalculation if status is Absent or Excused
+    if (status === 'Absent' || status === 'Excused') {
+      console.log('Triggering tuition recalculation for student:', studentId);
+      
+      // Get session date to determine month
+      const { data: session } = await supabase
+        .from('sessions')
+        .select('date')
+        .eq('id', sessionId)
+        .single();
+      
+      if (session) {
+        const month = session.date.substring(0, 7); // YYYY-MM format
+        
+        // Call calculate-tuition edge function
+        const { error: calcError } = await supabase.functions.invoke('calculate-tuition', {
+          body: { studentId, month }
+        });
+        
+        if (calcError) {
+          console.error('Error recalculating tuition:', calcError);
+        } else {
+          console.log('Tuition recalculated successfully');
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, attendance }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

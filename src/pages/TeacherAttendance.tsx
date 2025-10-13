@@ -6,7 +6,7 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import CalendarMonth from "@/components/calendar/CalendarMonth";
-import SessionDrawer from "@/components/admin/class/SessionDrawer";
+import AttendanceDrawer from "@/components/admin/class/AttendanceDrawer";
 
 export default function TeacherAttendance() {
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
@@ -142,9 +142,8 @@ export default function TeacherAttendance() {
       </div>
 
       {selectedSession && (
-        <SessionDrawer
+        <AttendanceDrawer
           session={selectedSession}
-          students={enrolledStudents || []}
           onClose={() => setSelectedSession(null)}
         />
       )}

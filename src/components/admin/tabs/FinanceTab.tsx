@@ -5,6 +5,7 @@ import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
 import { PaymentManager } from "@/components/admin/PaymentManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
+import { PayrollTab } from "./PayrollTab";
 
 const FinanceTab = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -17,6 +18,7 @@ const FinanceTab = () => {
         <TabsTrigger value="payments">Payments</TabsTrigger>
         <TabsTrigger value="discounts">Discounts</TabsTrigger>
         <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
+        <TabsTrigger value="payroll">Teacher Payroll</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -37,6 +39,10 @@ const FinanceTab = () => {
 
       <TabsContent value="sibling">
         <SiblingDiscountCompute />
+      </TabsContent>
+
+      <TabsContent value="payroll">
+        <PayrollTab />
       </TabsContent>
     </Tabs>
   );

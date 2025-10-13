@@ -164,19 +164,21 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Current Balance</CardDescription>
-              <CardTitle className="text-3xl">
-                {tuitionData?.balance?.toLocaleString() || 0} ₫
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {dayjs().format("MMMM YYYY")}
-              </p>
-            </CardContent>
-          </Card>
+          <Link to={`/students/${studentId}/tuition`}>
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+              <CardHeader className="pb-2">
+                <CardDescription>Current Balance</CardDescription>
+                <CardTitle className="text-3xl">
+                  {tuitionData?.balance?.toLocaleString() || 0} ₫
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {dayjs().format("MMMM YYYY")} • Click to view details
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
