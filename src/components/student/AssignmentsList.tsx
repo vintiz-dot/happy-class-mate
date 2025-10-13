@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { format, isPast } from "date-fns";
 import { FileText, Download, Calendar } from "lucide-react";
+import { HomeworkSubmission } from "./HomeworkSubmission";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 interface Assignment {
   id: string;
@@ -25,68 +27,55 @@ interface Assignment {
 }
 
 export function AssignmentsList() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { studentId } = useStudentProfile();
 
-  useEffect(() => {
-    loadAssignments();
-  }, []);
-
-  const loadAssignments = async () => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-
-      // Get student's enrolled classes
-      const { data: studentData } = await supabase
-        .from("students")
-        .select("id")
-        .eq("linked_user_id", user.user.id)
-        .single();
-
-      if (!studentData) return;
+  const { data: homeworkData, isLoading } = useQuery({
+    queryKey: ["student-homework", studentId],
+    queryFn: async () => {
+      if (!studentId) return { homework: [], submissions: [] };
 
       const { data: enrollments } = await supabase
-        .from("enrollments" as any)
+        .from("enrollments")
         .select("class_id")
-        .eq("student_id", studentData.id)
+        .eq("student_id", studentId)
         .is("end_date", null);
 
       const classIds = enrollments?.map((e: any) => e.class_id) || [];
 
-      if (classIds.length === 0) {
-        setAssignments([]);
-        return;
-      }
+      if (classIds.length === 0) return { homework: [], submissions: [] };
 
-      const { data, error } = await supabase
-        .from("assignments" as any)
+      const { data: homework } = await supabase
+        .from("homeworks")
         .select(`
           *,
           classes(name),
-          teachers(full_name)
+          homework_files(*)
         `)
         .in("class_id", classIds)
-        .order("created_at", { ascending: false });
+        .order("due_date", { ascending: false, nullsFirst: false });
 
-      if (error) throw error;
-      setAssignments((data as any) || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      const { data: submissions } = await supabase
+        .from("homework_submissions")
+        .select("*")
+        .eq("student_id", studentId);
 
-  const downloadFile = async (storageKey: string, fileName: string) => {
+      return {
+        homework: homework || [],
+        submissions: submissions || [],
+      };
+    },
+    enabled: !!studentId,
+  });
+
+  const homework = homeworkData?.homework || [];
+  const submissions = homeworkData?.submissions || [];
+  const submissionMap = new Map(submissions.map((s: any) => [s.homework_id, s]));
+
+  const downloadTeacherFile = async (storageKey: string, fileName: string) => {
     try {
       const { data, error } = await supabase.storage
-        .from("assignments")
+        .from("homework")
         .download(storageKey);
 
       if (error) throw error;
@@ -108,12 +97,20 @@ export function AssignmentsList() {
     }
   };
 
-  const isOverdue = (dueDate: string | null) => {
-    if (!dueDate) return false;
-    return isPast(new Date(dueDate));
-  };
+  if (!studentId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Assignments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Please select a student profile</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -133,60 +130,55 @@ export function AssignmentsList() {
           <FileText className="h-5 w-5" />
           Assignments
         </CardTitle>
-        <CardDescription>View and download your class assignments</CardDescription>
+        <CardDescription>View and submit your class assignments</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {assignments.length === 0 ? (
+        {homework.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No assignments yet</p>
         ) : (
-          assignments.map(assignment => (
-            <div key={assignment.id} className="p-4 border rounded-lg space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h3 className="font-semibold">{assignment.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {assignment.classes.name} • {assignment.teachers.full_name}
-                  </p>
-                </div>
-                {assignment.due_date && (
-                  <Badge variant={isOverdue(assignment.due_date) ? "destructive" : "default"}>
-                    {isOverdue(assignment.due_date) ? "Overdue" : "Due Soon"}
-                  </Badge>
-                )}
+          homework.map((hw: any) => (
+            <div key={hw.id} className="p-4 border rounded-lg space-y-3">
+              <div className="space-y-1">
+                <h3 className="font-semibold">{hw.title}</h3>
+                <p className="text-sm text-muted-foreground">{hw.classes.name}</p>
               </div>
 
-              {assignment.description && (
-                <p className="text-sm whitespace-pre-wrap">{assignment.description}</p>
+              {hw.body && (
+                <p className="text-sm whitespace-pre-wrap">{hw.body}</p>
               )}
 
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {assignment.due_date && (
+                {hw.due_date && (
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    Due: {format(new Date(assignment.due_date), "MMM d, yyyy")}
+                    Due: {format(new Date(hw.due_date), "MMM d, yyyy")}
                   </div>
                 )}
-                <div>
-                  Posted: {format(new Date(assignment.created_at), "MMM d, yyyy")}
-                </div>
               </div>
 
-              {assignment.storage_key && assignment.file_name && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => downloadFile(assignment.storage_key!, assignment.file_name!)}
-                  className="w-full"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download {assignment.file_name}
-                  {assignment.file_size && (
-                    <span className="ml-2 text-muted-foreground">
-                      ({(assignment.file_size / 1024).toFixed(0)} KB)
-                    </span>
-                  )}
-                </Button>
+              {hw.homework_files?.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Teacher's Files:</p>
+                  {hw.homework_files.map((file: any) => (
+                    <Button
+                      key={file.id}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => downloadTeacherFile(file.storage_key, file.file_name)}
+                      className="w-full justify-start"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {file.file_name}
+                    </Button>
+                  ))}
+                </div>
               )}
+
+              <HomeworkSubmission
+                homework={hw}
+                studentId={studentId}
+                existingSubmission={submissionMap.get(hw.id)}
+              />
             </div>
           ))
         )}

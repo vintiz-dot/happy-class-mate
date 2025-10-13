@@ -21,6 +21,7 @@ import Dashboard from "./pages/Dashboard";
 import TeacherClassDetail from "./pages/TeacherClassDetail";
 import TeacherPayroll from "./pages/TeacherPayroll";
 import TeacherAssignments from "./pages/TeacherAssignments";
+import TeacherAttendance from "./pages/TeacherAttendance";
 import StudentAssignments from "./pages/StudentAssignments";
 import Tuition from "./pages/Tuition";
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/teacher/classes/:id" element={<TeacherClassDetail />} />
             <Route path="/teacher/payroll" element={<TeacherPayroll />} />
             <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+            <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/finance" element={<Finance />} />

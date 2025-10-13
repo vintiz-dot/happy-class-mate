@@ -219,6 +219,26 @@ Deno.serve(async (req) => {
 
     console.log('Tuition calculation:', response)
 
+    // Upsert invoice record to persist calculated tuition
+    const { error: invoiceError } = await supabase
+      .from('invoices')
+      .upsert({
+        student_id: studentId,
+        month: month,
+        base_amount: baseAmount,
+        discount_amount: totalDiscount,
+        total_amount: totalAmount,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'student_id,month'
+      })
+
+    if (invoiceError) {
+      console.error('Error upserting invoice:', invoiceError)
+      // Don't fail the request, just log the error
+    }
+
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

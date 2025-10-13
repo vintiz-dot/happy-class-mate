@@ -209,8 +209,9 @@ export default function TeacherPayroll() {
                         <TableHead>Class</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
                     <TableBody>
                       {payrollData?.sessions.map((session: any) => (
                         <TableRow key={session.id}>
