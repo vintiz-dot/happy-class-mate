@@ -133,10 +133,38 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
 
   const getSessionColor = (session: any) => {
     const sessionDate = dayjs.tz(session.date);
-    if (sessionDate.isSame(dayjs(), "day")) return "bg-amber-100 border-amber-300";
+    const now = dayjs();
+    const isToday = sessionDate.isSame(now, "day");
+    const isPast = sessionDate.isBefore(now, "day");
+    const isFuture = sessionDate.isAfter(now, "day");
+    
+    // Priority 1: Explicit statuses that override date logic
     if (session.status === "Canceled") return "bg-red-100 border-red-300";
     if (session.status === "Holiday") return "bg-purple-100 border-purple-300";
-    if (session.status === "Held") return "bg-gray-100 border-gray-300";
+    
+    // Priority 2: Today's sessions
+    if (isToday) return "bg-amber-100 border-amber-300";
+    
+    // Priority 3: Date-aware logic
+    if (isPast) {
+      // Past session marked as Held = correct
+      if (session.status === "Held") return "bg-gray-100 border-gray-300";
+      
+      // Past session still "Scheduled" = needs attention (orange warning)
+      if (session.status === "Scheduled") return "bg-orange-100 border-orange-300";
+      
+      return "bg-gray-100 border-gray-300";
+    }
+    
+    if (isFuture) {
+      // Future session incorrectly marked "Held" = treat as scheduled
+      if (session.status === "Held") return "bg-green-100 border-green-300";
+      
+      // Future scheduled session = normal
+      return "bg-green-100 border-green-300";
+    }
+    
+    // Default: Scheduled
     return "bg-green-100 border-green-300";
   };
 
@@ -247,7 +275,14 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
                           {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
                         </div>
                         <Badge variant="secondary" className="text-[9px] mt-1">
-                          {session.status}
+                          {(() => {
+                            const sessionDate = dayjs.tz(session.date);
+                            const isPast = sessionDate.isBefore(dayjs(), "day");
+                            
+                            if (isPast && session.status === "Scheduled") return "Needs Attendance";
+                            if (dayjs.tz(session.date).isSame(dayjs(), "day")) return "Today";
+                            return session.status;
+                          })()}
                         </Badge>
                       </div>
                     ))}
@@ -258,8 +293,9 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
           </div>
 
           <div className="flex flex-wrap gap-3 mt-6 text-xs">
-            <span className="px-3 py-1 rounded bg-green-100 border border-green-300">Scheduled</span>
+            <span className="px-3 py-1 rounded bg-green-100 border border-green-300">Scheduled (Future)</span>
             <span className="px-3 py-1 rounded bg-amber-100 border border-amber-300">Today</span>
+            <span className="px-3 py-1 rounded bg-orange-100 border border-orange-300">Needs Attendance</span>
             <span className="px-3 py-1 rounded bg-gray-100 border border-gray-300">Held</span>
             <span className="px-3 py-1 rounded bg-red-100 border border-red-300">Canceled</span>
             <span className="px-3 py-1 rounded bg-purple-100 border border-purple-300">Holiday</span>

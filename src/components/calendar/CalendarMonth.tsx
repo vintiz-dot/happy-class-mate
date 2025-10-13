@@ -41,16 +41,32 @@ export default function CalendarMonth({
   const weekdayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const statusClass = (s: CalendarEvent["status"], d: string) => {
-    const isToday = d === todayKey();
-    const isFuture = dayjs.tz(d).isAfter(dayjs(), "day");
+    const sessionDate = dayjs.tz(d);
+    const now = dayjs();
+    const isToday = sessionDate.isSame(now, "day");
+    const isPast = sessionDate.isBefore(now, "day");
+    const isFuture = sessionDate.isAfter(now, "day");
     
-    // Priority order: Canceled > Holiday > Held > Today > Future > Scheduled
+    // Priority 1: Explicit statuses
     if (s === "Canceled") return "bg-red-200 dark:bg-red-900";
     if (s === "Holiday") return "bg-purple-200 dark:bg-purple-900";
-    if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
+    
+    // Priority 2: Today
     if (isToday) return "bg-amber-200 dark:bg-amber-900";
-    if (isFuture) return "bg-muted";
-    return "bg-green-200 dark:bg-green-900"; // Scheduled (past/present)
+    
+    // Priority 3: Date-aware logic
+    if (isPast) {
+      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
+      if (s === "Scheduled") return "bg-orange-200 dark:bg-orange-900"; // Needs attention
+      return "bg-gray-200 dark:bg-gray-700";
+    }
+    
+    if (isFuture) {
+      // Future sessions (treat "Held" as "Scheduled" for future dates)
+      return "bg-green-200 dark:bg-green-900";
+    }
+    
+    return "bg-green-200 dark:bg-green-900";
   };
 
   return (
@@ -112,10 +128,16 @@ export default function CalendarMonth({
 
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="px-2 py-1 rounded bg-green-200 dark:bg-green-900">
-          Scheduled
+          Scheduled (Future)
         </span>
         <span className="px-2 py-1 rounded bg-amber-200 dark:bg-amber-900">
           Today
+        </span>
+        <span className="px-2 py-1 rounded bg-orange-200 dark:bg-orange-900">
+          Needs Attendance
+        </span>
+        <span className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
+          Held
         </span>
         <span className="px-2 py-1 rounded bg-red-200 dark:bg-red-900">
           Canceled
@@ -123,10 +145,6 @@ export default function CalendarMonth({
         <span className="px-2 py-1 rounded bg-purple-200 dark:bg-purple-900">
           Holiday
         </span>
-        <span className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
-          Held
-        </span>
-        <span className="px-2 py-1 rounded bg-muted">Future</span>
       </div>
     </div>
   );
