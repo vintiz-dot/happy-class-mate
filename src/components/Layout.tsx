@@ -47,7 +47,6 @@ const Layout = ({ children, title }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
-          { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
           { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
           { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
@@ -62,7 +61,6 @@ const Layout = ({ children, title }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
-          { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Receipt, label: "Tuition", path: "/tuition" },
           { icon: FileText, label: "Assignments", path: "/student/assignments" },
         ];

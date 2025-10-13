@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, DollarSign } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import SessionDrawer from "@/components/admin/class/SessionDrawer";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 interface GlobalCalendarProps {
   role: "admin" | "teacher" | "student";
@@ -18,9 +19,10 @@ interface GlobalCalendarProps {
 const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCalendarProps) => {
   const [month, setMonth] = useState(dayjs());
   const [selectedSession, setSelectedSession] = useState<any>(null);
+  const { studentId } = useStudentProfile();
 
   const { data: sessions = [], refetch } = useQuery({
-    queryKey: ["calendar-sessions", role, classId, month.format("YYYY-MM")],
+    queryKey: ["calendar-sessions", role, classId, studentId, month.format("YYYY-MM")],
     queryFn: async () => {
       const startDate = month.startOf("month").format("YYYY-MM-DD");
       const endDate = month.endOf("month").format("YYYY-MM-DD");
@@ -53,29 +55,50 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
           .from("teachers")
           .select("id")
           .eq("user_id", user?.id)
-          .single();
+          .maybeSingle();
         
         if (teacher) {
           query = query.eq("teacher_id", teacher.id);
+        } else {
+          // Teacher not found, return empty array
+          return [];
         }
       } else if (role === "student") {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: student } = await supabase
-          .from("students")
-          .select("id")
-          .eq("linked_user_id", user?.id)
-          .single();
+        // Use the selected student ID from context if available
+        let activeStudentId = studentId;
         
-        if (student) {
+        // If no student selected in context, try to find by linked_user_id
+        if (!activeStudentId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { data: student } = await supabase
+            .from("students")
+            .select("id")
+            .eq("linked_user_id", user?.id)
+            .maybeSingle();
+          
+          if (student) {
+            activeStudentId = student.id;
+          }
+        }
+        
+        if (activeStudentId) {
           const { data: enrollments } = await supabase
             .from("enrollments")
             .select("class_id")
-            .eq("student_id", student.id);
+            .eq("student_id", activeStudentId)
+            .gte("start_date", startDate)
+            .or(`end_date.is.null,end_date.gte.${startDate}`);
           
           const classIds = enrollments?.map(e => e.class_id) || [];
           if (classIds.length > 0) {
             query = query.in("class_id", classIds);
+          } else {
+            // No enrollments, return empty array
+            return [];
           }
+        } else {
+          // No student found, return empty array
+          return [];
         }
       }
 
