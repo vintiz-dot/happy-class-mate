@@ -160,7 +160,7 @@ export function PayrollManager() {
               <div className="border-t-2 pt-3 flex items-center justify-between">
                 <p className="text-lg font-bold">Grand Total</p>
                 <p className="text-xl font-bold text-primary">
-                  {grandTotal.toLocaleString('vi-VN')} ₫
+                  {(grandTotal || 0).toLocaleString('vi-VN')} ₫
                 </p>
               </div>
             </div>
