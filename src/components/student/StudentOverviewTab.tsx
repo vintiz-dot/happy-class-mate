@@ -6,7 +6,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
-import { Users } from "lucide-react";
+import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { Users, Trophy } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -33,8 +34,43 @@ export function StudentOverviewTab({ student }: { student: any }) {
     enabled: !!student.family_id,
   });
 
+  // Fetch student's enrolled classes
+  const { data: enrolledClasses } = useQuery({
+    queryKey: ["student-enrolled-classes", student.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("class_id, classes(id, name)")
+        .eq("student_id", student.id)
+        .not("end_date", "lt", new Date().toISOString().split("T")[0]);
+
+      if (error) throw error;
+      return data?.map(e => e.classes).filter(Boolean) || [];
+    },
+  });
+
   return (
     <>
+      {/* Class Leaderboards */}
+      {enrolledClasses && enrolledClasses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Class Leaderboards
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {enrolledClasses.map((cls: any) => (
+              <div key={cls.id}>
+                <h3 className="font-semibold mb-3">{cls.name}</h3>
+                <ClassLeaderboard classId={cls.id} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Family & Siblings Card */}
       {familyData && (
         <Card>

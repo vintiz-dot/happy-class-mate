@@ -175,7 +175,7 @@ export default function TeacherDashboard() {
             <CardHeader className="pb-2">
               <CardDescription>Earned (Actual)</CardDescription>
               <CardTitle className="text-3xl">
-                {payrollData?.totalAmountActual?.toLocaleString() || 0} ₫
+                {(payrollData?.totalAmountActual || 0).toLocaleString()} ₫
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -189,7 +189,7 @@ export default function TeacherDashboard() {
             <CardHeader className="pb-2">
               <CardDescription>Projected Total</CardDescription>
               <CardTitle className="text-3xl">
-                {payrollData?.totalAmountProjected?.toLocaleString() || 0} ₫
+                {(payrollData?.totalAmountProjected || 0).toLocaleString()} ₫
               </CardTitle>
             </CardHeader>
             <CardContent>

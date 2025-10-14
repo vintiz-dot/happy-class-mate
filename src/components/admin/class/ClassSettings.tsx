@@ -76,7 +76,48 @@ const ClassSettings = ({ classId }: { classId: string }) => {
 
       if (error) throw error;
 
-      toast.success("Class settings updated successfully");
+      // Trigger recalculations for affected students and teachers
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+      // Get all enrollments for this class
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("student_id")
+        .eq("class_id", classId);
+
+      // Recalculate tuition for each student
+      if (enrollments && enrollments.length > 0) {
+        const studentIds = enrollments.map(e => e.student_id);
+        console.log(`Recalculating tuition for ${studentIds.length} students`);
+        
+        // Trigger tuition recalculation for each student
+        for (const studentId of studentIds) {
+          await supabase.functions.invoke("calculate-tuition", {
+            body: { studentId, month: currentMonth },
+          }).catch(err => console.error(`Failed to recalculate tuition for student ${studentId}:`, err));
+        }
+      }
+
+      // Get teachers for this class and recalculate payroll
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("teacher_id")
+        .eq("class_id", classId)
+        .gte("date", `${currentMonth}-01`)
+        .lte("date", `${currentMonth}-31`);
+
+      if (sessions && sessions.length > 0) {
+        const teacherIds = [...new Set(sessions.map(s => s.teacher_id))];
+        console.log(`Recalculating payroll for ${teacherIds.length} teachers`);
+        
+        for (const teacherId of teacherIds) {
+          await supabase.functions.invoke("calculate-payroll", {
+            body: { teacherId, month: currentMonth },
+          }).catch(err => console.error(`Failed to recalculate payroll for teacher ${teacherId}:`, err));
+        }
+      }
+
+      toast.success("Class settings updated and calculations triggered");
     } catch (error: any) {
       console.error("Error updating class:", error);
       toast.error(error.message || "Failed to update class settings");

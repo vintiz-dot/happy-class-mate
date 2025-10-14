@@ -132,7 +132,6 @@ Deno.serve(async (req) => {
     }
 
     // Guard rails: Fix status on existing sessions
-    const [year, monthNum] = month.split('-').map(Number);
     const startDateStr = `${year}-${String(monthNum).padStart(2, '0')}-01`;
     const nextMonth = new Date(year, monthNum, 1);
     const endDateStr = nextMonth.toISOString().slice(0, 10);

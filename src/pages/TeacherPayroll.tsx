@@ -143,9 +143,9 @@ export default function TeacherPayroll() {
   const hourlyRate = payrollData?.hourlyRate || 200000;
 
   // Use the edge function's calculated amounts
-  const totalEarned = payrollData?.payrollResult?.totalAmount || 0;
+  const totalEarned = payrollData?.payrollResult?.totalAmountActual || 0;
   const projectedEarnings = scheduledSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s, hourlyRate), 0);
-  const totalProjected = totalEarned + projectedEarnings;
+  const totalProjected = payrollData?.payrollResult?.totalAmountProjected || (totalEarned + projectedEarnings);
 
   const totalHours = heldSessions.reduce((sum: number, s: any) => {
     const start = dayjs(`${s.date} ${s.start_time}`);

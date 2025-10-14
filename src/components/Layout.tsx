@@ -36,12 +36,10 @@ const Layout = ({ children, title }: LayoutProps) => {
     switch (role) {
       case "admin":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: LayoutDashboard, label: "Admin", path: "/admin" },
           { icon: Users, label: "Students", path: "/students" },
           { icon: Users, label: "Teachers", path: "/teachers" },
           { icon: BookOpen, label: "Classes", path: "/classes" },
-          { icon: DollarSign, label: "Finance", path: "/finance" },
         ];
       case "teacher":
         return [

@@ -39,6 +39,10 @@ const Index = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
+  if (role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -47,161 +51,6 @@ const Index = () => {
           <p className="text-muted-foreground">Welcome to Tuition Manager</p>
         </div>
 
-        {role === "admin" && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Admin Dashboard</h2>
-              <p className="text-muted-foreground">Quick access to all management sections</p>
-            </div>
-
-            <OverviewStats />
-
-            <UsersManager />
-
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/students")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Students
-                  </CardTitle>
-                  <CardDescription>
-                    Manage student records and enrollments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    View, create, and manage student information
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/families")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Home className="h-5 w-5 text-primary" />
-                    Families
-                  </CardTitle>
-                  <CardDescription>
-                    Manage family accounts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Create and manage family records
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/teachers")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserCog className="h-5 w-5 text-primary" />
-                    Teachers
-                  </CardTitle>
-                  <CardDescription>
-                    Manage teacher accounts and payroll
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Create teachers, manage admin users, and process payroll
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/classes")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                    Classes
-                  </CardTitle>
-                  <CardDescription>
-                    Manage classes and enrollments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Create classes, manage enrollments, and assign students
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/schedule")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    Schedule
-                  </CardTitle>
-                  <CardDescription>
-                    Manage sessions and timetables
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Generate sessions and view the class schedule
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/finance")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
-                    Finance
-                  </CardTitle>
-                  <CardDescription>
-                    Manage payments and discounts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Process payments, manage discounts, and handle tuition
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/tuition")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-primary" />
-                    Tuition
-                  </CardTitle>
-                  <CardDescription>
-                    Manage student tuition
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    View tuition details, payments, and discounts
-                  </p>
-                </CardContent>
-              </Card>
-
-            </div>
-          </div>
-        )}
 
         {role === "teacher" && (
           <div className="space-y-6">
