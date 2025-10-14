@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, FileText, DollarSign, Users, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
 
 export default function TeacherDashboard() {
   const currentMonth = dayjs().format("YYYY-MM");
@@ -111,8 +112,8 @@ export default function TeacherDashboard() {
     },
   });
 
-  const { data: monthlyEarnings } = useQuery({
-    queryKey: ["teacher-monthly-earnings", currentMonth],
+  const { data: payrollData } = useQuery({
+    queryKey: ["teacher-payroll", currentMonth],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -123,32 +124,14 @@ export default function TeacherDashboard() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!teacher) return 0;
+      if (!teacher) return null;
 
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select(`
-          date,
-          start_time,
-          end_time,
-          status,
-          rate_override_vnd,
-          classes!inner(session_rate_vnd)
-        `)
-        .eq("teacher_id", teacher.id)
-        .gte("date", `${currentMonth}-01`)
-        .lte("date", `${currentMonth}-31`)
-        .eq("status", "Held");
+      const { data, error } = await supabase.functions.invoke("calculate-payroll", {
+        body: { month: currentMonth, teacherId: teacher.id },
+      });
 
-      const total = sessions?.reduce((sum, s) => {
-        const rate = s.rate_override_vnd || (s.classes as any).session_rate_vnd;
-        const startTime = dayjs(`${s.date} ${s.start_time}`);
-        const endTime = dayjs(`${s.date} ${s.end_time}`);
-        const hours = endTime.diff(startTime, "hour", true);
-        return sum + Math.round(rate * hours / 1.5);
-      }, 0) || 0;
-
-      return total;
+      if (error) throw error;
+      return data?.payrollData?.[0] || null;
     },
   });
 
@@ -190,14 +173,28 @@ export default function TeacherDashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Monthly Earnings</CardDescription>
+              <CardDescription>Earned (Actual)</CardDescription>
               <CardTitle className="text-3xl">
-                {monthlyEarnings?.toLocaleString() || 0} ₫
+                {payrollData?.totalAmountActual?.toLocaleString() || 0} ₫
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">
-                {dayjs().format("MMMM YYYY")}
+                {payrollData?.sessionsCountActual || 0} held sessions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Projected Total</CardDescription>
+              <CardTitle className="text-3xl">
+                {payrollData?.totalAmountProjected?.toLocaleString() || 0} ₫
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {payrollData?.sessionsCountProjected || 0} total sessions
               </p>
             </CardContent>
           </Card>
@@ -277,6 +274,11 @@ export default function TeacherDashboard() {
               </CardHeader>
             </Card>
           </Link>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Teaching Schedule</h2>
+          <TeacherScheduleCalendar />
         </div>
       </div>
     </Layout>

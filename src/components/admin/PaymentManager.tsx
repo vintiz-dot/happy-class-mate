@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { postStudentPayment } from "@/lib/payments";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Student {
   id: string;
@@ -34,6 +36,7 @@ export function PaymentManager() {
   const [occurredAt, setOccurredAt] = useState(format(new Date(), "yyyy-MM-dd"));
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     loadData();
@@ -73,29 +76,23 @@ export function PaymentManager() {
 
     setLoading(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-      
-      const { data, error } = await supabase.functions.invoke("post-payment", {
-        body: {
-          studentId: selectedStudent,
-          amount: parseInt(amount),
-          method,
-          memo,
-          occurredAt: new Date(occurredAt).toISOString(),
-        },
-        headers: {
-          'x-user-id': user.user?.id || ''
-        }
+      const { month } = await postStudentPayment({
+        studentId: selectedStudent,
+        amount: parseInt(amount),
+        method,
+        occurredAt: new Date(occurredAt).toISOString(),
+        memo,
       });
-
-      if (error) throw error;
 
       toast({
         title: "Success",
-        description: data.creditBalance > 0 
-          ? `Payment posted. Credit balance: ${data.creditBalance.toLocaleString('vi-VN')} VND`
-          : "Payment posted successfully",
+        description: "Payment posted successfully",
       });
+
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["student-tuition", selectedStudent] });
+      queryClient.invalidateQueries({ queryKey: ["admin-finance", month] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", selectedStudent] });
 
       // Reset form
       setSelectedStudent("");

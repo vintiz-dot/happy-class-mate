@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { GraduationCap } from "lucide-react";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot";
 type UserRole = "admin" | "teacher" | "family" | "student";
 
 const Auth = () => {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
@@ -104,6 +104,18 @@ const Auth = () => {
           description: "Welcome back!",
         });
         navigate("/");
+      } else if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/`,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for a password reset link",
+        });
+        setMode("login");
       } else {
         const redirectUrl = `${window.location.origin}/`;
         
@@ -147,7 +159,7 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
-            {mode === "login" ? "Sign In" : "Sign Up"}
+            {mode === "login" ? "Sign In" : mode === "forgot" ? "Reset Password" : "Sign Up"}
           </CardTitle>
           <CardDescription className="text-center">
             Tuition Manager - Happy English Club
@@ -186,18 +198,20 @@ const Auth = () => {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            {mode !== "forgot" && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
             {mode === "signup" && (
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
@@ -214,16 +228,25 @@ const Auth = () => {
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Processing..." : mode === "login" ? "Sign In" : "Sign Up"}
+              {loading ? "Processing..." : mode === "login" ? "Sign In" : mode === "forgot" ? "Send Reset Link" : "Sign Up"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 space-y-2 text-center text-sm">
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={() => setMode("forgot")}
+                className="text-primary hover:underline block w-full"
+              >
+                Forgot password?
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setMode(mode === "login" ? "signup" : "login")}
               className="text-primary hover:underline"
             >
-              {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              {mode === "login" ? "Don't have an account? Sign up" : mode === "forgot" ? "Back to sign in" : "Already have an account? Sign in"}
             </button>
           </div>
         </CardContent>

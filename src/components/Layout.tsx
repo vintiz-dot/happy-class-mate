@@ -17,6 +17,7 @@ import {
   ClipboardList
 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
+import { ChangePassword } from "@/components/auth/ChangePassword";
 
 interface LayoutProps {
   children: ReactNode;
@@ -92,6 +93,7 @@ const Layout = ({ children, title }: LayoutProps) => {
               <p className="text-sm font-medium text-foreground">{user.email}</p>
               <p className="text-xs text-muted-foreground capitalize">{role}</p>
             </div>
+            <ChangePassword />
             <Button onClick={signOut} variant="outline" size="sm">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { buildMonthGrid, todayKey, dayjs } from "@/lib/date";
+import { buildMonthGrid, todayKey, dayjs, nowBangkok } from "@/lib/date";
 
 type CalendarEvent = {
   id: string;
@@ -41,29 +41,31 @@ export default function CalendarMonth({
   const weekdayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const statusClass = (s: CalendarEvent["status"], d: string) => {
-    const sessionDate = dayjs.tz(d);
-    const now = dayjs();
+    const sessionDate = dayjs.tz(d, 'Asia/Bangkok');
+    const now = nowBangkok();
     const isToday = sessionDate.isSame(now, "day");
     const isPast = sessionDate.isBefore(now, "day");
     const isFuture = sessionDate.isAfter(now, "day");
     
-    // Priority 1: Explicit statuses
+    // Rule 1: Canceled and Holiday always have their colors
     if (s === "Canceled") return "bg-red-200 dark:bg-red-900";
     if (s === "Holiday") return "bg-purple-200 dark:bg-purple-900";
     
-    // Priority 2: Today
-    if (isToday) return "bg-amber-200 dark:bg-amber-900";
-    
-    // Priority 3: Date-aware logic
-    if (isPast) {
-      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
-      if (s === "Scheduled") return "bg-orange-200 dark:bg-orange-900"; // Needs attention
-      return "bg-gray-200 dark:bg-gray-700";
+    // Rule 2: Future dates are ALWAYS Scheduled (green), never Held
+    if (isFuture) {
+      return "bg-green-200 dark:bg-green-900";
     }
     
-    if (isFuture) {
-      // Future sessions (treat "Held" as "Scheduled" for future dates)
-      return "bg-green-200 dark:bg-green-900";
+    // Rule 3: Today - show amber for Scheduled, or status-based color if Held
+    if (isToday) {
+      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
+      return "bg-amber-200 dark:bg-amber-900"; // Scheduled today
+    }
+    
+    // Rule 4: Past dates - respect actual status
+    if (isPast) {
+      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
+      return "bg-orange-200 dark:bg-orange-900"; // Scheduled in past (needs attention)
     }
     
     return "bg-green-200 dark:bg-green-900";
@@ -88,13 +90,13 @@ export default function CalendarMonth({
           >
             <div className="flex items-center justify-between mb-1">
               <div className="text-xs text-muted-foreground">
-                {dayjs.tz(d).format("ddd")}
+                {dayjs.tz(d, 'Asia/Bangkok').format("ddd")}
               </div>
               <button
                 className="text-sm font-medium hover:text-primary"
                 onClick={() => onSelectDay?.(d)}
               >
-                {dayjs.tz(d).format("D")}
+                {dayjs.tz(d, 'Asia/Bangkok').format("D")}
               </button>
             </div>
             <div className="space-y-1">

@@ -13,6 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { postStudentPayment } from "@/lib/payments";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -93,17 +94,14 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
 
   const recordPaymentMutation = useMutation({
     mutationFn: async (paymentData: any) => {
-      const { data, error } = await supabase.functions.invoke("record-payment", {
-        body: paymentData,
-      });
-
-      if (error) throw error;
-      return data;
+      return postStudentPayment(paymentData);
     },
-    onSuccess: () => {
+    onSuccess: ({ month }) => {
       toast.success("Payment recorded successfully");
       queryClient.invalidateQueries({ queryKey: ["student-tuition", studentId] });
       queryClient.invalidateQueries({ queryKey: ["student-payments", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-finance", month] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", studentId] });
       setPaymentDialogOpen(false);
       setPaymentAmount("");
       setPayerName("");
@@ -121,7 +119,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
 
     recordPaymentMutation.mutate({
       studentId,
-      amount: Math.round(parseFloat(paymentAmount)),
+      amount: parseFloat(paymentAmount),
       method: paymentMethod,
       occurredAt: paymentDate.toISOString(),
       payerName,

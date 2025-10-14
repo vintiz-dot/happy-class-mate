@@ -18,6 +18,10 @@ export function todayKey() {
   return dayjs().tz().format("YYYY-MM-DD");
 }
 
+export function nowBangkok() {
+  return dayjs().tz();
+}
+
 export function buildMonthGrid(yyyyMm: string) {
   const first = dayjs.tz(`${yyyyMm}-01`);
   const from = first.startOf("isoWeek");

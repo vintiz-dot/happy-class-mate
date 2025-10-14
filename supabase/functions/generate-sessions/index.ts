@@ -131,6 +131,26 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError
     }
 
+    // Guard rails: Fix status on existing sessions
+    const [year, monthNum] = month.split('-').map(Number);
+    const startDateStr = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+    const nextMonth = new Date(year, monthNum, 1);
+    const endDateStr = nextMonth.toISOString().slice(0, 10);
+
+    // Past Canceled stays Canceled (no change needed)
+    // Future Held sessions → revert to Scheduled
+    const { error: updateError } = await supabase
+      .from('sessions')
+      .update({ status: 'Scheduled' })
+      .gte('date', startDateStr)
+      .lt('date', endDateStr)
+      .eq('status', 'Held')
+      .gt('date', new Date().toISOString().slice(0, 10)); // Only future dates
+
+    if (updateError) {
+      console.error('Error updating future Held sessions:', updateError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
