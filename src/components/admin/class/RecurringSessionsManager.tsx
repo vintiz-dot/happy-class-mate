@@ -235,12 +235,12 @@ export default function RecurringSessionsManager({ classId }: RecurringSessionsM
             </div>
             <div>
               <Label className="text-xs">Teacher (Optional)</Label>
-              <Select value={newSession.teacherId} onValueChange={(v) => setNewSession({ ...newSession, teacherId: v })}>
+              <Select value={newSession.teacherId || "default"} onValueChange={(v) => setNewSession({ ...newSession, teacherId: v === "default" ? "" : v })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use Default Teacher</SelectItem>
+                  <SelectItem value="default">Use Default Teacher</SelectItem>
                   {teachers?.map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.full_name}
