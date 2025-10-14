@@ -361,6 +361,39 @@ export type Database = {
           },
         ]
       }
+      expenditures: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          memo: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          memo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          memo?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           address: string | null

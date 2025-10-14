@@ -12,7 +12,8 @@ interface SessionRow {
   id: string;
   date: string; // YYYY-MM-DD
   status: "Scheduled" | "Held" | "Canceled";
-  classes: { session_rate_vnd: number } | null;
+  class_id: string;
+  classes: { session_rate_vnd: number } | { session_rate_vnd: number }[] | null;
 }
 
 interface EnrollmentRow {
@@ -52,10 +53,13 @@ Deno.serve(async (req) => {
     // Student + family
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, family_id, families(id, sibling_percent_override)")
+      .select("id, family_id, families!inner(id, sibling_percent_override)")
       .eq("id", studentId)
       .single();
     if (studentError) throw studentError;
+    
+    // Extract family data if it's an array
+    const family = student?.families ? (Array.isArray(student.families) ? student.families[0] : student.families) : null;
 
     // Active enrollments
     const { data: enrollments, error: enrollErr } = await supabase
@@ -97,7 +101,8 @@ Deno.serve(async (req) => {
 
     for (const s of sessions ?? []) {
       const att = attendanceMap.get(s.id);
-      const rate = Number(s.classes?.session_rate_vnd ?? 0);
+      const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
+      const rate = Number(classData?.session_rate_vnd ?? 0);
       // Only count if attendance exists and is billable OR session held without explicit attendance (default Present policy)
       const billable =
         att === "Present" || att === "Absent" || (s.status === "Held" && (att === undefined || att === null));
@@ -171,11 +176,11 @@ Deno.serve(async (req) => {
 
     // Sibling discount if assigned
     let siblingState: any = null;
-    if (student?.families?.id) {
+    if (family?.id) {
       const { data: sd } = await supabase
         .from("sibling_discount_state")
         .select("status, winner_student_id, sibling_percent, reason")
-        .eq("family_id", student.families.id)
+        .eq("family_id", family.id)
         .eq("month", month)
         .maybeSingle();
       if (sd) {

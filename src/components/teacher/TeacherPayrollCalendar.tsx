@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday, isSameDay, isPast, isBefore, startOfDay } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { dayjs } from "@/lib/date";
 import ClassSelector from "@/components/schedule/ClassSelector";
+
+const TIMEZONE = "Asia/Bangkok";
 
 interface Session {
   id: string;
@@ -32,6 +35,9 @@ export default function TeacherPayrollCalendar({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showClassSelector, setShowClassSelector] = useState(false);
 
+  const now = toZonedTime(new Date(), TIMEZONE);
+  const today = startOfDay(now);
+
   const days = eachDayOfInterval({
     start: startOfMonth(month),
     end: endOfMonth(month),
@@ -48,6 +54,16 @@ export default function TeacherPayrollCalendar({
     return sessions.filter((s) =>
       isSameDay(new Date(s.date), date)
     );
+  };
+
+  const getSessionStatus = (session: Session) => {
+    const sessionDate = new Date(session.date);
+    // Future date = always Scheduled
+    if (isBefore(today, startOfDay(sessionDate))) {
+      return "Scheduled";
+    }
+    // Past or today: use actual session status
+    return session.status;
   };
 
   const handleDateClick = (date: Date) => {
@@ -102,8 +118,7 @@ export default function TeacherPayrollCalendar({
             
             {days.map((day, index) => {
               const dateSessions = getSessionsForDate(day);
-              const heldSessions = dateSessions.filter(s => s.status === "Held");
-              const scheduledSessions = dateSessions.filter(s => s.status === "Scheduled");
+              const heldSessions = dateSessions.filter(s => getSessionStatus(s) === "Held");
               const totalEarned = heldSessions.reduce((sum, s) => sum + calculateSessionAmount(s), 0);
               
               return (
@@ -124,23 +139,26 @@ export default function TeacherPayrollCalendar({
                   
                   {dateSessions.length > 0 && (
                     <div className="space-y-1">
-                      {dateSessions.slice(0, 2).map((session) => (
-                        <div
-                          key={session.id}
-                          className="text-xs p-1 rounded bg-background border"
-                        >
-                          <div className="font-medium truncate">{session.classes.name}</div>
-                          <div className="text-muted-foreground">
-                            {session.start_time.slice(0, 5)}
-                          </div>
-                          <Badge
-                            variant={session.status === "Held" ? "default" : "secondary"}
-                            className="text-[10px] px-1 py-0 mt-1"
+                      {dateSessions.slice(0, 2).map((session) => {
+                        const displayStatus = getSessionStatus(session);
+                        return (
+                          <div
+                            key={session.id}
+                            className="text-xs p-1 rounded bg-background border"
                           >
-                            {session.status}
-                          </Badge>
-                        </div>
-                      ))}
+                            <div className="font-medium truncate">{session.classes.name}</div>
+                            <div className="text-muted-foreground">
+                              {session.start_time.slice(0, 5)}
+                            </div>
+                            <Badge
+                              variant={displayStatus === "Held" ? "default" : "secondary"}
+                              className="text-[10px] px-1 py-0 mt-1"
+                            >
+                              {displayStatus}
+                            </Badge>
+                          </div>
+                        );
+                      })}
                       {dateSessions.length > 2 && (
                         <div className="text-xs text-muted-foreground">
                           +{dateSessions.length - 2} more

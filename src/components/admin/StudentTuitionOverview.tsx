@@ -16,6 +16,14 @@ interface TuitionData {
   totalDiscount: number;
   totalAmount: number;
   sessionCount: number;
+  payments?: {
+    monthPayments: number;
+  };
+  carry?: {
+    carryOutCredit: number;
+    carryOutDebt: number;
+    status: string;
+  };
   siblingState?: {
     status: string;
     percent: number;
@@ -136,6 +144,8 @@ export function StudentTuitionOverview() {
                 <TableHead className="text-right">Base Amount</TableHead>
                 <TableHead className="text-right">Discounts</TableHead>
                 <TableHead className="text-right">Total Payable</TableHead>
+                <TableHead className="text-right">Recorded Pay</TableHead>
+                <TableHead>Balance / Credit</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Invoice</TableHead>
               </TableRow>
@@ -143,6 +153,13 @@ export function StudentTuitionOverview() {
             <TableBody>
               {students?.map((student) => {
                 const tuition = tuitionData?.find(t => t.studentId === student.id);
+                const recordedPay = tuition?.payments?.monthPayments || 0;
+                const balanceStatus = tuition?.carry?.status || 'settled';
+                const balanceAmount = balanceStatus === 'credit' 
+                  ? tuition?.carry?.carryOutCredit || 0
+                  : balanceStatus === 'debt'
+                  ? tuition?.carry?.carryOutDebt || 0
+                  : 0;
                 
                 return (
                   <TableRow 
@@ -167,6 +184,24 @@ export function StudentTuitionOverview() {
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {tuition ? formatVND(tuition.totalAmount) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-blue-600">
+                      {recordedPay > 0 ? formatVND(recordedPay) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {balanceStatus === 'credit' && balanceAmount > 0 && (
+                        <Badge variant="default" className="bg-green-600">
+                          Credit: {formatVND(balanceAmount)}
+                        </Badge>
+                      )}
+                      {balanceStatus === 'debt' && balanceAmount > 0 && (
+                        <Badge variant="destructive">
+                          Balance Due: {formatVND(balanceAmount)}
+                        </Badge>
+                      )}
+                      {balanceStatus === 'settled' && (
+                        <Badge variant="secondary">Settled</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {tuition?.siblingState?.status === 'assigned' && tuition.siblingState.isWinner && (

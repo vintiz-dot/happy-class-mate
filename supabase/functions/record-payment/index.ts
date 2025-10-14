@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 
     // Generate unique tx_id for double-entry
     const txId = crypto.randomUUID();
-    const month = new Date(occurredAt).toISOString().slice(0, 7); // YYYY-MM
+    const paymentMonth = new Date(occurredAt).toISOString().slice(0, 7); // YYYY-MM
 
     // Post ledger entries (double-entry bookkeeping)
     // Credit to AR account (reduces amount owed)
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           account_id: account.id,
           credit: amount,
           debit: 0,
-          month,
+          month: paymentMonth,
           occurred_at: occurredAt,
           memo: `Payment received - ${method}`,
           created_by: user.id
@@ -118,6 +118,17 @@ Deno.serve(async (req) => {
     }
 
     console.log('Payment recorded successfully:', payment.id);
+
+    // Trigger tuition recalculation for this student/month
+    try {
+      await supabase.functions.invoke('calculate-tuition', {
+        body: { studentId, month: paymentMonth }
+      });
+      console.log('Tuition recalculated for student:', studentId, 'month:', paymentMonth);
+    } catch (tuitionError: any) {
+      console.error('Failed to recalculate tuition:', tuitionError.message);
+      // Don't fail the payment if tuition calc fails
+    }
 
     return new Response(
       JSON.stringify({ success: true, paymentId: payment.id }),

@@ -6,20 +6,28 @@ import { PaymentManager } from "@/components/admin/PaymentManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { PayrollTab } from "./PayrollTab";
+import { FinanceSummary } from "@/components/admin/FinanceSummary";
+import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 
 const FinanceTab = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
 
   return (
-    <Tabs defaultValue="overview" className="space-y-4">
+    <Tabs defaultValue="summary" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="summary">Summary</TabsTrigger>
+        <TabsTrigger value="overview">Tuition</TabsTrigger>
         <TabsTrigger value="bulk">Bulk Download</TabsTrigger>
         <TabsTrigger value="payments">Payments</TabsTrigger>
+        <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
         <TabsTrigger value="discounts">Discounts</TabsTrigger>
         <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
         <TabsTrigger value="payroll">Teacher Payroll</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="summary" className="space-y-4">
+        <FinanceSummary />
+      </TabsContent>
 
       <TabsContent value="overview">
         <StudentTuitionOverview />
@@ -35,6 +43,10 @@ const FinanceTab = () => {
 
       <TabsContent value="discounts">
         <DiscountManager />
+      </TabsContent>
+
+      <TabsContent value="expenditures">
+        <ExpendituresManager selectedMonth={currentMonth} />
       </TabsContent>
 
       <TabsContent value="sibling">
