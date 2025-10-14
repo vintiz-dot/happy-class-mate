@@ -65,10 +65,10 @@ export function PayrollManager() {
     const headers = ["Teacher Name", "Hourly Rate (VND)", "Total Hours", "Sessions", "Total Amount (VND)"];
     const rows = payrollData.map(p => [
       p.teacherName,
-      p.hourlyRate.toString(),
-      p.totalHours.toFixed(2),
-      p.sessionsCount.toString(),
-      p.totalAmount.toString()
+      (p.hourlyRate || 0).toString(),
+      (p.totalHours || 0).toFixed(2),
+      (p.sessionsCount || 0).toString(),
+      (p.totalAmount || 0).toString()
     ]);
 
     const csv = [
@@ -145,14 +145,14 @@ export function PayrollManager() {
                   <div className="space-y-1">
                     <p className="font-medium">{teacher.teacherName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {teacher.totalHours.toFixed(2)} hours ({teacher.totalMinutes} minutes) • {teacher.sessionsCount} sessions
+                      {(teacher.totalHours || 0).toFixed(2)} hours ({teacher.totalMinutes || 0} minutes) • {teacher.sessionsCount || 0} sessions
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Rate: {teacher.hourlyRate.toLocaleString('vi-VN')} ₫/hour
+                      Rate: {(teacher.hourlyRate || 0).toLocaleString('vi-VN')} ₫/hour
                     </p>
                   </div>
                   <p className="text-lg font-semibold text-primary">
-                    {teacher.totalAmount.toLocaleString('vi-VN')} ₫
+                    {(teacher.totalAmount || 0).toLocaleString('vi-VN')} ₫
                   </p>
                 </div>
               ))}
