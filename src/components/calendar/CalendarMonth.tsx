@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { buildMonthGrid, todayKey, dayjs, nowBangkok } from "@/lib/date";
+import { getSessionDisplayStatus, getStatusColorClass } from "@/lib/sessionStatus";
 
 type CalendarEvent = {
   id: string;
@@ -40,35 +41,19 @@ export default function CalendarMonth({
   const isToday = (d: string) => d === todayKey();
   const weekdayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const statusClass = (s: CalendarEvent["status"], d: string) => {
-    const sessionDate = dayjs.tz(d, 'Asia/Bangkok');
-    const now = nowBangkok();
-    const isToday = sessionDate.isSame(now, "day");
-    const isPast = sessionDate.isBefore(now, "day");
-    const isFuture = sessionDate.isAfter(now, "day");
+  const statusClass = (event: CalendarEvent) => {
+    // Use unified session status logic
+    const displayStatus = getSessionDisplayStatus({
+      date: event.date,
+      start_time: event.start_time,
+      status: event.status,
+    });
     
-    // Rule 1: Canceled and Holiday always have their colors
-    if (s === "Canceled") return "bg-red-200 dark:bg-red-900";
-    if (s === "Holiday") return "bg-purple-200 dark:bg-purple-900";
+    const sessionDateTime = new Date(`${event.date}T${event.start_time}`);
+    const now = nowBangkok().toDate();
+    const isPast = sessionDateTime < now;
     
-    // Rule 2: Future dates are ALWAYS Scheduled (green), never Held
-    if (isFuture) {
-      return "bg-green-200 dark:bg-green-900";
-    }
-    
-    // Rule 3: Today - show amber for Scheduled, or status-based color if Held
-    if (isToday) {
-      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
-      return "bg-amber-200 dark:bg-amber-900"; // Scheduled today
-    }
-    
-    // Rule 4: Past dates - respect actual status
-    if (isPast) {
-      if (s === "Held") return "bg-gray-200 dark:bg-gray-700";
-      return "bg-orange-200 dark:bg-orange-900"; // Scheduled in past (needs attention)
-    }
-    
-    return "bg-green-200 dark:bg-green-900";
+    return getStatusColorClass(displayStatus, isPast);
   };
 
   return (
@@ -106,10 +91,7 @@ export default function CalendarMonth({
                   title={`${ev.class_name} ${ev.start_time}-${ev.end_time}${
                     ev.notes ? `\n${ev.notes}` : ""
                   }`}
-                  className={`w-full text-left px-2 py-1 rounded text-xs ${statusClass(
-                    ev.status,
-                    d
-                  )} hover:opacity-80 transition-opacity`}
+                  className={`w-full text-left px-2 py-1 rounded text-xs ${statusClass(ev)} hover:opacity-80 transition-opacity`}
                   onClick={() => onSelectEvent?.(ev)}
                 >
                   <div className="font-medium truncate">{ev.class_name}</div>

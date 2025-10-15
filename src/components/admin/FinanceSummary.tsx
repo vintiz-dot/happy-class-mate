@@ -29,13 +29,13 @@ export function FinanceSummary() {
 
       const totalTuition = (invoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
-      // Total teacher salary (projected)
-      const { data: payroll } = await supabase
-        .from("payroll_summaries")
-        .select("total_amount")
-        .eq("month", selectedMonth);
+      // Total teacher salary - use calculate-payroll for accurate actual vs projected
+      const { data: payrollResult, error: payrollError } = await supabase.functions.invoke("calculate-payroll", {
+        body: { month: selectedMonth },
+      });
 
-      const totalSalary = (payroll || []).reduce((sum, p) => sum + (p.total_amount || 0), 0);
+      const totalSalaryActual = payrollError ? 0 : (payrollResult?.grandTotalActual || 0);
+      const totalSalaryProjected = payrollError ? 0 : (payrollResult?.grandTotalProjected || 0);
 
       // Total expenditures
       const { data: expenditures } = await supabase
@@ -46,13 +46,16 @@ export function FinanceSummary() {
 
       const totalExpenditures = (expenditures || []).reduce((sum, e) => sum + (e.amount || 0), 0);
 
-      const net = totalTuition - totalSalary - totalExpenditures;
+      const netActual = totalTuition - totalSalaryActual - totalExpenditures;
+      const netProjected = totalTuition - totalSalaryProjected - totalExpenditures;
 
       return {
         totalTuition,
-        totalSalary,
+        totalSalaryActual,
+        totalSalaryProjected,
         totalExpenditures,
-        net,
+        netActual,
+        netProjected,
       };
     },
   });
@@ -172,14 +175,19 @@ export function FinanceSummary() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Teacher Salary (Projected)</CardTitle>
+            <CardTitle className="text-sm font-medium">Teacher Salary</CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "..." : formatVND(summary?.totalSalary || 0)}
+              {isLoading ? "..." : formatVND(summary?.totalSalaryActual || 0)}
             </div>
-            <p className="text-xs text-muted-foreground">Projected for month</p>
+            <p className="text-xs text-muted-foreground">
+              Actual: {isLoading ? "..." : formatVND(summary?.totalSalaryActual || 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Projected: {isLoading ? "..." : formatVND(summary?.totalSalaryProjected || 0)}
+            </p>
           </CardContent>
         </Card>
 
@@ -198,15 +206,18 @@ export function FinanceSummary() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(summary?.net || 0) < 0 ? "text-destructive" : "text-success"}`}>
-              {isLoading ? "..." : formatVND(summary?.net || 0)}
+            <div className={`text-2xl font-bold ${(summary?.netActual || 0) < 0 ? "text-destructive" : "text-success"}`}>
+              {isLoading ? "..." : formatVND(summary?.netActual || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Tuition - Salary - Expenditures
+              Actual: {isLoading ? "..." : formatVND(summary?.netActual || 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Projected: {isLoading ? "..." : formatVND(summary?.netProjected || 0)}
             </p>
           </CardContent>
         </Card>

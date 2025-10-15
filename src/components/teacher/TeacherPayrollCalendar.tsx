@@ -57,14 +57,15 @@ export default function TeacherPayrollCalendar({
   };
 
   const getSessionStatus = (session: Session) => {
-    // Parse session date and time to check if it's truly in the past
+    // Use unified session status logic
     const sessionDateTime = new Date(`${session.date}T${session.start_time}`);
     const nowBangkok = toZonedTime(new Date(), TIMEZONE);
     
-    // If session datetime is in future, always show as Scheduled
+    // Future sessions always show as Scheduled
     if (sessionDateTime > nowBangkok) {
       return "Scheduled";
     }
+    
     // Past sessions: use actual status
     return session.status;
   };

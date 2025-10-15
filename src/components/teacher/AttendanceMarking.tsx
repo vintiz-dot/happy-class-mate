@@ -162,8 +162,11 @@ export function AttendanceMarking() {
 
       if (error) throw error;
 
-      // Update session status to Held if not already
-      if (selectedSession.status === 'Scheduled') {
+      // Update session status to Held only if it's not a future session
+      const sessionDateTime = new Date(`${selectedSession.date}T${selectedSession.start_time}`);
+      const now = new Date();
+      
+      if (now >= sessionDateTime && selectedSession.status === 'Scheduled') {
         await supabase
           .from("sessions")
           .update({ status: 'Held' })
@@ -188,10 +191,25 @@ export function AttendanceMarking() {
     }
   };
 
-  const isWithin24Hours = (session: Session) => {
-    const sessionDateTime = new Date(`${session.date}T${session.end_time}`);
-    const twentyFourHoursLater = addHours(sessionDateTime, 24);
-    return new Date() <= twentyFourHoursLater;
+  const canMarkAttendance = (session: Session) => {
+    // Check if session has already started (at least 5 mins into it)
+    const sessionDateTime = new Date(`${session.date}T${session.start_time}`);
+    const fiveMinutesIn = addHours(sessionDateTime, 0) // Using addHours but can add minutes
+    fiveMinutesIn.setMinutes(fiveMinutesIn.getMinutes() + 5);
+    const now = new Date();
+    
+    // Can't mark future sessions
+    if (now < fiveMinutesIn) return false;
+    
+    // Can mark within 24 hours after session ends
+    const sessionEndTime = new Date(`${session.date}T${session.end_time}`);
+    const twentyFourHoursLater = addHours(sessionEndTime, 24);
+    return now <= twentyFourHoursLater;
+  };
+  
+  const isSessionMarked = (sessionId: string) => {
+    // Check if attendance has been saved for this session
+    return sessions.some(s => s.id === sessionId && s.status === 'Held');
   };
 
   const getStatusBadge = (status: 'Present' | 'Absent' | 'Excused') => {
@@ -204,7 +222,8 @@ export function AttendanceMarking() {
   };
 
   if (selectedSession) {
-    const canEdit = selectedSession.status === 'Scheduled' || isWithin24Hours(selectedSession);
+    const canEdit = canMarkAttendance(selectedSession);
+    const alreadyMarked = isSessionMarked(selectedSession.id);
 
     return (
       <Card>
@@ -224,7 +243,15 @@ export function AttendanceMarking() {
         <CardContent className="space-y-4">
           {!canEdit && (
             <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
-              Editing window closed (24 hours after session end)
+              {new Date() < new Date(`${selectedSession.date}T${selectedSession.start_time}`) 
+                ? "Cannot mark attendance for future sessions. Please wait until 5 minutes after the session starts."
+                : "Editing window closed (24 hours after session end)"}
+            </div>
+          )}
+          
+          {alreadyMarked && canEdit && (
+            <div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-lg text-sm">
+              Attendance has been marked. You can still make changes within the 24-hour window.
             </div>
           )}
           
@@ -241,8 +268,13 @@ export function AttendanceMarking() {
           ))}
 
           {canEdit && (
-            <Button onClick={saveAttendance} disabled={loading} className="w-full">
-              Save Attendance
+            <Button 
+              onClick={saveAttendance} 
+              disabled={loading || alreadyMarked} 
+              className="w-full"
+              variant={alreadyMarked ? "secondary" : "default"}
+            >
+              {alreadyMarked ? "Attendance Marked ✓" : "Save Attendance"}
             </Button>
           )}
         </CardContent>

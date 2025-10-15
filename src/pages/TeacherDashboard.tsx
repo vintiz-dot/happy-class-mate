@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
+import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Users, Clock } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
 
 export default function TeacherDashboard() {
+  const queryClient = useQueryClient();
   const currentMonth = dayjs().format("YYYY-MM");
 
   const { data: todaySessions } = useQuery({
@@ -112,7 +114,7 @@ export default function TeacherDashboard() {
     },
   });
 
-  const { data: payrollData } = useQuery({
+  const { data: payrollData, isLoading } = useQuery({
     queryKey: ["teacher-payroll", currentMonth],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -131,9 +133,34 @@ export default function TeacherDashboard() {
       });
 
       if (error) throw error;
-      return data?.payrollData?.[0] || null;
+      return { ...data?.payrollData?.[0], teacherId: teacher.id };
     },
   });
+
+  // Real-time subscription for sessions changes
+  useEffect(() => {
+    if (!payrollData?.teacherId) return;
+
+    const channel = supabase
+      .channel('teacher-dashboard-sessions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions',
+          filter: `teacher_id=eq.${payrollData.teacherId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["teacher-payroll", currentMonth] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [payrollData?.teacherId, currentMonth]);
 
   return (
     <Layout title="Dashboard">
@@ -198,6 +225,7 @@ export default function TeacherDashboard() {
               </p>
             </CardContent>
           </Card>
+
         </div>
 
         <Card>
@@ -276,10 +304,15 @@ export default function TeacherDashboard() {
           </Link>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Teaching Schedule</h2>
-          <TeacherScheduleCalendar />
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Teaching Schedule</CardTitle>
+            <CardDescription>Your upcoming and recent classes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TeacherScheduleCalendar />
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

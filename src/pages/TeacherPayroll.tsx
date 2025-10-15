@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
@@ -18,6 +18,7 @@ import {
 import TeacherPayrollCalendar from "@/components/teacher/TeacherPayrollCalendar";
 
 export default function TeacherPayroll() {
+  const queryClient = useQueryClient();
   const [monthStr, setMonthStr] = useState(dayjs().format("YYYY-MM"));
   const [monthDate, setMonthDate] = useState(new Date());
   const currentMonth = dayjs().format("YYYY-MM");
@@ -70,9 +71,36 @@ export default function TeacherPayroll() {
         payrollResult: teacherPayroll,
         sessions: sessions || [],
         hourlyRate: teacher.hourly_rate_vnd,
+        teacherId: teacher.id,
       };
     },
   });
+
+  // Real-time subscription for sessions changes
+  useEffect(() => {
+    if (!payrollData?.teacherId) return;
+
+    const channel = supabase
+      .channel('teacher-sessions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions',
+          filter: `teacher_id=eq.${payrollData.teacherId}`,
+        },
+        () => {
+          // Invalidate query when sessions change
+          queryClient.invalidateQueries({ queryKey: ["teacher-payroll", month] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [payrollData?.teacherId, month]);
 
   const prevMonth = () => {
     const newMonth = dayjs(month).subtract(1, "month").format("YYYY-MM");
@@ -138,14 +166,24 @@ export default function TeacherPayroll() {
     return <Layout title="Payroll">Loading...</Layout>;
   }
 
-  const heldSessions = payrollData?.sessions.filter((s: any) => s.status === "Held") || [];
-  const scheduledSessions = payrollData?.sessions.filter((s: any) => s.status === "Scheduled") || [];
+  // Filter sessions by actual status (checking both date and time)
+  const now = new Date();
+  const heldSessions = (payrollData?.sessions || []).filter((s: any) => {
+    const sessionDateTime = new Date(`${s.date}T${s.start_time}`);
+    return s.status === "Held" && sessionDateTime <= now;
+  });
+  
+  const scheduledSessions = (payrollData?.sessions || []).filter((s: any) => {
+    const sessionDateTime = new Date(`${s.date}T${s.start_time}`);
+    return (s.status === "Scheduled" && sessionDateTime > now) || (s.status === "Scheduled" && sessionDateTime <= now);
+  });
+  
   const hourlyRate = payrollData?.hourlyRate || 200000;
 
   // Use the edge function's calculated amounts
   const totalEarned = payrollData?.payrollResult?.totalAmountActual || 0;
-  const projectedEarnings = scheduledSessions.reduce((sum: number, s: any) => sum + calculateSessionAmount(s, hourlyRate), 0);
-  const totalProjected = payrollData?.payrollResult?.totalAmountProjected || (totalEarned + projectedEarnings);
+  const totalProjected = payrollData?.payrollResult?.totalAmountProjected || 0;
+  const projectedEarnings = totalProjected - totalEarned;
 
   const totalHours = heldSessions.reduce((sum: number, s: any) => {
     const start = dayjs(`${s.date} ${s.start_time}`);
