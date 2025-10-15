@@ -18,6 +18,7 @@ interface TuitionData {
   sessionCount: number;
   payments?: {
     monthPayments: number;
+    cumulativePaidAmount: number;
   };
   carry?: {
     carryOutCredit: number;
@@ -153,7 +154,7 @@ export function StudentTuitionOverview() {
             <TableBody>
               {students?.map((student) => {
                 const tuition = tuitionData?.find(t => t.studentId === student.id);
-                const recordedPay = tuition?.payments?.monthPayments || 0;
+                const recordedPay = tuition?.payments?.cumulativePaidAmount || 0;
                 const balanceStatus = tuition?.carry?.status || 'settled';
                 const balanceAmount = balanceStatus === 'credit' 
                   ? tuition?.carry?.carryOutCredit || 0

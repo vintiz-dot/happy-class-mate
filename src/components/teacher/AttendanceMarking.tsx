@@ -162,11 +162,13 @@ export function AttendanceMarking() {
 
       if (error) throw error;
 
-      // Update session status to Held only if it's not a future session
+      // Update session status to Held only if session has passed (both date and time)
       const sessionDateTime = new Date(`${selectedSession.date}T${selectedSession.start_time}`);
+      const sessionEndTime = new Date(`${selectedSession.date}T${selectedSession.end_time}`);
       const now = new Date();
       
-      if (now >= sessionDateTime && selectedSession.status === 'Scheduled') {
+      // Only mark as Held if the session has ended
+      if (now >= sessionEndTime && selectedSession.status === 'Scheduled') {
         await supabase
           .from("sessions")
           .update({ status: 'Held' })

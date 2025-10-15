@@ -57,15 +57,15 @@ Deno.serve(async (req) => {
 
     const { startDate, nextMonthStart } = monthRange(month);
 
-    // Student + family
+    // Student + family (left join to support students without families)
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, family_id, families!inner(id, sibling_percent_override)")
+      .select("id, family_id, families(id, sibling_percent_override)")
       .eq("id", studentId)
       .single();
     if (studentError) throw studentError;
     
-    // Extract family data if it's an array
+    // Extract family data if it's an array, handle null families
     const family = student?.families ? (Array.isArray(student.families) ? student.families[0] : student.families) : null;
 
     // Active enrollments
@@ -229,60 +229,31 @@ Deno.serve(async (req) => {
       priorCharges = 0;
     }
 
-    // Payments: use tolerant schema (amount_vnd OR amount) and paid_at OR created_at
+    // Payments: read from 'payments' table using occurred_at
     let priorPayments = 0;
     let monthPayments = 0;
 
-    // try table 'payments'
-    const paymentsTables = ["payments", "tuition_payments"];
-    for (const t of paymentsTables) {
-      try {
-        const { data: paysBefore } = await supabase
-          .from(t)
-          .select("amount_vnd, amount, paid_at, created_at")
-          .eq("student_id", studentId)
-          .lt("paid_at", `${startDate}T23:59:59.999Z`);
-        if (paysBefore) priorPayments += sumPayments(paysBefore);
-      } catch {
-        /* ignore */
-      }
+    try {
+      const { data: paysBefore } = await supabase
+        .from("payments")
+        .select("amount")
+        .eq("student_id", studentId)
+        .lt("occurred_at", `${startDate}T00:00:00.000Z`);
+      priorPayments = sumPayments(paysBefore);
+    } catch {
+      /* ignore */
+    }
 
-      try {
-        const { data: paysBeforeCreated } = await supabase
-          .from(t)
-          .select("amount_vnd, amount, paid_at, created_at")
-          .eq("student_id", studentId)
-          .is("paid_at", null)
-          .lt("created_at", `${startDate}T23:59:59.999Z`);
-        if (paysBeforeCreated) priorPayments += sumPayments(paysBeforeCreated);
-      } catch {
-        /* ignore */
-      }
-
-      try {
-        const { data: paysMonth } = await supabase
-          .from(t)
-          .select("amount_vnd, amount, paid_at, created_at")
-          .eq("student_id", studentId)
-          .gte("paid_at", `${startDate}T00:00:00.000Z`)
-          .lt("paid_at", `${nextMonthStart}T00:00:00.000Z`);
-        if (paysMonth) monthPayments += sumPayments(paysMonth);
-      } catch {
-        /* ignore */
-      }
-
-      try {
-        const { data: paysMonthCreated } = await supabase
-          .from(t)
-          .select("amount_vnd, amount, paid_at, created_at")
-          .eq("student_id", studentId)
-          .is("paid_at", null)
-          .gte("created_at", `${startDate}T00:00:00.000Z`)
-          .lt("created_at", `${nextMonthStart}T00:00:00.000Z`);
-        if (paysMonthCreated) monthPayments += sumPayments(paysMonthCreated);
-      } catch {
-        /* ignore */
-      }
+    try {
+      const { data: paysMonth } = await supabase
+        .from("payments")
+        .select("amount")
+        .eq("student_id", studentId)
+        .gte("occurred_at", `${startDate}T00:00:00.000Z`)
+        .lt("occurred_at", `${nextMonthStart}T00:00:00.000Z`);
+      monthPayments = sumPayments(paysMonth);
+    } catch {
+      /* ignore */
     }
 
     // Carry-in (credit positive, debt negative)
@@ -316,6 +287,7 @@ Deno.serve(async (req) => {
       discount_amount: totalDiscount,
       total_amount: totalAmount,
       paid_amount: cumulativePaidAmount, // All payments to date
+      recorded_payment: cumulativePaidAmount, // Track cumulative recorded payments
       carry_in_credit: carryInCredit,
       carry_in_debt: carryInDebt,
       carry_out_credit: carryOutCredit,
@@ -382,6 +354,13 @@ Deno.serve(async (req) => {
         message: balanceMessage, // show in UI
       },
       siblingState,
+      invoice: {
+        base_amount: baseAmount,
+        discount_amount: totalDiscount,
+        total_amount: totalAmount,
+        paid_amount: cumulativePaidAmount,
+        recorded_payment: cumulativePaidAmount,
+      },
     };
 
     return new Response(JSON.stringify(response), {

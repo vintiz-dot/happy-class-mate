@@ -46,7 +46,12 @@ export default function Tuition() {
         body: { studentId, month },
       });
 
-      const invoice = invoiceCalc?.invoice;
+      if (calcError) {
+        console.error("Error calculating tuition:", calcError);
+        return null;
+      }
+
+      const invoice = invoiceCalc || null;
 
       const { data: ledgerAccounts } = await supabase
         .from("ledger_accounts")
@@ -93,11 +98,11 @@ export default function Tuition() {
           .lte("date", `${month}-31`)
           .in("status", ["Held", "Scheduled"]);
 
-        // Filter only held sessions in the past
+        // Filter only held sessions that have actually passed (not future)
         const now = new Date();
         const heldSessions = sessions?.filter(s => {
-          const sessionDateTime = new Date(`${s.date}T23:59:59`);
-          return s.status === "Held" && sessionDateTime <= now;
+          const sessionDate = new Date(`${s.date}T23:59:59`);
+          return s.status === "Held" && sessionDate <= now;
         }) || [];
 
         // Count attendance records for held sessions only
@@ -116,11 +121,15 @@ export default function Tuition() {
 
       return {
         student,
-        invoice,
+        invoice: invoice || null,
         entries: entries || [],
         payments: payments || [],
         ledgerAccounts: ledgerAccounts || [],
         sessionCount,
+        baseAmount: invoiceCalc?.baseAmount || 0,
+        totalAmount: invoiceCalc?.totalAmount || 0,
+        discountAmount: invoiceCalc?.totalDiscount || 0,
+        recordedPayment: invoiceCalc?.payments?.cumulativePaidAmount || 0,
       };
     },
     enabled: !!studentId,
@@ -153,10 +162,8 @@ export default function Tuition() {
     return <Layout title="Tuition">Loading...</Layout>;
   }
 
-  const arAccount = tuitionData?.ledgerAccounts.find(a => a.code === "AR");
-  const balance = tuitionData?.entries
-    .filter(e => e.account_id === arAccount?.id)
-    .reduce((sum, e) => sum + e.debit - e.credit, 0) || 0;
+  // Calculate balance from tuition data
+  const balance = (tuitionData?.totalAmount || 0) - (tuitionData?.recordedPayment || 0);
 
   return (
     <Layout title="Tuition">
@@ -178,7 +185,7 @@ export default function Tuition() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          {tuitionData?.invoice && studentId && (
+          {tuitionData && studentId && (
             <InvoiceDownloadButton
               studentId={studentId}
               month={month}
@@ -186,7 +193,7 @@ export default function Tuition() {
           )}
         </div>
 
-        {!tuitionData?.invoice ? (
+        {!tuitionData || tuitionData.totalAmount === undefined ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
@@ -209,15 +216,15 @@ export default function Tuition() {
                 <CardHeader className="pb-2">
                   <CardDescription>Base Tuition</CardDescription>
                   <CardTitle className="text-3xl">
-                    {(tuitionData?.invoice?.base_amount || 0).toLocaleString()} ₫
+                    {(tuitionData?.baseAmount || 0).toLocaleString()} ₫
                   </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Discounts</CardDescription>
-                  <CardTitle className="text-3xl text-green-600">
-                    -{(tuitionData?.invoice?.discount_amount || 0).toLocaleString()} ₫
+                  <CardTitle className="text-3xl text-success">
+                    -{(tuitionData?.discountAmount || 0).toLocaleString()} ₫
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -235,7 +242,7 @@ export default function Tuition() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Invoice #{tuitionData.invoice.number}</CardTitle>
+                    <CardTitle>Tuition Summary</CardTitle>
                     <CardDescription>
                       {tuitionData.student?.full_name} - {dayjs(month).format("MMMM YYYY")}
                     </CardDescription>
@@ -246,19 +253,25 @@ export default function Tuition() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Base Amount:</span>
-                    <span>{tuitionData.invoice.base_amount.toLocaleString()} ₫</span>
+                    <span>{(tuitionData.baseAmount || 0).toLocaleString()} ₫</span>
                   </div>
-                  <div className="flex justify-between text-green-600">
+                  <div className="flex justify-between text-success">
                     <span>Discounts:</span>
-                    <span>-{tuitionData.invoice.discount_amount.toLocaleString()} ₫</span>
+                    <span>-{(tuitionData.discountAmount || 0).toLocaleString()} ₫</span>
                   </div>
                   <div className="flex justify-between font-semibold pt-2 border-t">
                     <span>Total:</span>
-                    <span>{tuitionData.invoice.total_amount.toLocaleString()} ₫</span>
+                    <span>{(tuitionData.totalAmount || 0).toLocaleString()} ₫</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Paid:</span>
-                    <span>{tuitionData.invoice.paid_amount.toLocaleString()} ₫</span>
+                    <span>{(tuitionData.recordedPayment || 0).toLocaleString()} ₫</span>
+                  </div>
+                  <div className="flex justify-between font-bold pt-2 border-t">
+                    <span>Balance:</span>
+                    <span className={balance > 0 ? "text-destructive" : balance < 0 ? "text-success" : ""}>
+                      {balance.toLocaleString()} ₫
+                    </span>
                   </div>
                 </div>
               </CardContent>

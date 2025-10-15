@@ -629,6 +629,7 @@ export type Database = {
           number: string | null
           paid_amount: number
           pdf_storage_key: string | null
+          recorded_payment: number | null
           status: Database["public"]["Enums"]["invoice_status"]
           student_id: string
           total_amount: number
@@ -645,6 +646,7 @@ export type Database = {
           number?: string | null
           paid_amount?: number
           pdf_storage_key?: string | null
+          recorded_payment?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id: string
           total_amount?: number
@@ -661,6 +663,7 @@ export type Database = {
           number?: string | null
           paid_amount?: number
           pdf_storage_key?: string | null
+          recorded_payment?: number | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id?: string
           total_amount?: number
