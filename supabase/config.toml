@@ -1,25 +1,25 @@
 project_id = "yxdcngazogqmrffllbkl"
 
 [functions.generate-sessions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.calculate-tuition]
-verify_jwt = false
+verify_jwt = true
 
 [functions.compute-sibling-discounts]
-verify_jwt = false
+verify_jwt = true
 
 [functions.watch-sibling-threshold]
-verify_jwt = false
+verify_jwt = true
 
 [functions.post-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.calculate-payroll]
-verify_jwt = false
+verify_jwt = true
 
 [functions.manage-admin-users]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-teacher]
 verify_jwt = true
