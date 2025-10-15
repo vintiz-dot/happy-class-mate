@@ -69,15 +69,19 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create the test admin user
-      const testEmail = 'test@admin.com';
-      const testPassword = 'abcabc!';
+      // Generate secure admin credentials
+      // Use environment variable for email, or default to a secure generated one
+      const adminEmail = Deno.env.get('BOOTSTRAP_ADMIN_EMAIL') || `admin-${crypto.randomUUID().slice(0, 8)}@system.local`;
+      // Generate a cryptographically secure random password
+      const tempPassword = crypto.randomUUID() + crypto.randomUUID(); // 72 character random string
 
-      console.log('Creating bootstrap admin user:', testEmail);
+      console.log('Creating bootstrap admin user:', adminEmail);
+      console.log('IMPORTANT: Bootstrap admin password:', tempPassword);
+      console.log('Please save this password - it will not be shown again!');
 
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: testEmail,
-        password: testPassword,
+        email: adminEmail,
+        password: tempPassword,
         email_confirm: true,
       });
 
@@ -114,7 +118,7 @@ Deno.serve(async (req) => {
           action: 'bootstrap_admin',
           entity: 'user',
           entity_id: newUser.user.id,
-          diff: { email: testEmail, role: 'admin' },
+          diff: { email: adminEmail, role: 'admin' },
         });
 
       if (auditError) {
@@ -125,7 +129,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         userId: newUser.user.id,
-        email: testEmail 
+        email: adminEmail,
+        temporaryPassword: tempPassword
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
