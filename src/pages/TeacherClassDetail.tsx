@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ArrowLeft, Mail } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -157,6 +158,7 @@ export default function TeacherClassDetail() {
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
         </TabsList>
 
@@ -197,6 +199,10 @@ export default function TeacherClassDetail() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="leaderboard">
+          <ClassLeaderboardShared classId={id!} />
         </TabsContent>
 
         <TabsContent value="materials">

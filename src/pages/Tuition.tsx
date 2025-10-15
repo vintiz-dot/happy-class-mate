@@ -25,9 +25,17 @@ export default function Tuition() {
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
   const currentMonth = dayjs().format("YYYY-MM");
 
-  // If admin, show admin finance page
-  if (role === "admin") {
-    return <Admin defaultTab="finance" />;
+  // Student tuition page - accessible by students and families only
+  if (role === "admin" || role === "teacher") {
+    return (
+      <Layout title="Tuition">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Access denied. This page is for students and families only.</p>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
   }
 
   const { data: tuitionData, isLoading } = useQuery({
@@ -203,79 +211,26 @@ export default function Tuition() {
           </Card>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Sessions Attended</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {tuitionData?.sessionCount || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Base Tuition</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {(tuitionData?.baseAmount || 0).toLocaleString()} ₫
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Discounts</CardDescription>
-                  <CardTitle className="text-3xl text-success">
-                    -{(tuitionData?.discountAmount || 0).toLocaleString()} ₫
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Current Balance</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {balance.toLocaleString()} ₫
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
-
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Tuition Summary</CardTitle>
-                    <CardDescription>
-                      {tuitionData.student?.full_name} - {dayjs(month).format("MMMM YYYY")}
-                    </CardDescription>
-                  </div>
-                </div>
+              <CardHeader className="pb-2">
+                <CardDescription>Current Balance</CardDescription>
+                <CardTitle className="text-4xl">
+                  {balance.toLocaleString()} ₫
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base Amount:</span>
-                    <span>{(tuitionData.baseAmount || 0).toLocaleString()} ₫</span>
-                  </div>
-                  <div className="flex justify-between text-success">
-                    <span>Discounts:</span>
-                    <span>-{(tuitionData.discountAmount || 0).toLocaleString()} ₫</span>
-                  </div>
-                  <div className="flex justify-between font-semibold pt-2 border-t">
-                    <span>Total:</span>
-                    <span>{(tuitionData.totalAmount || 0).toLocaleString()} ₫</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Paid:</span>
-                    <span>{(tuitionData.recordedPayment || 0).toLocaleString()} ₫</span>
-                  </div>
-                  <div className="flex justify-between font-bold pt-2 border-t">
-                    <span>Balance:</span>
-                    <span className={balance > 0 ? "text-destructive" : balance < 0 ? "text-success" : ""}>
-                      {balance.toLocaleString()} ₫
-                    </span>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {dayjs(month).format("MMMM YYYY")}
+                </p>
               </CardContent>
             </Card>
+
+            {tuitionData && studentId && (
+              <InvoiceDownloadButton
+                studentId={studentId}
+                month={month}
+              />
+            )}
 
             {tuitionData?.payments && tuitionData.payments.length > 0 && (
               <Card>

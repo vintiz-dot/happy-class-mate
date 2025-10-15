@@ -136,19 +136,47 @@ Deno.serve(async (req) => {
     const startDateStr = `${year}-${String(monthNum).padStart(2, '0')}-01`;
     const nextMonth = new Date(year, monthNum, 1);
     const endDateStr = nextMonth.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const nowTime = new Date().toISOString().slice(11, 16); // HH:MM
 
     // Past Canceled stays Canceled (no change needed)
-    // Future Held sessions → revert to Scheduled
-    const { error: updateError } = await supabase
+    // Future sessions marked as Held → revert to Scheduled
+    const { error: futureHeldError } = await supabase
       .from('sessions')
       .update({ status: 'Scheduled' })
       .gte('date', startDateStr)
       .lt('date', endDateStr)
       .eq('status', 'Held')
-      .gt('date', new Date().toISOString().slice(0, 10)); // Only future dates
+      .gt('date', today);
 
-    if (updateError) {
-      console.error('Error updating future Held sessions:', updateError);
+    if (futureHeldError) {
+      console.error('Error reverting future Held sessions:', futureHeldError);
+    }
+    
+    // For today's sessions marked as Held before end time, revert to Scheduled
+    const { data: todayHeldSessions } = await supabase
+      .from('sessions')
+      .select('id, start_time, end_time')
+      .eq('date', today)
+      .eq('status', 'Held');
+    
+    if (todayHeldSessions) {
+      const sessionsToRevert = todayHeldSessions.filter(s => {
+        const endMinute = new Date(`${today}T${s.end_time}`).getTime() + 60000; // 1 min after end
+        const nowMinute = new Date(`${today}T${nowTime}`).getTime();
+        return nowMinute < endMinute;
+      });
+      
+      if (sessionsToRevert.length > 0) {
+        const { error: todayRevertError } = await supabase
+          .from('sessions')
+          .update({ status: 'Scheduled' })
+          .in('id', sessionsToRevert.map(s => s.id));
+        
+        if (todayRevertError) {
+          console.error('Error reverting today Held sessions:', todayRevertError);
+        }
+      }
     }
 
     return new Response(

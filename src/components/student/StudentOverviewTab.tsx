@@ -6,8 +6,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
-import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
-import { Users, Trophy } from "lucide-react";
+import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { Users } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -55,7 +55,7 @@ export function StudentOverviewTab({ student }: { student: any }) {
       {enrolledClasses && enrolledClasses.length > 0 && (
         <div className="space-y-6">
           {enrolledClasses.map((cls: any) => (
-            <ClassLeaderboard key={cls.id} classId={cls.id} />
+            <ClassLeaderboardShared key={cls.id} classId={cls.id} />
           ))}
         </div>
       )}

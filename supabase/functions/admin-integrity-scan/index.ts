@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
       enrollments_orphaned: [],
       enrollments_duplicates: [],
       sessions_orphaned: [],
+      sessions_invalid_status: [],
       attendance_orphaned: [],
       students_bad_link: [],
       sibling_state_bad: [],
@@ -86,11 +87,45 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check orphaned sessions
+    // Check sessions with invalid status
+    const today = new Date().toISOString().slice(0, 10);
+    const nowTime = new Date().toISOString().slice(11, 16); // HH:MM
+    
     const { data: allSessions } = await supabase
       .from('sessions')
-      .select('id, class_id, teacher_id');
+      .select('id, date, start_time, end_time, status, class_id, teacher_id');
     
+    if (allSessions) {
+      for (const s of allSessions) {
+        // Future sessions should not be Held
+        if (s.date > today && s.status === 'Held') {
+          issues.sessions_invalid_status.push({
+            id: s.id,
+            date: s.date,
+            status: s.status,
+            reason: 'Future session marked as Held'
+          });
+        }
+        
+        // Today's sessions before end time should not be Held
+        if (s.date === today) {
+          const endMinute = new Date(`${today}T${s.end_time}`).getTime() + 60000; // 1 min after
+          const nowMinute = new Date(`${today}T${nowTime}`).getTime();
+          if (nowMinute < endMinute && s.status === 'Held') {
+            issues.sessions_invalid_status.push({
+              id: s.id,
+              date: s.date,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              status: s.status,
+              reason: 'Today session marked as Held before end time'
+            });
+          }
+        }
+      }
+    }
+
+    // Check orphaned sessions
     const { data: classIds } = await supabase.from('classes').select('id');
     const { data: teacherIds } = await supabase.from('teachers').select('id');
     
@@ -183,6 +218,7 @@ Deno.serve(async (req) => {
         enrollments_orphaned: issues.enrollments_orphaned.length,
         enrollments_duplicates: issues.enrollments_duplicates.length,
         sessions_orphaned: issues.sessions_orphaned.length,
+        sessions_invalid_status: issues.sessions_invalid_status.length,
         attendance_orphaned: issues.attendance_orphaned.length,
         students_bad_link: issues.students_bad_link.length,
         sibling_state_bad: issues.sibling_state_bad.length,
