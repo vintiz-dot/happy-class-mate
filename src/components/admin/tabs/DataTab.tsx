@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Search, AlertTriangle, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminUsersManager } from "@/components/admin/AdminUsersManager";
 
 const DataTab = () => {
   const [loading, setLoading] = useState(false);
@@ -144,6 +145,7 @@ const DataTab = () => {
           <TabsTrigger value="import">Import</TabsTrigger>
           <TabsTrigger value="integrity">Integrity</TabsTrigger>
           <TabsTrigger value="logs">Activity Logs</TabsTrigger>
+          <TabsTrigger value="account">Account Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="export" className="space-y-4">
@@ -321,6 +323,18 @@ const DataTab = () => {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="account" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Account Management</CardTitle>
+              <CardDescription>Create and manage administrator accounts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminUsersManager />
             </CardContent>
           </Card>
         </TabsContent>

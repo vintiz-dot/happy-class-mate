@@ -305,6 +305,9 @@ Deno.serve(async (req) => {
           : "Tháng này đã thanh toán đầy đủ.";
 
     // ---------- Persist invoice (safe) ----------
+    // Calculate cumulative paid amount (all payments up to and including this month)
+    const cumulativePaidAmount = priorPayments + monthPayments;
+    
     // Try with extended fields first; fallback to minimal if schema lacks them.
     const invoicePayloadExtended: any = {
       student_id: studentId,
@@ -312,7 +315,7 @@ Deno.serve(async (req) => {
       base_amount: baseAmount,
       discount_amount: totalDiscount,
       total_amount: totalAmount,
-      paid_amount: monthPayments,
+      paid_amount: cumulativePaidAmount, // All payments to date
       carry_in_credit: carryInCredit,
       carry_in_debt: carryInDebt,
       carry_out_credit: carryOutCredit,
@@ -368,6 +371,7 @@ Deno.serve(async (req) => {
       payments: {
         priorPayments,
         monthPayments,
+        cumulativePaidAmount, // Total paid to date
       },
       carry: {
         carryInCredit,

@@ -57,12 +57,15 @@ export default function TeacherPayrollCalendar({
   };
 
   const getSessionStatus = (session: Session) => {
-    const sessionDate = new Date(session.date);
-    // Future date = always Scheduled
-    if (isBefore(today, startOfDay(sessionDate))) {
+    // Parse session date and time to check if it's truly in the past
+    const sessionDateTime = new Date(`${session.date}T${session.start_time}`);
+    const nowBangkok = toZonedTime(new Date(), TIMEZONE);
+    
+    // If session datetime is in future, always show as Scheduled
+    if (sessionDateTime > nowBangkok) {
       return "Scheduled";
     }
-    // Past or today: use actual session status
+    // Past sessions: use actual status
     return session.status;
   };
 
@@ -110,10 +113,15 @@ export default function TeacherPayrollCalendar({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
               <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                 {day}
               </div>
+            ))}
+            
+            {/* Pad to start on correct day */}
+            {Array.from({ length: startOfMonth(month).getDay() }).map((_, idx) => (
+              <div key={`pad-${idx}`} className="min-h-[80px]" />
             ))}
             
             {days.map((day, index) => {

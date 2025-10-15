@@ -41,8 +41,8 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
     
     subtotal_vnd: nv(upstream.baseAmount, 0),
     total_due_vnd: nv(upstream.totalAmount, 0),
-    paid_to_date_vnd: nv(upstream.paid_to_date_vnd, 0),
-    balance_vnd: nv(upstream.totalAmount, 0) - nv(upstream.paid_to_date_vnd, 0),
+    paid_to_date_vnd: nv(upstream.payments?.cumulativePaidAmount, 0),
+    balance_vnd: nv(upstream.totalAmount, 0) - nv(upstream.payments?.cumulativePaidAmount, 0),
     
     sessions: (upstream.sessionDetails ?? []).map((s: any) => ({
       date: nv(s.date, ''),

@@ -41,12 +41,12 @@ export default function Tuition() {
         .eq("id", studentId)
         .maybeSingle();
 
-      const { data: invoice } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("month", month)
-        .maybeSingle();
+      // Fetch invoice and recalculate tuition to ensure latest data
+      const { data: invoiceCalc, error: calcError } = await supabase.functions.invoke("calculate-tuition", {
+        body: { studentId, month },
+      });
+
+      const invoice = invoiceCalc?.invoice;
 
       const { data: ledgerAccounts } = await supabase
         .from("ledger_accounts")
@@ -62,12 +62,15 @@ export default function Tuition() {
         .eq("month", month)
         .order("occurred_at", { ascending: true });
 
+      // Fetch payments for display
+      const monthStart = `${month}-01`;
+      const monthEnd = `${month}-31`;
       const { data: payments } = await supabase
         .from("payments")
         .select("*")
         .eq("student_id", studentId)
-        .gte("occurred_at", `${month}-01`)
-        .lte("occurred_at", `${month}-31`)
+        .gte("occurred_at", monthStart)
+        .lte("occurred_at", monthEnd)
         .order("occurred_at", { ascending: true });
 
       // Count sessions for the month
@@ -84,14 +87,21 @@ export default function Tuition() {
       if (classIds.length > 0) {
         const { data: sessions } = await supabase
           .from("sessions")
-          .select("id, date")
+          .select("id, date, status")
           .in("class_id", classIds)
           .gte("date", `${month}-01`)
           .lte("date", `${month}-31`)
-          .eq("status", "Held");
+          .in("status", ["Held", "Scheduled"]);
 
-        // Count attendance records for this student
-        const sessionIds = sessions?.map(s => s.id) || [];
+        // Filter only held sessions in the past
+        const now = new Date();
+        const heldSessions = sessions?.filter(s => {
+          const sessionDateTime = new Date(`${s.date}T23:59:59`);
+          return s.status === "Held" && sessionDateTime <= now;
+        }) || [];
+
+        // Count attendance records for held sessions only
+        const sessionIds = heldSessions.map(s => s.id);
         if (sessionIds.length > 0) {
           const { data: attendance, count } = await supabase
             .from("attendance")

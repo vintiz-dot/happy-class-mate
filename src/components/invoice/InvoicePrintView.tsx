@@ -106,6 +106,14 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
                 <td colSpan={2} className="py-3 px-2 font-bold text-lg">Total Due</td>
                 <td className="text-right py-3 px-2 font-bold text-lg">{formatVND(invoice.total_due_vnd)} ₫</td>
               </tr>
+              <tr className="border-b border-gray-200 bg-green-50">
+                <td colSpan={2} className="py-2 px-2 text-green-700">Paid to Date</td>
+                <td className="text-right py-2 px-2 text-green-700">{formatVND(invoice.paid_to_date_vnd)} ₫</td>
+              </tr>
+              <tr className="border-b-2 border-gray-400 bg-yellow-50">
+                <td colSpan={2} className="py-3 px-2 font-bold text-lg">Balance</td>
+                <td className="text-right py-3 px-2 font-bold text-lg">{formatVND(invoice.balance_vnd)} ₫</td>
+              </tr>
             </tbody>
           </table>
         </div>

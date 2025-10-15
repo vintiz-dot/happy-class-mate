@@ -51,24 +51,13 @@ export function StudentOverviewTab({ student }: { student: any }) {
 
   return (
     <>
-      {/* Class Leaderboards */}
+      {/* Class Leaderboards - Show full leaderboard like admin view */}
       {enrolledClasses && enrolledClasses.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              Class Leaderboards
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {enrolledClasses.map((cls: any) => (
-              <div key={cls.id}>
-                <h3 className="font-semibold mb-3">{cls.name}</h3>
-                <ClassLeaderboard classId={cls.id} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {enrolledClasses.map((cls: any) => (
+            <ClassLeaderboard key={cls.id} classId={cls.id} />
+          ))}
+        </div>
       )}
 
       {/* Family & Siblings Card */}
