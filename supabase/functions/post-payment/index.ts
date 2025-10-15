@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,17 +26,20 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Validate input with Zod schema
+    const PaymentSchema = z.object({
+      studentId: z.string().uuid('Invalid student ID format'),
+      amount: z.number().int().positive().max(100000000, 'Amount exceeds maximum'),
+      method: z.enum(['cash', 'bank', 'Cash', 'Bank Transfer', 'Card', 'Other'], {
+        errorMap: () => ({ message: 'Invalid payment method' })
+      }),
+      occurredAt: z.string().datetime().optional(),
+      memo: z.string().max(500, 'Memo too long').optional()
+    });
+
     const body = await req.json()
-    const { studentId, amount, method, memo, occurredAt } = body
+    const { studentId, amount, method, memo, occurredAt } = PaymentSchema.parse(body)
     console.log('Posting payment:', { studentId, amount, method, memo, occurredAt })
-
-    if (!studentId || !amount || !method) {
-      throw new Error('Missing required fields: studentId, amount, or method')
-    }
-
-    if (amount <= 0) {
-      throw new Error('Amount must be greater than 0')
-    }
 
     const txId = crypto.randomUUID()
     const userId = req.headers.get('x-user-id')
