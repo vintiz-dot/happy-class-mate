@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +41,19 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized: Admin access required');
     }
 
-    const { studentId, amount, method, occurredAt, payerName, memo } = await req.json();
+    // Validate input
+    const PaymentSchema = z.object({
+      studentId: z.string().uuid('Invalid student ID format'),
+      amount: z.number().int().positive('Amount must be positive').max(100000000, 'Amount exceeds maximum'),
+      method: z.enum(['Cash', 'Bank Transfer', 'Card', 'Other'], {
+        errorMap: () => ({ message: 'Invalid payment method' })
+      }),
+      occurredAt: z.string().datetime('Invalid date format'),
+      payerName: z.string().max(200, 'Payer name too long').optional(),
+      memo: z.string().max(500, 'Memo too long').optional(),
+    });
+
+    const { studentId, amount, method, occurredAt, payerName, memo } = PaymentSchema.parse(await req.json());
 
     console.log('Recording payment:', { studentId, amount, method, occurredAt });
 

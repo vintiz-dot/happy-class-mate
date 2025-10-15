@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 import { acquireLock, releaseLock, ymNowBangkok } from '../_lib/lock.ts'
 
 const corsHeaders = {

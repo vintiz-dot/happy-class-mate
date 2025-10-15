@@ -45,7 +45,13 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { studentId, month } = await req.json();
+    // Validate input
+    const InputSchema = z.object({
+      studentId: z.string().uuid('Invalid student ID format'),
+      month: z.string().regex(/^\d{4}-\d{2}$/, 'Invalid month format. Expected YYYY-MM'),
+    });
+
+    const { studentId, month } = InputSchema.parse(await req.json());
     if (!studentId || !month) throw new Error("Missing studentId or month (YYYY-MM)");
 
     const { startDate, nextMonthStart } = monthRange(month);
