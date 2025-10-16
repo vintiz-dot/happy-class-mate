@@ -77,9 +77,13 @@ export function FamilyForm({ onSuccess }: { onSuccess?: () => void }) {
 
   const addEnrollment = (studentIndex: number) => {
     const updated = [...students];
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const defaultStartDate = firstDayOfMonth.toISOString().split('T')[0];
+    
     updated[studentIndex].enrollments.push({
       classId: "",
-      startDate: "",
+      startDate: defaultStartDate,
     });
     setStudents(updated);
   };

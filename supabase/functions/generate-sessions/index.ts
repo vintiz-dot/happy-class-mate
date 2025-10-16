@@ -79,6 +79,8 @@ Deno.serve(async (req) => {
 
     // ALWAYS revert invalid held sessions first (even if lock not acquired)
     // This ensures cleanup happens on every invocation
+    console.log(`[generate-sessions] Calling revert with month=${month}, today=${todayBkk}, now=${nowBkkHHMM}`);
+    
     const { data: preRevertResult, error: preRevertError } = await supabase.rpc(
       "revert_invalid_held_sessions",
       {
@@ -90,6 +92,7 @@ Deno.serve(async (req) => {
 
     if (preRevertError) {
       console.error("[generate-sessions] Error in pre-lock revert:", preRevertError);
+      // Don't fail the entire function if revert fails - log and continue
     } else {
       revertResult = preRevertResult;
       console.log(`[generate-sessions] Pre-lock revert completed:`, preRevertResult);
@@ -233,6 +236,8 @@ Deno.serve(async (req) => {
     }
 
     // Call database function again to revert any sessions that may have been created with wrong status
+    console.log(`[generate-sessions] Post-insert revert with month=${month}, today=${todayBkk}, now=${nowBkkHHMM}`);
+    
     const { data: postRevertResult, error: postRevertError } = await supabase.rpc(
       "revert_invalid_held_sessions",
       {
@@ -244,6 +249,7 @@ Deno.serve(async (req) => {
 
     if (postRevertError) {
       console.error("[generate-sessions] Error in post-insert revert:", postRevertError);
+      // Don't fail the entire function - log and continue
     } else {
       revertResult = postRevertResult;
       console.log(`[generate-sessions] Post-insert revert completed:`, postRevertResult);
