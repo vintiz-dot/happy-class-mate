@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 // Helper to convert empty strings to undefined
-const emptyStringToUndefined = (val: string | null | undefined) => 
+const emptyStringToUndefined = (val: unknown) => 
   (val === '' || val === null) ? undefined : val;
 
 // Validation schemas
@@ -21,18 +21,18 @@ const EnrollmentSchema = z.object({
 
 const StudentSchema = z.object({
   fullName: z.string().min(1, 'Name required').max(200),
-  email: z.string().transform(emptyStringToUndefined).pipe(z.string().email('Invalid email').max(255)).optional(),
-  phone: z.string().transform(emptyStringToUndefined).pipe(z.string().max(20)).optional(),
-  dateOfBirth: z.string().transform(emptyStringToUndefined).pipe(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD')).optional(),
-  notes: z.string().transform(emptyStringToUndefined).pipe(z.string().max(1000)).optional(),
+  email: z.preprocess(emptyStringToUndefined, z.string().email('Invalid email').max(255).optional()),
+  phone: z.preprocess(emptyStringToUndefined, z.string().max(20).optional()),
+  dateOfBirth: z.preprocess(emptyStringToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD').optional()),
+  notes: z.preprocess(emptyStringToUndefined, z.string().max(1000).optional()),
   enrollments: z.array(EnrollmentSchema).optional()
 });
 
 const FamilySchema = z.object({
   name: z.string().min(1, 'Family name required').max(200),
-  email: z.string().transform(emptyStringToUndefined).pipe(z.string().email('Invalid email').max(255)).nullable().optional(),
-  phone: z.string().transform(emptyStringToUndefined).pipe(z.string().max(20)).nullable().optional(),
-  address: z.string().transform(emptyStringToUndefined).pipe(z.string().max(500)).nullable().optional(),
+  email: z.preprocess(emptyStringToUndefined, z.string().email('Invalid email').max(255).optional()),
+  phone: z.preprocess(emptyStringToUndefined, z.string().max(20).optional()),
+  address: z.preprocess(emptyStringToUndefined, z.string().max(500).optional()),
   primaryUserId: z.string().uuid('Invalid user ID').optional(),
   students: z.array(StudentSchema).optional()
 });
