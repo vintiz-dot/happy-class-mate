@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       // Get existing Scheduled sessions for this class in this month
       const { data: existingSessions, error: existingErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time")
+        .select("id, date, start_time, end_time, teacher_id")
         .eq("class_id", cls.id)
         .eq("status", "Scheduled")
         .gte("date", fmtDateYMD(startDate))
@@ -150,40 +150,47 @@ Deno.serve(async (req) => {
       if (existingErr) throw existingErr;
 
       // Build a map of what SHOULD exist based on template
-      const expectedSessions = new Map<string, WeeklySlot>();
+      const expectedSessions = new Map<string, { slot: WeeklySlot, teacherId: string }>();
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateStr = fmtDateYMD(d);
         const matchingSlots = template.weeklySlots.filter((s) => s.dayOfWeek === dayOfWeek);
         
         for (const slot of matchingSlots) {
+          const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
           const key = `${dateStr}-${slot.startTime}`;
-          expectedSessions.set(key, slot);
+          expectedSessions.set(key, { slot, teacherId: assignedTeacherId });
         }
       }
 
       // Check existing sessions - delete ones that don't match template anymore
       for (const session of existingSessions || []) {
         const key = `${session.date}-${session.start_time}`;
-        if (!expectedSessions.has(key)) {
+        const expected = expectedSessions.get(key);
+        
+        // Delete if session no longer in template OR teacher has changed
+        if (!expected || expected.teacherId !== session.teacher_id) {
           sessionsToDelete.push(session.id);
-          console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (no longer in template)`);
+          const reason = !expected 
+            ? '(no longer in template)' 
+            : `(teacher changed from ${session.teacher_id} to ${expected.teacherId})`;
+          console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} ${reason}`);
         }
       }
 
       // Create sessions that should exist but don't
-      for (const [key, slot] of expectedSessions) {
+      for (const [key, { slot, teacherId }] of expectedSessions) {
         const [dateStr, startTime] = key.split('-');
         
-        // Check if session already exists
+        // Check if session already exists with same teacher
         const exists = (existingSessions || []).some(
-          s => s.date === dateStr && s.start_time === startTime
+          s => s.date === dateStr && s.start_time === startTime && s.teacher_id === teacherId
         );
         
         if (exists) continue;
 
-        // Use slot-specific teacher or fall back to default
-        const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
+        // Use teacherId from map (already resolved from slot or default)
+        const assignedTeacherId = teacherId;
 
         // Teacher availability check
         const { data: available, error: availErr } = await supabase.rpc("check_teacher_availability", {
