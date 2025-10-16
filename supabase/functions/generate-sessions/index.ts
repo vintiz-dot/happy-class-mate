@@ -11,6 +11,7 @@ interface WeeklySlot {
   dayOfWeek: number;
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
+  teacherId?: string; // Optional teacher override per slot
 }
 
 const TZ = "Asia/Bangkok";
@@ -181,9 +182,12 @@ Deno.serve(async (req) => {
         
         if (exists) continue;
 
+        // Use slot-specific teacher or fall back to default
+        const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
+
         // Teacher availability check
         const { data: available, error: availErr } = await supabase.rpc("check_teacher_availability", {
-          p_teacher_id: cls.default_teacher_id,
+          p_teacher_id: assignedTeacherId,
           p_date: dateStr,
           p_start_time: slot.startTime,
           p_end_time: slot.endTime,
@@ -199,7 +203,7 @@ Deno.serve(async (req) => {
           date: dateStr,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          teacher_id: cls.default_teacher_id,
+          teacher_id: assignedTeacherId,
           status: "Scheduled",
         });
       }

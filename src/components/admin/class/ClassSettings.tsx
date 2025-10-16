@@ -7,13 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Plus, X } from "lucide-react";
+
+interface WeeklySlot {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  teacherId?: string;
+}
+
+const DAYS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
 
 const ClassSettings = ({ classId }: { classId: string }) => {
   const [defaultTeacherId, setDefaultTeacherId] = useState("");
   const [sessionRate, setSessionRate] = useState(0);
   const [defaultStartTime, setDefaultStartTime] = useState("");
-  const [defaultEndTime, setDefaultEndTime] = useState("");
   const [defaultSessionLength, setDefaultSessionLength] = useState(90);
+  const [weeklySlots, setWeeklySlots] = useState<WeeklySlot[]>([]);
   const [saving, setSaving] = useState(false);
 
   const { data: classData } = useQuery({
@@ -53,8 +71,30 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         const firstTime = classData.typical_start_times[0];
         setDefaultStartTime(typeof firstTime === 'string' ? firstTime : "");
       }
+
+      // Parse schedule template
+      if (classData.schedule_template && typeof classData.schedule_template === 'object') {
+        const template = classData.schedule_template as { weeklySlots?: WeeklySlot[] };
+        if (template.weeklySlots && Array.isArray(template.weeklySlots)) {
+          setWeeklySlots(template.weeklySlots);
+        }
+      }
     }
   }, [classData]);
+
+  const addSlot = () => {
+    setWeeklySlots([...weeklySlots, { dayOfWeek: 1, startTime: "17:30", endTime: "19:00", teacherId: defaultTeacherId }]);
+  };
+
+  const removeSlot = (index: number) => {
+    setWeeklySlots(weeklySlots.filter((_, i) => i !== index));
+  };
+
+  const updateSlot = (index: number, field: keyof WeeklySlot, value: number | string | undefined) => {
+    const updated = [...weeklySlots];
+    updated[index] = { ...updated[index], [field]: value };
+    setWeeklySlots(updated);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -63,6 +103,7 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         default_teacher_id: defaultTeacherId || null,
         session_rate_vnd: sessionRate,
         default_session_length_minutes: defaultSessionLength,
+        schedule_template: { weeklySlots },
       };
 
       if (defaultStartTime) {
@@ -127,35 +168,37 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   };
 
   return (
-    <Card className="max-w-2xl">
+    <Card className="max-w-4xl">
       <CardHeader>
         <CardTitle>Class Settings</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Default Teacher</Label>
-          <Select value={defaultTeacherId} onValueChange={setDefaultTeacherId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select default teacher" />
-            </SelectTrigger>
-            <SelectContent>
-              {teachers?.filter(t => t.id).map((teacher) => (
-                <SelectItem key={teacher.id} value={teacher.id}>
-                  {teacher.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Default Teacher</Label>
+            <Select value={defaultTeacherId} onValueChange={setDefaultTeacherId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select default teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers?.filter(t => t.id).map((teacher) => (
+                  <SelectItem key={teacher.id} value={teacher.id}>
+                    {teacher.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <Label>Session Rate (VND)</Label>
-          <Input
-            type="number"
-            value={sessionRate}
-            onChange={(e) => setSessionRate(Number(e.target.value) || 0)}
-            placeholder="Enter session rate"
-          />
+          <div className="space-y-2">
+            <Label>Session Rate (VND)</Label>
+            <Input
+              type="number"
+              value={sessionRate}
+              onChange={(e) => setSessionRate(Number(e.target.value) || 0)}
+              placeholder="Enter session rate"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -178,6 +221,86 @@ const ClassSettings = ({ classId }: { classId: string }) => {
               placeholder="17:30"
             />
           </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Weekly Schedule</Label>
+            <Button type="button" onClick={addSlot} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-1" />
+              Add Slot
+            </Button>
+          </div>
+
+          {weeklySlots.map((slot, idx) => (
+            <div key={idx} className="grid grid-cols-5 gap-2 items-end">
+              <div>
+                <Label>Day</Label>
+                <Select
+                  value={slot.dayOfWeek.toString()}
+                  onValueChange={(v) => updateSlot(idx, "dayOfWeek", Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS.map((day) => (
+                      <SelectItem key={day.value} value={day.value.toString()}>
+                        {day.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Start</Label>
+                <Input
+                  type="time"
+                  value={slot.startTime}
+                  onChange={(e) => updateSlot(idx, "startTime", e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label>End</Label>
+                <Input
+                  type="time"
+                  value={slot.endTime}
+                  onChange={(e) => updateSlot(idx, "endTime", e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label>Teacher</Label>
+                <Select
+                  value={slot.teacherId || "default"}
+                  onValueChange={(v) => updateSlot(idx, "teacherId", v === "default" ? undefined : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default</SelectItem>
+                    {teachers?.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => removeSlot(idx)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full">

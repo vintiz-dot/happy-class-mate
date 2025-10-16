@@ -13,6 +13,7 @@ interface WeeklySlot {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
+  teacherId?: string;
 }
 
 const DAYS = [
@@ -52,14 +53,14 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
   });
 
   const addSlot = () => {
-    setWeeklySlots([...weeklySlots, { dayOfWeek: 1, startTime: "14:00", endTime: "15:30" }]);
+    setWeeklySlots([...weeklySlots, { dayOfWeek: 1, startTime: "14:00", endTime: "15:30", teacherId: teacherId }]);
   };
 
   const removeSlot = (index: number) => {
     setWeeklySlots(weeklySlots.filter((_, i) => i !== index));
   };
 
-  const updateSlot = (index: number, field: keyof WeeklySlot, value: number | string) => {
+  const updateSlot = (index: number, field: keyof WeeklySlot, value: number | string | undefined) => {
     const updated = [...weeklySlots];
     updated[index] = { ...updated[index], [field]: value };
     setWeeklySlots(updated);
@@ -168,8 +169,8 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
             </div>
 
             {weeklySlots.map((slot, index) => (
-              <div key={index} className="flex gap-2 items-end">
-                <div className="flex-1">
+              <div key={index} className="grid grid-cols-5 gap-2 items-end">
+                <div>
                   <Label>Day</Label>
                   <Select
                     value={slot.dayOfWeek.toString()}
@@ -188,7 +189,7 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
                   </Select>
                 </div>
 
-                <div className="flex-1">
+                <div>
                   <Label>Start</Label>
                   <Input
                     type="time"
@@ -197,13 +198,33 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
                   />
                 </div>
 
-                <div className="flex-1">
+                <div>
                   <Label>End</Label>
                   <Input
                     type="time"
                     value={slot.endTime}
                     onChange={(e) => updateSlot(index, "endTime", e.target.value)}
                   />
+                </div>
+
+                <div>
+                  <Label>Teacher</Label>
+                  <Select
+                    value={slot.teacherId || "default"}
+                    onValueChange={(v) => updateSlot(index, "teacherId", v === "default" ? undefined : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default</SelectItem>
+                      {teachers?.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Button
