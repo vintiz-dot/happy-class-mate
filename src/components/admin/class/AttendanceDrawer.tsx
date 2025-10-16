@@ -129,14 +129,18 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
     return colors[status] || "bg-gray-100";
   };
 
-  // Check if session can be edited based on time
-  const sessionStart = dayjs(`${session.date} ${session.start_time}`);
-  const sessionEnd = dayjs(`${session.date} ${session.end_time}`);
-  const now = dayjs();
+  // Check if session can be edited based on time (using Bangkok timezone)
+  const sessionStart = dayjs.tz(`${session.date} ${session.start_time}`, 'Asia/Bangkok');
+  const sessionEnd = dayjs.tz(`${session.date} ${session.end_time}`, 'Asia/Bangkok');
+  const now = dayjs.tz(undefined, 'Asia/Bangkok');
   
   // Can only mark attendance 5 minutes after session starts and within 24 hours after it ends
-  const canMarkAttendance = now.isAfter(sessionStart.add(5, 'minute')) && 
-                            now.isBefore(sessionEnd.add(24, 'hour'));
+  const fiveMinutesAfterStart = sessionStart.add(5, 'minute');
+  const twentyFourHoursAfterEnd = sessionEnd.add(24, 'hour');
+  const canMarkAttendance = now.isAfter(fiveMinutesAfterStart) && now.isBefore(twentyFourHoursAfterEnd);
+  
+  // Prevent marking future sessions as Held
+  const isFutureSession = now.isBefore(fiveMinutesAfterStart);
   
   const canEdit = role === "admin" || (role === "teacher" && canMarkAttendance);
 
@@ -153,10 +157,16 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
         {!canEdit && (
           <div className="my-4 p-3 bg-muted rounded-lg text-sm text-muted-foreground">
             {role === "teacher" 
-              ? now.isBefore(sessionStart.add(5, 'minute'))
-                ? "Attendance can be marked 5 minutes after session starts"
+              ? isFutureSession
+                ? "⚠️ Attendance can be marked 5 minutes after session starts (prevents invalid 'Held' status)"
                 : "Editing window closed (24 hours after session end)"
               : "You don't have permission to edit attendance"}
+          </div>
+        )}
+        
+        {isFutureSession && role === "admin" && (
+          <div className="my-4 p-3 bg-orange-100 dark:bg-orange-900 rounded-lg text-sm">
+            ⚠️ This session hasn't started yet. Marking attendance will NOT set status to "Held" until 5 minutes after start time.
           </div>
         )}
 

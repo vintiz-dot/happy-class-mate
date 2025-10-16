@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
   const nowBkkMinutes = hhmmToMinutes(nowBkkHHMM);
   
   let lockAcquired = false;
+  let revertResult: any = null;
 
   try {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
@@ -75,13 +76,35 @@ Deno.serve(async (req) => {
 
     console.log(`[generate-sessions] Generating sessions for month: ${month}`);
 
+    // ALWAYS revert invalid held sessions first (even if lock not acquired)
+    // This ensures cleanup happens on every invocation
+    const { data: preRevertResult, error: preRevertError } = await supabase.rpc(
+      "revert_invalid_held_sessions",
+      {
+        p_month: month,
+        p_today: todayBkk,
+        p_now: nowBkkHHMM,
+      }
+    );
+
+    if (preRevertError) {
+      console.error("[generate-sessions] Error in pre-lock revert:", preRevertError);
+    } else {
+      revertResult = preRevertResult;
+      console.log(`[generate-sessions] Pre-lock revert completed:`, preRevertResult);
+    }
+
     // Acquire lock
     lockAcquired = await acquireLock(supabase, "generate-sessions", month);
     if (!lockAcquired) {
+      console.log(`[generate-sessions] Lock already held, returning early with revert results`);
       return new Response(
         JSON.stringify({
           success: false,
           reason: "Job already running for this month",
+          reverted: revertResult || { totalReverted: 0 },
+          today: todayBkk,
+          now: nowBkkHHMM,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -161,8 +184,8 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError;
     }
 
-    // Call database function to revert invalid held sessions
-    const { data: revertResult, error: revertError } = await supabase.rpc(
+    // Call database function again to revert any sessions that may have been created with wrong status
+    const { data: postRevertResult, error: postRevertError } = await supabase.rpc(
       "revert_invalid_held_sessions",
       {
         p_month: month,
@@ -171,10 +194,11 @@ Deno.serve(async (req) => {
       }
     );
 
-    if (revertError) {
-      console.error("[generate-sessions] Error reverting invalid held sessions:", revertError);
+    if (postRevertError) {
+      console.error("[generate-sessions] Error in post-insert revert:", postRevertError);
     } else {
-      console.log(`[generate-sessions] Reverted invalid sessions:`, revertResult);
+      revertResult = postRevertResult;
+      console.log(`[generate-sessions] Post-insert revert completed:`, postRevertResult);
     }
 
     return new Response(

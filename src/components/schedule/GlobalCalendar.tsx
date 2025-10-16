@@ -135,16 +135,30 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     return sessions.filter(s => dayjs.tz(s.date).isSame(day, "day"));
   };
 
+  const isSessionInvalid = (session: any) => {
+    const sessionDate = dayjs.tz(session.date);
+    const sessionStart = dayjs.tz(`${session.date} ${session.start_time}`);
+    const now = dayjs();
+    const fiveMinutesAfterStart = sessionStart.add(5, 'minute');
+    
+    // Invalid if marked "Held" but it's in the future or less than 5 min past start
+    return session.status === "Held" && now.isBefore(fiveMinutesAfterStart);
+  };
+
   const getSessionColor = (session: any) => {
     const sessionDate = dayjs.tz(session.date);
     const now = dayjs();
     const isToday = sessionDate.isSame(now, "day");
     const isPast = sessionDate.isBefore(now, "day");
     const isFuture = sessionDate.isAfter(now, "day");
+    const invalid = isSessionInvalid(session);
     
     // Priority 1: Explicit statuses that override date logic
     if (session.status === "Canceled") return "bg-red-100 border-red-300";
     if (session.status === "Holiday") return "bg-purple-100 border-purple-300";
+    
+    // Priority 1.5: Invalid "Held" status (show warning border)
+    if (invalid) return "bg-orange-100 border-orange-500 border-2";
     
     // Priority 2: Today's sessions
     if (isToday) return "bg-amber-100 border-amber-300";
@@ -161,8 +175,8 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     }
     
     if (isFuture) {
-      // Future session incorrectly marked "Held" = treat as scheduled
-      if (session.status === "Held") return "bg-green-100 border-green-300";
+      // Future session incorrectly marked "Held" = treat as scheduled but show warning
+      if (session.status === "Held") return "bg-orange-100 border-orange-500 border-2";
       
       // Future scheduled session = normal
       return "bg-green-100 border-green-300";
@@ -279,8 +293,12 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
                         <div className="text-[10px]">
                           {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
                         </div>
-                        <Badge variant="secondary" className="text-[9px] mt-1">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[9px] mt-1 ${isSessionInvalid(session) ? 'bg-orange-500 text-white' : ''}`}
+                        >
                           {(() => {
+                            if (isSessionInvalid(session)) return "⚠️ Invalid";
                             const sessionDate = dayjs.tz(session.date);
                             const isPast = sessionDate.isBefore(dayjs(), "day");
                             
@@ -304,6 +322,7 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
             <span className="px-3 py-1 rounded bg-gray-100 border border-gray-300">Held</span>
             <span className="px-3 py-1 rounded bg-red-100 border border-red-300">Canceled</span>
             <span className="px-3 py-1 rounded bg-purple-100 border border-purple-300">Holiday</span>
+            <span className="px-3 py-1 rounded bg-orange-100 border-2 border-orange-500">⚠️ Invalid Status</span>
           </div>
         </CardContent>
       </Card>
