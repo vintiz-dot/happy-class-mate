@@ -127,8 +127,9 @@ Deno.serve(async (req) => {
     const endDate = new Date(year, monthNum, 0); // last day of month
 
     const sessionsToCreate: any[] = [];
+    const sessionsToDelete: string[] = [];
 
-    // Generate sessions
+    // Generate sessions intelligently
     for (const cls of classes || []) {
       const template = cls.schedule_template as { weeklySlots: WeeklySlot[] } | null;
       if (!template?.weeklySlots?.length) {
@@ -136,46 +137,82 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Get existing Scheduled sessions for this class in this month
+      const { data: existingSessions, error: existingErr } = await supabase
+        .from("sessions")
+        .select("id, date, start_time, end_time")
+        .eq("class_id", cls.id)
+        .eq("status", "Scheduled")
+        .gte("date", fmtDateYMD(startDate))
+        .lte("date", fmtDateYMD(endDate));
+      
+      if (existingErr) throw existingErr;
+
+      // Build a map of what SHOULD exist based on template
+      const expectedSessions = new Map<string, WeeklySlot>();
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay(); // 0..6
+        const dayOfWeek = d.getDay();
         const dateStr = fmtDateYMD(d);
-
         const matchingSlots = template.weeklySlots.filter((s) => s.dayOfWeek === dayOfWeek);
+        
         for (const slot of matchingSlots) {
-          // Skip if identical session exists
-          const { data: existing, error: existErr } = await supabase
-            .from("sessions")
-            .select("id")
-            .eq("class_id", cls.id)
-            .eq("date", dateStr)
-            .eq("start_time", slot.startTime)
-            .maybeSingle();
-          if (existErr) throw existErr;
-          if (existing) continue;
-
-          // Teacher availability check
-          const { data: available, error: availErr } = await supabase.rpc("check_teacher_availability", {
-            p_teacher_id: cls.default_teacher_id,
-            p_date: dateStr,
-            p_start_time: slot.startTime,
-            p_end_time: slot.endTime,
-          });
-          if (availErr) throw availErr;
-          if (!available) {
-            console.log(`Teacher conflict for ${cls.name} on ${dateStr} at ${slot.startTime}`);
-            continue;
-          }
-
-          sessionsToCreate.push({
-            class_id: cls.id,
-            date: dateStr,
-            start_time: slot.startTime,
-            end_time: slot.endTime,
-            teacher_id: cls.default_teacher_id,
-            status: "Scheduled",
-          });
+          const key = `${dateStr}-${slot.startTime}`;
+          expectedSessions.set(key, slot);
         }
       }
+
+      // Check existing sessions - delete ones that don't match template anymore
+      for (const session of existingSessions || []) {
+        const key = `${session.date}-${session.start_time}`;
+        if (!expectedSessions.has(key)) {
+          sessionsToDelete.push(session.id);
+          console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (no longer in template)`);
+        }
+      }
+
+      // Create sessions that should exist but don't
+      for (const [key, slot] of expectedSessions) {
+        const [dateStr, startTime] = key.split('-');
+        
+        // Check if session already exists
+        const exists = (existingSessions || []).some(
+          s => s.date === dateStr && s.start_time === startTime
+        );
+        
+        if (exists) continue;
+
+        // Teacher availability check
+        const { data: available, error: availErr } = await supabase.rpc("check_teacher_availability", {
+          p_teacher_id: cls.default_teacher_id,
+          p_date: dateStr,
+          p_start_time: slot.startTime,
+          p_end_time: slot.endTime,
+        });
+        if (availErr) throw availErr;
+        if (!available) {
+          console.log(`Teacher conflict for ${cls.name} on ${dateStr} at ${slot.startTime}`);
+          continue;
+        }
+
+        sessionsToCreate.push({
+          class_id: cls.id,
+          date: dateStr,
+          start_time: slot.startTime,
+          end_time: slot.endTime,
+          teacher_id: cls.default_teacher_id,
+          status: "Scheduled",
+        });
+      }
+    }
+
+    // Delete obsolete sessions first
+    if (sessionsToDelete.length > 0) {
+      console.log(`[generate-sessions] Deleting ${sessionsToDelete.length} obsolete sessions`);
+      const { error: deleteError } = await supabase
+        .from("sessions")
+        .delete()
+        .in("id", sessionsToDelete);
+      if (deleteError) throw deleteError;
     }
 
     console.log(`[generate-sessions] Creating ${sessionsToCreate.length} sessions`);
@@ -206,6 +243,7 @@ Deno.serve(async (req) => {
         success: true,
         month,
         sessionsCreated: sessionsToCreate.length,
+        sessionsDeleted: sessionsToDelete.length,
         reverted: revertResult || { totalReverted: 0 },
         today: todayBkk,
         now: nowBkkHHMM,
