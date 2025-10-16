@@ -212,21 +212,22 @@ export function FamilyForm({ onSuccess }: { onSuccess?: () => void }) {
                 rows={2}
               />
             </div>
+
+            <Button type="button" variant="outline" size="sm" onClick={addStudent} className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Student
+            </Button>
           </div>
 
-          <Separator />
+          {students.length > 0 && (
+            <>
+              <Separator />
 
-          {/* Family Members Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Family Members (Optional)</h3>
-              <Button type="button" variant="outline" size="sm" onClick={addStudent}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Student
-              </Button>
-            </div>
+              {/* Family Members Section */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Family Members</h3>
 
-            {students.map((student, studentIndex) => (
+                {students.map((student, studentIndex) => (
               <Card key={studentIndex} className="border-2">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -405,7 +406,9 @@ export function FamilyForm({ onSuccess }: { onSuccess?: () => void }) {
                 </CardContent>
               </Card>
             ))}
-          </div>
+              </div>
+            </>
+          )}
 
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? "Creating..." : `Create Family${students.length > 0 ? ` with ${students.length} Student(s)` : ""}`}
