@@ -1334,6 +1334,10 @@ export type Database = {
         Args: { p_class: string; p_from: string; p_to: string }
         Returns: undefined
       }
+      assert_job_lock: {
+        Args: { p_job: string; p_month: string }
+        Returns: boolean
+      }
       can_view_family: {
         Args: { family_id: string; user_id: string }
         Returns: boolean
@@ -1375,6 +1379,10 @@ export type Database = {
           p_student_id: string
         }
         Returns: undefined
+      }
+      revert_invalid_held_sessions: {
+        Args: { p_month: string; p_now: string; p_today: string }
+        Returns: Json
       }
     }
     Enums: {

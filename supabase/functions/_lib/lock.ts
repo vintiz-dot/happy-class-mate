@@ -1,18 +1,28 @@
 export async function acquireLock(supabase: any, job: string, month: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('job_lock')
-    .select('job')
-    .eq('job', job)
-    .eq('month', month)
-    .is('finished_at', null)
-    .maybeSingle();
+  // Check if lock can be acquired using database function
+  const { data: canAcquire, error: assertError } = await supabase.rpc('assert_job_lock', {
+    p_job: job,
+    p_month: month,
+  });
   
-  if (data) {
+  if (assertError) {
+    console.error(`Error checking lock for ${job} - ${month}:`, assertError);
+    return false;
+  }
+  
+  if (!canAcquire) {
     console.log(`Lock already held for ${job} - ${month}`);
     return false;
   }
   
-  const { error } = await supabase.from('job_lock').insert({ job, month });
+  // Try to insert lock with upsert to handle race conditions
+  const { error } = await supabase
+    .from('job_lock')
+    .upsert({ job, month, started_at: new Date().toISOString(), finished_at: null }, {
+      onConflict: 'job,month',
+      ignoreDuplicates: false,
+    });
+  
   if (error) {
     console.error(`Failed to acquire lock for ${job} - ${month}:`, error);
     return false;

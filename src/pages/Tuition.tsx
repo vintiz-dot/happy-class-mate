@@ -43,39 +43,22 @@ export default function Tuition() {
     queryFn: async () => {
       if (!studentId) return null;
 
+      // Fetch student info
       const { data: student } = await supabase
         .from("students")
         .select("full_name")
         .eq("id", studentId)
         .maybeSingle();
 
-      // Fetch invoice and recalculate tuition to ensure latest data
-      const { data: invoiceCalc, error: calcError } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId, month },
-      });
-
-      if (calcError) {
-        console.error("Error calculating tuition:", calcError);
-        return null;
-      }
-
-      const invoice = invoiceCalc || null;
-
-      const { data: ledgerAccounts } = await supabase
-        .from("ledger_accounts")
-        .select("id, code")
-        .eq("student_id", studentId);
-
-      const accountIds = ledgerAccounts?.map(a => a.id) || [];
-
-      const { data: entries } = await supabase
-        .from("ledger_entries")
+      // Fetch invoice data directly from database
+      const { data: invoice } = await supabase
+        .from("invoices")
         .select("*")
-        .in("account_id", accountIds)
+        .eq("student_id", studentId)
         .eq("month", month)
-        .order("occurred_at", { ascending: true });
+        .maybeSingle();
 
-      // Fetch payments for display
+      // Fetch payments from database
       const monthStart = `${month}-01`;
       const monthEnd = `${month}-31`;
       const { data: payments } = await supabase
@@ -86,58 +69,47 @@ export default function Tuition() {
         .lte("occurred_at", monthEnd)
         .order("occurred_at", { ascending: true });
 
-      // Count sessions for the month
+      // Fetch enrollments and sessions for session breakdown
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("class_id")
+        .select("class_id, classes(name)")
         .eq("student_id", studentId)
         .lte("start_date", `${month}-31`)
         .or(`end_date.is.null,end_date.gte.${month}-01`);
 
       const classIds = enrollments?.map(e => e.class_id) || [];
-
-      let sessionCount = 0;
+      let sessionDetails: any[] = [];
+      
       if (classIds.length > 0) {
         const { data: sessions } = await supabase
           .from("sessions")
-          .select("id, date, status")
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            status,
+            class_id,
+            classes(name)
+          `)
           .in("class_id", classIds)
           .gte("date", `${month}-01`)
           .lte("date", `${month}-31`)
-          .in("status", ["Held", "Scheduled"]);
+          .in("status", ["Held", "Scheduled"])
+          .order("date", { ascending: true });
 
-        // Filter only held sessions that have actually passed (not future)
-        const now = new Date();
-        const heldSessions = sessions?.filter(s => {
-          const sessionDate = new Date(`${s.date}T23:59:59`);
-          return s.status === "Held" && sessionDate <= now;
-        }) || [];
-
-        // Count attendance records for held sessions only
-        const sessionIds = heldSessions.map(s => s.id);
-        if (sessionIds.length > 0) {
-          const { data: attendance, count } = await supabase
-            .from("attendance")
-            .select("id", { count: "exact" })
-            .in("session_id", sessionIds)
-            .eq("student_id", studentId)
-            .in("status", ["Present", "Excused"]);
-
-          sessionCount = count || 0;
-        }
+        sessionDetails = sessions || [];
       }
 
       return {
         student,
         invoice: invoice || null,
-        entries: entries || [],
         payments: payments || [],
-        ledgerAccounts: ledgerAccounts || [],
-        sessionCount,
-        baseAmount: invoiceCalc?.baseAmount || 0,
-        totalAmount: invoiceCalc?.totalAmount || 0,
-        discountAmount: invoiceCalc?.totalDiscount || 0,
-        recordedPayment: invoiceCalc?.payments?.cumulativePaidAmount || 0,
+        sessionDetails,
+        baseAmount: invoice?.base_amount || 0,
+        totalAmount: invoice?.total_amount || 0,
+        discountAmount: invoice?.discount_amount || 0,
+        recordedPayment: invoice?.recorded_payment || 0,
       };
     },
     enabled: !!studentId,
@@ -219,18 +191,26 @@ export default function Tuition() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {dayjs(month).format("MMMM YYYY")}
-                </p>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Base Tuition</p>
+                    <p className="text-lg font-semibold">{tuitionData.baseAmount.toLocaleString()} ₫</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Discount</p>
+                    <p className="text-lg font-semibold text-green-600">-{tuitionData.discountAmount.toLocaleString()} ₫</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Due</p>
+                    <p className="text-lg font-semibold">{tuitionData.totalAmount.toLocaleString()} ₫</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Paid</p>
+                    <p className="text-lg font-semibold text-blue-600">{tuitionData.recordedPayment.toLocaleString()} ₫</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-
-            {tuitionData && studentId && (
-              <InvoiceDownloadButton
-                studentId={studentId}
-                month={month}
-              />
-            )}
 
             {tuitionData?.payments && tuitionData.payments.length > 0 && (
               <Card>
@@ -260,6 +240,49 @@ export default function Tuition() {
                           <TableCell>{payment.memo || "-"}</TableCell>
                           <TableCell className="text-right">
                             {payment.amount.toLocaleString()} ₫
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            {tuitionData?.sessionDetails && tuitionData.sessionDetails.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Session Details</CardTitle>
+                  <CardDescription>
+                    Classes attended in {dayjs(month).format("MMMM YYYY")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tuitionData.sessionDetails.map((session: any) => (
+                        <TableRow key={session.id}>
+                          <TableCell>
+                            {dayjs(session.date).format("MMM D, YYYY")}
+                          </TableCell>
+                          <TableCell>{session.classes?.name || "-"}</TableCell>
+                          <TableCell>
+                            {session.start_time} - {session.end_time}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              session.status === "Held" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+                            }`}>
+                              {session.status}
+                            </span>
                           </TableCell>
                         </TableRow>
                       ))}

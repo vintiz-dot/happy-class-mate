@@ -58,22 +58,25 @@ Deno.serve(async (req) => {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Grab Bangkok “today” and “now” once
+  // Parse request body once at the top
+  const body = await req.json().catch(() => ({}));
+  const month = body?.month ?? ymNowBangkok();
+  
+  // Grab Bangkok "today" and "now" once
   const { date: todayBkk, time: nowBkkHHMM } = nowInBangkok();
   const nowBkkMinutes = hhmmToMinutes(nowBkkHHMM);
+  
+  let lockAcquired = false;
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const month = body?.month ?? ymNowBangkok();
-
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       throw new Error("Invalid month format. Expected YYYY-MM");
     }
 
-    console.log(`Generating sessions for month: ${month}`);
+    console.log(`[generate-sessions] Generating sessions for month: ${month}`);
 
     // Acquire lock
-    const lockAcquired = await acquireLock(supabase, "generate-sessions", month);
+    lockAcquired = await acquireLock(supabase, "generate-sessions", month);
     if (!lockAcquired) {
       return new Response(
         JSON.stringify({
@@ -152,49 +155,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Creating ${sessionsToCreate.length} sessions`);
+    console.log(`[generate-sessions] Creating ${sessionsToCreate.length} sessions`);
     if (sessionsToCreate.length > 0) {
       const { error: insertError } = await supabase.from("sessions").insert(sessionsToCreate);
       if (insertError) throw insertError;
     }
 
-    // Guard rails within the month window [startDate, nextMonthStart)
-    const startDateStr = `${year}-${pad2(monthNum)}-01`;
-    const nextMonthStart = new Date(year, monthNum, 1);
-    const endDateStr = fmtDateYMD(nextMonthStart);
-
-    // 1) FUTURE: Held → Scheduled
-    const { error: futureHeldError } = await supabase
-      .from("sessions")
-      .update({ status: "Scheduled" })
-      .gte("date", startDateStr)
-      .lt("date", endDateStr)
-      .eq("status", "Held")
-      .gt("date", todayBkk); // strictly future vs Bangkok "today"
-    if (futureHeldError) {
-      console.error("Error reverting future Held sessions:", futureHeldError);
-    }
-
-    // 2) TODAY: if session marked Held before start + 5 min → revert to Scheduled
-    const { data: todayHeld, error: todayHeldErr } = await supabase
-      .from("sessions")
-      .select("id, start_time")
-      .eq("date", todayBkk)
-      .eq("status", "Held");
-    if (todayHeldErr) {
-      console.error("Error fetching today Held sessions:", todayHeldErr);
-    } else if (todayHeld?.length) {
-      const revertIds = todayHeld.filter((s) => nowBkkMinutes < hhmmToMinutes(s.start_time) + 5).map((s) => s.id);
-
-      if (revertIds.length > 0) {
-        const { error: todayRevertError } = await supabase
-          .from("sessions")
-          .update({ status: "Scheduled" })
-          .in("id", revertIds);
-        if (todayRevertError) {
-          console.error("Error reverting premature Held sessions:", todayRevertError);
-        }
+    // Call database function to revert invalid held sessions
+    const { data: revertResult, error: revertError } = await supabase.rpc(
+      "revert_invalid_held_sessions",
+      {
+        p_month: month,
+        p_today: todayBkk,
+        p_now: nowBkkHHMM,
       }
+    );
+
+    if (revertError) {
+      console.error("[generate-sessions] Error reverting invalid held sessions:", revertError);
+    } else {
+      console.log(`[generate-sessions] Reverted invalid sessions:`, revertResult);
     }
 
     return new Response(
@@ -202,6 +182,7 @@ Deno.serve(async (req) => {
         success: true,
         month,
         sessionsCreated: sessionsToCreate.length,
+        reverted: revertResult || { totalReverted: 0 },
         today: todayBkk,
         now: nowBkkHHMM,
       }),
@@ -211,22 +192,19 @@ Deno.serve(async (req) => {
       },
     );
   } catch (error: any) {
-    console.error("Error generating sessions:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("[generate-sessions] Error:", error.message, error.stack);
+    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });
   } finally {
-    // Always release lock
-    try {
-      const body = await req
-        .clone()
-        .json()
-        .catch(() => ({}));
-      const month = body?.month ?? ymNowBangkok();
-      await releaseLock(supabase, "generate-sessions", month);
-    } catch (e) {
-      console.error("Error releasing lock:", e);
+    // Always release lock if it was acquired
+    if (lockAcquired) {
+      try {
+        await releaseLock(supabase, "generate-sessions", month);
+      } catch (e) {
+        console.error("[generate-sessions] Error releasing lock:", e);
+      }
     }
   }
 });
