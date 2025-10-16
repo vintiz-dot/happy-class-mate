@@ -161,14 +161,14 @@ Deno.serve(async (req) => {
         
         for (const slot of matchingSlots) {
           const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
-          const key = `${dateStr}-${slot.startTime}`;
+          const key = `${dateStr}|${slot.startTime}`;
           expectedSessions.set(key, { slot, teacherId: assignedTeacherId });
         }
       }
 
       // Check existing sessions - delete ones that don't match template anymore
       for (const session of existingSessions || []) {
-        const key = `${session.date}-${session.start_time}`;
+        const key = `${session.date}|${session.start_time}`;
         const expected = expectedSessions.get(key);
         
         // Delete if session no longer in template OR teacher has changed
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
       // Create sessions that should exist but don't
       for (const [key, { slot, teacherId }] of expectedSessions) {
-        const [dateStr, startTime] = key.split('-');
+        const [dateStr, startTime] = key.split('|');
         
         // Check if session already exists with same teacher
         const exists = (existingSessions || []).some(
