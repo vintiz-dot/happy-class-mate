@@ -6,10 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper to convert empty strings to undefined
+const emptyStringToUndefined = (val: string | null | undefined) => 
+  (val === '' || val === null) ? undefined : val;
+
 // Validation schemas
 const EnrollmentSchema = z.object({
   classId: z.string().uuid('Invalid class ID'),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD').optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD').transform(emptyStringToUndefined).optional(),
   discountType: z.enum(['percent', 'amount']).optional(),
   discountValue: z.number().int().positive().optional(),
   discountCadence: z.enum(['monthly', 'yearly', 'once']).optional()
@@ -17,18 +21,18 @@ const EnrollmentSchema = z.object({
 
 const StudentSchema = z.object({
   fullName: z.string().min(1, 'Name required').max(200),
-  email: z.string().email('Invalid email').max(255).optional(),
-  phone: z.string().max(20).optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD').optional(),
-  notes: z.string().max(1000).optional(),
+  email: z.string().transform(emptyStringToUndefined).pipe(z.string().email('Invalid email').max(255)).optional(),
+  phone: z.string().transform(emptyStringToUndefined).pipe(z.string().max(20)).optional(),
+  dateOfBirth: z.string().transform(emptyStringToUndefined).pipe(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD')).optional(),
+  notes: z.string().transform(emptyStringToUndefined).pipe(z.string().max(1000)).optional(),
   enrollments: z.array(EnrollmentSchema).optional()
 });
 
 const FamilySchema = z.object({
   name: z.string().min(1, 'Family name required').max(200),
-  email: z.string().email('Invalid email').max(255).optional(),
-  phone: z.string().max(20).optional(),
-  address: z.string().max(500).optional(),
+  email: z.string().transform(emptyStringToUndefined).pipe(z.string().email('Invalid email').max(255)).nullable().optional(),
+  phone: z.string().transform(emptyStringToUndefined).pipe(z.string().max(20)).nullable().optional(),
+  address: z.string().transform(emptyStringToUndefined).pipe(z.string().max(500)).nullable().optional(),
   primaryUserId: z.string().uuid('Invalid user ID').optional(),
   students: z.array(StudentSchema).optional()
 });
