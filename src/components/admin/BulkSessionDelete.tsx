@@ -141,7 +141,6 @@ export function BulkSessionDelete() {
                 <SelectValue placeholder="All classes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All classes</SelectItem>
                 {classes?.map((cls) => (
                   <SelectItem key={cls.id} value={cls.id}>
                     {cls.name}
@@ -158,7 +157,6 @@ export function BulkSessionDelete() {
                 <SelectValue placeholder="All teachers" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All teachers</SelectItem>
                 {teachers?.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
                     {teacher.full_name}
