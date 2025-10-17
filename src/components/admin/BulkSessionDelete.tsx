@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function BulkSessionDelete() {
   const [classId, setClassId] = useState("");
@@ -17,6 +18,7 @@ export function BulkSessionDelete() {
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>(null);
+  const [includeHeld, setIncludeHeld] = useState(false);
 
   const { data: classes } = useQuery({
     queryKey: ["classes"],
@@ -56,14 +58,8 @@ export function BulkSessionDelete() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const today = new Date().toISOString().split("T")[0];
       const statusCounts = data?.reduce((acc: any, s) => {
-        // Skip past Held sessions
-        if (s.status === "Held" && s.date < today) {
-          acc.skipped = (acc.skipped || 0) + 1;
-        } else {
-          acc[s.status] = (acc[s.status] || 0) + 1;
-        }
+        acc[s.status] = (acc[s.status] || 0) + 1;
         return acc;
       }, {});
 
@@ -88,6 +84,7 @@ export function BulkSessionDelete() {
           class_id: classId || undefined,
           teacher_id: teacherId || undefined,
           reason: `Bulk cancellation: ${fromDate} to ${toDate}`,
+          include_held: includeHeld,
         },
       });
 
@@ -99,7 +96,7 @@ export function BulkSessionDelete() {
 
       toast.success(
         `Successfully canceled ${data.canceled} sessions${
-          data.skipped ? ` (${data.skipped} past Held sessions skipped)` : ""
+          data.skipped ? ` (${data.skipped} sessions skipped)` : ""
         }`
       );
 
@@ -109,6 +106,7 @@ export function BulkSessionDelete() {
       setFromDate("");
       setToDate("");
       setPreview(null);
+      setIncludeHeld(false);
     } catch (error: any) {
       console.error("Error bulk canceling:", error);
       toast.error(error.message || "Failed to cancel sessions");
@@ -125,7 +123,7 @@ export function BulkSessionDelete() {
           Bulk Session Delete
         </CardTitle>
         <CardDescription>
-          Cancel or permanently delete multiple sessions by date range and filters. Past Held sessions are never modified.
+          Cancel multiple sessions by date range and filters.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -183,6 +181,17 @@ export function BulkSessionDelete() {
           </div>
         </div>
 
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="include-held"
+            checked={includeHeld}
+            onCheckedChange={(checked) => setIncludeHeld(checked as boolean)}
+          />
+          <Label htmlFor="include-held" className="text-sm font-normal cursor-pointer">
+            Include Held sessions (allows canceling already-held sessions)
+          </Label>
+        </div>
+
         {preview && (
           <div className="bg-muted rounded-lg p-4 space-y-2">
             <p className="font-medium">Preview: {preview.total} sessions match your criteria</p>
@@ -209,9 +218,11 @@ export function BulkSessionDelete() {
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Note: Past Held sessions are never modified and will be skipped automatically.
-        </p>
+        {includeHeld && (
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            Warning: This will cancel Held sessions. Use with caution.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

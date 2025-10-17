@@ -44,9 +44,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { date_from, date_to, class_id, teacher_id, reason } = await req.json();
+    const { date_from, date_to, class_id, teacher_id, reason, include_held } = await req.json();
 
-    console.log('Bulk cancel request:', { date_from, date_to, class_id, teacher_id });
+    console.log('Bulk cancel request:', { date_from, date_to, class_id, teacher_id, include_held });
 
     // Build query
     let query = supabase
@@ -66,14 +66,14 @@ Deno.serve(async (req) => {
     const bkkNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
     const today = bkkNow.toISOString().split('T')[0];
 
-    // Filter: only cancel Scheduled sessions or future sessions
+    // Filter: cancel based on status and include_held flag
     const sessionsToCancel = sessions?.filter(s => {
-      // Never touch past Held sessions
-      if (s.status === 'Held' && s.date < today) {
-        return false;
-      }
-      // Only cancel Scheduled sessions
-      return s.status === 'Scheduled';
+      if (s.status === 'Scheduled') return true;
+      
+      // If include_held is enabled, allow canceling Held sessions
+      if (include_held && s.status === 'Held') return true;
+      
+      return false;
     }) || [];
 
     const skipped = (sessions?.length || 0) - sessionsToCancel.length;
