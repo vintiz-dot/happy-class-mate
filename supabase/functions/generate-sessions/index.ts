@@ -13,6 +13,10 @@ interface WeeklySlot {
   endTime: string; // "HH:MM"
 }
 
+interface ExpectedSession extends WeeklySlot {
+  teacherId: string;
+}
+
 const TZ = "Asia/Bangkok";
 
 function pad2(n: number) {
@@ -137,7 +141,7 @@ Deno.serve(async (req) => {
       // Get existing Scheduled sessions for this class in this month
       const { data: existingSessions, error: existingErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time")
+        .select("id, date, start_time, end_time, teacher_id")
         .eq("class_id", cls.id)
         .eq("status", "Scheduled")
         .gte("date", fmtDateYMD(startDate))
@@ -146,32 +150,33 @@ Deno.serve(async (req) => {
       if (existingErr) throw existingErr;
 
       // Build a map of what SHOULD exist based on template
-      const expectedSessions = new Map<string, WeeklySlot>();
+      const expectedSessions = new Map<string, ExpectedSession>();
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateStr = fmtDateYMD(d);
         const matchingSlots = template.weeklySlots.filter((s) => s.dayOfWeek === dayOfWeek);
 
         for (const slot of matchingSlots) {
-          const key = `${dateStr}-${slot.startTime}`;
-          expectedSessions.set(key, slot);
+          const key = `${dateStr}|${slot.startTime}`;
+          expectedSessions.set(key, { ...slot, teacherId: cls.default_teacher_id });
         }
       }
 
       // Check existing sessions - delete ones that don't match template anymore
       for (const session of existingSessions || []) {
-        const key = `${session.date}-${session.start_time}`;
-        if (!expectedSessions.has(key)) {
+        const key = `${session.date}|${session.start_time}`;
+        const expected = expectedSessions.get(key);
+        if (!expected || expected.teacherId !== session.teacher_id) {
           sessionsToDelete.push(session.id);
           console.log(
-            `Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (no longer in template)`,
+            `Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (${!expected ? 'no longer in template' : 'teacher changed'})`,
           );
         }
       }
 
       // Create sessions that should exist but don't
       for (const [key, slot] of expectedSessions) {
-        const [dateStr, startTime] = key.split("-");
+        const [dateStr, startTime] = key.split("|");
 
         // Check if session already exists
         const exists = (existingSessions || []).some((s) => s.date === dateStr && s.start_time === startTime);
