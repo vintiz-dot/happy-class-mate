@@ -13,10 +13,7 @@ const emptyStringToUndefined = (val: unknown) =>
 // Validation schemas
 const EnrollmentSchema = z.object({
   classId: z.string().uuid('Invalid class ID'),
-  startDate: z.preprocess(
-    emptyStringToUndefined, 
-    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD'), z.undefined()])
-  ),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD').transform(emptyStringToUndefined).optional(),
   discountType: z.enum(['percent', 'amount']).optional(),
   discountValue: z.number().int().positive().optional(),
   discountCadence: z.enum(['monthly', 'yearly', 'once']).optional()
