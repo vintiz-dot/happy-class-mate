@@ -47,14 +47,19 @@ Deno.serve(async (req) => {
     const { action, data } = await req.json();
 
     if (action === 'update') {
-      const { id, teacher_id, rate_override_vnd, status, notes } = data;
+      const { id, teacher_id, rate_override_vnd, status, notes, is_manual, manual_reason } = data;
       const { data: oldSession } = await supabase.from('sessions').select('*').eq('id', id).single();
+
+      // Detect if manual edit (teacher or time change)
+      const isManualEdit = teacher_id !== undefined && teacher_id !== oldSession?.teacher_id;
 
       const { error } = await supabase.from('sessions').update({
         teacher_id: teacher_id !== undefined ? teacher_id : oldSession?.teacher_id,
         rate_override_vnd: rate_override_vnd !== undefined ? rate_override_vnd : oldSession?.rate_override_vnd,
         status: status || oldSession?.status,
         notes: notes !== undefined ? notes : oldSession?.notes,
+        is_manual: is_manual !== undefined ? is_manual : (isManualEdit || oldSession?.is_manual),
+        manual_reason: manual_reason || (isManualEdit ? 'Manual teacher reassignment' : oldSession?.manual_reason),
         updated_by: user.id,
       }).eq('id', id);
 
@@ -206,13 +211,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'create') {
-      const { class_id, date, start_time, end_time, teacher_id, rate_override_vnd, notes, status } = data;
+      const { class_id, date, start_time, end_time, teacher_id, rate_override_vnd, notes, status, is_manual, manual_reason } = data;
 
       const { data: newSession, error } = await supabase.from('sessions').insert({
         class_id, date, start_time, end_time, teacher_id,
         rate_override_vnd: rate_override_vnd || null,
         notes: notes || null,
         status: status || 'Scheduled',
+        is_manual: is_manual || true, // Ad-hoc sessions are manual by default
+        manual_reason: manual_reason || 'Admin ad-hoc creation',
         created_by: user.id,
       }).select().single();
 

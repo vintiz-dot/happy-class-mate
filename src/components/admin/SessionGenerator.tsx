@@ -18,16 +18,30 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-sessions", {
+      const { data, error } = await supabase.functions.invoke("schedule-sessions", {
         body: { month },
       });
 
       if (error) throw error;
 
+      if (!data.success) {
+        throw new Error(data.reason || data.error || 'Generation failed');
+      }
+
+      const summary = [
+        `Created: ${data.created?.length || 0}`,
+        `Normalized: ${data.normalized || 0}`,
+        data.skippedConflicts?.length ? `Conflicts: ${data.skippedConflicts.length}` : null,
+      ].filter(Boolean).join(' • ');
+
       toast({
-        title: "Success",
-        description: `Created ${data.sessionsCreated} sessions for month ${month}`,
+        title: "Schedule Generated",
+        description: summary,
       });
+
+      if (data.attention?.noTeacherExpected?.length || data.attention?.noTeacherExisting?.length) {
+        console.warn('Attention needed:', data.attention);
+      }
 
       onSuccess?.();
     } catch (error: any) {
@@ -63,8 +77,9 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
           {isGenerating ? "Generating schedule..." : "Generate Schedule"}
         </Button>
         <p className="text-sm text-muted-foreground">
-          The system will automatically create sessions based on weekly class schedules.
-          If a session already exists or the teacher is busy, it will be skipped.
+          Idempotent schedule generation. Creates missing sessions from class templates,
+          preserves existing assignments, and normalizes invalid future states.
+          Running multiple times produces the same result.
         </p>
       </CardContent>
     </Card>

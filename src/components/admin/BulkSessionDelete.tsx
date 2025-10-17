@@ -6,18 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 export function BulkSessionDelete() {
   const [classId, setClassId] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [hardDelete, setHardDelete] = useState(false);
-  const [confirmHardDelete, setConfirmHardDelete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>(null);
 
@@ -77,30 +74,31 @@ export function BulkSessionDelete() {
   };
 
   const handleDelete = async () => {
-    if (hardDelete && !confirmHardDelete) {
-      toast.error("Please confirm permanent deletion");
+    if (!fromDate || !toDate) {
+      toast.error("Please select both start and end dates");
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-session", {
+      const { data, error } = await supabase.functions.invoke("bulk-cancel-sessions", {
         body: {
-          action: "bulk-delete",
-          data: {
-            class_id: classId || null,
-            teacher_id: teacherId || null,
-            from_date: fromDate || null,
-            to_date: toDate || null,
-            hard_delete: hardDelete,
-          },
+          date_from: fromDate,
+          date_to: toDate,
+          class_id: classId || undefined,
+          teacher_id: teacherId || undefined,
+          reason: `Bulk cancellation: ${fromDate} to ${toDate}`,
         },
       });
 
       if (error) throw error;
 
+      if (!data.success) {
+        throw new Error(data.error || 'Cancellation failed');
+      }
+
       toast.success(
-        `Successfully ${hardDelete ? "deleted" : "canceled"} ${data.deleted || data.canceled} sessions${
+        `Successfully canceled ${data.canceled} sessions${
           data.skipped ? ` (${data.skipped} past Held sessions skipped)` : ""
         }`
       );
@@ -110,12 +108,10 @@ export function BulkSessionDelete() {
       setTeacherId("");
       setFromDate("");
       setToDate("");
-      setHardDelete(false);
-      setConfirmHardDelete(false);
       setPreview(null);
     } catch (error: any) {
-      console.error("Error bulk deleting:", error);
-      toast.error(error.message || "Failed to delete sessions");
+      console.error("Error bulk canceling:", error);
+      toast.error(error.message || "Failed to cancel sessions");
     } finally {
       setLoading(false);
     }
@@ -187,48 +183,6 @@ export function BulkSessionDelete() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="bulk-hard-delete"
-              checked={hardDelete}
-              onCheckedChange={(checked) => {
-                setHardDelete(!!checked);
-                setConfirmHardDelete(false);
-              }}
-            />
-            <Label htmlFor="bulk-hard-delete" className="font-normal">
-              Permanently delete (cannot be undone)
-            </Label>
-          </div>
-
-          {hardDelete && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-destructive">Irreversible Action</p>
-                  <p className="text-xs text-muted-foreground">
-                    This will permanently delete all matching sessions and their attendance records.
-                    This action cannot be undone.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="confirm-bulk-hard-delete"
-                  checked={confirmHardDelete}
-                  onCheckedChange={(checked) => setConfirmHardDelete(!!checked)}
-                />
-                <Label htmlFor="confirm-bulk-hard-delete" className="font-normal text-sm">
-                  I understand this action cannot be undone
-                </Label>
-              </div>
-            </div>
-          )}
-        </div>
-
         {preview && (
           <div className="bg-muted rounded-lg p-4 space-y-2">
             <p className="font-medium">Preview: {preview.total} sessions match your criteria</p>
@@ -248,10 +202,10 @@ export function BulkSessionDelete() {
           </Button>
           <Button
             onClick={handleDelete}
-            disabled={loading || (hardDelete && !confirmHardDelete) || !preview}
-            className={hardDelete ? "bg-destructive hover:bg-destructive/90 flex-1" : "flex-1"}
+            disabled={loading || !preview}
+            className="flex-1"
           >
-            {loading ? "Processing..." : hardDelete ? "Permanently Delete" : "Cancel Sessions"}
+            {loading ? "Processing..." : "Cancel Sessions"}
           </Button>
         </div>
 

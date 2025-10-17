@@ -971,6 +971,8 @@ export type Database = {
           date: string
           end_time: string
           id: string
+          is_manual: boolean
+          manual_reason: string | null
           notes: string | null
           rate_override_vnd: number | null
           start_time: string
@@ -989,6 +991,8 @@ export type Database = {
           date: string
           end_time: string
           id?: string
+          is_manual?: boolean
+          manual_reason?: string | null
           notes?: string | null
           rate_override_vnd?: number | null
           start_time: string
@@ -1007,6 +1011,8 @@ export type Database = {
           date?: string
           end_time?: string
           id?: string
+          is_manual?: boolean
+          manual_reason?: string | null
           notes?: string | null
           rate_override_vnd?: number | null
           start_time?: string

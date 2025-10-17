@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SessionGenerator } from "@/components/admin/SessionGenerator";
+import { ScheduleStatusCard } from "@/components/admin/ScheduleStatusCard";
 import { PaymentManager } from "@/components/admin/PaymentManager";
 import { PayrollManager } from "@/components/admin/PayrollManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
@@ -14,14 +15,15 @@ const AutomationTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cog className="h-5 w-5" />
-            Session Generation
+            Schedule Generation
           </CardTitle>
           <CardDescription>
-            Automatically generate class sessions
+            Idempotent schedule generation from class templates
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <SessionGenerator />
+          <ScheduleStatusCard />
         </CardContent>
       </Card>
 
