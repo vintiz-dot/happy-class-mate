@@ -10,288 +10,249 @@ const corsHeaders = {
 interface WeeklySlot {
   dayOfWeek: number;
   startTime: string; // "HH:MM"
-  endTime: string; // "HH:MM"
-  teacherId?: string; // Optional teacher override per slot
+  endTime: string;   // "HH:MM"
+  teacherId?: string;
 }
 
 const TZ = "Asia/Bangkok";
 
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
+function pad2(n: number) { return String(n).padStart(2, "0"); }
 function fmtDateYMD(d: Date) {
-  // Use local JS date math; we only format Y-M-D from same object
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
+  const y = d.getFullYear(); const m = pad2(d.getMonth() + 1); const day = pad2(d.getDate());
   return `${y}-${m}-${day}`;
 }
-
 function nowInBangkok() {
   const d = new Date();
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d); // YYYY-MM-DD
-  const time = new Intl.DateTimeFormat("en-GB", {
-    timeZone: TZ,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(d); // HH:MM
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
   return { date, time };
 }
 
-function hhmmToMinutes(hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Parse request body once at the top
   const body = await req.json().catch(() => ({}));
-  const month = body?.month ?? ymNowBangkok();
-  
-  // Grab Bangkok "today" and "now" once
-  const { date: todayBkk, time: nowBkkHHMM } = nowInBangkok();
-  const nowBkkMinutes = hhmmToMinutes(nowBkkHHMM);
-  
+  const month: string = body?.month ?? ymNowBangkok();
+
   let lockAcquired = false;
-  let revertResult: any = null;
+  let revertPre: any = null;
+  let revertPost: any = null;
 
   try {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      throw new Error("Invalid month format. Expected YYYY-MM");
-    }
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new Error("Invalid month format. Expected YYYY-MM");
 
-    console.log(`[generate-sessions] Generating sessions for month: ${month}`);
+    const { date: todayBkk, time: nowBkk } = nowInBangkok();
 
-    // ALWAYS revert invalid held sessions first (even if lock not acquired)
-    // This ensures cleanup happens on every invocation
-    console.log(`[generate-sessions] Calling revert with month=${month}, today=${todayBkk}, now=${nowBkkHHMM}`);
-    
-    const { data: preRevertResult, error: preRevertError } = await supabase.rpc(
-      "revert_invalid_held_sessions",
-      {
+    console.log(`[generate-sessions] month=${month} today=${todayBkk} now=${nowBkk}`);
+
+    // 1) Revert bad Held states before we touch anything
+    {
+      const { data, error } = await supabase.rpc("revert_invalid_held_sessions", {
         p_month: month,
         p_today: todayBkk,
-        p_now: nowBkkHHMM,
-      }
-    );
-
-    if (preRevertError) {
-      console.error("[generate-sessions] Error in pre-lock revert:", preRevertError);
-      // Don't fail the entire function if revert fails - log and continue
-    } else {
-      revertResult = preRevertResult;
-      console.log(`[generate-sessions] Pre-lock revert completed:`, preRevertResult);
+        p_now: nowBkk,
+      });
+      if (error) console.error("[pre-revert] error", error);
+      else revertPre = data;
     }
 
-    // Acquire lock
+    // 2) Acquire lock
     lockAcquired = await acquireLock(supabase, "generate-sessions", month);
     if (!lockAcquired) {
-      console.log(`[generate-sessions] Lock already held, returning early with revert results`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          reason: "Job already running for this month",
-          reverted: revertResult || { totalReverted: 0 },
-          today: todayBkk,
-          now: nowBkkHHMM,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        },
-      );
+      return new Response(JSON.stringify({
+        success: false, reason: "Job already running", reverted: revertPre ?? { totalReverted: 0 }
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
-    // Active classes
-    const { data: classes, error: classesError } = await supabase
+    // 3) Load active classes
+    const { data: classes, error: classesErr } = await supabase
       .from("classes")
-      .select("id, name, default_teacher_id, session_rate_vnd, schedule_template")
+      .select("id,name,default_teacher_id,session_rate_vnd,schedule_template")
       .eq("is_active", true);
+    if (classesErr) throw classesErr;
 
-    if (classesError) throw classesError;
-
-    // Month boundaries
+    // Month bounds
     const [year, monthNum] = month.split("-").map(Number);
     const startDate = new Date(year, monthNum - 1, 1);
-    const endDate = new Date(year, monthNum, 0); // last day of month
+    const endDate = new Date(year, monthNum, 0);
 
-    const sessionsToCreate: any[] = [];
-    const sessionsToDelete: string[] = [];
+    let totalCreated = 0;
+    let totalCanceled = 0;
+    let totalUpdated = 0;
+    const issues: any[] = [];
 
-    // Generate sessions intelligently
-    for (const cls of classes || []) {
-      const template = cls.schedule_template as { weeklySlots: WeeklySlot[] } | null;
-      if (!template?.weeklySlots?.length) {
-        console.log(`Class ${cls.name} has no weekly slots, skipping`);
+    // 4) Reconcile per class
+    for (const cls of classes ?? []) {
+      const template = (cls.schedule_template as { weeklySlots: WeeklySlot[] } | null)?.weeklySlots ?? [];
+      if (template.length === 0) {
+        console.log(`[class:${cls.name}] no weeklySlots → skip`);
         continue;
       }
 
-      // Get existing non-canceled sessions (both Scheduled and Held) for this class in this month
-      const { data: existingSessions, error: existingErr } = await supabase
+      // Build expected map for whole month
+      const expected = new Map<string, { slot: WeeklySlot; teacherId: string }>();
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dow = d.getDay();
+        const dateStr = fmtDateYMD(d);
+        for (const slot of template.filter(s => s.dayOfWeek === dow)) {
+          const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
+          expected.set(`${dateStr}|${slot.startTime}`, { slot, teacherId: assignedTeacherId });
+        }
+      }
+
+      // Load all non-canceled sessions for this class in the month
+      const { data: existingAll, error: exErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time, teacher_id, status")
+        .select("id,date,start_time,end_time,teacher_id,status")
         .eq("class_id", cls.id)
         .neq("status", "Canceled")
         .gte("date", fmtDateYMD(startDate))
         .lte("date", fmtDateYMD(endDate));
-      
-      if (existingErr) throw existingErr;
+      if (exErr) throw exErr;
 
-      // Build a map of what SHOULD exist based on template
-      const expectedSessions = new Map<string, { slot: WeeklySlot, teacherId: string }>();
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        const dateStr = fmtDateYMD(d);
-        const matchingSlots = template.weeklySlots.filter((s) => s.dayOfWeek === dayOfWeek);
-        
-        for (const slot of matchingSlots) {
-          const assignedTeacherId = slot.teacherId || cls.default_teacher_id;
-          const key = `${dateStr}|${slot.startTime}`;
-          expectedSessions.set(key, { slot, teacherId: assignedTeacherId });
-        }
-      }
+      // Split by applicability
+      const futureScheduled = (existingAll ?? []).filter(s => s.status === "Scheduled" && s.date >= todayBkk);
+      const pastHeld = (existingAll ?? []).filter(s => s.status === "Held" || s.date < todayBkk);
 
-      // Check existing sessions - delete ones that don't match template anymore
-      for (const session of existingSessions || []) {
-        const key = `${session.date}|${session.start_time}`;
-        const expected = expectedSessions.get(key);
-        
-        // Only modify SCHEDULED sessions - Held sessions are historical and should not be changed
-        if (session.status === 'Scheduled') {
-          // Delete if session no longer in template OR teacher has changed
-          if (!expected || expected.teacherId !== session.teacher_id) {
-            sessionsToDelete.push(session.id);
-            const reason = !expected 
-              ? '(no longer in template)' 
-              : `(teacher changed from ${session.teacher_id} to ${expected.teacherId})`;
-            console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} ${reason}`);
+      // 4a) Cancel future Scheduled not in template
+      {
+        const toCancelIds = futureScheduled
+          .filter(s => !expected.has(`${s.date}|${s.start_time}`))
+          .map(s => s.id);
+
+        if (toCancelIds.length > 0) {
+          const { error } = await supabase.from("sessions").update({ status: "Canceled" }).in("id", toCancelIds);
+          if (error) {
+            issues.push({ class: cls.name, op: "cancel", error });
+          } else {
+            totalCanceled += toCancelIds.length;
           }
-        } else if (session.status === 'Held' && expected && expected.teacherId !== session.teacher_id) {
-          // Log warning for past Held sessions with wrong teacher (audit purposes)
-          console.log(`⚠️ Audit: Held session has wrong teacher - ${cls.name} on ${session.date} at ${session.start_time} (has ${session.teacher_id}, should be ${expected.teacherId})`);
         }
       }
 
-      // Create sessions that should exist but don't
-      for (const [key, { slot, teacherId }] of expectedSessions) {
-        const [dateStr, startTime] = key.split('|');
-        
-        // Check if session already exists (either with correct teacher, or as a Held session)
-        // Don't create duplicates if a Held session exists, even with wrong teacher
-        const exists = (existingSessions || []).some(
-          s => s.date === dateStr && s.start_time === startTime && 
-               (s.teacher_id === teacherId || s.status === 'Held')
-        );
-        
-        if (exists) continue;
+      // 4b) Update teacher/time for future Scheduled that are in template but differ
+      for (const s of futureScheduled) {
+        const key = `${s.date}|${s.start_time}`;
+        const exp = expected.get(key);
+        if (!exp) continue;
 
-        // Use teacherId from map (already resolved from slot or default)
-        const assignedTeacherId = teacherId;
+        const needsTeacher = exp.teacherId !== s.teacher_id;
+        const needsEnd = exp.slot.endTime !== s.end_time;
+        // start_time is key; changing it would require cancel+create. We keep start_time stable.
+        if (!needsTeacher && !needsEnd) continue;
 
-        // Teacher availability check
-        const { data: available, error: availErr } = await supabase.rpc("check_teacher_availability", {
-          p_teacher_id: assignedTeacherId,
+        // Check availability for new teacher/time excluding this session id
+        const { data: ok, error: availErr } = await supabase.rpc("check_teacher_availability", {
+          p_teacher_id: exp.teacherId,
+          p_date: s.date,
+          p_start_time: s.start_time,
+          p_end_time: exp.slot.endTime,
+          p_exclude_session_id: s.id,
+        });
+        if (availErr) { issues.push({ class: cls.name, op: "availability", session: s.id, error: availErr }); continue; }
+        if (!ok) { issues.push({ class: cls.name, op: "availability", session: s.id, reason: "conflict" }); continue; }
+
+        const { error: upErr } = await supabase
+          .from("sessions")
+          .update({ teacher_id: exp.teacherId, end_time: exp.slot.endTime })
+          .eq("id", s.id);
+
+        if (upErr) issues.push({ class: cls.name, op: "update", session: s.id, error: upErr });
+        else totalUpdated += 1;
+      }
+
+      // Refresh current snapshot used for existence checks
+      const currentAll = (await supabase
+        .from("sessions")
+        .select("id,date,start_time,end_time,teacher_id,status")
+        .eq("class_id", cls.id)
+        .neq("status", "Canceled")
+        .gte("date", fmtDateYMD(startDate))
+        .lte("date", fmtDateYMD(endDate))).data ?? [];
+
+      const existsAtDT = (dateStr: string, start: string) =>
+        currentAll.some(s => s.date === dateStr && s.start_time === start && s.status !== "Canceled");
+
+      // 4c) Create missing future rows
+      const toCreate: any[] = [];
+      for (const [key, { slot, teacherId }] of expected.entries()) {
+        const [dateStr, startTime] = key.split("|");
+        if (dateStr < todayBkk) continue; // do not create in the past
+
+        // If something already exists at same date/time (Scheduled or Held), skip
+        if (existsAtDT(dateStr, startTime)) continue;
+
+        // Availability for new row
+        const { data: ok, error: availErr } = await supabase.rpc("check_teacher_availability", {
+          p_teacher_id: teacherId,
           p_date: dateStr,
-          p_start_time: slot.startTime,
+          p_start_time: startTime,
           p_end_time: slot.endTime,
         });
-        if (availErr) throw availErr;
-        if (!available) {
-          console.log(`Teacher conflict for ${cls.name} on ${dateStr} at ${slot.startTime}`);
-          continue;
-        }
+        if (availErr) { issues.push({ class: cls.name, op: "availability", key, error: availErr }); continue; }
+        if (!ok) { issues.push({ class: cls.name, op: "availability", key, reason: "conflict" }); continue; }
 
-        sessionsToCreate.push({
+        toCreate.push({
           class_id: cls.id,
           date: dateStr,
-          start_time: slot.startTime,
+          start_time: startTime,
           end_time: slot.endTime,
-          teacher_id: assignedTeacherId,
+          teacher_id: teacherId,
           status: "Scheduled",
         });
       }
-    }
 
-    // Delete obsolete sessions first
-    if (sessionsToDelete.length > 0) {
-      console.log(`[generate-sessions] Deleting ${sessionsToDelete.length} obsolete sessions`);
-      const { error: deleteError } = await supabase
-        .from("sessions")
-        .delete()
-        .in("id", sessionsToDelete);
-      if (deleteError) throw deleteError;
-    }
-
-    console.log(`[generate-sessions] Creating ${sessionsToCreate.length} sessions`);
-    if (sessionsToCreate.length > 0) {
-      const { error: insertError } = await supabase.from("sessions").insert(sessionsToCreate);
-      if (insertError) throw insertError;
-    }
-
-    // Call database function again to revert any sessions that may have been created with wrong status
-    console.log(`[generate-sessions] Post-insert revert with month=${month}, today=${todayBkk}, now=${nowBkkHHMM}`);
-    
-    const { data: postRevertResult, error: postRevertError } = await supabase.rpc(
-      "revert_invalid_held_sessions",
-      {
-        p_month: month,
-        p_today: todayBkk,
-        p_now: nowBkkHHMM,
+      if (toCreate.length > 0) {
+        const { error: insErr } = await supabase.from("sessions").insert(toCreate);
+        if (insErr) issues.push({ class: cls.name, op: "insert", error: insErr });
+        else totalCreated += toCreate.length;
       }
-    );
 
-    if (postRevertError) {
-      console.error("[generate-sessions] Error in post-insert revert:", postRevertError);
-      // Don't fail the entire function - log and continue
-    } else {
-      revertResult = postRevertResult;
-      console.log(`[generate-sessions] Post-insert revert completed:`, postRevertResult);
+      // 4d) Audit: report Held rows with wrong teacher vs template
+      for (const h of pastHeld) {
+        const k = `${h.date}|${h.start_time}`;
+        const exp = expected.get(k);
+        if (exp && exp.teacherId !== h.teacher_id) {
+          console.log(`⚠️ [audit] Held mismatch ${cls.name} ${h.date} ${h.start_time}: has ${h.teacher_id}, expected ${exp.teacherId}`);
+        }
+      }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        month,
-        sessionsCreated: sessionsToCreate.length,
-        sessionsDeleted: sessionsToDelete.length,
-        reverted: revertResult || { totalReverted: 0 },
-        today: todayBkk,
-        now: nowBkkHHMM,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      },
-    );
-  } catch (error: any) {
-    console.error("[generate-sessions] Error:", error.message, error.stack);
-    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
+    // 5) Post-revert (cleanup any bad states that slipped through)
+    {
+      const { data, error } = await supabase.rpc("revert_invalid_held_sessions", {
+        p_month: month,
+        p_today: nowInBangkok().date,
+        p_now: nowInBangkok().time,
+      });
+      if (error) console.error("[post-revert] error", error);
+      else revertPost = data;
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      month,
+      created: totalCreated,
+      updated: totalUpdated,
+      canceled: totalCanceled,
+      revertedPre: revertPre ?? { totalReverted: 0 },
+      revertedPost: revertPost ?? { totalReverted: 0 },
+      issues,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+
+  } catch (e: any) {
+    console.error("[generate-sessions] error", e?.message, e?.stack);
+    return new Response(JSON.stringify({ error: e?.message, stack: e?.stack }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400
     });
   } finally {
-    // Always release lock if it was acquired
     if (lockAcquired) {
-      try {
-        await releaseLock(supabase, "generate-sessions", month);
-      } catch (e) {
-        console.error("[generate-sessions] Error releasing lock:", e);
-      }
+      try { await releaseLock(supabase, "generate-sessions", month); }
+      catch (e) { console.error("[generate-sessions] releaseLock error", e); }
     }
   }
 });
