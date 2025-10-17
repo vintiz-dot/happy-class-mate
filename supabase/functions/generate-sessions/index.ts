@@ -141,12 +141,12 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Get existing Scheduled sessions for this class in this month
+      // Get existing non-canceled sessions (both Scheduled and Held) for this class in this month
       const { data: existingSessions, error: existingErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time, teacher_id")
+        .select("id, date, start_time, end_time, teacher_id, status")
         .eq("class_id", cls.id)
-        .eq("status", "Scheduled")
+        .neq("status", "Canceled")
         .gte("date", fmtDateYMD(startDate))
         .lte("date", fmtDateYMD(endDate));
       
@@ -171,13 +171,19 @@ Deno.serve(async (req) => {
         const key = `${session.date}|${session.start_time}`;
         const expected = expectedSessions.get(key);
         
-        // Delete if session no longer in template OR teacher has changed
-        if (!expected || expected.teacherId !== session.teacher_id) {
-          sessionsToDelete.push(session.id);
-          const reason = !expected 
-            ? '(no longer in template)' 
-            : `(teacher changed from ${session.teacher_id} to ${expected.teacherId})`;
-          console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} ${reason}`);
+        // Only modify SCHEDULED sessions - Held sessions are historical and should not be changed
+        if (session.status === 'Scheduled') {
+          // Delete if session no longer in template OR teacher has changed
+          if (!expected || expected.teacherId !== session.teacher_id) {
+            sessionsToDelete.push(session.id);
+            const reason = !expected 
+              ? '(no longer in template)' 
+              : `(teacher changed from ${session.teacher_id} to ${expected.teacherId})`;
+            console.log(`Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} ${reason}`);
+          }
+        } else if (session.status === 'Held' && expected && expected.teacherId !== session.teacher_id) {
+          // Log warning for past Held sessions with wrong teacher (audit purposes)
+          console.log(`⚠️ Audit: Held session has wrong teacher - ${cls.name} on ${session.date} at ${session.start_time} (has ${session.teacher_id}, should be ${expected.teacherId})`);
         }
       }
 
@@ -185,9 +191,11 @@ Deno.serve(async (req) => {
       for (const [key, { slot, teacherId }] of expectedSessions) {
         const [dateStr, startTime] = key.split('|');
         
-        // Check if session already exists with same teacher
+        // Check if session already exists (either with correct teacher, or as a Held session)
+        // Don't create duplicates if a Held session exists, even with wrong teacher
         const exists = (existingSessions || []).some(
-          s => s.date === dateStr && s.start_time === startTime && s.teacher_id === teacherId
+          s => s.date === dateStr && s.start_time === startTime && 
+               (s.teacher_id === teacherId || s.status === 'Held')
         );
         
         if (exists) continue;
