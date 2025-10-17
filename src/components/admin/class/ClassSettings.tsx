@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { PastAttendanceEditor } from "@/components/admin/PastAttendanceEditor";
 
 const ClassSettings = ({ classId }: { classId: string }) => {
   const [defaultTeacherId, setDefaultTeacherId] = useState("");
@@ -127,64 +129,79 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   };
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Class Settings</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Default Teacher</Label>
-          <Select value={defaultTeacherId} onValueChange={setDefaultTeacherId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select default teacher" />
-            </SelectTrigger>
-            <SelectContent>
-              {teachers?.filter(t => t.id).map((teacher) => (
-                <SelectItem key={teacher.id} value={teacher.id}>
-                  {teacher.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="space-y-6">
+      <Tabs defaultValue="settings" className="w-full">
+        <TabsList>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="attendance">Past Attendance</TabsTrigger>
+        </TabsList>
 
-        <div className="space-y-2">
-          <Label>Session Rate (VND)</Label>
-          <Input
-            type="number"
-            value={sessionRate}
-            onChange={(e) => setSessionRate(Number(e.target.value) || 0)}
-            placeholder="Enter session rate"
-          />
-        </div>
+        <TabsContent value="settings">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Class Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Default Teacher</Label>
+                <Select value={defaultTeacherId} onValueChange={setDefaultTeacherId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select default teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers?.filter(t => t.id).map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Default Session Length (minutes)</Label>
-            <Input
-              type="number"
-              value={defaultSessionLength}
-              onChange={(e) => setDefaultSessionLength(Number(e.target.value) || 90)}
-              placeholder="90"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>Session Rate (VND)</Label>
+                <Input
+                  type="number"
+                  value={sessionRate}
+                  onChange={(e) => setSessionRate(Number(e.target.value) || 0)}
+                  placeholder="Enter session rate"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Default Start Time</Label>
-            <Input
-              type="time"
-              value={defaultStartTime}
-              onChange={(e) => setDefaultStartTime(e.target.value)}
-              placeholder="17:30"
-            />
-          </div>
-        </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Default Session Length (minutes)</Label>
+                  <Input
+                    type="number"
+                    value={defaultSessionLength}
+                    onChange={(e) => setDefaultSessionLength(Number(e.target.value) || 90)}
+                    placeholder="90"
+                  />
+                </div>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
-      </CardContent>
-    </Card>
+                <div className="space-y-2">
+                  <Label>Default Start Time</Label>
+                  <Input
+                    type="time"
+                    value={defaultStartTime}
+                    onChange={(e) => setDefaultStartTime(e.target.value)}
+                    placeholder="17:30"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleSave} disabled={saving} className="w-full">
+                {saving ? "Saving..." : "Save Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <PastAttendanceEditor classId={classId} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

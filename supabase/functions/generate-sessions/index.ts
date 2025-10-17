@@ -80,32 +80,27 @@ Deno.serve(async (req) => {
 
     console.log(`[generate-sessions] Generating sessions for month: ${month}`);
 
-    // ALWAYS revert invalid held sessions first (even if lock not acquired)
-    // This ensures cleanup happens on every invocation
-    const { data: preRevertResult, error: preRevertError } = await supabase.rpc("revert_invalid_held_sessions", {
+    // Normalize session statuses first (revert invalid Held sessions)
+    const { data: normalizeResult, error: normalizeError } = await supabase.rpc("normalize_session_statuses", {
       p_month: month,
-      p_today: todayBkk,
-      p_now: nowBkkHHMM,
     });
 
-    if (preRevertError) {
-      console.error("[generate-sessions] Error in pre-lock revert:", preRevertError);
+    if (normalizeError) {
+      console.error("[generate-sessions] Error normalizing:", normalizeError);
     } else {
-      revertResult = preRevertResult;
-      console.log(`[generate-sessions] Pre-lock revert completed:`, preRevertResult);
+      revertResult = normalizeResult;
+      console.log(`[generate-sessions] Normalized statuses:`, normalizeResult);
     }
 
     // Acquire lock
     lockAcquired = await acquireLock(supabase, "generate-sessions", month);
     if (!lockAcquired) {
-      console.log(`[generate-sessions] Lock already held, returning early with revert results`);
+      console.log(`[generate-sessions] Lock already held, returning early`);
       return new Response(
         JSON.stringify({
           success: false,
           reason: "Job already running for this month",
-          reverted: revertResult || { totalReverted: 0 },
-          today: todayBkk,
-          now: nowBkkHHMM,
+          normalized: revertResult || { totalReverted: 0 },
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -138,12 +133,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Get existing Scheduled sessions for this class in this month
+      // Get all non-canceled sessions for this class in this month
+      // Include both Scheduled and Held to properly detect conflicts and avoid duplicates
       const { data: existingSessions, error: existingErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time, teacher_id")
+        .select("id, date, start_time, end_time, teacher_id, status")
         .eq("class_id", cls.id)
-        .eq("status", "Scheduled")
+        .neq("status", "Canceled")
         .gte("date", fmtDateYMD(startDate))
         .lte("date", fmtDateYMD(endDate));
 
@@ -162,14 +158,26 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check existing sessions - delete ones that don't match template anymore
+      // Check existing sessions - only cancel future Scheduled sessions that don't match template
+      // NEVER modify past Held sessions
       for (const session of existingSessions || []) {
         const key = `${session.date}|${session.start_time}`;
         const expected = expectedSessions.get(key);
-        if (!expected || expected.teacherId !== session.teacher_id) {
-          sessionsToDelete.push(session.id);
-          console.log(
-            `Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (${!expected ? 'no longer in template' : 'teacher changed'})`,
+        const sessionDate = new Date(session.date);
+        const isInPast = sessionDate < new Date(todayBkk);
+        
+        // Only process Scheduled sessions
+        if (session.status === 'Scheduled') {
+          if (!expected || expected.teacherId !== session.teacher_id) {
+            sessionsToDelete.push(session.id);
+            console.log(
+              `Marking for deletion: ${cls.name} on ${session.date} at ${session.start_time} (${!expected ? 'no longer in template' : 'teacher changed'})`,
+            );
+          }
+        } else if (session.status === 'Held' && (!expected || expected.teacherId !== session.teacher_id)) {
+          // Log warning for past Held sessions with wrong teacher (audit purposes only)
+          console.warn(
+            `AUDIT: Past Held session has incorrect teacher - ${cls.name} on ${session.date} at ${session.start_time} (expected: ${expected?.teacherId}, actual: ${session.teacher_id})`
           );
         }
       }
@@ -178,8 +186,12 @@ Deno.serve(async (req) => {
       for (const [key, slot] of expectedSessions) {
         const [dateStr, startTime] = key.split("|");
 
-        // Check if session already exists
-        const exists = (existingSessions || []).some((s) => s.date === dateStr && s.start_time === startTime);
+        // Check if session already exists at this date/time
+        // Consider both Scheduled and Held sessions to avoid duplicates
+        const exists = (existingSessions || []).some(
+          (s) => s.date === dateStr && s.start_time === startTime &&
+                 (s.teacher_id === slot.teacherId || s.status === 'Held')
+        );
 
         if (exists) continue;
 
@@ -220,18 +232,15 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError;
     }
 
-    // Call database function again to revert any sessions that may have been created with wrong status
-    const { data: postRevertResult, error: postRevertError } = await supabase.rpc("revert_invalid_held_sessions", {
+    // Final normalization to ensure consistency
+    const { data: finalNormalize, error: finalNormalizeError } = await supabase.rpc("normalize_session_statuses", {
       p_month: month,
-      p_today: todayBkk,
-      p_now: nowBkkHHMM,
     });
 
-    if (postRevertError) {
-      console.error("[generate-sessions] Error in post-insert revert:", postRevertError);
+    if (finalNormalizeError) {
+      console.error("[generate-sessions] Error in final normalize:", finalNormalizeError);
     } else {
-      revertResult = postRevertResult;
-      console.log(`[generate-sessions] Post-insert revert completed:`, postRevertResult);
+      console.log(`[generate-sessions] Final normalize completed:`, finalNormalize);
     }
 
     return new Response(
@@ -239,10 +248,8 @@ Deno.serve(async (req) => {
         success: true,
         month,
         sessionsCreated: sessionsToCreate.length,
-        sessionsDeleted: sessionsToDelete.length,
-        reverted: revertResult || { totalReverted: 0 },
-        today: todayBkk,
-        now: nowBkkHHMM,
+        sessionsCanceled: sessionsToDelete.length,
+        normalized: revertResult || { totalReverted: 0 },
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

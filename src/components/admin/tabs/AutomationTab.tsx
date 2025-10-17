@@ -4,6 +4,7 @@ import { PaymentManager } from "@/components/admin/PaymentManager";
 import { PayrollManager } from "@/components/admin/PayrollManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
+import { BulkSessionDelete } from "@/components/admin/BulkSessionDelete";
 import { Cog, DollarSign, Users, Receipt, Percent } from "lucide-react";
 
 const AutomationTab = () => {
@@ -23,6 +24,8 @@ const AutomationTab = () => {
           <SessionGenerator />
         </CardContent>
       </Card>
+
+      <BulkSessionDelete />
 
       <Card>
         <CardHeader>

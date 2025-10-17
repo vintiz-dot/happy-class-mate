@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Users, Save, Award, FileText, User, Clock, Edit2 } from "lucide-react";
+import { Users, Save, Award, FileText, User, Clock, Edit2, Ban, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { dayjs } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
 import { ParticipationPoints } from "@/components/admin/ParticipationPoints";
+import { CancelSessionDialog } from "@/components/admin/CancelSessionDialog";
+import { DeleteSessionDialog } from "@/components/admin/DeleteSessionDialog";
 
 interface SessionDetailDrawerProps {
   session: any;
@@ -29,6 +31,8 @@ export default function SessionDetailDrawer({ session, onClose }: SessionDetailD
   const [searchQuery, setSearchQuery] = useState("");
   const [attendance, setAttendance] = useState<Record<string, string>>({});
   const [showParticipationPoints, setShowParticipationPoints] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [notes, setNotes] = useState(session?.notes || "");
   const [selectedTeacher, setSelectedTeacher] = useState(session?.teacher_id || "");
   const [isEditingTeacher, setIsEditingTeacher] = useState(false);
@@ -179,13 +183,19 @@ export default function SessionDetailDrawer({ session, onClose }: SessionDetailD
   const sessionEnd = dayjs(`${session.date} ${session.end_time}`);
   const canTeacherEdit = dayjs().diff(sessionEnd, "hour") <= 24;
   const canEdit = role === "admin" || (role === "teacher" && canTeacherEdit);
+  const isPastHeld = session.status === "Held" && new Date(session.date) < new Date();
 
   return (
     <>
       <Sheet open={!!session} onOpenChange={onClose}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Session Details</SheetTitle>
+            <SheetTitle className="flex items-center justify-between">
+              <span>Session Details</span>
+              <Badge variant={session.status === "Canceled" ? "destructive" : "default"}>
+                {session.status}
+              </Badge>
+            </SheetTitle>
             <SheetDescription>
               {dayjs(session.date).format("MMM D, YYYY")} • {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
             </SheetDescription>
@@ -196,6 +206,12 @@ export default function SessionDetailDrawer({ session, onClose }: SessionDetailD
               {role === "teacher" 
                 ? "Editing window closed (24 hours after session end)"
                 : "You don't have permission to edit this session"}
+            </div>
+          )}
+
+          {isPastHeld && role === "admin" && (
+            <div className="my-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              This is a past Held session. Attendance can be edited, but the session cannot be canceled or deleted.
             </div>
           )}
 
@@ -329,19 +345,40 @@ export default function SessionDetailDrawer({ session, onClose }: SessionDetailD
             </Card>
 
             {canEdit && (
-              <div className="flex gap-2">
-                <Button onClick={saveAllAttendance} className="flex-1">
+              <div className="space-y-2">
+                <Button onClick={saveAllAttendance} className="w-full">
                   <Save className="h-4 w-4 mr-2" />
                   Save All Changes
                 </Button>
                 <Button
                   onClick={() => setShowParticipationPoints(true)}
                   variant="outline"
-                  className="flex-1"
+                  className="w-full"
                 >
                   <Award className="h-4 w-4 mr-2" />
                   Add Points
                 </Button>
+                
+                {role === "admin" && session.status !== "Canceled" && !isPastHeld && (
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button
+                      onClick={() => setShowCancelDialog(true)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Cancel Session
+                    </Button>
+                    <Button
+                      onClick={() => setShowDeleteDialog(true)}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -353,6 +390,30 @@ export default function SessionDetailDrawer({ session, onClose }: SessionDetailD
           session={session}
           students={students || []}
           onClose={() => setShowParticipationPoints(false)}
+        />
+      )}
+
+      {showCancelDialog && (
+        <CancelSessionDialog
+          session={session}
+          open={showCancelDialog}
+          onClose={() => setShowCancelDialog(false)}
+          onSuccess={() => {
+            setShowCancelDialog(false);
+            onClose();
+          }}
+        />
+      )}
+
+      {showDeleteDialog && (
+        <DeleteSessionDialog
+          session={session}
+          open={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onSuccess={() => {
+            setShowDeleteDialog(false);
+            onClose();
+          }}
         />
       )}
     </>

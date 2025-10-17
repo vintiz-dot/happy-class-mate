@@ -962,6 +962,9 @@ export type Database = {
       }
       sessions: {
         Row: {
+          canceled_at: string | null
+          canceled_by: string | null
+          canceled_reason: string | null
           class_id: string
           created_at: string
           created_by: string | null
@@ -977,6 +980,9 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          canceled_at?: string | null
+          canceled_by?: string | null
+          canceled_reason?: string | null
           class_id: string
           created_at?: string
           created_by?: string | null
@@ -992,6 +998,9 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          canceled_at?: string | null
+          canceled_by?: string | null
+          canceled_reason?: string | null
           class_id?: string
           created_at?: string
           created_by?: string | null
@@ -1370,6 +1379,10 @@ export type Database = {
       is_teacher_of_class: {
         Args: { class_id: string; user_id: string }
         Returns: boolean
+      }
+      normalize_session_statuses: {
+        Args: { p_month: string }
+        Returns: Json
       }
       post_sibling_retro_credit: {
         Args: {
