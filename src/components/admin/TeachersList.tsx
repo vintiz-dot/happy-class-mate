@@ -57,7 +57,7 @@ export function TeachersList() {
                     <p className="text-sm text-muted-foreground">📱 {teacher.phone}</p>
                   )}
                   <p className="text-sm font-medium text-primary">
-                    {teacher.hourly_rate_vnd.toLocaleString()} VND/hour
+                    {(teacher.hourly_rate_vnd || 0).toLocaleString()} VND/hour
                   </p>
                 </div>
               </div>
