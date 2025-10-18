@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -75,22 +76,16 @@ export default function Tuition() {
     queryFn: async () => {
       if (!studentId) return null;
 
-      // Fetch student info
-      const { data: student } = await supabase
-        .from("students")
-        .select("full_name")
-        .eq("id", studentId)
+      // Fetch invoice from database (same as admin)
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("month", month)
         .maybeSingle();
 
-      // Use calculate-tuition edge function to get correct amounts
-      const { data: tuitionCalc, error: tuitionError } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId, month },
-      });
-
-      if (tuitionError) {
-        console.error("Tuition calculation error:", tuitionError);
-        throw tuitionError;
-      }
+      if (invoiceError) throw invoiceError;
+      if (!invoice) return null;
 
       // Fetch payments from database
       const monthStart = `${month}-01`;
@@ -136,14 +131,13 @@ export default function Tuition() {
       }
 
       return {
-        student,
+        baseAmount: invoice.base_amount,
+        discountAmount: invoice.discount_amount,
+        totalAmount: invoice.total_amount,
+        paidAmount: invoice.paid_amount,
+        balance: invoice.total_amount - invoice.paid_amount,
         payments: payments || [],
         sessionDetails,
-        baseAmount: tuitionCalc?.baseAmount || 0,
-        totalAmount: tuitionCalc?.totalAmount || 0,
-        discountAmount: tuitionCalc?.discountAmount || 0,
-        recordedPayment: tuitionCalc?.paidAmount || 0,
-        balance: tuitionCalc?.balance || 0,
       };
     },
     enabled: !!studentId,
@@ -176,8 +170,26 @@ export default function Tuition() {
     return <Layout title="Tuition">Loading...</Layout>;
   }
 
-  // Use balance from edge function (includes carry-over from previous months)
   const balance = tuitionData?.balance || 0;
+  
+  const getStatusBadge = () => {
+    if (!tuitionData) return null;
+    const { paidAmount, totalAmount } = tuitionData;
+    
+    if (paidAmount > totalAmount) {
+      return <Badge className="bg-blue-500">Overpaid</Badge>;
+    }
+    if (paidAmount === totalAmount && totalAmount > 0) {
+      return <Badge className="bg-green-500">Settled</Badge>;
+    }
+    if (paidAmount < totalAmount && paidAmount > 0) {
+      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+    }
+    if (paidAmount >= totalAmount && totalAmount > 0) {
+      return <Badge className="bg-green-500">Paid</Badge>;
+    }
+    return <Badge variant="secondary">Unpaid</Badge>;
+  };
 
   return (
     <Layout title="Tuition">
@@ -219,7 +231,10 @@ export default function Tuition() {
           <>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Current Balance</CardDescription>
+                <div className="flex items-center justify-between">
+                  <CardDescription>Current Balance</CardDescription>
+                  {getStatusBadge()}
+                </div>
                 <CardTitle className="text-4xl">
                   {balance.toLocaleString()} ₫
                 </CardTitle>
@@ -227,20 +242,20 @@ export default function Tuition() {
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Base Tuition</p>
+                    <p className="text-sm text-muted-foreground">Base Amount</p>
                     <p className="text-lg font-semibold">{tuitionData.baseAmount.toLocaleString()} ₫</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Discount</p>
+                    <p className="text-sm text-muted-foreground">Discounts</p>
                     <p className="text-lg font-semibold text-green-600">-{tuitionData.discountAmount.toLocaleString()} ₫</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Due</p>
+                    <p className="text-sm text-muted-foreground">Total Payable</p>
                     <p className="text-lg font-semibold">{tuitionData.totalAmount.toLocaleString()} ₫</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Paid</p>
-                    <p className="text-lg font-semibold text-blue-600">{tuitionData.recordedPayment.toLocaleString()} ₫</p>
+                    <p className="text-sm text-muted-foreground">Recorded Pay</p>
+                    <p className="text-lg font-semibold text-blue-600">{tuitionData.paidAmount.toLocaleString()} ₫</p>
                   </div>
                 </div>
               </CardContent>

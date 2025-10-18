@@ -7,6 +7,7 @@ import { StudentOverviewTab } from "@/components/student/StudentOverviewTab";
 import { StudentTuitionTab } from "@/components/student/StudentTuitionTab";
 import { StudentAttendanceTab } from "@/components/student/StudentAttendanceTab";
 import { StudentDiscountsTab } from "@/components/admin/discount/StudentDiscountsTab";
+import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Link } from "lucide-react";
@@ -92,6 +93,14 @@ const StudentDetail = () => {
 
           <TabsContent value="overview" className="space-y-6">
             <StudentOverviewTab student={student} />
+            
+            {student.enrollments && student.enrollments.length > 0 && (
+              <div className="space-y-6">
+                {student.enrollments.map((enrollment: any) => (
+                  <ClassLeaderboardShared key={enrollment.id} classId={enrollment.class.id} />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="tuition" className="space-y-6">

@@ -43,12 +43,26 @@ export function TuitionCard({ studentId }: { studentId: string }) {
       setLoading(true);
       const month = format(new Date(), "yyyy-MM");
 
-      const { data, error } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId, month },
-      });
+      // Fetch invoice from database (same as admin)
+      const { data: invoice, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("month", month)
+        .maybeSingle();
 
       if (error) throw error;
-      setCurrentMonth(data);
+      
+      if (invoice) {
+        setCurrentMonth({
+          baseAmount: invoice.base_amount,
+          discounts: [], // Not needed for card display
+          totalDiscount: invoice.discount_amount,
+          totalAmount: invoice.total_amount,
+          sessionCount: 0, // Not available in invoice
+          siblingState: null,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",

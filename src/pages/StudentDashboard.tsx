@@ -112,15 +112,19 @@ export default function StudentDashboard() {
     queryFn: async () => {
       if (!studentId) return null;
 
-      const { data, error } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId: studentId, month: currentMonth },
-      });
+      // Fetch invoice from database (same as admin)
+      const { data: invoice, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("month", currentMonth)
+        .maybeSingle();
 
       if (error) throw error;
 
       return {
-        totalAmount: data.totalAmount,
-        balance: data.balance || 0,
+        totalAmount: invoice?.total_amount || 0,
+        balance: invoice ? invoice.total_amount - invoice.paid_amount : 0,
       };
     },
     enabled: !!studentId,
