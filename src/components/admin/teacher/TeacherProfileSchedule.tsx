@@ -51,8 +51,17 @@ export function TeacherProfileSchedule({ teacherId, selectedMonth }: TeacherProf
         <CardContent>
           <CalendarMonth
             month={selectedMonth}
-            sessions={sessions || []}
-            onDateClick={setSelectedDate}
+            events={
+              sessions?.map((s: any) => ({
+                id: s.id,
+                date: s.date,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                class_name: s.classes.name,
+                status: s.status,
+              })) || []
+            }
+            onSelectDay={setSelectedDate}
           />
         </CardContent>
       </Card>

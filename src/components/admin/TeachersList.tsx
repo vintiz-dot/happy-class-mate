@@ -1,13 +1,11 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
-import { TeacherEditDrawer } from "./TeacherEditDrawer";
+import { Link } from "react-router-dom";
 
 export function TeachersList() {
-  
   const { data: teachers, isLoading } = useQuery({
     queryKey: ["teachers"],
     queryFn: async () => {
@@ -39,27 +37,25 @@ export function TeachersList() {
         ) : (
           <div className="space-y-3">
             {teachers?.map((teacher) => (
-              <div 
-                key={teacher.id} 
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedTeacher(teacher)}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{teacher.full_name}</p>
-                    <Badge variant={teacher.is_active ? "default" : "secondary"}>
-                      {teacher.is_active ? "Active" : "Inactive"}
-                    </Badge>
+              <Link key={teacher.id} to={`/teachers/${teacher.id}`}>
+                <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{teacher.full_name}</p>
+                      <Badge variant={teacher.is_active ? "default" : "secondary"}>
+                        {teacher.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{teacher.email}</p>
+                    {teacher.phone && (
+                      <p className="text-sm text-muted-foreground">📱 {teacher.phone}</p>
+                    )}
+                    <p className="text-sm font-medium text-primary">
+                      {(teacher.hourly_rate_vnd || 0).toLocaleString()} VND/hour
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{teacher.email}</p>
-                  {teacher.phone && (
-                    <p className="text-sm text-muted-foreground">📱 {teacher.phone}</p>
-                  )}
-                  <p className="text-sm font-medium text-primary">
-                    {(teacher.hourly_rate_vnd || 0).toLocaleString()} VND/hour
-                  </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
