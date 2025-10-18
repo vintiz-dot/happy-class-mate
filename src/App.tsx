@@ -26,6 +26,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentAssignments from "./pages/StudentAssignments";
 import Tuition from "./pages/Tuition";
+import TeacherProfile from "./pages/TeacherProfile";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/students" element={<ProtectedRoute allowedRole="admin"><Students /></ProtectedRoute>} />
             <Route path="/students/:id" element={<ProtectedRoute allowedRole="admin"><StudentDetail /></ProtectedRoute>} />
             <Route path="/teachers" element={<ProtectedRoute allowedRole="admin"><Teachers /></ProtectedRoute>} />
+            <Route path="/teachers/:id" element={<ProtectedRoute allowedRole="admin"><TeacherProfile /></ProtectedRoute>} />
             <Route path="/classes" element={<ProtectedRoute allowedRole="admin"><Classes /></ProtectedRoute>} />
             <Route path="/families" element={<ProtectedRoute allowedRole="admin"><Families /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><Admin /></ProtectedRoute>} />

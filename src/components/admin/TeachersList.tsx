@@ -7,7 +7,6 @@ import { Users } from "lucide-react";
 import { TeacherEditDrawer } from "./TeacherEditDrawer";
 
 export function TeachersList() {
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   
   const { data: teachers, isLoading } = useQuery({
     queryKey: ["teachers"],
@@ -65,13 +64,6 @@ export function TeachersList() {
           </div>
         )}
       </CardContent>
-      
-      {selectedTeacher && (
-        <TeacherEditDrawer
-          teacher={selectedTeacher}
-          onClose={() => setSelectedTeacher(null)}
-        />
-      )}
     </Card>
   );
 }

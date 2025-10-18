@@ -1,0 +1,275 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Calendar, Edit, XCircle, Trash2 } from "lucide-react";
+import { AssignDiscountModal } from "./AssignDiscountModal";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface StudentDiscountsTabProps {
+  studentId: string;
+}
+
+export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [endingAssignment, setEndingAssignment] = useState<string | null>(null);
+  const [removingAssignment, setRemovingAssignment] = useState<string | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: assignments, isLoading } = useQuery({
+    queryKey: ["student-discount-assignments", studentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("discount_assignments")
+        .select(`
+          *,
+          discount_def:discount_definitions(*)
+        `)
+        .eq("student_id", studentId)
+        .order("effective_from", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const endAssignmentMutation = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const effectiveTo = yesterday.toISOString().slice(0, 10);
+
+      const { error } = await supabase
+        .from("discount_assignments")
+        .update({ effective_to: effectiveTo })
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+
+      // Audit log
+      await supabase.from("audit_log").insert({
+        entity: "discount_assignment",
+        entity_id: assignmentId,
+        action: "end",
+        diff: { effective_to: effectiveTo },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student-discount-assignments", studentId] });
+      toast({
+        title: "Success",
+        description: "Discount assignment ended",
+      });
+      setEndingAssignment(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const { error } = await supabase.from("discount_assignments").delete().eq("id", assignmentId);
+
+      if (error) throw error;
+
+      // Audit log
+      await supabase.from("audit_log").insert({
+        entity: "discount_assignment",
+        entity_id: assignmentId,
+        action: "delete",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student-discount-assignments", studentId] });
+      toast({
+        title: "Success",
+        description: "Discount assignment removed",
+      });
+      setRemovingAssignment(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const getStatus = (assignment: any) => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (assignment.effective_to && assignment.effective_to < today) {
+      return { label: "Ended", variant: "secondary" as const };
+    }
+    if (assignment.effective_from > today) {
+      return { label: "Scheduled", variant: "default" as const };
+    }
+    return { label: "Active", variant: "default" as const };
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Special Discounts</CardTitle>
+            <CardDescription>
+              Assigned special discounts for this student. These are separate from enrollment-level and sibling discounts.
+            </CardDescription>
+          </div>
+          <Button onClick={() => setShowAssignModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Discount
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : !assignments || assignments.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No special discounts assigned yet</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Click "Add Discount" to assign a special discount to this student
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type/Value</TableHead>
+                <TableHead>Effective Period</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Memo</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {assignments.map((assignment: any) => {
+                const status = getStatus(assignment);
+                const isActive = status.label === "Active";
+                return (
+                  <TableRow key={assignment.id}>
+                    <TableCell className="font-medium">{assignment.discount_def.name}</TableCell>
+                    <TableCell>
+                      {assignment.discount_def.value}
+                      {assignment.discount_def.type === "percent" ? "%" : " VND"} - {assignment.discount_def.cadence}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3" />
+                        {assignment.effective_from}
+                        {assignment.effective_to && ` to ${assignment.effective_to}`}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={status.variant} className={status.label === "Active" ? "bg-green-500" : status.label === "Scheduled" ? "bg-blue-500" : ""}>
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                      {assignment.note || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {isActive && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEndingAssignment(assignment.id)}
+                            title="End this discount now"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRemovingAssignment(assignment.id)}
+                          title="Remove this assignment"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <AssignDiscountModal
+        open={showAssignModal}
+        onOpenChange={setShowAssignModal}
+        studentId={studentId}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["student-discount-assignments", studentId] })}
+      />
+
+      <AlertDialog open={!!endingAssignment} onOpenChange={() => setEndingAssignment(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End Discount Assignment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set the effective end date to yesterday, stopping this discount from applying to future tuition calculations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => endingAssignment && endAssignmentMutation.mutate(endingAssignment)}>
+              End Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!removingAssignment} onOpenChange={() => setRemovingAssignment(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Discount Assignment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this discount assignment. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => removingAssignment && removeAssignmentMutation.mutate(removingAssignment)}
+              className="bg-destructive text-destructive-foreground"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentOverviewTab } from "@/components/student/StudentOverviewTab";
 import { StudentTuitionTab } from "@/components/student/StudentTuitionTab";
 import { StudentAttendanceTab } from "@/components/student/StudentAttendanceTab";
+import { StudentDiscountsTab } from "@/components/admin/discount/StudentDiscountsTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Link } from "lucide-react";
@@ -86,6 +87,7 @@ const StudentDetail = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tuition">Tuition</TabsTrigger>
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="discounts">Discounts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -98,6 +100,10 @@ const StudentDetail = () => {
 
           <TabsContent value="attendance" className="space-y-6">
             <StudentAttendanceTab studentId={student.id} />
+          </TabsContent>
+
+          <TabsContent value="discounts" className="space-y-6">
+            <StudentDiscountsTab studentId={student.id} />
           </TabsContent>
         </Tabs>
 
