@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { month } = await req.json();
+    const { month, mode, classId } = await req.json();
     
     // Get current month in Bangkok timezone if not provided
     const targetMonth = month || (() => {
@@ -69,6 +69,8 @@ Deno.serve(async (req) => {
       const bkk = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
       return `${bkk.getFullYear()}-${String(bkk.getMonth() + 1).padStart(2, '0')}`;
     })();
+
+    const reconciliationMode = mode || 'future-only'; // Default to future-only
 
     console.log(`Starting schedule generation for ${targetMonth}`);
 
@@ -90,10 +92,17 @@ Deno.serve(async (req) => {
       console.log(`Normalized ${normalized.length} future Held sessions to Scheduled`);
 
       // Step 2: Load active classes
-      const { data: classes, error: classError } = await supabase
+      let classQuery = supabase
         .from('classes')
         .select('id, name, default_teacher_id, session_rate_vnd, schedule_template')
         .eq('is_active', true);
+
+      // Filter by specific class if provided
+      if (classId) {
+        classQuery = classQuery.eq('id', classId);
+      }
+
+      const { data: classes, error: classError } = await classQuery;
 
       if (classError) throw classError;
 
@@ -120,10 +129,33 @@ Deno.serve(async (req) => {
         supabase,
         expected,
         existingSessions || [],
-        targetMonth
+        targetMonth,
+        reconciliationMode
       );
 
-      // Step 6: Generate per-teacher report
+      // Step 6: Call calculate-payroll and calculate-tuition
+      console.log('Calling calculate-payroll and calculate-tuition...');
+      
+      try {
+        const { error: payrollError } = await supabase.functions.invoke('calculate-payroll', {
+          body: { month: targetMonth }
+        });
+        if (payrollError) {
+          console.error('Payroll calculation error:', payrollError);
+        }
+
+        const { error: tuitionError } = await supabase.functions.invoke('calculate-tuition', {
+          body: { month: targetMonth }
+        });
+        if (tuitionError) {
+          console.error('Tuition calculation error:', tuitionError);
+        }
+      } catch (calcError: any) {
+        console.error('Error calling post-reconciliation functions:', calcError);
+        // Don't fail the whole operation if these fail
+      }
+
+      // Step 7: Generate per-teacher report
       const report = await generateTeacherReport(supabase, targetMonth);
 
       await releaseLock(supabase, 'schedule-sessions', targetMonth);
@@ -272,7 +304,8 @@ async function reconcileSessions(
   supabase: any,
   expected: ExpectedSession[],
   existing: any[],
-  month: string
+  month: string,
+  mode: string
 ) {
   const created: any[] = [];
   const updated: any[] = [];

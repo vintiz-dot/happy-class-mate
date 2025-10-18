@@ -57,7 +57,12 @@ export function InvoiceDownloadButton({
       if (bankError) throw bankError;
 
       if (!bankData) {
-        throw new Error('Bank information not configured. Please configure in Account Info.');
+        toast({
+          title: "Bank Information Required",
+          description: "Please configure bank information in Account Info before downloading invoices.",
+          variant: "destructive",
+        });
+        return;
       }
 
       // Group sessions by class
@@ -87,6 +92,11 @@ export function InvoiceDownloadButton({
 
       setInvoiceData(invoice);
       setBankInfo(bankData);
+      
+      toast({
+        title: "Invoice Loaded",
+        description: "Ready to print or save as PDF",
+      });
       setShowPreview(true);
     } catch (error: any) {
       toast({

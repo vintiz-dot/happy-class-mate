@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertTriangle, Ban, Trash2 } from "lucide-react";
+import { AlertTriangle, Ban, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
+import { EditSessionModal } from "./EditSessionModal";
 
 interface SessionActionsModalProps {
   session: any;
@@ -22,7 +23,7 @@ interface SessionActionsModalProps {
 }
 
 export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActionsModalProps) => {
-  const [action, setAction] = useState<"cancel" | "delete" | null>(null);
+  const [action, setAction] = useState<"cancel" | "delete" | "edit" | null>(null);
   const [reason, setReason] = useState("");
   const [processing, setProcessing] = useState(false);
 
@@ -32,6 +33,16 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
   const isFuture = sessionDate > now;
   const isScheduled = session.status === "Scheduled";
   const canDelete = isFuture && isScheduled;
+
+  if (action === "edit") {
+    return (
+      <EditSessionModal
+        session={session}
+        onClose={() => setAction(null)}
+        onSuccess={onSuccess}
+      />
+    );
+  }
 
   const handleCancel = async () => {
     setProcessing(true);
@@ -109,6 +120,15 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
           </DialogHeader>
 
           <div className="space-y-3 mt-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setAction("edit")}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Session Time
+            </Button>
+
             <Button
               variant="outline"
               className="w-full justify-start"

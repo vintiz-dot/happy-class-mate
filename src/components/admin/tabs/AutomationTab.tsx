@@ -7,6 +7,7 @@ import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { BulkSessionDelete } from "@/components/admin/BulkSessionDelete";
 import { BulkEnrollmentDateSetter } from "@/components/admin/BulkEnrollmentDateSetter";
+import { BulkRebuildSessions } from "@/components/admin/BulkRebuildSessions";
 import { Cog, DollarSign, Users, Receipt, Percent } from "lucide-react";
 
 const AutomationTab = () => {
@@ -29,6 +30,8 @@ const AutomationTab = () => {
       </Card>
 
       <BulkSessionDelete />
+
+      <BulkRebuildSessions />
 
       <BulkEnrollmentDateSetter />
 

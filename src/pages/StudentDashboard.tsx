@@ -6,11 +6,12 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, FileText, DollarSign, Clock, Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
+  const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
 
   const { data: studentProfile } = useQuery({
@@ -196,8 +197,8 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
 
-          <Link to={`/students/${studentId}/tuition`}>
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+          <div onClick={() => navigate(`/students/${studentId}`, { state: { activeTab: 'tuition' } })} className="cursor-pointer">
+            <Card className="hover:bg-muted/50 transition-colors">
               <CardHeader className="pb-2">
                 <CardDescription>Current Balance</CardDescription>
                 <CardTitle className="text-3xl">
@@ -210,7 +211,7 @@ export default function StudentDashboard() {
                 </p>
               </CardContent>
             </Card>
-          </Link>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

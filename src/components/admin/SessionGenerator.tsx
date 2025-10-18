@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Calendar, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { SessionGeneratorConfirm } from "./SessionGeneratorConfirm";
 
 interface GenerationReport {
   success: boolean;
@@ -32,13 +33,15 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [report, setReport] = useState<GenerationReport | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (mode: "future-only" | "include-held") => {
+    setShowConfirm(false);
     setIsGenerating(true);
     setReport(null);
     try {
       const { data, error } = await supabase.functions.invoke("schedule-sessions", {
-        body: { month },
+        body: { month, mode },
       });
 
       if (error) throw error;
@@ -92,9 +95,16 @@ export function SessionGenerator({ onSuccess }: { onSuccess?: () => void }) {
               onChange={(e) => setMonth(e.target.value)}
             />
           </div>
-          <Button onClick={handleGenerate} disabled={isGenerating} className="w-full">
+          <Button onClick={() => setShowConfirm(true)} disabled={isGenerating} className="w-full">
             {isGenerating ? "Generating schedule..." : "Generate Schedule"}
           </Button>
+          
+          <SessionGeneratorConfirm
+            open={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={handleGenerate}
+            month={month}
+          />
           <p className="text-sm text-muted-foreground">
             Idempotent schedule generation. Creates missing sessions from class templates,
             preserves existing assignments, and normalizes invalid future states.
