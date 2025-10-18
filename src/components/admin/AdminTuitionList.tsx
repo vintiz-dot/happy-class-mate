@@ -1,0 +1,185 @@
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, DollarSign } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { dayjs } from "@/lib/date";
+
+interface AdminTuitionListProps {
+  month: string;
+}
+
+export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
+  const [activeFilter, setActiveFilter] = useState("all");
+  const navigate = useNavigate();
+
+  const { data: tuitionData, isLoading } = useQuery({
+    queryKey: ["admin-tuition-list", month],
+    queryFn: async () => {
+      // Fetch invoices for the month
+      const { data: invoices, error: invoiceError } = await supabase
+        .from("invoices")
+        .select(`
+          *,
+          students(id, full_name, family_id, families(id))
+        `)
+        .eq("month", month);
+
+      if (invoiceError) throw invoiceError;
+
+      // Fetch discount assignments
+      const monthStart = `${month}-01`;
+      const monthEnd = `${month}-31`;
+      
+      const { data: discounts } = await supabase
+        .from("discount_assignments")
+        .select("student_id, discount_def_id")
+        .lte("effective_from", monthEnd)
+        .or(`effective_to.is.null,effective_to.gte.${monthStart}`);
+
+      const studentDiscounts = new Set(discounts?.map(d => d.student_id) || []);
+
+      // Get families with multiple students
+      const { data: students } = await supabase
+        .from("students")
+        .select("id, family_id")
+        .eq("is_active", true);
+
+      const familyCounts = new Map<string, number>();
+      students?.forEach(s => {
+        if (s.family_id) {
+          familyCounts.set(s.family_id, (familyCounts.get(s.family_id) || 0) + 1);
+        }
+      });
+
+      const siblingStudents = new Set(
+        students?.filter(s => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map(s => s.id) || []
+      );
+
+      return invoices?.map(inv => ({
+        ...inv,
+        hasDiscount: studentDiscounts.has(inv.student_id),
+        hasSiblings: siblingStudents.has(inv.student_id),
+        balance: inv.total_amount - inv.paid_amount,
+      })) || [];
+    },
+  });
+
+  const filteredData = useMemo(() => {
+    if (!tuitionData) return [];
+
+    switch (activeFilter) {
+      case "discount":
+        return tuitionData.filter(t => t.hasDiscount);
+      case "no-discount":
+        return tuitionData.filter(t => !t.hasDiscount);
+      case "siblings":
+        return tuitionData.filter(t => t.hasSiblings);
+      case "paid":
+        return tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0);
+      case "overpaid":
+        return tuitionData.filter(t => t.paid_amount > t.total_amount);
+      case "underpaid":
+        return tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0);
+      case "settled":
+        return tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0);
+      default:
+        return tuitionData;
+    }
+  }, [tuitionData, activeFilter]);
+
+  const filterChips = useMemo(() => {
+    if (!tuitionData) return [];
+
+    return [
+      { key: "all", label: "All", count: tuitionData.length },
+      { key: "discount", label: "Discount", count: tuitionData.filter(t => t.hasDiscount).length },
+      { key: "no-discount", label: "No Discount", count: tuitionData.filter(t => !t.hasDiscount).length },
+      { key: "siblings", label: "Siblings", count: tuitionData.filter(t => t.hasSiblings).length },
+      { key: "paid", label: "Paid", count: tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0).length },
+      { key: "overpaid", label: "Overpaid", count: tuitionData.filter(t => t.paid_amount > t.total_amount).length },
+      { key: "underpaid", label: "Underpaid", count: tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0).length },
+      { key: "settled", label: "Settled", count: tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0).length },
+    ];
+  }, [tuitionData]);
+
+  const getStatusBadge = (item: any) => {
+    if (item.paid_amount > item.total_amount) {
+      return <Badge className="bg-blue-500">Overpaid</Badge>;
+    }
+    if (item.paid_amount === item.total_amount && item.total_amount > 0) {
+      return <Badge className="bg-green-500">Settled</Badge>;
+    }
+    if (item.paid_amount < item.total_amount && item.paid_amount > 0) {
+      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+    }
+    if (item.paid_amount >= item.total_amount && item.total_amount > 0) {
+      return <Badge className="bg-green-500">Paid</Badge>;
+    }
+    return <Badge variant="secondary">Unpaid</Badge>;
+  };
+
+  if (isLoading) {
+    return <p className="text-muted-foreground">Loading tuition data...</p>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="h-5 w-5" />
+          Tuition Overview - {dayjs(month).format("MMMM YYYY")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <TuitionPageFilters
+          filters={filterChips}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+        />
+
+        {filteredData.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">No tuition records found</p>
+        ) : (
+          <div className="space-y-3">
+            {filteredData.map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{(item.students as any)?.full_name}</p>
+                    {getStatusBadge(item)}
+                    {item.hasDiscount && <Badge variant="outline">Discount</Badge>}
+                    {item.hasSiblings && <Badge variant="outline">Sibling</Badge>}
+                  </div>
+                  <div className="flex gap-4 text-sm text-muted-foreground">
+                    <span>Base: {item.base_amount.toLocaleString()} ₫</span>
+                    <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
+                    <span>Total: {item.total_amount.toLocaleString()} ₫</span>
+                    <span>Paid: {item.paid_amount.toLocaleString()} ₫</span>
+                    {item.balance !== 0 && (
+                      <span className={item.balance > 0 ? "text-red-600" : "text-blue-600"}>
+                        Balance: {item.balance.toLocaleString()} ₫
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/students/${item.student_id}`)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

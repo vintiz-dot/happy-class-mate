@@ -132,7 +132,12 @@ Deno.serve(async (req) => {
         success: true,
         month: targetMonth,
         normalized: normalized.length,
-        created: result.created,
+        created: result.created.length,
+        updated: result.updated.length,
+        removed: result.removed.length,
+        createdSessions: result.created,
+        updatedSessions: result.updated,
+        removedSessions: result.removed,
         skippedConflicts: result.skippedConflicts,
         attention: result.attention,
         perTeacher: report,
@@ -270,11 +275,17 @@ async function reconcileSessions(
   month: string
 ) {
   const created: any[] = [];
+  const updated: any[] = [];
+  const removed: any[] = [];
   const skippedConflicts: any[] = [];
   const attention = {
     noTeacherExpected: [] as ExpectedSession[],
     noTeacherExisting: [] as any[],
   };
+
+  const now = new Date();
+  const bkkNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const today = bkkNow.toISOString().split('T')[0];
 
   // Build map of existing sessions
   const existingMap = new Map<string, any>();
@@ -288,58 +299,118 @@ async function reconcileSessions(
     }
   }
 
-  // Create missing sessions
+  // Build map of expected sessions for lookup
+  const expectedMap = new Map<string, ExpectedSession>();
   for (const exp of expected) {
-    if (existingMap.has(exp.key)) {
-      continue; // Session already exists, don't modify
-    }
+    expectedMap.set(exp.key, exp);
+  }
 
-    // Skip if no teacher
-    if (!exp.teacherId) {
-      attention.noTeacherExpected.push(exp);
-      continue;
-    }
+  // 1. Create missing sessions & update teachers on mismatched future sessions
+  for (const exp of expected) {
+    const existingSession = existingMap.get(exp.key);
+    
+    if (!existingSession) {
+      // Skip if no teacher
+      if (!exp.teacherId) {
+        attention.noTeacherExpected.push(exp);
+        continue;
+      }
 
-    // Check teacher availability
-    const hasConflict = await checkTeacherConflict(
-      supabase,
-      exp.teacherId,
-      exp.date,
-      exp.startTime,
-      exp.endTime
-    );
+      // Check teacher availability
+      const hasConflict = await checkTeacherConflict(
+        supabase,
+        exp.teacherId,
+        exp.date,
+        exp.startTime,
+        exp.endTime
+      );
 
-    if (hasConflict) {
-      skippedConflicts.push({
-        class: exp.className,
-        date: exp.date,
-        time: `${exp.startTime}-${exp.endTime}`,
-        reason: 'Teacher time conflict',
-      });
-      continue;
-    }
+      if (hasConflict) {
+        skippedConflicts.push({
+          class: exp.className,
+          date: exp.date,
+          time: `${exp.startTime}-${exp.endTime}`,
+          reason: 'Teacher time conflict',
+        });
+        continue;
+      }
 
-    // Create session with ON CONFLICT DO NOTHING for idempotency
-    const { data: newSession, error } = await supabase
-      .from('sessions')
-      .insert({
-        class_id: exp.classId,
-        date: exp.date,
-        start_time: exp.startTime,
-        end_time: exp.endTime,
-        teacher_id: exp.teacherId,
-        status: 'Scheduled',
-        is_manual: false,
-      })
-      .select()
-      .single();
+      // Create new session
+      const { data: newSession, error } = await supabase
+        .from('sessions')
+        .insert({
+          class_id: exp.classId,
+          date: exp.date,
+          start_time: exp.startTime,
+          end_time: exp.endTime,
+          teacher_id: exp.teacherId,
+          status: 'Scheduled',
+          is_manual: false,
+        })
+        .select()
+        .single();
 
-    if (!error && newSession) {
-      created.push(newSession);
+      if (!error && newSession) {
+        created.push(newSession);
+      }
+    } else {
+      // Update teacher on future Scheduled non-manual sessions if template changed
+      if (
+        existingSession.date >= today &&
+        existingSession.status === 'Scheduled' &&
+        !existingSession.is_manual &&
+        existingSession.teacher_id !== exp.teacherId &&
+        exp.teacherId // Only update if template has a teacher
+      ) {
+        const { error } = await supabase
+          .from('sessions')
+          .update({ teacher_id: exp.teacherId })
+          .eq('id', existingSession.id);
+
+        if (!error) {
+          updated.push({
+            id: existingSession.id,
+            date: existingSession.date,
+            oldTeacher: existingSession.teacher_id,
+            newTeacher: exp.teacherId,
+          });
+        }
+      }
     }
   }
 
-  return { created, skippedConflicts, attention };
+  // 2. Remove future Scheduled non-manual sessions that no longer exist in template
+  for (const session of existing) {
+    const key = `${session.class_id}|${session.date}|${session.start_time}`;
+    
+    // Only remove if:
+    // - Session is in the future
+    // - Status is Scheduled
+    // - Not manual
+    // - Not in expected map
+    if (
+      session.date >= today &&
+      session.status === 'Scheduled' &&
+      !session.is_manual &&
+      !expectedMap.has(key)
+    ) {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', session.id);
+
+      if (!error) {
+        removed.push({
+          id: session.id,
+          class_id: session.class_id,
+          date: session.date,
+          start_time: session.start_time,
+        });
+      }
+    }
+  }
+
+  return { created, updated, removed, skippedConflicts, attention };
 }
 
 async function checkTeacherConflict(

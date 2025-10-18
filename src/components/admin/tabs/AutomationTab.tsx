@@ -6,6 +6,7 @@ import { PayrollManager } from "@/components/admin/PayrollManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { BulkSessionDelete } from "@/components/admin/BulkSessionDelete";
+import { BulkEnrollmentDateSetter } from "@/components/admin/BulkEnrollmentDateSetter";
 import { Cog, DollarSign, Users, Receipt, Percent } from "lucide-react";
 
 const AutomationTab = () => {
@@ -28,6 +29,8 @@ const AutomationTab = () => {
       </Card>
 
       <BulkSessionDelete />
+
+      <BulkEnrollmentDateSetter />
 
       <Card>
         <CardHeader>

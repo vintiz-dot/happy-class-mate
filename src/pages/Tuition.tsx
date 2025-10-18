@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { useAuth } from "@/hooks/useAuth";
 import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,8 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Admin from "./Admin";
-import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 
 export default function Tuition() {
   const { role } = useAuth();
@@ -25,8 +26,39 @@ export default function Tuition() {
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
   const currentMonth = dayjs().format("YYYY-MM");
 
-  // Student tuition page - accessible by students and families only
-  if (role === "admin" || role === "teacher") {
+  // Admin tuition page
+  if (role === "admin") {
+    return (
+      <Layout title="Tuition">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setMonth(dayjs(month).subtract(1, "month").format("YYYY-MM"))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-lg font-semibold min-w-[200px] text-center">
+              {dayjs(month).format("MMMM YYYY")}
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => {
+                const next = dayjs(month).add(1, "month").format("YYYY-MM");
+                if (next <= currentMonth) setMonth(next);
+              }}
+              disabled={dayjs(month).add(1, "month").format("YYYY-MM") > currentMonth}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <AdminTuitionList month={month} />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Student/family tuition page - rest of the component stays the same
+  if (role === "teacher") {
     return (
       <Layout title="Tuition">
         <Card>

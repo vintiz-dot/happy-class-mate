@@ -5,17 +5,22 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, User, Users, FileText, Download } from "lucide-react";
+import { Calendar, Clock, User, Users, FileText, Download, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { SessionActionsModal } from "@/components/admin/SessionActionsModal";
 
 interface SessionDrawerProps {
   session: any;
   onClose: () => void;
   onEdit?: (session: any) => void;
+  onRefresh?: () => void;
 }
 
-const SessionDrawer = ({ session, onClose, onEdit }: SessionDrawerProps) => {
+const SessionDrawer = ({ session, onClose, onEdit, onRefresh }: SessionDrawerProps) => {
+  const { role } = useAuth();
+  const [showActions, setShowActions] = useState(false);
   const { data: studentAttendance } = useQuery({
     queryKey: ["session-student-attendance", session?.id],
     queryFn: async () => {
@@ -109,22 +114,35 @@ const SessionDrawer = ({ session, onClose, onEdit }: SessionDrawerProps) => {
   };
 
   return (
-    <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <div className="flex items-center justify-between">
-            <SheetTitle>Session Details</SheetTitle>
-            {onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(session)}
-              >
-                Edit
-              </Button>
-            )}
-          </div>
-        </SheetHeader>
+    <>
+      <Sheet open={true} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
+              <SheetTitle>Session Details</SheetTitle>
+              <div className="flex gap-2">
+                {role === "admin" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowActions(true)}
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Actions
+                  </Button>
+                )}
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(session)}
+                  >
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+          </SheetHeader>
 
         <div className="space-y-6 mt-6">
           <div className="space-y-3">
@@ -199,6 +217,18 @@ const SessionDrawer = ({ session, onClose, onEdit }: SessionDrawerProps) => {
         </div>
       </SheetContent>
     </Sheet>
+
+    {showActions && (
+      <SessionActionsModal
+        session={session}
+        onClose={() => setShowActions(false)}
+        onSuccess={() => {
+          onRefresh?.();
+          onClose();
+        }}
+      />
+    )}
+  </>
   );
 };
 

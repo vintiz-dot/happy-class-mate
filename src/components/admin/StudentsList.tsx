@@ -18,22 +18,71 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export function StudentsList() {
+interface StudentsListProps {
+  searchQuery?: string;
+  sortBy?: string;
+  filterClass?: string;
+}
+
+export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClass = "all" }: StudentsListProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
   const { data: students, isLoading } = useQuery({
-    queryKey: ["students-list"],
+    queryKey: ["students-list", searchQuery, sortBy, filterClass],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("students")
         .select(`
           *,
-          families:family_id (name)
+          families:family_id(name),
+          enrollments!inner(class_id, start_date, classes(name))
         `)
-        .order("full_name");
-      if (error) throw error;
-      return data;
+        .eq("is_active", true);
+
+      // Apply class filter
+      if (filterClass && filterClass !== "all") {
+        query = query.eq("enrollments.class_id", filterClass);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching students:", error);
+        throw error;
+      }
+
+      // Client-side filtering
+      let filtered = data || [];
+
+      // Search filter
+      if (searchQuery) {
+        const lower = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (s) =>
+            s.full_name?.toLowerCase().includes(lower) ||
+            s.email?.toLowerCase().includes(lower) ||
+            (s.families as any)?.name?.toLowerCase().includes(lower) ||
+            s.id?.toLowerCase().includes(lower)
+        );
+      }
+
+      // Sort
+      if (sortBy === "name-asc") {
+        filtered.sort((a, b) => a.full_name.localeCompare(b.full_name));
+      } else if (sortBy === "name-desc") {
+        filtered.sort((a, b) => b.full_name.localeCompare(a.full_name));
+      } else if (sortBy === "updated") {
+        filtered.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      } else if (sortBy === "enrollment") {
+        filtered.sort((a, b) => {
+          const aDate = (a.enrollments as any)?.[0]?.start_date || "9999-12-31";
+          const bDate = (b.enrollments as any)?.[0]?.start_date || "9999-12-31";
+          return bDate.localeCompare(aDate);
+        });
+      }
+
+      return filtered;
     },
   });
 
@@ -63,7 +112,7 @@ export function StudentsList() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <GraduationCap className="h-5 w-5" />
-          All Students
+          All Students ({students?.length || 0})
         </CardTitle>
         <CardDescription>Manage your student records</CardDescription>
       </CardHeader>
@@ -81,6 +130,11 @@ export function StudentsList() {
                       {student.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
+                  {(student.enrollments as any)?.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      📚 Classes: {(student.enrollments as any).map((e: any) => e.classes?.name).filter(Boolean).join(", ")}
+                    </p>
+                  )}
                   {student.email && (
                     <p className="text-sm text-muted-foreground">✉️ {student.email}</p>
                   )}

@@ -8,6 +8,89 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Pencil, Check, X } from "lucide-react";
+
+const EnrollmentRow = ({ enrollment, onUpdate }: any) => {
+  const [editing, setEditing] = useState(false);
+  const [date, setDate] = useState(enrollment.start_date);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("enrollments")
+        .update({ start_date: date })
+        .eq("id", enrollment.id);
+
+      if (error) throw error;
+
+      toast.success("Enrollment date updated");
+      setEditing(false);
+      onUpdate();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update date");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-between p-2 border rounded">
+        <span>{enrollment.students?.full_name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Since {format(new Date(enrollment.start_date), "MMM dd, yyyy")}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between p-2 border rounded bg-muted/50">
+      <span>{enrollment.students?.full_name}</span>
+      <div className="flex items-center gap-2">
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-8 w-36"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Check className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => {
+            setDate(enrollment.start_date);
+            setEditing(false);
+          }}
+          disabled={saving}
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 const ClassEnrollments = ({ classId }: { classId: string }) => {
   const [selected, setSelected] = useState<string[]>([]);
@@ -99,12 +182,11 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
         <CardContent>
           <div className="space-y-2">
             {enrollments?.map((enrollment) => (
-              <div key={enrollment.id} className="flex items-center justify-between p-2 border rounded">
-                <span>{enrollment.students?.full_name}</span>
-                <span className="text-sm text-muted-foreground">
-                  Since {format(new Date(enrollment.start_date), "MMM dd, yyyy")}
-                </span>
-              </div>
+              <EnrollmentRow
+                key={enrollment.id}
+                enrollment={enrollment}
+                onUpdate={refetchEnrollments}
+              />
             ))}
             {!enrollments?.length && (
               <p className="text-muted-foreground text-center py-4">No enrollments yet</p>
