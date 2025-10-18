@@ -11,11 +11,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Save, Award } from "lucide-react";
+import { Users, Save, Award, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { dayjs } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
 import { ParticipationPoints } from "@/components/admin/ParticipationPoints";
+import { SessionActionsModal } from "../SessionActionsModal";
 
 interface AttendanceDrawerProps {
   session: any;
@@ -26,6 +27,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [attendance, setAttendance] = useState<Record<string, string>>({});
   const [showParticipationPoints, setShowParticipationPoints] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const queryClient = useQueryClient();
   const { role } = useAuth();
 
@@ -152,6 +154,17 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
           <SheetDescription>
             {session.class_name || "Session"} • {dayjs(session.date).format("MMM D, YYYY")} • {session.start_time?.slice(0, 5)}
           </SheetDescription>
+          {role === "admin" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowActions(true)}
+              className="mt-2 w-full"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Session Actions
+            </Button>
+          )}
         </SheetHeader>
 
         {!canEdit && (
@@ -229,6 +242,18 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
           session={session}
           students={filteredStudents || []}
           onClose={() => setShowParticipationPoints(false)}
+        />
+      )}
+      
+      {showActions && (
+        <SessionActionsModal
+          session={session}
+          onClose={() => setShowActions(false)}
+          onSuccess={() => {
+            setShowActions(false);
+            queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+            onClose();
+          }}
         />
       )}
     </Sheet>
