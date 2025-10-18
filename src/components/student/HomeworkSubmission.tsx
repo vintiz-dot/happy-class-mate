@@ -12,12 +12,14 @@ interface HomeworkSubmissionProps {
   homeworkId: string;
   studentId: string;
   existingSubmission?: any;
+  onSuccess?: () => void;
 }
 
 export default function HomeworkSubmission({
   homeworkId,
   studentId,
   existingSubmission,
+  onSuccess,
 }: HomeworkSubmissionProps) {
   const [submissionText, setSubmissionText] = useState(
     existingSubmission?.submission_text || ""
@@ -69,7 +71,9 @@ export default function HomeworkSubmission({
     onSuccess: () => {
       toast.success("Homework submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["homework-submission", homeworkId, studentId] });
       setFile(null);
+      onSuccess?.();
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit homework");

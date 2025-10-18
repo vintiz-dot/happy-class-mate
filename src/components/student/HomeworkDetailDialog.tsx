@@ -118,6 +118,7 @@ export default function HomeworkDetailDialog({ homework, studentId, onClose }: H
               homeworkId={homework.id}
               studentId={studentId}
               existingSubmission={submission}
+              onSuccess={onClose}
             />
           </div>
         </div>

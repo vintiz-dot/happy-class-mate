@@ -89,6 +89,7 @@ export default function Tuition() {
 
       if (tuitionError) {
         console.error("Tuition calculation error:", tuitionError);
+        throw tuitionError;
       }
 
       // Fetch payments from database
@@ -142,6 +143,7 @@ export default function Tuition() {
         totalAmount: tuitionCalc?.totalAmount || 0,
         discountAmount: tuitionCalc?.discountAmount || 0,
         recordedPayment: tuitionCalc?.paidAmount || 0,
+        balance: tuitionCalc?.balance || 0,
       };
     },
     enabled: !!studentId,
@@ -174,8 +176,8 @@ export default function Tuition() {
     return <Layout title="Tuition">Loading...</Layout>;
   }
 
-  // Calculate balance from tuition data
-  const balance = (tuitionData?.totalAmount || 0) - (tuitionData?.recordedPayment || 0);
+  // Use balance from edge function (includes carry-over from previous months)
+  const balance = tuitionData?.balance || 0;
 
   return (
     <Layout title="Tuition">

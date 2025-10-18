@@ -118,16 +118,9 @@ export default function StudentDashboard() {
 
       if (error) throw error;
 
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount")
-        .eq("student_id", studentId);
-
-      const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-
       return {
         totalAmount: data.totalAmount,
-        balance: data.totalAmount - totalPaid,
+        balance: data.balance || 0,
       };
     },
     enabled: !!studentId,

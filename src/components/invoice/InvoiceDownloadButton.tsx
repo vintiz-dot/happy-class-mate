@@ -54,15 +54,12 @@ export function InvoiceDownloadButton({
         .limit(1)
         .maybeSingle();
 
-      if (bankError) throw bankError;
+      if (bankError) {
+        console.warn("Bank info query error:", bankError);
+      }
 
       if (!bankData) {
-        toast({
-          title: "Bank Information Required",
-          description: "Please configure bank information in Account Info before downloading invoices.",
-          variant: "destructive",
-        });
-        return;
+        console.warn("Bank information not configured, invoice will be generated without bank details");
       }
 
       // Group sessions by class
@@ -91,7 +88,7 @@ export function InvoiceDownloadButton({
       });
 
       setInvoiceData(invoice);
-      setBankInfo(bankData);
+      setBankInfo(bankData || null);
       
       toast({
         title: "Invoice Loaded",
@@ -131,7 +128,7 @@ export function InvoiceDownloadButton({
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
-          {invoiceData && bankInfo && (
+          {invoiceData && (
             <>
               <div className="flex justify-end gap-2 mb-4 no-print">
                 <Button onClick={handlePrint}>
