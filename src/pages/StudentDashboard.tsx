@@ -197,7 +197,7 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
 
-          <div onClick={() => navigate(`/students/${studentId}`, { state: { activeTab: 'tuition' } })} className="cursor-pointer">
+          <div onClick={() => navigate('/tuition')} className="cursor-pointer">
             <Card className="hover:bg-muted/50 transition-colors">
               <CardHeader className="pb-2">
                 <CardDescription>Current Balance</CardDescription>
@@ -335,7 +335,7 @@ export default function StudentDashboard() {
             </Card>
           </Link>
 
-          <Link to={`/students/${studentId}/tuition`}>
+          <Link to="/tuition">
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

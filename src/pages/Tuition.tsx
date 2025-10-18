@@ -82,13 +82,14 @@ export default function Tuition() {
         .eq("id", studentId)
         .maybeSingle();
 
-      // Fetch invoice data directly from database
-      const { data: invoice } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("month", month)
-        .maybeSingle();
+      // Use calculate-tuition edge function to get correct amounts
+      const { data: tuitionCalc, error: tuitionError } = await supabase.functions.invoke("calculate-tuition", {
+        body: { studentId, month },
+      });
+
+      if (tuitionError) {
+        console.error("Tuition calculation error:", tuitionError);
+      }
 
       // Fetch payments from database
       const monthStart = `${month}-01`;
@@ -135,13 +136,12 @@ export default function Tuition() {
 
       return {
         student,
-        invoice: invoice || null,
         payments: payments || [],
         sessionDetails,
-        baseAmount: invoice?.base_amount || 0,
-        totalAmount: invoice?.total_amount || 0,
-        discountAmount: invoice?.discount_amount || 0,
-        recordedPayment: invoice?.recorded_payment || 0,
+        baseAmount: tuitionCalc?.baseAmount || 0,
+        totalAmount: tuitionCalc?.totalAmount || 0,
+        discountAmount: tuitionCalc?.discountAmount || 0,
+        recordedPayment: tuitionCalc?.paidAmount || 0,
       };
     },
     enabled: !!studentId,

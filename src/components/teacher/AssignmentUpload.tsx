@@ -96,41 +96,46 @@ export function AssignmentUpload() {
     setUploading(true);
 
     try {
-      let storage_key = null;
-      let file_size = null;
-      let file_name = null;
+      const { data: user } = await supabase.auth.getUser();
+      
+      // Create homework record
+      const { data: homework, error: insertError } = await supabase
+        .from("homeworks")
+        .insert({
+          class_id: formData.class_id,
+          title: formData.title,
+          body: formData.description || null,
+          due_date: formData.due_date || null,
+          created_by: user.user?.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
 
       // Upload file if present
-      if (file) {
+      if (file && homework) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${teacherId}/${Date.now()}.${fileExt}`;
+        const fileName = `${homework.id}/${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from("assignments")
+          .from("homework")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        storage_key = fileName;
-        file_size = file.size;
-        file_name = file.name;
+        // Create homework_files record
+        const { error: fileError } = await supabase
+          .from("homework_files")
+          .insert({
+            homework_id: homework.id,
+            file_name: file.name,
+            storage_key: fileName,
+            size_bytes: file.size,
+          });
+
+        if (fileError) throw fileError;
       }
-
-      // Create assignment record
-      const { error: insertError } = await supabase
-        .from("assignments" as any)
-        .insert({
-          class_id: formData.class_id,
-          teacher_id: teacherId,
-          title: formData.title,
-          description: formData.description,
-          due_date: formData.due_date || null,
-          storage_key,
-          file_name,
-          file_size,
-        });
-
-      if (insertError) throw insertError;
 
       toast({
         title: "Success",
