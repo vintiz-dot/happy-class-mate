@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -172,6 +173,20 @@ Deno.serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+
+    // Rate limiting: 50 admin actions per minute per user
+    const clientIP = getClientIP(req);
+    const userRateCheck = checkRateLimit(user.id, 50, 60 * 1000, 'user');
+    if (userRateCheck.limited) {
+      console.warn(`Rate limit exceeded for admin user ${user.id}`);
+      await supabase.from('audit_log').insert({
+        action: 'rate_limit_exceeded',
+        entity: 'admin',
+        actor_user_id: user.id,
+        diff: { reason: 'admin_action_rate_limit', ip: clientIP }
+      });
+      return rateLimitResponse(userRateCheck.resetAt, corsHeaders);
     }
 
     if (action === 'listUsers') {

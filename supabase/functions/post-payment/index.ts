@@ -1,10 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Payment validation constants
+const MIN_PAYMENT_VND = 10000; // 10K VND
+const MAX_PAYMENT_VND = 50000000; // 50M VND
+const MAX_OVERPAYMENT_VND = 5000000; // 5M VND overpayment allowed
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -26,6 +32,33 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Get user ID for rate limiting
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const { data: { user } } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+    const userId = user?.id || 'anonymous';
+    const clientIP = getClientIP(req);
+
+    // Rate limiting: 10 payments per minute per user
+    const userRateCheck = checkRateLimit(userId, 10, 60 * 1000, 'user');
+    if (userRateCheck.limited) {
+      console.warn(`Rate limit exceeded for user ${userId}`);
+      await supabase.from('audit_log').insert({
+        action: 'rate_limit_exceeded',
+        entity: 'payment',
+        actor_user_id: userId,
+        diff: { reason: 'payment_rate_limit', ip: clientIP }
+      });
+      return rateLimitResponse(userRateCheck.resetAt, corsHeaders);
+    }
+
+    // IP-based rate limiting: 20 payments per minute per IP
+    const ipRateCheck = checkRateLimit(clientIP, 20, 60 * 1000, 'ip');
+    if (ipRateCheck.limited) {
+      console.warn(`Rate limit exceeded for IP ${clientIP}`);
+      return rateLimitResponse(ipRateCheck.resetAt, corsHeaders);
+    }
+
     // Validate input with Zod schema
     const PaymentSchema = z.object({
       studentId: z.string().uuid('Invalid student ID format'),
@@ -41,8 +74,46 @@ Deno.serve(async (req) => {
     const { studentId, amount, method, memo, occurredAt } = PaymentSchema.parse(body)
     console.log('Posting payment:', { studentId, amount, method, memo, occurredAt })
 
+    // Business logic validation for payment amounts
+    if (amount < MIN_PAYMENT_VND) {
+      throw new Error(`Payment amount too small. Minimum payment is ${MIN_PAYMENT_VND.toLocaleString()} VND`);
+    }
+    
+    if (amount > MAX_PAYMENT_VND) {
+      throw new Error(`Payment amount exceeds reasonable limit. Maximum payment is ${MAX_PAYMENT_VND.toLocaleString()} VND`);
+    }
+
+    // Check outstanding balance to prevent excessive overpayments
+    const { data: invoices, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('total_amount, paid_amount')
+      .eq('student_id', studentId)
+      .neq('status', 'paid');
+
+    if (!invoiceError && invoices) {
+      const totalOutstanding = invoices.reduce((sum, inv) => 
+        sum + (inv.total_amount - inv.paid_amount), 0
+      );
+      
+      if (amount > totalOutstanding + MAX_OVERPAYMENT_VND) {
+        console.warn(`Large overpayment detected: ${amount} VND payment for ${totalOutstanding} VND outstanding balance`);
+        // Log but allow - may be prepayment for future tuition
+        await supabase.from('audit_log').insert({
+          action: 'large_overpayment',
+          entity: 'payment',
+          actor_user_id: userId,
+          diff: { 
+            studentId, 
+            amount, 
+            outstanding: totalOutstanding,
+            overpayment: amount - totalOutstanding 
+          }
+        });
+      }
+    }
+
     const txId = crypto.randomUUID()
-    const userId = req.headers.get('x-user-id')
+    const actorUserId = req.headers.get('x-user-id')
 
     // Ensure ledger accounts exist for student
     console.log('Creating/checking ledger accounts for student:', studentId)
@@ -82,7 +153,7 @@ Deno.serve(async (req) => {
       method,
       memo,
       occurred_at: occurredAt || new Date().toISOString(),
-      created_by: userId
+      created_by: actorUserId
     })
 
     if (paymentError) throw new Error(`Failed to record payment: ${paymentError.message}`)
@@ -101,7 +172,7 @@ Deno.serve(async (req) => {
         occurred_at: occurredAt || new Date().toISOString(),
         memo: memo || `Payment received via ${method}`,
         month,
-        created_by: userId
+        created_by: actorUserId
       },
       {
         tx_id: txId,
@@ -111,7 +182,7 @@ Deno.serve(async (req) => {
         occurred_at: occurredAt || new Date().toISOString(),
         memo: memo || `Payment applied`,
         month,
-        created_by: userId
+        created_by: actorUserId
       }
     ])
 
@@ -163,7 +234,7 @@ Deno.serve(async (req) => {
           occurred_at: occurredAt || new Date().toISOString(),
           memo: 'Overpayment - credit balance',
           month,
-          created_by: userId
+          created_by: actorUserId
         },
         {
           tx_id: creditTxId,
@@ -173,7 +244,7 @@ Deno.serve(async (req) => {
           occurred_at: occurredAt || new Date().toISOString(),
           memo: 'Credit balance for future use',
           month,
-          created_by: userId
+          created_by: actorUserId
         }
       ])
     }
