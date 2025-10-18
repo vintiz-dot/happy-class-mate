@@ -13,7 +13,7 @@ export interface PaymentData {
  * Unified payment posting function used across all admin payment UIs
  */
 export async function postStudentPayment(paymentData: PaymentData) {
-  const { data, error } = await supabase.functions.invoke("record-payment", {
+  const { data, error } = await supabase.functions.invoke("post-payment", {
     body: {
       studentId: paymentData.studentId,
       amount: Math.round(paymentData.amount),
