@@ -10,8 +10,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Ban, Trash2, Edit } from "lucide-react";
+import { AlertTriangle, Ban, Trash2, Edit, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { EditSessionModal } from "./EditSessionModal";
@@ -23,8 +32,9 @@ interface SessionActionsModalProps {
 }
 
 export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActionsModalProps) => {
-  const [action, setAction] = useState<"cancel" | "delete" | "edit" | null>(null);
+  const [action, setAction] = useState<"cancel" | "delete" | "edit" | "change-status" | null>(null);
   const [reason, setReason] = useState("");
+  const [newStatus, setNewStatus] = useState<string>("");
   const [processing, setProcessing] = useState(false);
 
   const TIMEZONE = "Asia/Bangkok";
@@ -51,11 +61,18 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Use force-cancel if session is past and Held
+      const isPastHeld = session.status === 'Held' && new Date(session.date) < now;
+      
       const { error } = await supabase.functions.invoke("manage-session", {
         body: {
-          action: "cancel",
+          action: isPastHeld ? "force-cancel" : "cancel",
+          data: {
+            id: session.id,
+            reason: reason || "Admin canceled",
+          },
+          // Legacy format for backward compatibility
           sessionId: session.id,
-          reason: reason || "Admin canceled",
           userId: user?.id,
         },
       });
@@ -67,6 +84,41 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
       onClose();
     } catch (error: any) {
       toast.error(error.message || "Failed to cancel session");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleChangeStatus = async () => {
+    if (!newStatus || !reason) {
+      toast.error("Please select a status and provide a reason");
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase.functions.invoke("manage-session", {
+        body: {
+          action: "change-status",
+          data: {
+            id: session.id,
+            status: newStatus,
+            reason,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Session status changed to ${newStatus}. Run Calculate Tuition/Payroll to update financials.`, {
+        duration: 5000,
+      });
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to change status");
     } finally {
       setProcessing(false);
     }
@@ -109,6 +161,81 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
     }
   };
 
+  if (action === "change-status") {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Session Status</DialogTitle>
+            <DialogDescription>
+              {session.classes?.name} - {format(new Date(session.date), "MMM dd, yyyy")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Admin Override</AlertTitle>
+              <AlertDescription>
+                This will change the session status and may affect payroll and tuition calculations. 
+                This action is audited.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label>Current Status</Label>
+              <Badge variant={
+                session.status === 'Held' ? 'default' : 
+                session.status === 'Canceled' ? 'secondary' : 
+                'outline'
+              }>
+                {session.status}
+              </Badge>
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Status</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                  <SelectItem value="Held">Held</SelectItem>
+                  <SelectItem value="Canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reason for Status Change (Required)</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Why are you changing this status? (e.g., 'Incorrect marking', 'Mistake correction')"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                className="flex-1"
+                onClick={handleChangeStatus}
+                disabled={processing || !newStatus || !reason}
+              >
+                {processing ? "Processing..." : "Change Status"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (!action) {
     return (
       <Dialog open={true} onOpenChange={onClose}>
@@ -119,6 +246,15 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
               {session.classes?.name} - {format(new Date(session.date), "MMM dd, yyyy")} at{" "}
               {session.start_time?.slice(0, 5)}
             </DialogDescription>
+            <div className="mt-2">
+              <Badge variant={
+                session.status === 'Held' ? 'default' : 
+                session.status === 'Canceled' ? 'secondary' : 
+                'outline'
+              }>
+                Current Status: {session.status}
+              </Badge>
+            </div>
           </DialogHeader>
 
           <div className="space-y-3 mt-4">
@@ -139,6 +275,20 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
               <Ban className="h-4 w-4 mr-2" />
               Cancel Session
             </Button>
+
+            {(session.status === 'Held' || session.status === 'Canceled') && (
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setAction("change-status")}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Change Status
+                <span className="ml-auto text-xs text-muted-foreground">
+                  (Admin Override)
+                </span>
+              </Button>
+            )}
 
             <Button
               variant="outline"

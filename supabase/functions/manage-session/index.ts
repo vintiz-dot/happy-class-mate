@@ -81,10 +81,13 @@ Deno.serve(async (req) => {
 
     if (action === 'cancel') {
       const { id, reason } = data;
-      const { data: session } = await supabase.from('sessions').select('status').eq('id', id).single();
+      const { data: session } = await supabase.from('sessions').select('status, date').eq('id', id).single();
       
-      if (session?.status === 'Held') {
-        return new Response(JSON.stringify({ error: 'Cannot cancel past Held sessions' }), {
+      // Regular cancel blocks past Held sessions
+      const now = new Date();
+      const sessionDate = new Date(session?.date || '');
+      if (session?.status === 'Held' && sessionDate < now) {
+        return new Response(JSON.stringify({ error: 'Cannot cancel past Held sessions via regular cancel. Use admin override.' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -105,7 +108,85 @@ Deno.serve(async (req) => {
         entity: 'sessions',
         entity_id: id,
         actor_user_id: user.id,
-        diff: { reason }
+        diff: { reason, old_status: session?.status }
+      });
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'force-cancel') {
+      const { id, reason } = data;
+      const { data: oldSession } = await supabase.from('sessions').select('*').eq('id', id).single();
+      
+      const { error } = await supabase.from('sessions').update({
+        status: 'Canceled',
+        canceled_reason: reason || 'Admin force-canceled (correction)',
+        canceled_by: user.id,
+        canceled_at: new Date().toISOString(),
+        updated_by: user.id,
+      }).eq('id', id);
+
+      if (error) throw error;
+
+      await supabase.from('audit_log').insert({
+        action: 'session_force_cancel',
+        entity: 'sessions',
+        entity_id: id,
+        actor_user_id: user.id,
+        diff: { 
+          reason,
+          old_status: oldSession?.status,
+          new_status: 'Canceled',
+          note: 'Admin override for mistake correction'
+        }
+      });
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'change-status') {
+      const { id, status, reason } = data;
+      
+      if (!['Scheduled', 'Held', 'Canceled'].includes(status)) {
+        return new Response(JSON.stringify({ error: 'Invalid status' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: oldSession } = await supabase.from('sessions').select('*').eq('id', id).single();
+
+      const updates: any = {
+        status,
+        updated_by: user.id,
+      };
+
+      if (status === 'Canceled') {
+        updates.canceled_reason = reason || 'Admin status change';
+        updates.canceled_by = user.id;
+        updates.canceled_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase.from('sessions').update(updates).eq('id', id);
+      if (error) throw error;
+
+      await supabase.from('audit_log').insert({
+        action: 'session_status_change',
+        entity: 'sessions',
+        entity_id: id,
+        actor_user_id: user.id,
+        diff: { 
+          old_status: oldSession?.status,
+          new_status: status,
+          reason,
+          note: 'Admin override for mistake correction'
+        }
       });
 
       return new Response(JSON.stringify({ ok: true }), {
