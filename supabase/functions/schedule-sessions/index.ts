@@ -213,9 +213,22 @@ function buildExpectedSessions(classes: any[], month: string): ExpectedSession[]
   const lastDay = new Date(year, monthNum, 0);
   
   for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
-    const bkkDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const dayOfWeek = bkkDate.getDay(); // 0 = Sunday
-    const dateStr = bkkDate.toISOString().split('T')[0];
+    // Get the day-of-week in Asia/Bangkok timezone
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short'
+    }).formatToParts(d);
+    
+    const year = parts.find(p => p.type === 'year')!.value;
+    const month = parts.find(p => p.type === 'month')!.value;
+    const day = parts.find(p => p.type === 'day')!.value;
+    const weekday = parts.find(p => p.type === 'weekday')!.value;
+    
+    const dateStr = `${year}-${month}-${day}`;
+    const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
     
     for (const cls of classes) {
       const template = cls.schedule_template || { weeklySlots: [] };
