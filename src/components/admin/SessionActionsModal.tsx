@@ -32,7 +32,9 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
   const sessionDate = new Date(session.date);
   const isFuture = sessionDate > now;
   const isScheduled = session.status === "Scheduled";
-  const canDelete = isFuture && isScheduled;
+  const isCanceled = session.status === "Canceled";
+  // Admin can delete Scheduled or Canceled sessions (past, present, future)
+  const canDelete = isScheduled || isCanceled;
 
   if (action === "edit") {
     return (
@@ -148,7 +150,7 @@ export const SessionActionsModal = ({ session, onClose, onSuccess }: SessionActi
               Delete Session
               {!canDelete && (
                 <span className="ml-auto text-xs text-muted-foreground">
-                  (Future scheduled only)
+                  (Scheduled/Canceled only)
                 </span>
               )}
             </Button>
