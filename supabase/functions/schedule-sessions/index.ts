@@ -38,6 +38,11 @@ interface TeacherReport {
   }>;
 }
 
+function normalizeTime(t: string): string {
+  // Convert 'HH:MM' -> 'HH:MM:SS'
+  return /^\d{2}:\d{2}$/.test(t) ? `${t}:00` : t;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -236,17 +241,19 @@ function buildExpectedSessions(classes: any[], month: string): ExpectedSession[]
       
       for (const slot of slots) {
         if (slot.dayOfWeek === dayOfWeek) {
+          const s = normalizeTime(slot.startTime);
+          const e = normalizeTime(slot.endTime);
           const teacherId = slot.teacherId || cls.default_teacher_id || null;
-          const key = `${cls.id}|${dateStr}|${slot.startTime}`;
+          const key = `${cls.id}|${dateStr}|${s}`;
           
           expected.push({
             classId: cls.id,
             className: cls.name,
             date: dateStr,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
+            startTime: s,      // normalized to HH:MM:SS
+            endTime: e,        // normalized to HH:MM:SS
             teacherId,
-            key,
+            key,               // now uses normalized time
           });
         }
       }
@@ -342,15 +349,26 @@ async function checkTeacherConflict(
   startTime: string,
   endTime: string
 ): Promise<boolean> {
-  const { data } = await supabase
+  const s = normalizeTime(startTime);
+  const e = normalizeTime(endTime);
+
+  const { data, error } = await supabase
     .from('sessions')
-    .select('id')
+    .select('id, start_time, end_time')
     .eq('teacher_id', teacherId)
     .eq('date', date)
     .neq('status', 'Canceled')
-    .or(`start_time.lte.${startTime},end_time.gte.${endTime}`);
+    // Correct overlap: existing.start < new.end AND existing.end > new.start
+    .lt('start_time', e)
+    .gt('end_time', s)
+    .limit(1);
 
-  return (data?.length || 0) > 0;
+  if (error) {
+    console.error('Conflict check failed', { teacherId, date, s, e, error });
+    return true; // fail closed
+  }
+  
+  return (data?.length ?? 0) > 0;
 }
 
 async function generateTeacherReport(
