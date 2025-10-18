@@ -162,13 +162,13 @@ export function AttendanceMarking() {
 
       if (error) throw error;
 
-      // Update session status to Held only if at least 5 minutes past start time
-      const sessionStart = new Date(`${selectedSession.date}T${selectedSession.start_time}`);
-      const fiveMinutesAfterStart = new Date(sessionStart.getTime() + 5 * 60000);
+      // Update session status to Held only if at least 5 minutes past end time
+      const sessionEnd = new Date(`${selectedSession.date}T${selectedSession.end_time}`);
+      const fiveMinutesAfterEnd = new Date(sessionEnd.getTime() + 5 * 60000);
       const now = new Date();
       
-      // Only mark as Held if at least 5 minutes past start (prevents invalid future "Held")
-      if (now >= fiveMinutesAfterStart && selectedSession.status === 'Scheduled') {
+      // Only mark as Held if at least 5 minutes past end (prevents invalid future "Held")
+      if (now >= fiveMinutesAfterEnd && selectedSession.status === 'Scheduled') {
         await supabase
           .from("sessions")
           .update({ status: 'Held' })
@@ -194,16 +194,15 @@ export function AttendanceMarking() {
   };
 
   const canMarkAttendance = (session: Session) => {
-    // Check if session has already started (at least 5 mins into it)
-    const sessionDateTime = new Date(`${session.date}T${session.start_time}`);
-    const fiveMinutesIn = new Date(sessionDateTime.getTime() + 5 * 60000); // Add 5 minutes in milliseconds
+    // Must wait until 5 minutes AFTER session end time per build spec
+    const sessionEndTime = new Date(`${session.date}T${session.end_time}`);
+    const fiveMinutesAfterEnd = new Date(sessionEndTime.getTime() + 5 * 60000);
     const now = new Date();
     
-    // Can't mark future sessions (prevents invalid "Held" status)
-    if (now < fiveMinutesIn) return false;
+    // Can't mark until 5 minutes after session ends
+    if (now < fiveMinutesAfterEnd) return false;
     
     // Can mark within 24 hours after session ends
-    const sessionEndTime = new Date(`${session.date}T${session.end_time}`);
     const twentyFourHoursLater = addHours(sessionEndTime, 24);
     return now <= twentyFourHoursLater;
   };
@@ -244,8 +243,8 @@ export function AttendanceMarking() {
         <CardContent className="space-y-4">
           {!canEdit && (
             <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
-              {new Date() < new Date(`${selectedSession.date}T${selectedSession.start_time}`) 
-                ? "⚠️ Cannot mark attendance for future sessions. Please wait until 5 minutes after the session starts (prevents invalid 'Held' status)."
+              {new Date() < new Date(new Date(`${selectedSession.date}T${selectedSession.end_time}`).getTime() + 5 * 60000)
+                ? "⚠️ Cannot mark attendance yet. Please wait until 5 minutes after the session ends (prevents invalid 'Held' status)."
                 : "Editing window closed (24 hours after session end)"}
             </div>
           )}

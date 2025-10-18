@@ -409,6 +409,52 @@ async function reconcileSessions(
           });
         }
       }
+
+      // Include-held mode: Update time on past Held sessions for exact matches
+      if (
+        mode === 'include-held' &&
+        existingSession.status === 'Held' &&
+        !existingSession.is_manual &&
+        (existingSession.start_time !== exp.startTime || existingSession.end_time !== exp.endTime)
+      ) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Update time while preserving Held status
+        const { error: updateError } = await supabase
+          .from('sessions')
+          .update({ 
+            start_time: exp.startTime,
+            end_time: exp.endTime,
+            updated_by: user?.id,
+          })
+          .eq('id', existingSession.id);
+
+        if (!updateError) {
+          // Audit the change
+          await supabase.from('audit_log').insert({
+            entity: 'sessions',
+            action: 'update',
+            entity_id: existingSession.id,
+            actor_user_id: user?.id,
+            diff: {
+              old_start_time: existingSession.start_time,
+              old_end_time: existingSession.end_time,
+              new_start_time: exp.startTime,
+              new_end_time: exp.endTime,
+              status: 'Held',
+              reason: 'Schedule template time change (include-held mode)',
+            },
+          });
+
+          updated.push({
+            id: existingSession.id,
+            date: existingSession.date,
+            oldTime: `${existingSession.start_time}-${existingSession.end_time}`,
+            newTime: `${exp.startTime}-${exp.endTime}`,
+            status: 'Held',
+          });
+        }
+      }
     }
   }
 
