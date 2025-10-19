@@ -75,7 +75,7 @@ const ReportsTab = () => {
 
           if (sessionsError) throw sessionsError;
 
-          // Get enrollments for tuition calculation
+          // Get enrollments for student count
           const { data: enrollments, error: enrollmentsError } = await supabase
             .from("enrollments")
             .select("student_id")
@@ -87,7 +87,21 @@ const ReportsTab = () => {
 
           const sessionCount = sessions?.length || 0;
           const studentCount = enrollments?.length || 0;
-          const tuition = sessionCount * studentCount * cls.session_rate_vnd;
+
+          // Get actual tuition from invoices (total_amount after discounts)
+          let tuition = 0;
+          if (enrollments && enrollments.length > 0) {
+            const studentIds = enrollments.map(e => e.student_id);
+            const { data: invoices, error: invoicesError } = await supabase
+              .from("invoices")
+              .select("total_amount, student_id")
+              .in("student_id", studentIds)
+              .eq("month", selectedMonth);
+
+            if (!invoicesError && invoices) {
+              tuition = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+            }
+          }
 
           // Calculate projected payroll for all sessions (Scheduled + Held)
           let payroll = 0;
@@ -107,7 +121,7 @@ const ReportsTab = () => {
             name: cls.name,
             sessionCount,
             studentCount,
-            tuition,
+            tuition: Math.round(tuition),
             payroll: Math.round(payroll),
             net: Math.round(net),
           };
