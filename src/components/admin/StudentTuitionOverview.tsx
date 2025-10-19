@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, Loader2 } from "lucide-react";
+import { Award, Loader2, ArrowUpDown } from "lucide-react";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface TuitionData {
@@ -38,6 +38,7 @@ export function StudentTuitionOverview() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [sortBy, setSortBy] = useState<"name" | "class" | "balance" | "total">("name");
 
   const { data: students, isLoading: studentsLoading } = useQuery({
     queryKey: ['students-active'],
@@ -50,6 +51,39 @@ export function StudentTuitionOverview() {
       
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch enrollments to get class info
+  const { data: enrollments } = useQuery({
+    queryKey: ['student-enrollments', selectedMonth],
+    queryFn: async () => {
+      const monthStart = `${selectedMonth}-01`;
+      const monthEnd = `${selectedMonth}-31`;
+      
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select(`
+          student_id,
+          classes(id, name)
+        `)
+        .lte('start_date', monthEnd)
+        .or(`end_date.is.null,end_date.gte.${monthStart}`);
+      
+      if (error) throw error;
+      
+      // Map student to classes
+      const studentClasses = new Map<string, string[]>();
+      data?.forEach(e => {
+        const existing = studentClasses.get(e.student_id) || [];
+        if (e.classes) {
+          const className = Array.isArray(e.classes) ? e.classes[0]?.name : e.classes.name;
+          if (className) existing.push(className);
+        }
+        studentClasses.set(e.student_id, existing);
+      });
+      
+      return studentClasses;
     },
   });
 
@@ -98,6 +132,34 @@ export function StudentTuitionOverview() {
     return options;
   };
 
+  // Sort students based on selected sort option
+  const sortedStudents = useMemo(() => {
+    if (!students) return [];
+    
+    return [...students].sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.full_name.localeCompare(b.full_name);
+        case "class":
+          const aClass = enrollments?.get(a.id)?.[0] || "";
+          const bClass = enrollments?.get(b.id)?.[0] || "";
+          return aClass.localeCompare(bClass);
+        case "balance":
+          const aTuition = tuitionData?.find(t => t.studentId === a.id);
+          const bTuition = tuitionData?.find(t => t.studentId === b.id);
+          const aBalance = aTuition?.carry?.status === 'debt' ? (aTuition?.carry?.carryOutDebt || 0) : 0;
+          const bBalance = bTuition?.carry?.status === 'debt' ? (bTuition?.carry?.carryOutDebt || 0) : 0;
+          return bBalance - aBalance;
+        case "total":
+          const aTotal = tuitionData?.find(t => t.studentId === a.id)?.totalAmount || 0;
+          const bTotal = tuitionData?.find(t => t.studentId === b.id)?.totalAmount || 0;
+          return bTotal - aTotal;
+        default:
+          return 0;
+      }
+    });
+  }, [students, sortBy, enrollments, tuitionData]);
+
   if (studentsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -116,18 +178,34 @@ export function StudentTuitionOverview() {
               View tuition details for all active students
             </CardDescription>
           </div>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {getMonthOptions().map(({ value, label }) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="class">Class</SelectItem>
+                  <SelectItem value="balance">Balance</SelectItem>
+                  <SelectItem value="total">Total</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getMonthOptions().map(({ value, label }) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -141,6 +219,7 @@ export function StudentTuitionOverview() {
               <TableRow>
                 <TableHead>Student</TableHead>
                 <TableHead>Family</TableHead>
+                <TableHead>Class</TableHead>
                 <TableHead className="text-right">Sessions</TableHead>
                 <TableHead className="text-right">Base Amount</TableHead>
                 <TableHead className="text-right">Discounts</TableHead>
@@ -152,7 +231,7 @@ export function StudentTuitionOverview() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students?.map((student) => {
+              {sortedStudents?.map((student) => {
                 const tuition = tuitionData?.find(t => t.studentId === student.id);
                 const recordedPay = tuition?.payments?.cumulativePaidAmount || 0;
                 const balanceStatus = tuition?.carry?.status || 'settled';
@@ -171,6 +250,9 @@ export function StudentTuitionOverview() {
                     <TableCell className="font-medium">{student.full_name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {student.family?.name || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {enrollments?.get(student.id)?.join(", ") || '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       {tuition?.sessionCount || 0}
