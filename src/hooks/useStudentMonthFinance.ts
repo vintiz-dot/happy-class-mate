@@ -98,6 +98,14 @@ export function useStudentMonthFinance(
       if (error) throw error;
       if (!data) throw new Error('No tuition data returned');
 
+      // Debug logging
+      console.log('=== STUDENT TUITION DATA ===');
+      console.log('Student ID:', studentId);
+      console.log('Month:', month);
+      console.log('Raw edge function response:', data);
+      console.log('Payments object:', data.payments);
+      console.log('cumulativePaidAmount:', data.payments?.cumulativePaidAmount);
+
       // Normalize response to match Admin Finance field names
       const normalized: StudentMonthFinanceData = {
         studentId,
