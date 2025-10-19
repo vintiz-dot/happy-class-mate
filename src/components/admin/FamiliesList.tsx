@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Trash2 } from "lucide-react";
+import { Users, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import {
 
 export function FamiliesList() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const { data: families, isLoading } = useQuery({
     queryKey: ["families-list"],
@@ -86,7 +88,12 @@ export function FamiliesList() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <AlertDialog>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/families/${family.id}`)}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <Trash2 className="h-4 w-4" />
@@ -107,6 +114,7 @@ export function FamiliesList() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

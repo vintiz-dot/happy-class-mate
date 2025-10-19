@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, Search, AlertTriangle, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminUsersManager } from "@/components/admin/AdminUsersManager";
+import { UsersManager } from "@/components/admin/UsersManager";
 
 const DataTab = () => {
   const [loading, setLoading] = useState(false);
@@ -145,6 +146,7 @@ const DataTab = () => {
           <TabsTrigger value="import">Import</TabsTrigger>
           <TabsTrigger value="integrity">Integrity</TabsTrigger>
           <TabsTrigger value="logs">Activity Logs</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="account">Account Management</TabsTrigger>
         </TabsList>
 
@@ -325,6 +327,10 @@ const DataTab = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-4">
+          <UsersManager />
         </TabsContent>
 
         <TabsContent value="account" className="space-y-4">

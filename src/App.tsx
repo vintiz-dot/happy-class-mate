@@ -15,6 +15,7 @@ import Teachers from "./pages/Teachers";
 import Classes from "./pages/Classes";
 import Schedule from "./pages/Schedule";
 import Families from "./pages/Families";
+import FamilyDetail from "./pages/FamilyDetail";
 import Admin from "./pages/Admin";
 import ClassDetail from "./pages/ClassDetail";
 import Dashboard from "./pages/Dashboard";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/teachers/:id" element={<ProtectedRoute allowedRole="admin"><TeacherProfile /></ProtectedRoute>} />
             <Route path="/classes" element={<ProtectedRoute allowedRole="admin"><Classes /></ProtectedRoute>} />
             <Route path="/families" element={<ProtectedRoute allowedRole="admin"><Families /></ProtectedRoute>} />
+            <Route path="/families/:id" element={<ProtectedRoute allowedRole="admin"><FamilyDetail /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><Admin /></ProtectedRoute>} />
             <Route path="/admin/classes/:id" element={<ProtectedRoute allowedRole="admin"><ClassDetail /></ProtectedRoute>} />
             <Route path="/students/:id/tuition" element={<ProtectedRoute allowedRole="admin"><Tuition /></ProtectedRoute>} />

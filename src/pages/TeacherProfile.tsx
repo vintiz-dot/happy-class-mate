@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Mail, Phone, DollarSign } from "lucide-react";
+import { Edit, Mail, Phone, DollarSign, Link } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { TeacherProfileOverview } from "@/components/admin/teacher/TeacherProfileOverview";
@@ -16,10 +16,12 @@ import { TeacherProfilePayroll } from "@/components/admin/teacher/TeacherProfile
 import { TeacherProfileFilesNotes } from "@/components/admin/teacher/TeacherProfileFilesNotes";
 import { TeacherProfileAudit } from "@/components/admin/teacher/TeacherProfileAudit";
 import { TeacherEditDrawer } from "@/components/admin/TeacherEditDrawer";
+import { TeacherLinkDialog } from "@/components/admin/TeacherLinkDialog";
 
 const TeacherProfile = () => {
   const { id } = useParams<{ id: string }>();
   const [showEditDrawer, setShowEditDrawer] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const { data: teacher, isLoading } = useQuery({
@@ -32,7 +34,23 @@ const TeacherProfile = () => {
         .single();
 
       if (error) throw error;
-      return data;
+
+      // If teacher has user_id, get the user's email
+      let linkedUserEmail = null;
+      if (data?.user_id) {
+        const response = await supabase.functions.invoke('manage-admin-users', {
+          body: { action: 'listUsers' }
+        });
+        
+        if (!response.error && response.data?.users) {
+          const linkedUser = response.data.users.find((u: any) => u.id === data.user_id);
+          if (linkedUser) {
+            linkedUserEmail = linkedUser.email;
+          }
+        }
+      }
+
+      return { ...data, linkedUserEmail };
     },
     enabled: !!id,
   });
@@ -76,6 +94,17 @@ const TeacherProfile = () => {
                       {teacher.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
+                  <div className="flex flex-col gap-1">
+                    {teacher.user_id && teacher.linkedUserEmail && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Registered Email:</span>
+                        <span className="font-medium text-foreground">{teacher.linkedUserEmail}</span>
+                        <Badge variant="outline" className="text-xs">
+                          Linked
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-1 text-muted-foreground">
                     {teacher.email && (
                       <div className="flex items-center gap-2">
@@ -100,6 +129,10 @@ const TeacherProfile = () => {
                 </div>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowLinkDialog(true)}>
+                  <Link className="h-4 w-4 mr-2" />
+                  {teacher.user_id ? 'Manage Link' : 'Connect to User'}
+                </Button>
                 <Button variant="outline" onClick={() => setShowEditDrawer(true)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
@@ -149,6 +182,17 @@ const TeacherProfile = () => {
           <TeacherEditDrawer
             teacher={teacher}
             onClose={() => setShowEditDrawer(false)}
+          />
+        )}
+
+        {showLinkDialog && (
+          <TeacherLinkDialog
+            teacher={teacher}
+            onClose={() => setShowLinkDialog(false)}
+            onSuccess={() => {
+              setShowLinkDialog(false);
+              window.location.reload();
+            }}
           />
         )}
       </div>
