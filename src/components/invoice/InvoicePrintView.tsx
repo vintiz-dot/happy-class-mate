@@ -5,20 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface InvoicePrintViewProps {
   invoice: InvoiceData;
-  bankInfo: BankInfo;
+  bankInfo: BankInfo | null;
 }
 
 export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (bankInfo.vietqr_storage_key) {
+    if (bankInfo?.vietqr_storage_key) {
       const { data } = supabase.storage
         .from('qr-codes')
         .getPublicUrl(bankInfo.vietqr_storage_key);
       setQrUrl(data.publicUrl);
     }
-  }, [bankInfo.vietqr_storage_key]);
+  }, [bankInfo?.vietqr_storage_key]);
 
   return (
     <div className="invoice-print-view bg-white text-black p-8 max-w-[210mm] mx-auto relative min-h-[297mm]" style={{ paddingTop: '20%' }}>
@@ -38,9 +38,9 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
             <h1 className="text-2xl font-bold mb-2">
-              {bankInfo.org_name || 'Happy English Club'}
+              {bankInfo?.org_name || 'Happy English Club'}
             </h1>
-            {bankInfo.org_address && (
+            {bankInfo?.org_address && (
               <p className="text-sm text-gray-700 whitespace-pre-line">
                 {bankInfo.org_address}
               </p>
@@ -146,27 +146,33 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
         {/* Payment Instructions */}
         <div className="mb-6 p-4 bg-white/80 rounded">
           <div className="font-semibold mb-2">Payment Instructions:</div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div><span className="font-medium">Bank Name:</span> {bankInfo.bank_name}</div>
-              <div><span className="font-medium">Account Number:</span> {bankInfo.account_number}</div>
-              <div><span className="font-medium">Account Name:</span> {bankInfo.account_name}</div>
-            </div>
-            {qrUrl && (
-              <div className="flex justify-center items-center">
-                <img 
-                  src={qrUrl} 
-                  alt="VietQR Payment Code" 
-                  className="h-32 w-32 object-contain border rounded bg-white"
-                />
+          {bankInfo ? (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div><span className="font-medium">Bank Name:</span> {bankInfo.bank_name}</div>
+                <div><span className="font-medium">Account Number:</span> {bankInfo.account_number}</div>
+                <div><span className="font-medium">Account Name:</span> {bankInfo.account_name}</div>
               </div>
-            )}
-          </div>
+              {qrUrl && (
+                <div className="flex justify-center items-center">
+                  <img 
+                    src={qrUrl} 
+                    alt="VietQR Payment Code" 
+                    className="h-32 w-32 object-contain border rounded bg-white"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600 italic">
+              Bank information not configured. Please contact administration for payment details.
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="text-xs text-gray-600 text-center mt-8 pt-4 border-t">
-          {bankInfo.org_address && <span>{bankInfo.org_address} • </span>}
+          {bankInfo?.org_address && <span>{bankInfo.org_address} • </span>}
           <span>This is a computer-generated invoice.</span>
         </div>
       </div>
