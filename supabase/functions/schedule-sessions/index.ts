@@ -1,9 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const InputSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Month must be in YYYY-MM format').optional(),
+  mode: z.enum(['future-only', 'include-held']).optional(),
+  classId: z.string().uuid('Invalid class ID format').optional()
+});
 
 interface WeeklySlot {
   dayOfWeek: number;
@@ -61,7 +68,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { month, mode, classId } = await req.json();
+    // Validate input
+    const body = await req.json();
+    const validated = InputSchema.parse(body);
+    const { month, mode, classId } = validated;
     
     // Get current month in Bangkok timezone if not provided
     const targetMonth = month || (() => {
@@ -187,7 +197,7 @@ Deno.serve(async (req) => {
     console.error('Schedule generation error:', error);
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: 'Failed to generate schedule. Please try again or contact support.' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

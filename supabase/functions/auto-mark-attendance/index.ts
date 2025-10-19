@@ -8,6 +8,7 @@ const corsHeaders = {
 /**
  * Auto-mark attendance for today's sessions at 10 PM Bangkok time
  * Sets status to 'Present' if attendance hasn't been marked by teacher or admin
+ * Secured with secret token for cron job execution only
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,6 +16,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Authenticate cron job request
+    const authHeader = req.headers.get('Authorization')
+    const expectedToken = Deno.env.get('CRON_SECRET_TOKEN')
+    
+    if (!authHeader || !expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      )
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -123,10 +138,10 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('Error in auto-mark-attendance:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Failed to process attendance. Please check logs.' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       }
     )
   }
