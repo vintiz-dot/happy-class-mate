@@ -107,6 +107,13 @@ Deno.serve(async (req) => {
     const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled" }> = [];
 
     for (const s of sessions ?? []) {
+      // Check if student was enrolled on this specific session date
+      const wasEnrolled = (enrollments ?? []).some(e => 
+        e.start_date <= s.date && (!e.end_date || e.end_date >= s.date)
+      );
+      
+      if (!wasEnrolled) continue; // Skip sessions outside enrollment period
+      
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
       const rate = Number(classData?.session_rate_vnd ?? 0);

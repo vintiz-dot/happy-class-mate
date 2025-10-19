@@ -79,17 +79,23 @@ export function AttendanceMarking() {
 
       const { data: sessionData } = await supabase
         .from("sessions")
-        .select("class_id")
+        .select("class_id, date")
         .eq("id", sessionId)
         .single();
 
       const { data: enrollments } = await supabase
         .from("enrollments" as any)
-        .select("student_id, students(id, full_name)")
+        .select("student_id, start_date, end_date, students(id, full_name)")
         .eq("class_id", sessionData?.class_id)
-        .is("end_date", null);
+        .lte("start_date", sessionData.date)
+        .or(`end_date.is.null,end_date.gte.${sessionData.date}`);
 
-      const studentsList = (enrollments?.map((e: any) => e.students).filter(Boolean) as Student[]) || [];
+      // Filter to only students actually enrolled on session date
+      const validEnrollments = (enrollments || []).filter((e: any) => 
+        e.start_date <= sessionData.date && (!e.end_date || e.end_date >= sessionData.date)
+      );
+      
+      const studentsList = (validEnrollments?.map((e: any) => e.students).filter(Boolean) as Student[]) || [];
       setStudents(studentsList);
 
       // Load existing attendance

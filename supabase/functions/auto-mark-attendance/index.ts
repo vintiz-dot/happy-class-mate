@@ -47,12 +47,13 @@ Deno.serve(async (req) => {
     let totalMarked = 0
 
     for (const session of sessions) {
-      // Get enrolled students for this class
+      // Get enrolled students for this class who were enrolled on this date
       const { data: enrollments, error: enrollErr } = await supabase
         .from('enrollments')
-        .select('student_id')
+        .select('student_id, start_date, end_date')
         .eq('class_id', session.class_id)
-        .is('end_date', null)
+        .lte('start_date', today) // enrolled on or before session date
+        .or(`end_date.is.null,end_date.gte.${today}`) // still enrolled on session date
 
       if (enrollErr) {
         console.error(`Error getting enrollments for session ${session.id}:`, enrollErr)
@@ -74,8 +75,13 @@ Deno.serve(async (req) => {
 
       const markedStudents = new Set((existingAttendance || []).map(a => a.student_id))
 
+      // Filter to only students actually enrolled on this date
+      const validEnrollments = (enrollments || []).filter(e => 
+        e.start_date <= today && (!e.end_date || e.end_date >= today)
+      )
+
       // Create attendance records for students without attendance (default to Present)
-      const newAttendanceRecords = enrollments
+      const newAttendanceRecords = validEnrollments
         .filter(e => !markedStudents.has(e.student_id))
         .map(e => ({
           session_id: session.id,

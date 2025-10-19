@@ -40,13 +40,21 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
         .from("enrollments")
         .select(`
           student_id,
+          start_date,
+          end_date,
           students!inner(id, full_name)
         `)
         .eq("class_id", session.class_id)
-        .is("end_date", null);
+        .lte("start_date", session.date) // enrolled on or before session
+        .or(`end_date.is.null,end_date.gte.${session.date}`); // still enrolled on session
+
+      // Filter again to ensure enrollment dates are valid
+      const validEnrollments = (enrollments || []).filter((e: any) => 
+        e.start_date <= session.date && (!e.end_date || e.end_date >= session.date)
+      );
 
       const studentsWithAttendance = await Promise.all(
-        (enrollments || []).map(async (enrollment: any) => {
+        validEnrollments.map(async (enrollment: any) => {
           const { data: attendanceRecord } = await supabase
             .from("attendance")
             .select("status")
