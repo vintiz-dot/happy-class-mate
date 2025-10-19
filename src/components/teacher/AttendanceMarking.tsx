@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { format, isPast, addHours } from "date-fns";
-import { Clock, Users } from "lucide-react";
+import { Clock, Users, Award } from "lucide-react";
+import { ParticipationPoints } from "@/components/admin/ParticipationPoints";
 
 interface Session {
   id: string;
@@ -34,6 +35,7 @@ export function AttendanceMarking() {
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, 'Present' | 'Absent' | 'Excused'>>({});
   const [loading, setLoading] = useState(false);
+  const [showParticipationPoints, setShowParticipationPoints] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -274,16 +276,34 @@ export function AttendanceMarking() {
           ))}
 
           {canEdit && (
-            <Button 
-              onClick={saveAttendance} 
-              disabled={loading || alreadyMarked} 
-              className="w-full"
-              variant={alreadyMarked ? "secondary" : "default"}
-            >
-              {alreadyMarked ? "Attendance Marked ✓" : "Save Attendance"}
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={saveAttendance} 
+                disabled={loading || alreadyMarked} 
+                className="w-full"
+                variant={alreadyMarked ? "secondary" : "default"}
+              >
+                {alreadyMarked ? "Attendance Marked ✓" : "Save Attendance"}
+              </Button>
+              <Button
+                onClick={() => setShowParticipationPoints(true)}
+                variant="outline"
+                className="w-full"
+              >
+                <Award className="h-4 w-4 mr-2" />
+                Add Points
+              </Button>
+            </div>
           )}
         </CardContent>
+        
+        {showParticipationPoints && selectedSession && (
+          <ParticipationPoints
+            session={selectedSession}
+            students={students}
+            onClose={() => setShowParticipationPoints(false)}
+          />
+        )}
       </Card>
     );
   }
