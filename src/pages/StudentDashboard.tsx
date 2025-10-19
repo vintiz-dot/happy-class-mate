@@ -5,7 +5,7 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Trophy } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
@@ -20,7 +20,15 @@ export default function StudentDashboard() {
       if (!studentId) return null;
       const { data } = await supabase
         .from("students")
-        .select("id, full_name")
+        .select(`
+          id, 
+          full_name, 
+          email, 
+          phone, 
+          is_active,
+          family:families(name),
+          updated_at
+        `)
         .eq("id", studentId)
         .single();
       return data;
@@ -173,6 +181,49 @@ export default function StudentDashboard() {
   return (
     <Layout title={`Dashboard - ${studentProfile.full_name}`}>
       <div className="space-y-6">
+        {/* Profile Header */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+                  {studentProfile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-3xl font-bold">{studentProfile.full_name}</h1>
+                    <Badge variant={studentProfile.is_active ? "default" : "secondary"} className={studentProfile.is_active ? "bg-green-500" : ""}>
+                      {studentProfile.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-col gap-1 text-muted-foreground">
+                    {studentProfile.family?.name && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">Family:</span>
+                        <span>{studentProfile.family.name}</span>
+                      </div>
+                    )}
+                    {studentProfile.email && (
+                      <div className="flex items-center gap-2">
+                        <span>{studentProfile.email}</span>
+                      </div>
+                    )}
+                    {studentProfile.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        <span>{studentProfile.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Last updated: {new Date(studentProfile.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
@@ -272,40 +323,6 @@ export default function StudentDashboard() {
           </Card>
         </div>
 
-        {leaderboards && leaderboards.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                My Class Rankings
-              </CardTitle>
-              <CardDescription>{dayjs().format("MMMM YYYY")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {leaderboards.map((lb: any) => (
-                  <Card key={lb.id} className="p-4">
-                    <h3 className="font-semibold mb-2">{lb.classes.name}</h3>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Points:</span>
-                        <span className="font-semibold">{lb.total_points || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Participation:</span>
-                        <span>{lb.participation_points || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Homework:</span>
-                        <span>{lb.homework_points || 0}</span>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link to="/schedule">
