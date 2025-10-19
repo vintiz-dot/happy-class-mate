@@ -7,7 +7,8 @@ import { StudentOverviewTab } from "@/components/student/StudentOverviewTab";
 import { StudentTuitionTab } from "@/components/student/StudentTuitionTab";
 import { StudentAttendanceTab } from "@/components/student/StudentAttendanceTab";
 import { StudentDiscountsTab } from "@/components/admin/discount/StudentDiscountsTab";
-import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { StudentAccountInfo } from "@/components/student/StudentAccountInfo";
+import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Link } from "lucide-react";
@@ -89,15 +90,17 @@ const StudentDetail = () => {
             <TabsTrigger value="tuition">Tuition</TabsTrigger>
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
+            <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             <StudentOverviewTab student={student} />
             
+            {/* Use Admin ClassLeaderboard - single source of truth */}
             {student.enrollments && student.enrollments.length > 0 && (
               <div className="space-y-6">
                 {student.enrollments.map((enrollment: any) => (
-                  <ClassLeaderboardShared key={enrollment.id} classId={enrollment.class.id} />
+                  <ClassLeaderboard key={enrollment.id} classId={enrollment.class.id} />
                 ))}
               </div>
             )}
@@ -113,6 +116,10 @@ const StudentDetail = () => {
 
           <TabsContent value="discounts" className="space-y-6">
             <StudentDiscountsTab studentId={student.id} />
+          </TabsContent>
+
+          <TabsContent value="account" className="space-y-6">
+            <StudentAccountInfo studentId={student.id} />
           </TabsContent>
         </Tabs>
 

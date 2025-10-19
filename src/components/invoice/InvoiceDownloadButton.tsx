@@ -55,11 +55,11 @@ export function InvoiceDownloadButton({
         .maybeSingle();
 
       if (bankError) {
-        console.warn("Bank info query error:", bankError);
+        throw new Error(`Failed to fetch bank information: ${bankError.message}`);
       }
 
       if (!bankData) {
-        console.warn("Bank information not configured, invoice will be generated without bank details");
+        throw new Error('Bank information not configured. Please contact administration to set up account information before downloading invoices.');
       }
 
       // Group sessions by class

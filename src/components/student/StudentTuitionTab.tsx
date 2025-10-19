@@ -1,46 +1,32 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { postStudentPayment } from "@/lib/payments";
+import { Award, DollarSign } from "lucide-react";
+import { useStudentMonthFinance, formatVND, getMonthOptions } from "@/hooks/useStudentMonthFinance";
+import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
+import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
-  const [payerName, setPayerName] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const queryClient = useQueryClient();
 
-  const { data: tuitionData, isLoading } = useQuery({
-    queryKey: ["student-tuition", studentId, selectedMonth],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("calculate-tuition", {
-        body: { studentId, month: selectedMonth },
-      });
+  // Use shared finance selector - single source of truth
+  const { data: tuitionData, isLoading } = useStudentMonthFinance(studentId, selectedMonth);
 
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Listen to changes in payments and invoices
+  // Real-time sync - invalidate on changes
   useEffect(() => {
     const paymentsChannel = supabase
-      .channel("payments-changes")
+      .channel("student-payments-changes")
       .on(
         "postgres_changes",
         {
@@ -50,14 +36,13 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           filter: `student_id=eq.${studentId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["student-tuition", studentId] });
-          queryClient.invalidateQueries({ queryKey: ["student-payments", studentId] });
+          queryClient.invalidateQueries({ queryKey: ["student-month-finance", studentId] });
         }
       )
       .subscribe();
 
     const invoicesChannel = supabase
-      .channel("invoices-changes")
+      .channel("student-invoices-changes")
       .on(
         "postgres_changes",
         {
@@ -67,7 +52,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           filter: `student_id=eq.${studentId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["student-tuition", studentId] });
+          queryClient.invalidateQueries({ queryKey: ["student-month-finance", studentId] });
         }
       )
       .subscribe();
@@ -78,104 +63,179 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
     };
   }, [studentId, queryClient]);
 
-  const { data: payments } = useQuery({
-    queryKey: ["student-payments", studentId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("occurred_at", { ascending: false });
+  // Generate filter chips with counts - match Admin Finance
+  const filterChips = useMemo(() => {
+    if (!tuitionData) return [];
+    
+    const hasDiscount = (tuitionData.totalDiscount ?? 0) > 0;
+    const hasSibling = tuitionData.siblingState?.status === 'assigned' && tuitionData.siblingState?.isWinner;
+    const isPaid = tuitionData.cumulativePaidAmount >= tuitionData.totalAmount && tuitionData.totalAmount > 0;
+    const isOverpaid = tuitionData.cumulativePaidAmount > tuitionData.totalAmount;
+    const isUnderpaid = tuitionData.cumulativePaidAmount < tuitionData.totalAmount && tuitionData.cumulativePaidAmount > 0;
+    const isSettled = tuitionData.balanceStatus === 'settled' && tuitionData.totalAmount > 0;
 
-      if (error) throw error;
-      return data;
-    },
-  });
+    return [
+      { key: "all", label: "All", count: 1 },
+      { key: "discount", label: "Discount", count: hasDiscount ? 1 : 0 },
+      { key: "no-discount", label: "No Discount", count: !hasDiscount ? 1 : 0 },
+      { key: "siblings", label: "Siblings", count: hasSibling ? 1 : 0 },
+      { key: "paid", label: "Paid", count: isPaid ? 1 : 0 },
+      { key: "overpaid", label: "Overpaid", count: isOverpaid ? 1 : 0 },
+      { key: "underpaid", label: "Underpaid", count: isUnderpaid ? 1 : 0 },
+      { key: "settled", label: "Settled", count: isSettled ? 1 : 0 },
+    ];
+  }, [tuitionData]);
 
-  const recordPaymentMutation = useMutation({
-    mutationFn: async (paymentData: any) => {
-      return postStudentPayment(paymentData);
-    },
-    onSuccess: ({ month }) => {
-      toast.success("Payment recorded successfully");
-      queryClient.invalidateQueries({ queryKey: ["student-tuition", studentId] });
-      queryClient.invalidateQueries({ queryKey: ["student-payments", studentId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-finance", month] });
-      queryClient.invalidateQueries({ queryKey: ["invoices", studentId] });
-      setPaymentDialogOpen(false);
-      setPaymentAmount("");
-      setPayerName("");
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to record payment");
-    },
-  });
-
-  const handleRecordPayment = () => {
-    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
-      toast.error("Please enter a valid payment amount");
-      return;
+  // Status badge - match Admin Finance exactly
+  const getStatusBadge = () => {
+    if (!tuitionData) return null;
+    
+    const paid = tuitionData.cumulativePaidAmount;
+    const total = tuitionData.totalAmount;
+    
+    if (paid > total) {
+      return <Badge className="bg-blue-500">Overpaid</Badge>;
     }
-
-    recordPaymentMutation.mutate({
-      studentId,
-      amount: parseFloat(paymentAmount),
-      method: paymentMethod,
-      occurredAt: paymentDate.toISOString(),
-      payerName,
-    });
+    if (paid === total && total > 0) {
+      return <Badge className="bg-green-500">Settled</Badge>;
+    }
+    if (paid < total && paid > 0) {
+      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+    }
+    if (paid >= total && total > 0) {
+      return <Badge className="bg-green-500">Paid</Badge>;
+    }
+    return <Badge variant="secondary">Unpaid</Badge>;
   };
 
   if (isLoading) {
-    return <div>Loading tuition data...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-pulse space-y-4 w-full">
+          <div className="h-12 bg-muted rounded" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-muted rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const monthlyPayments = payments?.filter((p) =>
-    p.occurred_at.startsWith(selectedMonth)
-  ) || [];
-
-  const totalPaid = monthlyPayments.reduce((sum, p) => sum + p.amount, 0);
+  if (!tuitionData) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">No tuition data available for this month</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Label>Month</Label>
-        <Input
-          type="month"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          className="w-48"
+      {/* Month Selector and Filters - Match Admin Finance */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            <h2 className="text-2xl font-bold">Tuition Overview</h2>
+          </div>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getMonthOptions().map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Filter Chips - Match Admin Finance */}
+        <TuitionPageFilters
+          filters={filterChips}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Status and Invoice - Match Admin Finance */}
+      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-2">
+          {getStatusBadge()}
+          {tuitionData.totalDiscount > 0 && (
+            <Badge variant="outline">Discount Applied</Badge>
+          )}
+          {tuitionData.siblingState?.status === 'assigned' && tuitionData.siblingState?.isWinner && (
+            <Badge variant="secondary" className="gap-1">
+              <Award className="h-3 w-3" />
+              Sibling {tuitionData.siblingState.percent}%
+            </Badge>
+          )}
+          {tuitionData.siblingState?.status === 'pending' && (
+            <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+              Sibling Pending
+            </Badge>
+          )}
+        </div>
+        <InvoiceDownloadButton 
+          studentId={studentId} 
+          month={selectedMonth}
+          variant="default"
+          size="sm"
+        />
+      </div>
+
+      {/* Financial Summary Cards - Match Admin Finance column order */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Projected Base</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Sessions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {tuitionData?.baseAmount?.toLocaleString("vi-VN") || "0"} ₫
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {tuitionData?.sessionCount || 0} sessions
+            <p className="text-2xl font-bold">{tuitionData.sessionCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Scheduled this month
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Discounts</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Base Tuition
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatVND(tuitionData.baseAmount)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Before discounts
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Discounts
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              -{tuitionData?.totalDiscount?.toLocaleString("vi-VN") || "0"} ₫
+              -{formatVND(tuitionData.totalDiscount)}
             </p>
-            {tuitionData?.discounts && tuitionData.discounts.length > 0 && (
+            {tuitionData.discounts && tuitionData.discounts.length > 0 && (
               <div className="mt-2 space-y-1">
-                {tuitionData.discounts.map((d: any, i: number) => (
-                  <p key={i} className="text-sm text-muted-foreground">
-                    {d.name}: -{d.amount?.toLocaleString("vi-VN")} ₫
+                {tuitionData.discounts.map((d, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    {d.name}: -{formatVND(d.amount)}
                   </p>
                 ))}
               </div>
@@ -184,116 +244,106 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Final Payable</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Payable
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {tuitionData?.totalAmount?.toLocaleString("vi-VN") || "0"} ₫
+              {formatVND(tuitionData.totalAmount)}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Due: {selectedMonth}-05
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Paid to Date</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {totalPaid.toLocaleString("vi-VN")} ₫
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Balance: {((tuitionData?.totalAmount || 0) - totalPaid).toLocaleString("vi-VN")} ₫
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Payment History</CardTitle>
-          <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">Record Payment</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Record Payment</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Amount (₫)</Label>
-                  <Input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label>Payment Method</Label>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="transfer">Bank Transfer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Payment Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {paymentDate ? format(paymentDate, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={paymentDate} onSelect={(date) => date && setPaymentDate(date)} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label>Payer Name</Label>
-                  <Input
-                    value={payerName}
-                    onChange={(e) => setPayerName(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-                <Button onClick={handleRecordPayment} disabled={recordPaymentMutation.isPending} className="w-full">
-                  {recordPaymentMutation.isPending ? "Recording..." : "Record Payment"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          {monthlyPayments.length > 0 ? (
+      {/* Payment Status - Match Admin Finance */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Recorded Pay
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600">
+              {formatVND(tuitionData.cumulativePaidAmount)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total paid to date
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Current Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${tuitionData.balance > 0 ? 'text-destructive' : tuitionData.balance < 0 ? 'text-green-600' : ''}`}>
+              {formatVND(Math.abs(tuitionData.balance))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tuitionData.balanceStatus === 'credit' && 'Credit to next month'}
+              {tuitionData.balanceStatus === 'debt' && 'Amount due'}
+              {tuitionData.balanceStatus === 'settled' && 'All settled'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {getStatusBadge()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {tuitionData.balanceMessage}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Session Details - Match Admin display */}
+      {tuitionData.sessionDetails && tuitionData.sessionDetails.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Session Details</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-2">
-              {monthlyPayments.map((payment: any) => (
-                <div key={payment.id} className="flex items-center justify-between border-b pb-2">
+              {tuitionData.sessionDetails.map((session, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">{payment.amount.toLocaleString("vi-VN")} ₫</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(payment.occurred_at), "MMM d, yyyy")} • {payment.method}
+                    <p className="font-medium">
+                      {new Date(session.date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
                     </p>
-                    {payment.memo && <p className="text-xs text-muted-foreground">{payment.memo}</p>}
+                    <p className="text-sm text-muted-foreground">
+                      Status: {session.status}
+                    </p>
                   </div>
+                  <p className="font-semibold">
+                    {formatVND(session.rate)}
+                  </p>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No payments recorded for this month</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
