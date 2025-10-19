@@ -5,9 +5,10 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
@@ -138,34 +139,22 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
-  const { data: leaderboards } = useQuery({
-    queryKey: ["student-leaderboards", studentId, currentMonth],
+  const { data: enrolledClasses } = useQuery({
+    queryKey: ["student-enrolled-classes", studentId],
     queryFn: async () => {
       if (!studentId) return [];
 
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("class_id, classes(name)")
-        .eq("student_id", studentId)
-        .is("end_date", null);
-
-      const classIds = enrollments?.map(e => e.class_id) || [];
-
-      const { data } = await supabase
-        .from("student_points")
         .select(`
           id,
           class_id,
-          total_points,
-          participation_points,
-          homework_points,
-          classes(name)
+          classes(id, name)
         `)
         .eq("student_id", studentId)
-        .in("class_id", classIds)
-        .eq("month", currentMonth);
+        .is("end_date", null);
 
-      return data || [];
+      return enrollments || [];
     },
     enabled: !!studentId,
   });
@@ -323,6 +312,31 @@ export default function StudentDashboard() {
           </Card>
         </div>
 
+        {/* Class Leaderboards - Read Only */}
+        {enrolledClasses && enrolledClasses.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Trophy className="h-6 w-6" />
+              Class Rankings
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {enrolledClasses.map((enrollment: any) => {
+                const classData = enrollment.classes;
+                
+                if (!classData?.id) {
+                  console.warn('Enrollment missing class data:', enrollment);
+                  return null;
+                }
+                
+                return (
+                  <div key={enrollment.id} className="space-y-2">
+                    <ClassLeaderboard classId={classData.id} />
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link to="/schedule">
