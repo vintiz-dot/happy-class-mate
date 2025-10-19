@@ -98,18 +98,6 @@ export function useStudentMonthFinance(
       if (error) throw error;
       if (!data) throw new Error('No tuition data returned');
 
-      // Fetch invoice record from database as source of truth for paid amounts
-      // This ensures Student Profile matches Admin Finance exactly
-      const { data: invoiceRecord } = await supabase
-        .from('invoices')
-        .select('paid_amount, recorded_payment')
-        .eq('student_id', studentId)
-        .eq('month', month)
-        .maybeSingle();
-
-      // Use invoice record as authoritative source
-      const cumulativePaidAmount = invoiceRecord?.paid_amount ?? data.payments?.cumulativePaidAmount ?? 0;
-
       // Normalize response to match Admin Finance field names
       const normalized: StudentMonthFinanceData = {
         studentId,
@@ -121,8 +109,8 @@ export function useStudentMonthFinance(
         totalAmount: data.totalAmount ?? 0,
         sessionCount: data.sessionCount ?? 0,
         
-        // Payments - use invoice.paid_amount as source of truth
-        cumulativePaidAmount,
+        // Payments - use edge function's calculation directly
+        cumulativePaidAmount: data.payments?.cumulativePaidAmount ?? 0,
         monthPayments: data.payments?.monthPayments ?? 0,
         priorPayments: data.payments?.priorPayments ?? 0,
         
