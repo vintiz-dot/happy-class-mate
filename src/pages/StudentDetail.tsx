@@ -11,6 +11,7 @@ import { StudentAccountInfo } from "@/components/student/StudentAccountInfo";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "lucide-react";
 import { useState } from "react";
 import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
@@ -41,7 +42,23 @@ const StudentDetail = () => {
         .single();
 
       if (error) throw error;
-      return data;
+
+      // If student has linked_user_id, get the user's email
+      let linkedUserEmail = null;
+      if (data?.linked_user_id) {
+        const response = await supabase.functions.invoke('manage-admin-users', {
+          body: { action: 'listUsers' }
+        });
+        
+        if (!response.error && response.data?.users) {
+          const linkedUser = response.data.users.find((u: any) => u.id === data.linked_user_id);
+          if (linkedUser) {
+            linkedUserEmail = linkedUser.email;
+          }
+        }
+      }
+
+      return { ...data, linkedUserEmail };
     },
     enabled: !!id,
   });
@@ -71,16 +88,26 @@ const StudentDetail = () => {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">{student.full_name}</h1>
-            <p className="text-muted-foreground">
-              Family: {student.family?.name || "No family"}
-              {student.linked_user_id && ` • Linked to user: ${student.linked_user_id.substring(0, 8)}...`}
-            </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-muted-foreground">
+                Family: {student.family?.name || "No family"}
+              </p>
+              {student.linked_user_id && student.linkedUserEmail && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Registered Email:</span>
+                  <span className="font-medium text-foreground">{student.linkedUserEmail}</span>
+                  <Badge variant="outline" className="text-xs">
+                    Linked
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowLinkDialog(true)}>
             <Link className="h-4 w-4 mr-2" />
-            Link User
+            {student.linked_user_id ? 'Manage Link' : 'Connect to User'}
           </Button>
         </div>
 
@@ -145,6 +172,7 @@ const StudentDetail = () => {
           studentId={student.id}
           studentName={student.full_name}
           currentUserId={student.linked_user_id}
+          currentUserEmail={student.linkedUserEmail}
         />
       </div>
     </Layout>
