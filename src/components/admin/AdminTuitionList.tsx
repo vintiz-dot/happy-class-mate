@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, DollarSign } from "lucide-react";
+import { Eye, DollarSign, ArrowUpDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { dayjs } from "@/lib/date";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AdminTuitionListProps {
   month: string;
@@ -15,6 +16,7 @@ interface AdminTuitionListProps {
 
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [activeFilter, setActiveFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"name" | "balance" | "total">("name");
   const navigate = useNavigate();
 
   const { data: tuitionData, isLoading } = useQuery({
@@ -69,28 +71,54 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     },
   });
 
-  const filteredData = useMemo(() => {
+  const filteredAndSortedData = useMemo(() => {
     if (!tuitionData) return [];
 
+    let filtered = tuitionData;
+    
+    // Apply filter
     switch (activeFilter) {
       case "discount":
-        return tuitionData.filter(t => t.hasDiscount);
+        filtered = tuitionData.filter(t => t.hasDiscount);
+        break;
       case "no-discount":
-        return tuitionData.filter(t => !t.hasDiscount);
+        filtered = tuitionData.filter(t => !t.hasDiscount);
+        break;
       case "siblings":
-        return tuitionData.filter(t => t.hasSiblings);
+        filtered = tuitionData.filter(t => t.hasSiblings);
+        break;
       case "paid":
-        return tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0);
+        break;
       case "overpaid":
-        return tuitionData.filter(t => t.paid_amount > t.total_amount);
+        filtered = tuitionData.filter(t => t.paid_amount > t.total_amount);
+        break;
       case "underpaid":
-        return tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0);
+        filtered = tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0);
+        break;
       case "settled":
-        return tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0);
+        break;
       default:
-        return tuitionData;
+        filtered = tuitionData;
     }
-  }, [tuitionData, activeFilter]);
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return ((a.students as any)?.full_name || "").localeCompare((b.students as any)?.full_name || "");
+        case "balance":
+          return Math.abs(b.balance) - Math.abs(a.balance);
+        case "total":
+          return b.total_amount - a.total_amount;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [tuitionData, activeFilter, sortBy]);
 
   const filterChips = useMemo(() => {
     if (!tuitionData) return [];
@@ -136,17 +164,34 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <TuitionPageFilters
-          filters={filterChips}
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-        />
+        <div className="space-y-3">
+          <TuitionPageFilters
+            filters={filterChips}
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+          />
+          
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Sort by:</span>
+            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="balance">Balance</SelectItem>
+                <SelectItem value="total">Total Amount</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-        {filteredData.length === 0 ? (
+        {filteredAndSortedData.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No tuition records found</p>
         ) : (
           <div className="space-y-3">
-            {filteredData.map((item) => (
+            {filteredAndSortedData.map((item) => (
               <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">

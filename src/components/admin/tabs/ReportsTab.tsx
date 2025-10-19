@@ -61,15 +61,15 @@ const ReportsTab = () => {
 
       if (classesError) throw classesError;
 
-      // For each class, calculate tuition and payroll
+      // For each class, calculate projected tuition and payroll
       const classData = await Promise.all(
         (classes || []).map(async (cls) => {
-          // Get held sessions for this class in the month
+          // Get projected sessions (Scheduled + Held, excluding Canceled)
           const { data: sessions, error: sessionsError } = await supabase
             .from("sessions")
-            .select("id, teacher_id, start_time, end_time, rate_override_vnd, teachers(hourly_rate_vnd)")
+            .select("id, teacher_id, start_time, end_time, rate_override_vnd, status, teachers(hourly_rate_vnd)")
             .eq("class_id", cls.id)
-            .eq("status", "Held")
+            .in("status", ["Scheduled", "Held"])
             .gte("date", monthStart)
             .lt("date", monthEnd);
 
@@ -89,7 +89,7 @@ const ReportsTab = () => {
           const studentCount = enrollments?.length || 0;
           const tuition = sessionCount * studentCount * cls.session_rate_vnd;
 
-          // Calculate payroll
+          // Calculate projected payroll for all sessions (Scheduled + Held)
           let payroll = 0;
           sessions?.forEach((session: any) => {
             const [startHr, startMin] = session.start_time.split(':').map(Number);
