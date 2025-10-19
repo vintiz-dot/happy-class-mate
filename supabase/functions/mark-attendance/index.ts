@@ -1,9 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const AttendanceRequestSchema = z.object({
+  sessionId: z.string().uuid("Invalid session ID"),
+  studentId: z.string().uuid("Invalid student ID"),
+  status: z.enum(['Present', 'Absent', 'Excused', 'Late']),
+  notes: z.string().max(500, "Notes too long").optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,29 +26,50 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Check if user is admin or teacher
-    const { data: roleData } = await supabase
+    const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
 
-    if (!roleData || !['admin', 'teacher'].includes(roleData.role)) {
-      throw new Error('Unauthorized: Admin or Teacher access required');
+    if (!roles?.some(r => ['admin', 'teacher'].includes(r.role))) {
+      return new Response(JSON.stringify({ error: 'Admin or teacher access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const { sessionId, studentId, status, notes } = await req.json();
+    // Input validation
+    const requestBody = await req.json();
+    const validationResult = AttendanceRequestSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input", 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { sessionId, studentId, status, notes } = validationResult.data;
 
     console.log('Marking attendance:', { sessionId, studentId, status });
 
@@ -106,9 +135,11 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error marking attendance:', error);
+    
+    // Don't expose internal errors to client
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Failed to mark attendance' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

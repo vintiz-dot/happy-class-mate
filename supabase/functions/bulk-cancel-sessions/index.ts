@@ -1,9 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const BulkCancelRequestSchema = z.object({
+  date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format").optional(),
+  date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format").optional(),
+  class_id: z.string().uuid("Invalid class ID").optional(),
+  teacher_id: z.string().uuid("Invalid teacher ID").optional(),
+  reason: z.string().max(500, "Reason too long").optional(),
+  include_held: z.boolean().optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,7 +54,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { date_from, date_to, class_id, teacher_id, reason, include_held } = await req.json();
+    // Input validation
+    const requestBody = await req.json();
+    const validationResult = BulkCancelRequestSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input", 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { date_from, date_to, class_id, teacher_id, reason, include_held } = validationResult.data;
 
     console.log('Bulk cancel request:', { date_from, date_to, class_id, teacher_id, include_held });
 
@@ -139,9 +163,11 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('Bulk cancel error:', error);
+    
+    // Don't expose internal errors to client
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: 'Failed to cancel sessions',
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

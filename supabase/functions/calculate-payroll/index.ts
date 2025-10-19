@@ -1,10 +1,16 @@
 // supabase/functions/calculate-payroll/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const PayrollRequestSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format"),
+  teacherId: z.string().uuid("Invalid teacher ID format").optional(),
+});
 
 type SessionRow = {
   id: string;
@@ -81,8 +87,55 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { month, teacherId } = await req.json();
-    if (!month) throw new Error("Missing month parameter (YYYY-MM)");
+    // Authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Authorization (admin or teacher)
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    const isAdmin = roles?.some(r => r.role === "admin");
+    const isTeacher = roles?.some(r => r.role === "teacher");
+
+    if (!isAdmin && !isTeacher) {
+      return new Response(JSON.stringify({ error: "Admin or teacher access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Input validation
+    const requestBody = await req.json();
+    const validationResult = PayrollRequestSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input", 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { month, teacherId } = validationResult.data;
     const { startDate, nextMonthStart } = monthRange(month);
 
     // Teachers
@@ -178,10 +231,17 @@ Deno.serve(async (req) => {
       status: 200,
     });
   } catch (e) {
+    console.error("Payroll calculation error:", e);
     const msg = e instanceof Error ? e.message : "Unknown error";
-    return new Response(JSON.stringify({ error: msg }), {
+    
+    // Don't expose internal errors to client
+    const safeMessage = msg.includes("month parameter") || msg.includes("Invalid") 
+      ? msg 
+      : "Failed to calculate payroll";
+    
+    return new Response(JSON.stringify({ error: safeMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
+      status: 500,
     });
   }
 });

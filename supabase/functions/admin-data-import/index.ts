@@ -1,9 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const ImportDataSchema = z.object({
+  tables: z.record(z.array(z.record(z.any()))).optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -47,7 +52,22 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const dryRun = url.searchParams.get('dryRun') === '1';
-    const importData = await req.json();
+    
+    // Input validation
+    const requestBody = await req.json();
+    const validationResult = ImportDataSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid import data structure", 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const importData = validationResult.data;
 
     const whitelist = [
       'families', 'students', 'teachers', 'classes', 'enrollments',
@@ -93,7 +113,9 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     console.error('Import error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Don't expose internal errors to client
+    return new Response(JSON.stringify({ error: 'Failed to import data' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -1,10 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const SessionActionSchema = z.object({
+  action: z.enum(['update', 'cancel', 'force-cancel', 'change-status', 'bulk-delete', 'delete', 'create']),
+  data: z.record(z.any()),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,7 +65,21 @@ Deno.serve(async (req) => {
       return rateLimitResponse(userRateCheck.resetAt, corsHeaders);
     }
 
-    const { action, data } = await req.json();
+    // Input validation
+    const requestBody = await req.json();
+    const validationResult = SessionActionSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input", 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { action, data } = validationResult.data;
 
     if (action === 'update') {
       const { id, teacher_id, rate_override_vnd, status, notes, is_manual, manual_reason } = data;
@@ -341,7 +361,9 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     console.error('Session management error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Don't expose internal errors to client
+    return new Response(JSON.stringify({ error: 'Session operation failed' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

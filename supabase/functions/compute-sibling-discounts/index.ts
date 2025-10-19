@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { acquireLock, releaseLock, ymNowBangkok } from '../_lib/lock.ts'
 import { tieHash } from '../_lib/hash.ts'
 import { projectedByFamily } from '../_lib/projected.ts'
@@ -7,6 +8,10 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const SiblingDiscountRequestSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format").optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,8 +23,52 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Authorization (admin only)
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (!roles?.some(r => r.role === 'admin')) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Input validation
     const body = await req.json().catch(() => ({}))
-    const month = body?.month ?? ymNowBangkok()
+    const validationResult = SiblingDiscountRequestSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid input', 
+        details: validationResult.error.issues 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const month = validationResult.data.month ?? ymNowBangkok()
     
     console.log('Computing sibling discounts for month:', month)
 
@@ -172,11 +221,15 @@ Deno.serve(async (req) => {
       await releaseLock(supabase, 'compute-sibling-discounts', month)
     }
   } catch (error) {
-    console.error('Error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error('Sibling discount computation error:', error)
+    
+    // Don't expose internal errors to client
+    return new Response(JSON.stringify({ 
+      error: 'Failed to compute sibling discounts',
+      success: false 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500,
     })
   }
 })
