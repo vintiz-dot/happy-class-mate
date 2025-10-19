@@ -16,7 +16,7 @@ interface AdminTuitionListProps {
 
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"name" | "balance" | "total">("name");
+  const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
   const navigate = useNavigate();
 
   const { data: tuitionData, isLoading } = useQuery({
@@ -62,11 +62,33 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         students?.filter(s => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map(s => s.id) || []
       );
 
+      // Fetch enrollments for the month to get class info
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select(`
+          student_id,
+          class_id,
+          classes(id, name)
+        `)
+        .lte("start_date", monthEnd)
+        .or(`end_date.is.null,end_date.gte.${monthStart}`);
+
+      // Map student to classes
+      const studentClasses = new Map<string, any[]>();
+      enrollments?.forEach(e => {
+        const existing = studentClasses.get(e.student_id) || [];
+        if (e.classes) {
+          existing.push(Array.isArray(e.classes) ? e.classes[0] : e.classes);
+        }
+        studentClasses.set(e.student_id, existing);
+      });
+
       return invoices?.map(inv => ({
         ...inv,
         hasDiscount: studentDiscounts.has(inv.student_id),
         hasSiblings: siblingStudents.has(inv.student_id),
         balance: inv.total_amount - inv.paid_amount,
+        classes: studentClasses.get(inv.student_id) || [],
       })) || [];
     },
   });
@@ -112,6 +134,10 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           return Math.abs(b.balance) - Math.abs(a.balance);
         case "total":
           return b.total_amount - a.total_amount;
+        case "class":
+          const aClass = (a as any).classes?.[0]?.name || "";
+          const bClass = (b as any).classes?.[0]?.name || "";
+          return aClass.localeCompare(bClass);
         default:
           return 0;
       }
@@ -180,6 +206,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="class">Class</SelectItem>
                 <SelectItem value="balance">Balance</SelectItem>
                 <SelectItem value="total">Total Amount</SelectItem>
               </SelectContent>
@@ -201,6 +228,11 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                     {item.hasSiblings && <Badge variant="outline">Sibling</Badge>}
                   </div>
                   <div className="flex gap-4 text-sm text-muted-foreground">
+                    {(item as any).classes?.length > 0 && (
+                      <span className="font-medium">
+                        {(item as any).classes.map((c: any) => c.name).join(", ")}
+                      </span>
+                    )}
                     <span>Base: {item.base_amount.toLocaleString()} ₫</span>
                     <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
                     <span>Total: {item.total_amount.toLocaleString()} ₫</span>
