@@ -55,11 +55,23 @@ export function InvoiceDownloadButton({
         .maybeSingle();
 
       if (bankError) {
-        throw new Error(`Failed to fetch bank information: ${bankError.message}`);
+        toast({
+          title: "Unable to Load Payment Information",
+          description: `Error: ${bankError.message}`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
 
       if (!bankData) {
-        throw new Error('Bank information not configured. Please contact administration to set up account information before downloading invoices.');
+        toast({
+          title: "Payment Information Required",
+          description: "Payment information not configured. Please contact administration to set up billing details.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
 
       // Group sessions by class

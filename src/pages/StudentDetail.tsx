@@ -96,12 +96,28 @@ const StudentDetail = () => {
           <TabsContent value="overview" className="space-y-6">
             <StudentOverviewTab student={student} />
             
-            {/* Use Admin ClassLeaderboard - single source of truth */}
+            {/* Class Leaderboards - using Admin's ClassLeaderboard for unified rankings */}
             {student.enrollments && student.enrollments.length > 0 && (
-              <div className="space-y-6">
-                {student.enrollments.map((enrollment: any) => (
-                  <ClassLeaderboard key={enrollment.id} classId={enrollment.class.id} />
-                ))}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Class Rankings</h2>
+                {student.enrollments.map((enrollment: any) => {
+                  // Safely extract class data - handle both array and object responses
+                  const classData = enrollment.class 
+                    ? (Array.isArray(enrollment.class) ? enrollment.class[0] : enrollment.class)
+                    : null;
+                  
+                  if (!classData?.id) {
+                    console.warn('Enrollment missing class ID:', enrollment);
+                    return null;
+                  }
+                  
+                  return (
+                    <div key={enrollment.id} className="space-y-2">
+                      <h3 className="text-lg font-semibold">{classData.name || 'Class'}</h3>
+                      <ClassLeaderboard classId={classData.id} />
+                    </div>
+                  );
+                }).filter(Boolean)}
               </div>
             )}
           </TabsContent>

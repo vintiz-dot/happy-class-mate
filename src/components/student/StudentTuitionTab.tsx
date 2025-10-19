@@ -10,6 +10,7 @@ import { Award, DollarSign } from "lucide-react";
 import { useStudentMonthFinance, formatVND, getMonthOptions } from "@/hooks/useStudentMonthFinance";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
+import { checkStudentFinanceParity } from "@/lib/dev/parityCheck";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -62,6 +63,19 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
       supabase.removeChannel(invoicesChannel);
     };
   }, [studentId, queryClient]);
+
+  // Dev-only parity check - compare Admin vs Student data
+  useEffect(() => {
+    if (import.meta.env.DEV && tuitionData) {
+      checkStudentFinanceParity(studentId, selectedMonth, {
+        cumulativePaidAmount: tuitionData.cumulativePaidAmount,
+        totalAmount: tuitionData.totalAmount,
+        baseAmount: tuitionData.baseAmount,
+        totalDiscount: tuitionData.totalDiscount,
+        balance: tuitionData.balance,
+      });
+    }
+  }, [tuitionData, studentId, selectedMonth]);
 
   // Generate filter chips with counts - match Admin Finance
   const filterChips = useMemo(() => {
