@@ -120,14 +120,19 @@ export function StudentLinkDialog({
       return data;
     },
     onSuccess: (data) => {
+      let message = "User linked successfully";
+      if (data?.siblingsLinked && data.siblingsLinked > 0) {
+        message += ` (${data.siblingsLinked} sibling${data.siblingsLinked > 1 ? 's' : ''} also linked)`;
+      }
+      
       if (data?.warning) {
         toast({ 
-          title: "User linked successfully", 
+          title: message, 
           description: data.warning,
           variant: "default"
         });
       } else {
-        toast({ title: "User linked successfully" });
+        toast({ title: message });
       }
       queryClient.invalidateQueries({ queryKey: ["student-detail"] });
       queryClient.invalidateQueries({ queryKey: ["students-list"] });

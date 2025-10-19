@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       // Get student info for audit log
       const { data: student } = await supabase
         .from('students')
-        .select('full_name, linked_user_id')
+        .select('full_name, linked_user_id, family_id')
         .eq('id', validated.studentId)
         .single();
 
@@ -80,6 +80,8 @@ Deno.serve(async (req) => {
         });
       }
 
+      const linkedUserId = student.linked_user_id;
+
       // Unlink user from student
       const { error: unlinkError } = await supabase
         .from('students')
@@ -87,6 +89,42 @@ Deno.serve(async (req) => {
         .eq('id', validated.studentId);
 
       if (unlinkError) throw unlinkError;
+
+      // Auto-unlink all siblings in the same family
+      if (student.family_id) {
+        const { data: siblings } = await supabase
+          .from('students')
+          .select('id, full_name')
+          .eq('family_id', student.family_id)
+          .eq('linked_user_id', linkedUserId)
+          .neq('id', validated.studentId);
+
+        if (siblings && siblings.length > 0) {
+          // Unlink all siblings
+          await supabase
+            .from('students')
+            .update({ linked_user_id: null })
+            .eq('family_id', student.family_id)
+            .eq('linked_user_id', linkedUserId)
+            .neq('id', validated.studentId);
+
+          // Log sibling unlinking in audit
+          for (const sibling of siblings) {
+            await supabase.from('audit_log').insert({
+              entity: 'student',
+              entity_id: sibling.id,
+              action: 'unlink_user',
+              actor_user_id: user.id,
+              diff: { 
+                old_user_id: linkedUserId,
+                student_name: sibling.full_name,
+                reason: 'auto_unlinked_sibling',
+                primary_student: student.full_name
+              }
+            });
+          }
+        }
+      }
 
       // Audit log
       await supabase.from('audit_log').insert({
@@ -172,13 +210,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Link user to student
+    // Link user to student AND all siblings in the same family
     const { error: linkError } = await supabase
       .from('students')
       .update({ linked_user_id: validated.userId })
       .eq('id', validated.studentId);
 
     if (linkError) throw linkError;
+
+    // Auto-link all siblings in the same family
+    if (student.family_id) {
+      const { data: siblings, error: siblingsError } = await supabase
+        .from('students')
+        .select('id, full_name')
+        .eq('family_id', student.family_id)
+        .neq('id', validated.studentId)
+        .eq('is_active', true);
+
+      if (!siblingsError && siblings && siblings.length > 0) {
+        // Link all siblings to the same user
+        const { error: siblingLinkError } = await supabase
+          .from('students')
+          .update({ linked_user_id: validated.userId })
+          .eq('family_id', student.family_id)
+          .neq('id', validated.studentId);
+
+        if (siblingLinkError) {
+          console.error('Failed to link siblings:', siblingLinkError);
+        } else {
+          // Log sibling linking in audit
+          for (const sibling of siblings) {
+            await supabase.from('audit_log').insert({
+              entity: 'student',
+              entity_id: sibling.id,
+              action: 'link_user',
+              actor_user_id: user.id,
+              diff: { 
+                user_id: validated.userId,
+                user_email: userEmail,
+                student_name: sibling.full_name,
+                reason: 'auto_linked_sibling',
+                primary_student: student.full_name
+              }
+            });
+          }
+        }
+      }
+    }
 
     // Ensure user has 'student' role
     const { data: existingRole } = await supabase
@@ -273,9 +351,22 @@ Deno.serve(async (req) => {
       }
     });
 
+    // Count how many siblings were linked
+    let siblingsLinked = 0;
+    if (student.family_id) {
+      const { count } = await supabase
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('family_id', student.family_id)
+        .eq('linked_user_id', validated.userId)
+        .neq('id', validated.studentId);
+      siblingsLinked = count || 0;
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
-      warning: emailWarning
+      warning: emailWarning,
+      siblingsLinked
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
