@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Edit, XCircle, Trash2 } from "lucide-react";
+import { Plus, Calendar, Edit, XCircle, Trash2, GraduationCap } from "lucide-react";
 import { AssignDiscountModal } from "./AssignDiscountModal";
 import { EditDiscountModal } from "./EditDiscountModal";
+import { EditEnrollmentDiscountModal } from "./EditEnrollmentDiscountModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
   const [endingAssignment, setEndingAssignment] = useState<string | null>(null);
   const [removingAssignment, setRemovingAssignment] = useState<string | null>(null);
   const [editingAssignment, setEditingAssignment] = useState<any | null>(null);
+  const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -50,6 +52,23 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
         `)
         .eq("student_id", studentId)
         .order("effective_from", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: enrollments, isLoading: isLoadingEnrollments } = useQuery({
+    queryKey: ["student-enrollments", studentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select(`
+          *,
+          classes:class_id(name)
+        `)
+        .eq("student_id", studentId)
+        .order("start_date", { ascending: false });
 
       if (error) throw error;
       return data;
@@ -136,22 +155,111 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Special Discounts</CardTitle>
-            <CardDescription>
-              Assigned special discounts for this student. These are separate from enrollment-level and sibling discounts.
-            </CardDescription>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            <div>
+              <CardTitle>Enrollment Discounts</CardTitle>
+              <CardDescription>
+                Discounts applied at the enrollment level for specific classes
+              </CardDescription>
+            </div>
           </div>
-          <Button onClick={() => setShowAssignModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Discount
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
+        </CardHeader>
+        <CardContent>
+          {isLoadingEnrollments ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : !enrollments || enrollments.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No enrollments found</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Enrollment Period</TableHead>
+                  <TableHead>Discount Type</TableHead>
+                  <TableHead>Discount Value</TableHead>
+                  <TableHead>Cadence</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {enrollments.map((enrollment: any) => (
+                  <TableRow key={enrollment.id}>
+                    <TableCell className="font-medium">{enrollment.classes.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3" />
+                        {enrollment.start_date}
+                        {enrollment.end_date && ` to ${enrollment.end_date}`}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_type ? (
+                        <Badge variant="secondary">
+                          {enrollment.discount_type === "percent" ? "Percentage" : "Fixed Amount"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_value ? (
+                        <span>
+                          {enrollment.discount_value}
+                          {enrollment.discount_type === "percent" ? "%" : " VND"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_cadence ? (
+                        <Badge variant="outline">
+                          {enrollment.discount_cadence === "once" ? "Per Session" : "Monthly"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingEnrollment(enrollment)}
+                        title="Edit enrollment discount"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Special Discounts</CardTitle>
+              <CardDescription>
+                Assigned special discounts for this student. These are separate from enrollment-level and sibling discounts.
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowAssignModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Discount
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
         {isLoading ? (
           <p className="text-muted-foreground">Loading...</p>
         ) : !assignments || assignments.length === 0 ? (
@@ -297,6 +405,16 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
           studentId={studentId}
         />
       )}
+
+      {editingEnrollment && (
+        <EditEnrollmentDiscountModal
+          open={!!editingEnrollment}
+          onOpenChange={(open) => !open && setEditingEnrollment(null)}
+          enrollment={editingEnrollment}
+          studentId={studentId}
+        />
+      )}
     </Card>
+    </div>
   );
 }
