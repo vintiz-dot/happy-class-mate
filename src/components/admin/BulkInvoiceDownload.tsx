@@ -3,13 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { mapUpstreamToInvoice } from "@/lib/invoice/adapter";
+import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
 import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import JSZip from "jszip";
-import html2pdf from "html2pdf.js";
+import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 
 export function BulkInvoiceDownload({ month }: { month: string }) {
   const { toast } = useToast();
@@ -17,6 +17,8 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [invoices, setInvoices] = useState<Array<{ invoice: InvoiceData; bankInfo: BankInfo }>>([]);
 
   const { data: classes } = useQuery({
     queryKey: ['classes-active'],
@@ -44,7 +46,7 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
     },
   });
 
-  const handleBulkDownload = async () => {
+  const handleLoadInvoices = async () => {
     setLoading(true);
     try {
       let studentIds: string[] = [];
@@ -84,114 +86,40 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
         return;
       }
 
-      // Fetch bank info
-      const { data: bankData, error: bankError } = await supabase
-        .from('bank_info')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+      // Fetch all invoices
+      const invoicePromises = studentIds.map(studentId => 
+        fetchInvoiceData(studentId, month)
+      );
+      
+      const results = await Promise.allSettled(invoicePromises);
+      
+      const successfulInvoices = results
+        .filter((r): r is PromiseFulfilledResult<{ invoice: InvoiceData; bankInfo: BankInfo }> => 
+          r.status === "fulfilled"
+        )
+        .map(r => r.value);
+      
+      const failedCount = results.filter(r => r.status === "rejected").length;
 
-      if (bankError) throw bankError;
-      if (!bankData) {
-        throw new Error('Bank information not configured. Please configure in Account Info.');
-      }
-
-      const zip = new JSZip();
-      const { createRoot } = await import('react-dom/client');
-
-      // Generate PDFs for each student
-      for (let i = 0; i < studentIds.length; i++) {
-        const studentId = studentIds[i];
-        
+      if (successfulInvoices.length === 0) {
         toast({
-          title: "Generating...",
-          description: `Processing invoice ${i + 1} of ${studentIds.length}`,
+          title: "No invoices generated",
+          description: "All invoice generations failed. Please check student data.",
+          variant: "destructive",
         });
-
-        const { data: studentData } = await supabase
-          .from('students')
-          .select('id, full_name, family:families(name)')
-          .eq('id', studentId)
-          .single();
-
-        if (!studentData) continue;
-
-        const { data: tuitionData } = await supabase.functions.invoke(
-          'calculate-tuition',
-          { body: { studentId, month } }
-        );
-
-        if (!tuitionData) continue;
-
-        const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
-        for (const session of tuitionData.sessionDetails || []) {
-          const className = 'Class';
-          if (!classBreakdown[className]) {
-            classBreakdown[className] = { sessions: [], total: 0 };
-          }
-          classBreakdown[className].sessions.push(session);
-          classBreakdown[className].total += session.rate || 0;
-        }
-
-        const invoice = mapUpstreamToInvoice({
-          ...tuitionData,
-          student_id: studentData.id,
-          student_name: studentData.full_name,
-          family_name: studentData.family?.name,
-          class_breakdown: Object.entries(classBreakdown).map(([name, data]) => ({
-            class_name: name,
-            sessions_count: data.sessions.length,
-            amount_vnd: data.total,
-          })),
-        });
-
-        // Create temporary container
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        container.style.width = '210mm';
-        document.body.appendChild(container);
-
-        // Render invoice
-        const root = createRoot(container);
-        await new Promise<void>((resolve) => {
-          root.render(<InvoicePrintView invoice={invoice} bankInfo={bankData} />);
-          setTimeout(resolve, 500);
-        });
-
-        // Convert to PDF
-        const opt = {
-          margin: 0,
-          filename: `invoice-${month}-${studentData.full_name.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-        };
-
-        const pdfBlob = await html2pdf().set(opt).from(container).output('blob');
-        zip.file(opt.filename, pdfBlob);
-
-        // Cleanup
-        root.unmount();
-        document.body.removeChild(container);
+        return;
       }
 
-      // Generate and download ZIP
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(zipBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoices-${month}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-
+      setInvoices(successfulInvoices);
+      setShowPreview(true);
+      
       toast({
-        title: "Download complete",
-        description: `Generated ${studentIds.length} invoice(s) in ZIP file`,
+        title: "Invoices loaded",
+        description: `${successfulInvoices.length} invoice(s) ready to print${failedCount > 0 ? `. ${failedCount} failed.` : ""}`,
       });
     } catch (error: any) {
       toast({
-        title: "Error generating invoices",
+        title: "Error loading invoices",
         description: error.message,
         variant: "destructive",
       });
@@ -200,87 +128,128 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Bulk Invoice Download</CardTitle>
-        <CardDescription>
-          Download invoices for multiple students at once
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Download Type</label>
-          <Select value={downloadType} onValueChange={(v: any) => setDownloadType(v)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Students</SelectItem>
-              <SelectItem value="class">By Class</SelectItem>
-              <SelectItem value="family">By Family</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {downloadType === "class" && (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Bulk Invoice Download</CardTitle>
+          <CardDescription>
+            Load and print multiple invoices at once
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Select Class</label>
-            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+            <label className="text-sm font-medium">Download Type</label>
+            <Select value={downloadType} onValueChange={(v: any) => setDownloadType(v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a class" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {classes?.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">All Students</SelectItem>
+                <SelectItem value="class">By Class</SelectItem>
+                <SelectItem value="family">By Family</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
 
-        {downloadType === "family" && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select Family</label>
-            <Select value={selectedFamilyId} onValueChange={setSelectedFamilyId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a family" />
-              </SelectTrigger>
-              <SelectContent>
-                {families?.map((family) => (
-                  <SelectItem key={family.id} value={family.id}>
-                    {family.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <Button
-          onClick={handleBulkDownload}
-          disabled={
-            loading ||
-            (downloadType === "class" && !selectedClassId) ||
-            (downloadType === "family" && !selectedFamilyId)
-          }
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating Invoices...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4 mr-2" />
-              Download Invoices
-            </>
+          {downloadType === "class" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Class</label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes?.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
-        </Button>
-      </CardContent>
-    </Card>
+
+          {downloadType === "family" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Family</label>
+              <Select value={selectedFamilyId} onValueChange={setSelectedFamilyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a family" />
+                </SelectTrigger>
+                <SelectContent>
+                  {families?.map((family) => (
+                    <SelectItem key={family.id} value={family.id}>
+                      {family.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <Button
+            onClick={handleLoadInvoices}
+            disabled={
+              loading ||
+              (downloadType === "class" && !selectedClassId) ||
+              (downloadType === "family" && !selectedFamilyId)
+            }
+            className="w-full"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading Invoices...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Load Invoices
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
+          <div className="flex justify-end gap-2 mb-4 no-print">
+            <Button onClick={handlePrint}>
+              Print All / Save as PDF
+            </Button>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Close
+            </Button>
+          </div>
+          
+          <div className="space-y-8">
+            {invoices.map((item, index) => (
+              <div key={index} className="page-break">
+                <InvoicePrintView invoice={item.invoice} bankInfo={item.bankInfo} />
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <style>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          .page-break {
+            page-break-after: always;
+          }
+          .page-break:last-child {
+            page-break-after: auto;
+          }
+        }
+      `}</style>
+    </>
   );
 }

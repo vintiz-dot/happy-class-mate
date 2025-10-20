@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { mapUpstreamToInvoice } from "@/lib/invoice/adapter";
+import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
 import { InvoicePrintView } from "./InvoicePrintView";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
@@ -27,80 +26,12 @@ export function InvoiceDownloadButton({
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
 
-  const fetchInvoiceData = async () => {
+  const loadInvoice = async () => {
     setLoading(true);
     try {
-      // Fetch student and family info
-      const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .select('id, full_name, family:families(name)')
-        .eq('id', studentId)
-        .single();
-
-      if (studentError) throw studentError;
-
-      // Fetch invoice projection
-      const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke(
-        'calculate-tuition',
-        { body: { studentId: studentId, month } }
-      );
-
-      if (tuitionError) throw tuitionError;
-
-      // Fetch bank info
-      const { data: bankData, error: bankError } = await supabase
-        .from('bank_info')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (bankError) {
-        toast({
-          title: "Unable to Load Payment Information",
-          description: `Error: ${bankError.message}`,
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (!bankData) {
-        toast({
-          title: "Payment Information Required",
-          description: "Payment information not configured. Please contact administration to set up billing details.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Group sessions by class
-      const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
-      
-      for (const session of tuitionData.sessionDetails || []) {
-        const className = 'Class'; // Since sessionDetails don't include class name
-        if (!classBreakdown[className]) {
-          classBreakdown[className] = { sessions: [], total: 0 };
-        }
-        classBreakdown[className].sessions.push(session);
-        classBreakdown[className].total += session.rate || 0;
-      }
-
-      // Map to invoice format
-      const invoice = mapUpstreamToInvoice({
-        ...tuitionData,
-        student_id: studentData.id,
-        student_name: studentData.full_name,
-        family_name: studentData.family?.name,
-        class_breakdown: Object.entries(classBreakdown).map(([name, data]) => ({
-          class_name: name,
-          sessions_count: data.sessions.length,
-          amount_vnd: data.total,
-        })),
-      });
-
+      const { invoice, bankInfo } = await fetchInvoiceData(studentId, month);
       setInvoiceData(invoice);
-      setBankInfo(bankData || null);
+      setBankInfo(bankInfo);
       
       toast({
         title: "Invoice Loaded",
@@ -127,7 +58,7 @@ export function InvoiceDownloadButton({
       <Button
         variant={variant}
         size={size}
-        onClick={fetchInvoiceData}
+        onClick={loadInvoice}
         disabled={loading}
       >
         {loading ? (
