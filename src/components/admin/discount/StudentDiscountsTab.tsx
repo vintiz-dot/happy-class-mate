@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, Edit, XCircle, Trash2 } from "lucide-react";
 import { AssignDiscountModal } from "./AssignDiscountModal";
+import { EditDiscountModal } from "./EditDiscountModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -34,6 +35,7 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [endingAssignment, setEndingAssignment] = useState<string | null>(null);
   const [removingAssignment, setRemovingAssignment] = useState<string | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<any | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -199,6 +201,14 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingAssignment(assignment)}
+                          title="Edit this discount"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         {isActive && (
                           <Button
                             variant="ghost"
@@ -270,6 +280,23 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingAssignment && (
+        <EditDiscountModal
+          open={!!editingAssignment}
+          onOpenChange={(open) => !open && setEditingAssignment(null)}
+          assignment={{
+            id: editingAssignment.id,
+            effective_from: editingAssignment.effective_from,
+            effective_to: editingAssignment.effective_to,
+            note: editingAssignment.note,
+            discount_definitions: {
+              name: editingAssignment.discount_def.name,
+            },
+          }}
+          studentId={studentId}
+        />
+      )}
     </Card>
   );
 }
