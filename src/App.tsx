@@ -28,6 +28,8 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentAssignments from "./pages/StudentAssignments";
 import Tuition from "./pages/Tuition";
 import TeacherProfile from "./pages/TeacherProfile";
+import StudentJournal from "./pages/StudentJournal";
+import TeacherJournal from "./pages/TeacherJournal";
 
 const queryClient = new QueryClient();
 
@@ -62,10 +64,12 @@ const App = () => (
             <Route path="/teacher/payroll" element={<TeacherPayroll />} />
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+            <Route path="/teacher/journal" element={<TeacherJournal />} />
             
             {/* Student routes */}
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/assignments" element={<StudentAssignments />} />
+            <Route path="/student/journal" element={<StudentJournal />} />
             
             {/* Shared routes */}
             <Route path="/schedule" element={<Schedule />} />

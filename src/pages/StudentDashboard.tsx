@@ -5,7 +5,7 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone, Trophy } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
@@ -338,7 +338,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Link to="/schedule">
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader>
@@ -359,6 +359,18 @@ export default function StudentDashboard() {
                   Assignments
                 </CardTitle>
                 <CardDescription>Submit and track homework</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link to="/student/journal">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Journal
+                </CardTitle>
+                <CardDescription>Write and manage entries</CardDescription>
               </CardHeader>
             </Card>
           </Link>

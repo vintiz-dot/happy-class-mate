@@ -11,6 +11,7 @@ import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
 import DataTab from "@/components/admin/tabs/DataTab";
 import GlobalCalendar from "@/components/schedule/GlobalCalendar";
+import { AdminJournalView } from "@/components/admin/AdminJournalView";
 
 const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
   const [searchParams] = useSearchParams();
@@ -36,6 +37,7 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
             <TabsTrigger value="classes">Classes</TabsTrigger>
             <TabsTrigger value="teachers">Teachers</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="journal">Journal</TabsTrigger>
             <TabsTrigger value="finance">Finance</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="account">Account Info</TabsTrigger>
@@ -57,6 +59,9 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
           </TabsContent>
           <TabsContent value="schedule" className="mt-6">
             <GlobalCalendar role="admin" />
+          </TabsContent>
+          <TabsContent value="journal" className="mt-6">
+            <AdminJournalView />
           </TabsContent>
           <TabsContent value="finance" className="mt-6">
             <FinanceTab />
