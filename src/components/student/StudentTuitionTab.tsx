@@ -21,8 +21,12 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
 
   const queryClient = useQueryClient();
 
-  // Use shared finance selector - single source of truth
+  // Fetch invoice data - same as PDF download
   const { data: tuitionData, isLoading } = useStudentMonthFinance(studentId, selectedMonth);
+  
+  // Calculate balance exactly as PDF does: totalAmount - cumulativePaidAmount
+  const displayBalance = tuitionData ? tuitionData.totalAmount - tuitionData.cumulativePaidAmount : 0;
+  const displayBalanceStatus = displayBalance > 0 ? 'debt' : displayBalance < 0 ? 'credit' : 'settled';
 
   // Real-time sync - invalidate on changes
   useEffect(() => {
@@ -295,17 +299,17 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Current Balance
+              Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${tuitionData.balance > 0 ? 'text-destructive' : tuitionData.balance < 0 ? 'text-green-600' : ''}`}>
-              {formatVND(Math.abs(tuitionData.balance))}
+            <p className={`text-2xl font-bold ${displayBalance > 0 ? 'text-destructive' : displayBalance < 0 ? 'text-green-600' : ''}`}>
+              {formatVND(Math.abs(displayBalance))}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {tuitionData.balanceStatus === 'credit' && 'Credit to next month'}
-              {tuitionData.balanceStatus === 'debt' && 'Amount due'}
-              {tuitionData.balanceStatus === 'settled' && 'All settled'}
+              {displayBalanceStatus === 'credit' && 'Overpaid - Credit'}
+              {displayBalanceStatus === 'debt' && 'Amount Due'}
+              {displayBalanceStatus === 'settled' && 'Fully Paid'}
             </p>
           </CardContent>
         </Card>
@@ -321,7 +325,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
               {getStatusBadge()}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              {tuitionData.balanceMessage}
+              {displayBalanceStatus === 'settled' ? 'All paid up' : displayBalanceStatus === 'credit' ? 'Overpaid for this month' : 'Outstanding balance'}
             </p>
           </CardContent>
         </Card>
