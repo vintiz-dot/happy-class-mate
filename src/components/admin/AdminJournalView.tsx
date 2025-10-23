@@ -16,9 +16,14 @@ interface Student {
 interface JournalEntry {
   id: string;
   title: string;
-  content: string;
+  content_rich: string;
+  type: string;
+  owner_user_id: string;
   created_at: string;
   updated_at: string;
+  student_id?: string;
+  class_id?: string;
+  is_deleted: boolean;
 }
 
 export function AdminJournalView() {

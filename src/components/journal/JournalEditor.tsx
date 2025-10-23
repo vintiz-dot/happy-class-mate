@@ -88,12 +88,15 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
       return;
     }
 
-    if (data) {
-      setTitle(data.title);
-      setContent(data.content_rich);
-      setJournalType(data.type as JournalType);
-      if (data.student_id) setSelectedStudentId(data.student_id);
-      if (data.class_id) setSelectedClassId(data.class_id);
+    if (!data) return;
+
+    const journalData = data as any;
+    if (journalData && typeof journalData === 'object' && 'title' in journalData) {
+      setTitle(journalData.title as string);
+      setContent(journalData.content_rich as string);
+      setJournalType(journalData.type as JournalType);
+      if (journalData.student_id) setSelectedStudentId(journalData.student_id);
+      if (journalData.class_id) setSelectedClassId(journalData.class_id);
     }
   };
 
@@ -157,10 +160,13 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
 
         // If collab journal, create invite for teacher
         if (journalType === "collab_student_teacher" && selectedStudentId) {
+          if (!newJournal) throw new Error("Failed to create journal");
+          
+          const journalData = newJournal as any;
           const teacherId = teachers.find(t => t.id === selectedStudentId)?.user_id;
-          if (teacherId) {
+          if (teacherId && journalData && typeof journalData === 'object' && 'id' in journalData) {
             await supabase.from("journal_members" as any).insert({
-              journal_id: newJournal.id,
+              journal_id: journalData.id,
               user_id: teacherId,
               role: "editor",
               status: "invited",

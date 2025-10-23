@@ -81,11 +81,11 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
 
       if (error) throw error;
 
-      setEntries((data || []) as JournalEntry[]);
+      setEntries((data || []) as any as JournalEntry[]);
 
       // Check ownership
       const ownershipMap: Record<string, boolean> = {};
-      ((data || []) as JournalEntry[]).forEach((entry) => {
+      ((data || []) as any as JournalEntry[]).forEach((entry) => {
         ownershipMap[entry.id] = entry.owner_user_id === user.id;
       });
       setIsOwner(ownershipMap);

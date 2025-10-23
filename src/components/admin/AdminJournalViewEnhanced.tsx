@@ -22,12 +22,14 @@ interface Class {
 interface JournalEntry {
   id: string;
   title: string;
-  content: string;
+  content_rich: string;
+  type: string;
+  owner_user_id: string;
   created_at: string;
   updated_at: string;
   student_id?: string;
   class_id?: string;
-  is_private?: boolean;
+  is_deleted: boolean;
 }
 
 export function AdminJournalViewEnhanced() {
@@ -92,9 +94,9 @@ export function AdminJournalViewEnhanced() {
   if (isCreating || editingId) {
     return (
       <JournalEditor
+        type={activeTab === "private" ? "personal" : activeTab === "student" ? "student" : "class"}
         studentId={activeTab === "student" ? selectedStudentId : undefined}
         classId={activeTab === "class" ? selectedClassId : undefined}
-        isPrivate={activeTab === "private"}
         entryId={editingId || undefined}
         onSave={handleSave}
         onCancel={() => {
@@ -197,7 +199,7 @@ export function AdminJournalViewEnhanced() {
           </div>
           <JournalList
             key={refreshKey}
-            isPrivate={true}
+            type="personal"
             onEdit={setEditingId}
             onView={setViewingEntry}
           />
