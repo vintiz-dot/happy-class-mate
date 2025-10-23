@@ -8,13 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface JournalEditorProps {
-  studentId: string;
+  studentId?: string;
+  classId?: string;
+  isPrivate?: boolean;
   entryId?: string;
   onSave?: () => void;
   onCancel?: () => void;
 }
 
-export function JournalEditor({ studentId, entryId, onSave, onCancel }: JournalEditorProps) {
+export function JournalEditor({ studentId, classId, isPrivate, entryId, onSave, onCancel }: JournalEditorProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,11 +90,20 @@ export function JournalEditor({ studentId, entryId, onSave, onCancel }: JournalE
         });
       } else {
         // Create new entry
-        const { error } = await supabase.from("journal_entries").insert({
-          student_id: studentId,
+        const insertData: any = {
           title,
           content,
-        });
+        };
+        
+        if (studentId) {
+          insertData.student_id = studentId;
+        } else if (classId) {
+          insertData.class_id = classId;
+        } else if (isPrivate) {
+          insertData.is_private = true;
+        }
+
+        const { error } = await supabase.from("journal_entries").insert(insertData);
 
         if (error) throw error;
 
@@ -116,10 +127,16 @@ export function JournalEditor({ studentId, entryId, onSave, onCancel }: JournalE
     }
   };
 
+  const getTitle = () => {
+    if (isPrivate) return "Private";
+    if (classId) return "Class";
+    return "";
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{entryId ? "Edit" : "New"} Journal Entry</CardTitle>
+        <CardTitle>{entryId ? "Edit" : "New"} {getTitle()} Journal Entry</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Input

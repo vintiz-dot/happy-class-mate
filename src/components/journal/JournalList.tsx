@@ -22,15 +22,20 @@ interface JournalEntry {
   content: string;
   created_at: string;
   updated_at: string;
+  student_id?: string;
+  class_id?: string;
+  is_private?: boolean;
 }
 
 interface JournalListProps {
-  studentId: string;
+  studentId?: string;
+  classId?: string;
+  isPrivate?: boolean;
   onEdit?: (entryId: string) => void;
   onView?: (entry: JournalEntry) => void;
 }
 
-export function JournalList({ studentId, onEdit, onView }: JournalListProps) {
+export function JournalList({ studentId, classId, isPrivate, onEdit, onView }: JournalListProps) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -38,15 +43,22 @@ export function JournalList({ studentId, onEdit, onView }: JournalListProps) {
 
   useEffect(() => {
     loadEntries();
-  }, [studentId]);
+  }, [studentId, classId, isPrivate]);
 
   const loadEntries = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .select("*")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false });
+    
+    let query = supabase.from("journal_entries").select("*");
+    
+    if (studentId) {
+      query = query.eq("student_id", studentId);
+    } else if (classId) {
+      query = query.eq("class_id", classId);
+    } else if (isPrivate) {
+      query = query.eq("is_private", true);
+    }
+    
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       toast({

@@ -1,5 +1,5 @@
 import Layout from "@/components/Layout";
-import { TeacherJournalView } from "@/components/teacher/TeacherJournalView";
+import { TeacherJournalViewEnhanced } from "@/components/teacher/TeacherJournalViewEnhanced";
 
 export default function TeacherJournal() {
   return (
@@ -9,7 +9,7 @@ export default function TeacherJournal() {
           <h1 className="text-3xl font-bold tracking-tight">Student Journals</h1>
           <p className="text-muted-foreground">View and manage student journal entries</p>
         </div>
-        <TeacherJournalView />
+        <TeacherJournalViewEnhanced />
       </div>
     </Layout>
   );

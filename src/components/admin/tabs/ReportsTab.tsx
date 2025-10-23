@@ -7,6 +7,7 @@ import { useState } from "react";
 import { monthKey } from "@/lib/date";
 import { formatVND } from "@/lib/invoice/formatter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PaymentDetailsTable } from "./PaymentDetailsTable";
 
 const ReportsTab = () => {
   const [selectedMonth, setSelectedMonth] = useState(monthKey());
@@ -169,6 +170,22 @@ const ReportsTab = () => {
         </CardHeader>
         <CardContent>
           <div className="text-4xl font-bold text-destructive">{totalCancelled}</div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Payment Details
+          </CardTitle>
+          <CardDescription>
+            All payments recorded for {getMonthOptions().find(o => o.value === selectedMonth)?.label}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PaymentDetailsTable selectedMonth={selectedMonth} />
         </CardContent>
       </Card>
 

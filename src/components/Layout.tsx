@@ -14,7 +14,8 @@ import {
   Wallet,
   LayoutDashboard,
   FileText,
-  ClipboardList
+  ClipboardList,
+  BookMarked
 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
@@ -48,6 +49,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
           { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
           { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
+          { icon: BookMarked, label: "Journal", path: "/teacher/journal" },
         ];
       case "family":
         return [
@@ -61,6 +63,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: Calendar, label: "Schedule", path: "/schedule" },
           { icon: Receipt, label: "Tuition", path: "/tuition" },
           { icon: FileText, label: "Assignments", path: "/student/assignments" },
+          { icon: BookMarked, label: "Journal", path: "/student/journal" },
         ];
       default:
         return [];
