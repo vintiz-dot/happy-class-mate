@@ -307,7 +307,10 @@ export default function TeacherAssignments() {
                 </CardHeader>
                 {assignment.body && (
                   <CardContent>
-                    <p className="text-sm whitespace-pre-wrap">{assignment.body}</p>
+                    <div 
+                      className="text-sm prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: assignment.body }}
+                    />
                     {assignment.homework_files?.length > 0 && (
                       <div className="mt-4 space-y-1">
                         <p className="text-sm font-medium">Attachments:</p>

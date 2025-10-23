@@ -86,9 +86,10 @@ export default function HomeworkDetailDialog({ homework, studentId, onClose }: H
           {homework.body && (
             <div>
               <h3 className="font-semibold mb-2">Assignment Description</h3>
-              <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-lg">
-                {homework.body}
-              </p>
+              <div 
+                className="text-sm prose prose-sm max-w-none bg-muted p-3 rounded-lg"
+                dangerouslySetInnerHTML={{ __html: homework.body }}
+              />
             </div>
           )}
 

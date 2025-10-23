@@ -111,7 +111,12 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{assignment.body}</p>
+              {assignment.body && (
+                <div 
+                  className="text-sm text-muted-foreground prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: assignment.body }}
+                />
+              )}
               
               <CollapsibleTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full">
