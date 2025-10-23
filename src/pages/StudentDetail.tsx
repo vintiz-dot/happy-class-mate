@@ -9,6 +9,7 @@ import { StudentAttendanceTab } from "@/components/student/StudentAttendanceTab"
 import { StudentDiscountsTab } from "@/components/admin/discount/StudentDiscountsTab";
 import { StudentAccountInfo } from "@/components/student/StudentAccountInfo";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { StudentEnrollmentsTab } from "@/components/student/StudentEnrollmentsTab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,7 @@ const StudentDetail = () => {
         <Tabs defaultValue="overview" className="w-full">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
             <TabsTrigger value="tuition">Tuition</TabsTrigger>
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
@@ -147,6 +149,10 @@ const StudentDetail = () => {
                 }).filter(Boolean)}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="enrollments" className="space-y-6">
+            <StudentEnrollmentsTab studentId={student.id} />
           </TabsContent>
 
           <TabsContent value="tuition" className="space-y-6">
