@@ -6,6 +6,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { StudentProfileProvider } from "./contexts/StudentProfileContext";
 import ProfilePicker from "./components/ProfilePicker";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { StartupGuard } from "./components/StartupGuard";
+import { useNetworkStatus } from "./hooks/useNetworkStatus";
+import { OfflineFallback } from "./components/OfflineFallback";
+import { Suspense } from "react";
+import { AppLoader } from "./components/AppLoader";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -31,20 +37,35 @@ import TeacherProfile from "./pages/TeacherProfile";
 import StudentJournal from "./pages/StudentJournal";
 import TeacherJournal from "./pages/TeacherJournal";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+function AppContent() {
+  const { isOnline } = useNetworkStatus();
+
+  if (!isOnline) {
+    return <OfflineFallback />;
+  }
+
+  return (
     <StudentProfileProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <ProfilePicker />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+          <StartupGuard>
+            <Suspense fallback={<AppLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<Dashboard />} />
             
             {/* Admin-only routes */}
             <Route path="/students" element={<ProtectedRoute allowedRole="admin"><Students /></ProtectedRoute>} />
@@ -78,10 +99,20 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </StudentProfileProvider>
-  </QueryClientProvider>
+        </Suspense>
+      </StartupGuard>
+    </BrowserRouter>
+  </TooltipProvider>
+</StudentProfileProvider>
+  );
+}
+
+const App = () => (
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -25,6 +25,20 @@ export function useAuth() {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Handle token expiry or revocation
+        if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
+          if (event === "SIGNED_OUT") {
+            setAuthState({
+              user: null,
+              session: null,
+              role: null,
+              loading: false,
+            });
+            navigate("/auth");
+            return;
+          }
+        }
+
         setAuthState(prev => ({
           ...prev,
           session,
@@ -88,8 +102,29 @@ export function useAuth() {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Listen for page visibility changes to revalidate session
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setAuthState({
+            user: null,
+            session: null,
+            role: null,
+            loading: false,
+          });
+          navigate("/auth");
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [navigate]);
 
   const signOut = async () => {
     await supabase.auth.signOut();

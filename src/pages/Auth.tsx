@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { GraduationCap } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type AuthMode = "login" | "signup" | "forgot";
 type UserRole = "admin" | "teacher" | "family" | "student";
@@ -24,7 +25,17 @@ const Auth = () => {
   const [checkingAdmins, setCheckingAdmins] = useState(true);
   const [bootstrapping, setBootstrapping] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const location = useLocation();
+  const { user } = useAuth();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user) {
+      const state = location.state as { redirectTo?: string } | null;
+      const redirectTo = state?.redirectTo || "/dashboard";
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, navigate, location]);
 
   const checkForAdmins = async () => {
     try {
@@ -57,10 +68,7 @@ const Auth = () => {
         throw new Error(data.error);
       }
 
-      toast({
-        title: "Bootstrap successful!",
-        description: "First admin created: test@admin.com / abcabc!",
-      });
+      toast.success("Bootstrap successful! First admin created: test@admin.com / abcabc!");
 
       // Auto-login with the new admin credentials
       const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -72,13 +80,11 @@ const Auth = () => {
 
       // Hide bootstrap button and navigate
       setShowBootstrap(false);
-      navigate("/");
+      const state = location.state as { redirectTo?: string } | null;
+      const redirectTo = state?.redirectTo || "/dashboard";
+      navigate(redirectTo);
     } catch (error: any) {
-      toast({
-        title: "Bootstrap failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error("Bootstrap failed: " + error.message);
     } finally {
       setBootstrapping(false);
     }
@@ -101,11 +107,11 @@ const Auth = () => {
 
         if (error) throw error;
 
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-        });
-        navigate("/");
+        toast.success("Login successful! Welcome back!");
+        
+        const state = location.state as { redirectTo?: string } | null;
+        const redirectTo = state?.redirectTo || "/dashboard";
+        navigate(redirectTo);
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/`,
@@ -113,10 +119,7 @@ const Auth = () => {
 
         if (error) throw error;
 
-        toast({
-          title: "Reset email sent",
-          description: "Check your email for a password reset link",
-        });
+        toast.success("Reset email sent! Check your email for a password reset link.");
         setMode("login");
       } else {
         const redirectUrl = `${window.location.origin}/`;
@@ -134,18 +137,14 @@ const Auth = () => {
 
         if (error) throw error;
 
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created!",
-        });
-        navigate("/");
+        toast.success("Registration successful! Your account has been created.");
+        
+        const state = location.state as { redirectTo?: string } | null;
+        const redirectTo = state?.redirectTo || "/dashboard";
+        navigate(redirectTo);
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
