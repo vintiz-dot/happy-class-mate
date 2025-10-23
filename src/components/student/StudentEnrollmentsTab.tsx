@@ -14,24 +14,8 @@ interface StudentEnrollmentsTabProps {
 }
 
 export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [modifyingEnrollment, setModifyingEnrollment] = useState<any>(null);
-
-  const { data: userRole } = useQuery({
-    queryKey: ["user-role", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.role;
-    },
-    enabled: !!user?.id,
-  });
 
   const { data: enrollments, refetch } = useQuery({
     queryKey: ["student-enrollments", studentId],
@@ -68,7 +52,7 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
     },
   });
 
-  const isAdmin = userRole === "admin";
+  const isAdmin = role === "admin";
 
   return (
     <div className="space-y-6">
