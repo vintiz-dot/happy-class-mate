@@ -4,9 +4,11 @@ import { format } from "date-fns";
 interface JournalEntry {
   id: string;
   title: string;
-  content: string;
+  content_rich: string;
+  type: string;
   created_at: string;
   updated_at: string;
+  owner_user_id: string;
 }
 
 interface JournalViewerProps {
@@ -29,7 +31,7 @@ export function JournalViewer({ entry, onClose }: JournalViewerProps) {
         </DialogHeader>
         <div
           className="prose prose-sm max-w-none mt-4"
-          dangerouslySetInnerHTML={{ __html: entry.content }}
+          dangerouslySetInnerHTML={{ __html: entry.content_rich }}
         />
       </DialogContent>
     </Dialog>

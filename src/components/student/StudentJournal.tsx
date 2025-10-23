@@ -12,9 +12,11 @@ interface StudentJournalProps {
 interface JournalEntry {
   id: string;
   title: string;
-  content: string;
+  content_rich: string;
+  type: string;
   created_at: string;
   updated_at: string;
+  owner_user_id: string;
 }
 
 export function StudentJournal({ studentId }: StudentJournalProps) {
@@ -32,7 +34,7 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
   if (isCreating || editingId) {
     return (
       <JournalEditor
-        studentId={studentId}
+        type={isCreating ? "personal" : undefined}
         entryId={editingId || undefined}
         onSave={handleSave}
         onCancel={() => {
@@ -54,7 +56,6 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
       </div>
       <JournalList
         key={refreshKey}
-        studentId={studentId}
         onEdit={setEditingId}
         onView={setViewingEntry}
       />
