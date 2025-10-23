@@ -701,6 +701,44 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_audit: {
+        Row: {
+          action: Database["public"]["Enums"]["journal_action"]
+          actor_user_id: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          journal_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["journal_action"]
+          actor_user_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          journal_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["journal_action"]
+          actor_user_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          journal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_audit_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           class_id: string | null
@@ -745,6 +783,98 @@ export type Database = {
           },
           {
             foreignKeyName: "journal_entries_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_members: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          invited_at: string
+          journal_id: string
+          role: Database["public"]["Enums"]["journal_member_role"]
+          status: Database["public"]["Enums"]["journal_member_status"]
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          journal_id: string
+          role?: Database["public"]["Enums"]["journal_member_role"]
+          status?: Database["public"]["Enums"]["journal_member_status"]
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          journal_id?: string
+          role?: Database["public"]["Enums"]["journal_member_role"]
+          status?: Database["public"]["Enums"]["journal_member_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_members_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journals: {
+        Row: {
+          class_id: string | null
+          content_rich: string | null
+          created_at: string
+          id: string
+          is_deleted: boolean
+          owner_user_id: string
+          student_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["journal_type"]
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          content_rich?: string | null
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          owner_user_id: string
+          student_id?: string | null
+          title: string
+          type: Database["public"]["Enums"]["journal_type"]
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          content_rich?: string | null
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          owner_user_id?: string
+          student_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["journal_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journals_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journals_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
@@ -1458,6 +1588,16 @@ export type Database = {
       discount_cadence: "once" | "monthly"
       discount_type: "percent" | "amount"
       invoice_status: "draft" | "issued" | "paid" | "partial" | "credit"
+      journal_action:
+        | "create"
+        | "invite"
+        | "accept"
+        | "update"
+        | "leave"
+        | "delete"
+      journal_member_role: "owner" | "editor" | "viewer"
+      journal_member_status: "active" | "invited"
+      journal_type: "personal" | "student" | "class" | "collab_student_teacher"
       session_status: "Scheduled" | "Held" | "Canceled"
     }
     CompositeTypes: {
@@ -1591,6 +1731,17 @@ export const Constants = {
       discount_cadence: ["once", "monthly"],
       discount_type: ["percent", "amount"],
       invoice_status: ["draft", "issued", "paid", "partial", "credit"],
+      journal_action: [
+        "create",
+        "invite",
+        "accept",
+        "update",
+        "leave",
+        "delete",
+      ],
+      journal_member_role: ["owner", "editor", "viewer"],
+      journal_member_status: ["active", "invited"],
+      journal_type: ["personal", "student", "class", "collab_student_teacher"],
       session_status: ["Scheduled", "Held", "Canceled"],
     },
   },
