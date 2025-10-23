@@ -117,9 +117,8 @@ Deno.serve(async (req) => {
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
       const rate = Number(classData?.session_rate_vnd ?? 0);
-      // Only count if attendance exists and is billable OR session held without explicit attendance (default Present policy)
-      const billable =
-        att === "Present" || att === "Absent" || (s.status === "Held" && (att === undefined || att === null));
+      // Only bill sessions with explicit Present or Absent attendance
+      const billable = att === "Present" || att === "Absent";
 
       if (billable && rate > 0) {
         baseAmount += rate;
