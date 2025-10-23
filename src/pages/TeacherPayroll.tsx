@@ -217,7 +217,7 @@ export default function TeacherPayroll() {
           </Button>
         </div>
 
-        {payrollData?.sessions.length === 0 ? (
+        {(payrollData?.sessions || []).length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
@@ -274,7 +274,7 @@ export default function TeacherPayroll() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {payrollData?.sessions.length === 0 ? (
+                {(payrollData?.sessions || []).length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">
                     No sessions this month
                   </p>
