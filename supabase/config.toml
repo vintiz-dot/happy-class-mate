@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.link-student-user]
 verify_jwt = true
+
+[functions.mark-attendance]
+verify_jwt = true

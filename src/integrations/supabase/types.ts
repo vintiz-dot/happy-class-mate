@@ -1006,6 +1006,54 @@ export type Database = {
           },
         ]
       }
+      pause_windows: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          from_date: string
+          id: string
+          memo: string | null
+          student_id: string
+          to_date: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          from_date: string
+          id?: string
+          memo?: string | null
+          student_id: string
+          to_date: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          from_date?: string
+          id?: string
+          memo?: string | null
+          student_id?: string
+          to_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pause_windows_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pause_windows_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1552,6 +1600,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      end_enrollment: {
+        Args: { p_class_id: string; p_end_date: string; p_student_id: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1575,7 +1627,26 @@ export type Database = {
         Args: { class_id: string; user_id: string }
         Returns: boolean
       }
+      modify_enrollment_transfer: {
+        Args: {
+          p_effective_date: string
+          p_new_class_id: string
+          p_old_class_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       normalize_session_statuses: { Args: { p_month: string }; Returns: Json }
+      pause_enrollment: {
+        Args: {
+          p_class_id: string
+          p_from_date: string
+          p_memo?: string
+          p_student_id: string
+          p_to_date: string
+        }
+        Returns: Json
+      }
       post_sibling_retro_credit: {
         Args: {
           p_amount: number

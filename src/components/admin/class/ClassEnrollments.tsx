@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, Settings } from "lucide-react";
+import { ModifyEnrollmentModal } from "../ModifyEnrollmentModal";
 
-const EnrollmentRow = ({ enrollment, onUpdate }: any) => {
+const EnrollmentRow = ({ enrollment, onUpdate, onModify }: any) => {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(enrollment.start_date);
   const [saving, setSaving] = useState(false);
@@ -47,7 +48,17 @@ const EnrollmentRow = ({ enrollment, onUpdate }: any) => {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            onClick={() => onModify(enrollment)}
+            title="Modify enrollment"
+          >
+            <Settings className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
             onClick={() => setEditing(true)}
+            title="Edit start date"
           >
             <Pencil className="h-3 w-3" />
           </Button>
@@ -96,6 +107,7 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
   const [selected, setSelected] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [enrolling, setEnrolling] = useState(false);
+  const [modifyingEnrollment, setModifyingEnrollment] = useState<any>(null);
 
   const { data: enrollments, refetch: refetchEnrollments } = useQuery({
     queryKey: ["class-enrollments", classId],
@@ -104,7 +116,8 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
         .from("enrollments")
         .select(`
           *,
-          students(id, full_name)
+          students(id, full_name),
+          classes(name)
         `)
         .eq("class_id", classId)
         .is("end_date", null)
@@ -186,6 +199,7 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
                 key={enrollment.id}
                 enrollment={enrollment}
                 onUpdate={refetchEnrollments}
+                onModify={setModifyingEnrollment}
               />
             ))}
             {!enrollments?.length && (
@@ -194,6 +208,16 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* ... keep existing code (bulk enroll card) */}
+
+      {modifyingEnrollment && (
+        <ModifyEnrollmentModal
+          open={!!modifyingEnrollment}
+          onOpenChange={(open) => !open && setModifyingEnrollment(null)}
+          enrollment={modifyingEnrollment}
+        />
+      )}
 
       <Card>
         <CardHeader>

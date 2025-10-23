@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { FileText, Upload } from "lucide-react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const ClassHomework = ({ classId }: { classId: string }) => {
   const [title, setTitle] = useState("");
@@ -126,11 +127,20 @@ const ClassHomework = ({ classId }: { classId: string }) => {
 
           <div className="space-y-2">
             <Label>Notes</Label>
-            <Textarea
+            <ReactQuill
+              theme="snow"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               placeholder="Optional instructions or notes..."
-              rows={4}
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, 3, false] }],
+                  ["bold", "italic", "underline", "strike"],
+                  [{ list: "ordered" }, { list: "bullet" }],
+                  ["link", "image"],
+                  ["clean"],
+                ],
+              }}
             />
           </div>
 
@@ -159,7 +169,10 @@ const ClassHomework = ({ classId }: { classId: string }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               {hw.body && (
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground">{hw.body}</p>
+                <div 
+                  className="text-sm text-muted-foreground prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: hw.body }}
+                />
               )}
 
               {hw.homework_files && hw.homework_files.length > 0 && (
