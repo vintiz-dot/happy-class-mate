@@ -85,8 +85,8 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
               <p className="text-muted-foreground text-center py-8">No active enrollments</p>
             ) : (
               enrollments?.filter(e => !e.end_date).map((enrollment) => (
-                <div key={enrollment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-1">
+                <div key={enrollment.id} className="flex items-center justify-between p-4 border rounded-lg gap-4">
+                  <div className="space-y-1 flex-1">
                     <p className="font-medium">{enrollment.classes.name}</p>
                     <div className="flex gap-2 text-sm text-muted-foreground">
                       <span>Started: {format(new Date(enrollment.start_date), "MMM dd, yyyy")}</span>
@@ -103,6 +103,7 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
                       variant="outline"
                       size="sm"
                       onClick={() => setModifyingEnrollment(enrollment)}
+                      className="shrink-0"
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Modify
