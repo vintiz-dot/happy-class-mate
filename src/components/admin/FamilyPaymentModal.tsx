@@ -23,6 +23,11 @@ interface Student {
   id: string;
   full_name: string;
   family_id: string;
+  enrollments?: Array<{
+    classes: {
+      name: string;
+    };
+  }>;
 }
 
 interface Invoice {
@@ -70,7 +75,14 @@ export function FamilyPaymentModal({ open, onClose }: FamilyPaymentModalProps) {
   const loadStudents = async () => {
     const { data } = await supabase
       .from("students")
-      .select("id, full_name, family_id")
+      .select(`
+        id, 
+        full_name, 
+        family_id,
+        enrollments(
+          classes(name)
+        )
+      `)
       .eq("is_active", true)
       .order("full_name");
     
@@ -86,7 +98,14 @@ export function FamilyPaymentModal({ open, onClose }: FamilyPaymentModalProps) {
     // Load siblings
     const { data: siblingsData } = await supabase
       .from("students")
-      .select("id, full_name, family_id")
+      .select(`
+        id, 
+        full_name, 
+        family_id,
+        enrollments(
+          classes(name)
+        )
+      `)
       .eq("family_id", selectedStudent.family_id)
       .eq("is_active", true)
       .order("full_name");
@@ -273,9 +292,10 @@ export function FamilyPaymentModal({ open, onClose }: FamilyPaymentModalProps) {
                 <div className="border rounded-lg p-4 space-y-2">
                   {siblings.map((sibling) => {
                     const balance = getStudentBalance(sibling.id);
+                    const classes = sibling.enrollments?.map(e => e.classes.name).join(", ") || "—";
                     return (
                       <div key={sibling.id} className="flex items-center justify-between p-2 hover:bg-muted rounded">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3 flex-1">
                           <Checkbox
                             id={`sibling-${sibling.id}`}
                             checked={selectedSiblings.has(sibling.id)}
@@ -289,9 +309,12 @@ export function FamilyPaymentModal({ open, onClose }: FamilyPaymentModalProps) {
                               setSelectedSiblings(newSet);
                             }}
                           />
-                          <label htmlFor={`sibling-${sibling.id}`} className="cursor-pointer font-medium">
-                            {sibling.full_name}
-                          </label>
+                          <div className="flex flex-col flex-1">
+                            <label htmlFor={`sibling-${sibling.id}`} className="cursor-pointer font-medium">
+                              {sibling.full_name}
+                            </label>
+                            <span className="text-xs text-muted-foreground">{classes}</span>
+                          </div>
                         </div>
                         <Badge variant={balance > 0 ? "destructive" : "secondary"}>
                           {balance > 0 ? "+" : ""}{balance.toLocaleString()} ₫

@@ -18,6 +18,15 @@ import { FamilyPaymentModal } from "./FamilyPaymentModal";
 interface Student {
   id: string;
   full_name: string;
+  enrollments?: Array<{
+    classes: {
+      name: string;
+    };
+  }>;
+}
+
+interface StudentWithBalance extends Student {
+  payableBalance?: number;
 }
 
 interface Payment {
@@ -40,7 +49,7 @@ interface PaymentRow {
 }
 
 export function PaymentManager() {
-  const [students, setStudents] = useState<Student[]>([]);
+  const [students, setStudents] = useState<StudentWithBalance[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentRows, setPaymentRows] = useState<PaymentRow[]>([
     { tempId: crypto.randomUUID(), studentId: "", amount: "", method: "cash", occurredAt: format(new Date(), "yyyy-MM-dd"), memo: "" }
@@ -49,26 +58,61 @@ export function PaymentManager() {
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [modifyingPayment, setModifyingPayment] = useState<Payment | null>(null);
   const [familyPaymentOpen, setFamilyPaymentOpen] = useState(false);
+  const [paymentLimit, setPaymentLimit] = useState(20);
+  const [hasMorePayments, setHasMorePayments] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [paymentLimit]);
 
   const loadData = async () => {
     try {
       const [studentsRes, paymentsRes] = await Promise.all([
-        supabase.from("students").select("id, full_name").eq("is_active", true),
+        supabase
+          .from("students")
+          .select(`
+            id, 
+            full_name,
+            enrollments(
+              classes(name)
+            )
+          `)
+          .eq("is_active", true),
         supabase
           .from("payments" as any)
           .select("*, students(full_name)")
           .order("occurred_at", { ascending: false })
-          .limit(20),
+          .limit(paymentLimit + 1),
       ]);
 
-      if (studentsRes.data) setStudents(studentsRes.data);
-      if (paymentsRes.data) setPayments(paymentsRes.data as any);
+      if (studentsRes.data) {
+        // Fetch balances for all students
+        const studentsWithBalances = await Promise.all(
+          studentsRes.data.map(async (student) => {
+            try {
+              const currentMonth = format(new Date(), "yyyy-MM");
+              const { data: financeData } = await supabase.functions.invoke('calculate-tuition', {
+                body: { studentId: student.id, month: currentMonth }
+              });
+              
+              return {
+                ...student,
+                payableBalance: financeData?.balance || 0
+              };
+            } catch {
+              return { ...student, payableBalance: 0 };
+            }
+          })
+        );
+        setStudents(studentsWithBalances);
+      }
+      
+      if (paymentsRes.data) {
+        setHasMorePayments(paymentsRes.data.length > paymentLimit);
+        setPayments(paymentsRes.data.slice(0, paymentLimit) as any);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -233,25 +277,48 @@ export function PaymentManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paymentRows.map((row) => (
-                  <TableRow key={row.tempId}>
-                    <TableCell>
-                      <Select 
-                        value={row.studentId} 
-                        onValueChange={(v) => updatePaymentRow(row.tempId, "studentId", v)}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students.map((student) => (
-                            <SelectItem key={student.id} value={student.id}>
-                              {student.full_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
+                {paymentRows.map((row) => {
+                  const selectedStudent = students.find(s => s.id === row.studentId);
+                  const classes = selectedStudent?.enrollments?.map(e => e.classes.name).join(", ") || "—";
+                  const balance = selectedStudent?.payableBalance || 0;
+                  
+                  return (
+                    <TableRow key={row.tempId}>
+                      <TableCell>
+                        <Select 
+                          value={row.studentId} 
+                          onValueChange={(v) => updatePaymentRow(row.tempId, "studentId", v)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {students.map((student) => {
+                              const studentClasses = student.enrollments?.map(e => e.classes.name).join(", ") || "—";
+                              const studentBalance = student.payableBalance || 0;
+                              return (
+                                <SelectItem key={student.id} value={student.id}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{student.full_name}</span>
+                                    <span className="text-xs text-muted-foreground">{studentClasses}</span>
+                                    <span className={`text-xs ${studentBalance > 0 ? 'text-destructive' : studentBalance < 0 ? 'text-success' : 'text-muted-foreground'}`}>
+                                      Balance: {studentBalance.toLocaleString('vi-VN')} ₫
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        {selectedStudent && (
+                          <div className="text-xs mt-1 space-y-0.5">
+                            <div className="text-muted-foreground">{classes}</div>
+                            <div className={balance > 0 ? 'text-destructive font-medium' : balance < 0 ? 'text-success font-medium' : 'text-muted-foreground'}>
+                              Balance: {balance.toLocaleString('vi-VN')} ₫
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -301,8 +368,9 @@ export function PaymentManager() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -322,51 +390,62 @@ export function PaymentManager() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Payments</CardTitle>
-          <CardDescription>Last 20 payments received</CardDescription>
+          <CardDescription>Showing {payments.length} recent payments</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {payments.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No payments recorded</p>
             ) : (
-              payments.map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-1 flex-1">
-                    <p className="font-medium">{payment.students.full_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(payment.occurred_at), "MMM d, yyyy")} • {payment.method}
-                    </p>
-                    {payment.memo && (
-                      <p className="text-sm text-muted-foreground italic">{payment.memo}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-lg font-semibold text-success">
-                      {payment.amount.toLocaleString('vi-VN')} ₫
-                    </p>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setModifyingPayment(payment)}
-                        className="h-8 w-8"
-                        title="Modify Payment"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeletePaymentId(payment.id)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        title="Delete Payment"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              <>
+                {payments.map((payment) => (
+                  <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1 flex-1">
+                      <p className="font-medium">{payment.students.full_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(payment.occurred_at), "MMM d, yyyy")} • {payment.method}
+                      </p>
+                      {payment.memo && (
+                        <p className="text-sm text-muted-foreground italic">{payment.memo}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-lg font-semibold text-success">
+                        {payment.amount.toLocaleString('vi-VN')} ₫
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setModifyingPayment(payment)}
+                          className="h-8 w-8"
+                          title="Modify Payment"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletePaymentId(payment.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          title="Delete Payment"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {hasMorePayments && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setPaymentLimit(prev => prev + 20)}
+                    className="w-full"
+                  >
+                    Load More
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </CardContent>
