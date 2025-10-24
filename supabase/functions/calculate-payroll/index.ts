@@ -18,6 +18,8 @@ type SessionRow = {
   start_time: string | null; // "HH:MM" or "HH:MM:SS"
   end_time: string | null; // "HH:MM" or "HH:MM:SS"
   status?: string;
+  class_id?: string;
+  classes?: { name: string };
 };
 
 function monthRange(month: string) {
@@ -45,6 +47,9 @@ function computeTotals(sessions: SessionRow[], hourlyRateVnd: number) {
     date: string;
     start_time: string | null;
     end_time: string | null;
+    status?: string;
+    class_id?: string;
+    classes?: { name: string };
     minutes: number;
     amount: number;
   }> = [];
@@ -66,6 +71,9 @@ function computeTotals(sessions: SessionRow[], hourlyRateVnd: number) {
       date: s.date,
       start_time: s.start_time,
       end_time: s.end_time,
+      status: s.status,
+      class_id: s.class_id,
+      classes: s.classes,
       minutes,
       amount,
     });
@@ -166,7 +174,7 @@ Deno.serve(async (req) => {
       // Actual = Held only
       const { data: held, error: heldErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time, status")
+        .select("id, date, start_time, end_time, status, class_id, classes(name)")
         .eq("teacher_id", t.id)
         .eq("status", "Held")
         .gte("date", startDate)
@@ -177,7 +185,7 @@ Deno.serve(async (req) => {
       // Projected = Held + Scheduled (exclude Canceled)
       const { data: projected, error: projErr } = await supabase
         .from("sessions")
-        .select("id, date, start_time, end_time, status")
+        .select("id, date, start_time, end_time, status, class_id, classes(name)")
         .eq("teacher_id", t.id)
         .in("status", ["Held", "Scheduled"])
         .gte("date", startDate)
