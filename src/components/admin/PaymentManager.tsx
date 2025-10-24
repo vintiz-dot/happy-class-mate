@@ -272,6 +272,7 @@ export function PaymentManager() {
                   <TableHead className="w-[140px]">Amount (VND)</TableHead>
                   <TableHead className="w-[120px]">Method</TableHead>
                   <TableHead className="w-[140px]">Date</TableHead>
+                  <TableHead className="w-[140px]">Payable Balance</TableHead>
                   <TableHead>Memo</TableHead>
                   <TableHead className="w-[60px]"></TableHead>
                 </TableRow>
@@ -295,29 +296,17 @@ export function PaymentManager() {
                           <SelectContent>
                             {students.map((student) => {
                               const studentClasses = student.enrollments?.map(e => e.classes.name).join(", ") || "—";
-                              const studentBalance = student.payableBalance || 0;
                               return (
                                 <SelectItem key={student.id} value={student.id}>
                                   <div className="flex flex-col">
                                     <span className="font-medium">{student.full_name}</span>
                                     <span className="text-xs text-muted-foreground">{studentClasses}</span>
-                                    <span className={`text-xs ${studentBalance > 0 ? 'text-destructive' : studentBalance < 0 ? 'text-success' : 'text-muted-foreground'}`}>
-                                      Balance: {studentBalance.toLocaleString('vi-VN')} ₫
-                                    </span>
                                   </div>
                                 </SelectItem>
                               );
                             })}
                           </SelectContent>
                         </Select>
-                        {selectedStudent && (
-                          <div className="text-xs mt-1 space-y-0.5">
-                            <div className="text-muted-foreground">{classes}</div>
-                            <div className={balance > 0 ? 'text-destructive font-medium' : balance < 0 ? 'text-success font-medium' : 'text-muted-foreground'}>
-                              Balance: {balance.toLocaleString('vi-VN')} ₫
-                            </div>
-                          </div>
-                        )}
                       </TableCell>
                     <TableCell>
                       <Input
@@ -349,6 +338,11 @@ export function PaymentManager() {
                         onChange={(e) => updatePaymentRow(row.tempId, "occurredAt", e.target.value)}
                         className="h-9"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <div className={`text-sm font-medium ${balance > 0 ? 'text-destructive' : balance < 0 ? 'text-success' : 'text-muted-foreground'}`}>
+                        {balance.toLocaleString('vi-VN')} ₫
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Input
