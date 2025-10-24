@@ -19,7 +19,7 @@ type SessionRow = {
   end_time: string | null; // "HH:MM" or "HH:MM:SS"
   status?: string;
   class_id?: string;
-  classes?: { name: string };
+  classes?: { name: string } | { name: string }[] | null;
 };
 
 function monthRange(month: string) {
@@ -49,7 +49,7 @@ function computeTotals(sessions: SessionRow[], hourlyRateVnd: number) {
     end_time: string | null;
     status?: string;
     class_id?: string;
-    classes?: { name: string };
+    classes?: { name: string } | null;
     minutes: number;
     amount: number;
   }> = [];
@@ -65,6 +65,11 @@ function computeTotals(sessions: SessionRow[], hourlyRateVnd: number) {
     minutes = Math.max(0, Math.round(minutes));
     const amount = Math.round((hourlyRateVnd / 60) * minutes);
 
+    // Normalize classes to single object (Supabase may return array)
+    const classes = Array.isArray(s.classes) 
+      ? (s.classes[0] || null)
+      : s.classes;
+
     totalMinutes += minutes;
     perSession.push({
       id: s.id,
@@ -73,7 +78,7 @@ function computeTotals(sessions: SessionRow[], hourlyRateVnd: number) {
       end_time: s.end_time,
       status: s.status,
       class_id: s.class_id,
-      classes: s.classes,
+      classes,
       minutes,
       amount,
     });

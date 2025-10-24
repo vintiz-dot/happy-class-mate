@@ -926,6 +926,7 @@ export type Database = {
           month: string
           occurred_at: string
           tx_id: string
+          tx_key: string | null
           updated_at: string
         }
         Insert: {
@@ -939,6 +940,7 @@ export type Database = {
           month: string
           occurred_at?: string
           tx_id: string
+          tx_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -952,6 +954,7 @@ export type Database = {
           month?: string
           occurred_at?: string
           tx_id?: string
+          tx_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1054,38 +1057,161 @@ export type Database = {
           },
         ]
       }
+      payment_allocations: {
+        Row: {
+          allocated_amount: number
+          allocation_order: number
+          created_at: string
+          created_by: string | null
+          id: string
+          parent_payment_id: string
+          student_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          allocation_order: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_payment_id: string
+          student_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          allocation_order?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_payment_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_parent_payment_id_fkey"
+            columns: ["parent_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_modifications: {
+        Row: {
+          after_data: Json
+          before_data: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          modification_reason: string | null
+          new_payment_id: string | null
+          original_payment_id: string
+          reversal_payment_id: string | null
+        }
+        Insert: {
+          after_data: Json
+          before_data: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          modification_reason?: string | null
+          new_payment_id?: string | null
+          original_payment_id: string
+          reversal_payment_id?: string | null
+        }
+        Update: {
+          after_data?: Json
+          before_data?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          modification_reason?: string | null
+          new_payment_id?: string | null
+          original_payment_id?: string
+          reversal_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_modifications_new_payment_id_fkey"
+            columns: ["new_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_modifications_original_payment_id_fkey"
+            columns: ["original_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_modifications_reversal_payment_id_fkey"
+            columns: ["reversal_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
           created_at: string
           created_by: string | null
+          family_id: string | null
           id: string
           memo: string | null
           method: string
           occurred_at: string
+          parent_payment_id: string | null
           student_id: string
         }
         Insert: {
           amount: number
           created_at?: string
           created_by?: string | null
+          family_id?: string | null
           id?: string
           memo?: string | null
           method: string
           occurred_at?: string
+          parent_payment_id?: string | null
           student_id: string
         }
         Update: {
           amount?: number
           created_at?: string
           created_by?: string | null
+          family_id?: string | null
           id?: string
           memo?: string | null
           method?: string
           occurred_at?: string
+          parent_payment_id?: string | null
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_parent_payment_id_fkey"
+            columns: ["parent_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_student_id_fkey"
             columns: ["student_id"]
@@ -1263,6 +1389,62 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlements: {
+        Row: {
+          after_balance: number
+          amount: number
+          approver_id: string | null
+          before_balance: number
+          consent_given: boolean | null
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          reason: string | null
+          settlement_type: string
+          student_id: string
+          tx_id: string
+        }
+        Insert: {
+          after_balance: number
+          amount: number
+          approver_id?: string | null
+          before_balance: number
+          consent_given?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          reason?: string | null
+          settlement_type: string
+          student_id: string
+          tx_id: string
+        }
+        Update: {
+          after_balance?: number
+          amount?: number
+          approver_id?: string | null
+          before_balance?: number
+          consent_given?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          reason?: string | null
+          settlement_type?: string
+          student_id?: string
+          tx_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlements_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
