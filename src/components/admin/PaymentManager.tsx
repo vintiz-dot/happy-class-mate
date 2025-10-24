@@ -57,6 +57,7 @@ export function PaymentManager() {
   ]);
   const [loading, setLoading] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [modifyingPayment, setModifyingPayment] = useState<Payment | null>(null);
   const [familyPaymentOpen, setFamilyPaymentOpen] = useState(false);
   const [paymentLimit, setPaymentLimit] = useState(20);
@@ -237,27 +238,51 @@ export function PaymentManager() {
 
   const handleDeletePayment = async () => {
     if (!deletePaymentId) return;
+    
+    if (!deleteReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for deleting this payment",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("payments").delete().eq("id", deletePaymentId);
-      
+      const { data, error } = await supabase.functions.invoke("delete-payment", {
+        body: { paymentId: deletePaymentId, deleteReason }
+      });
+
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Payment deleted successfully",
+        description: `Payment deleted successfully. ${data.reversal_tx_count} transactions reversed.`,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["student-tuition"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-finance"] });
-      
+      setDeleteReason("");
       setDeletePaymentId(null);
       loadData();
+      
+      // Invalidate queries for all affected students and months
+      if (data.affected_students) {
+        data.affected_students.forEach((studentId: string) => {
+          queryClient.invalidateQueries({ queryKey: ["student-tuition", studentId] });
+        });
+      }
+      if (data.affected_months) {
+        data.affected_months.forEach((month: string) => {
+          queryClient.invalidateQueries({ queryKey: ["tuition", month] });
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["recent-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-finance"] });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete payment",
         variant: "destructive",
       });
     } finally {
@@ -489,18 +514,39 @@ export function PaymentManager() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
+      <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => {
+        if (!open) {
+          setDeletePaymentId(null);
+          setDeleteReason("");
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Payment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the payment record.
+              This will reverse all ledger entries and update invoice statuses. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Reason for deletion (required)
+            </label>
+            <Textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g., Duplicate payment, incorrect amount, payment error..."
+              className="min-h-[80px]"
+              required
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePayment} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogAction
+              onClick={handleDeletePayment}
+              disabled={!deleteReason.trim() || loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete & Reverse
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

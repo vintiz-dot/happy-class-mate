@@ -1102,6 +1102,36 @@ export type Database = {
           },
         ]
       }
+      payment_deletions: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string
+          id: string
+          payment_id: string
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason: string
+          id?: string
+          payment_id: string
+          snapshot: Json
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string
+          id?: string
+          payment_id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
       payment_modifications: {
         Row: {
           after_data: Json

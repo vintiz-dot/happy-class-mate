@@ -1,0 +1,229 @@
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface IntegrityIssue {
+  type: 'orphaned_ledger' | 'incorrect_invoice_status';
+  entity_id: string;
+  description: string;
+  fix_action: string;
+}
+
+export function PaymentIntegrityRepair() {
+  const [scanning, setScanning] = useState(false);
+  const [issues, setIssues] = useState<IntegrityIssue[]>([]);
+  const queryClient = useQueryClient();
+
+  const scanForIssues = async () => {
+    setScanning(true);
+    const foundIssues: IntegrityIssue[] = [];
+
+    try {
+      // Check 1: Find invoices with incorrect status
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id, student_id, month, total_amount, paid_amount, status');
+
+      if (invoices) {
+        for (const invoice of invoices) {
+          const owed = invoice.total_amount - invoice.paid_amount;
+          let expectedStatus: string;
+
+          if (invoice.paid_amount === 0) {
+            expectedStatus = 'draft';
+          } else if (owed <= 0) {
+            expectedStatus = 'paid';
+          } else {
+            expectedStatus = 'partial';
+          }
+
+          if (invoice.status !== expectedStatus) {
+            foundIssues.push({
+              type: 'incorrect_invoice_status',
+              entity_id: invoice.id,
+              description: `Invoice ${invoice.id.slice(0, 8)}... (${invoice.month}) has status '${invoice.status}' but should be '${expectedStatus}' (paid: ${invoice.paid_amount}, total: ${invoice.total_amount})`,
+              fix_action: `Update status to '${expectedStatus}'`
+            });
+          }
+        }
+      }
+
+      // Check 2: Find orphaned ledger entries (tx_key references deleted payments)
+      const { data: ledgerEntries } = await supabase
+        .from('ledger_entries')
+        .select('id, tx_key, memo')
+        .like('tx_key', 'payment-%');
+
+      if (ledgerEntries) {
+        for (const entry of ledgerEntries) {
+          // Extract payment ID from tx_key (format: payment-{uuid}...)
+          const match = entry.tx_key.match(/payment-([a-f0-9-]{36})/);
+          if (match) {
+            const paymentId = match[1];
+            
+            // Check if payment exists
+            const { data: payment } = await supabase
+              .from('payments')
+              .select('id')
+              .eq('id', paymentId)
+              .maybeSingle();
+
+            if (!payment) {
+              foundIssues.push({
+                type: 'orphaned_ledger',
+                entity_id: entry.id,
+                description: `Ledger entry ${entry.id.slice(0, 8)}... references deleted payment ${paymentId.slice(0, 8)}...`,
+                fix_action: 'Mark as orphaned or delete (requires confirmation)'
+              });
+            }
+          }
+        }
+      }
+
+      setIssues(foundIssues);
+      
+      if (foundIssues.length === 0) {
+        toast.success("No integrity issues found!");
+      } else {
+        toast.warning(`Found ${foundIssues.length} integrity issues`);
+      }
+    } catch (error) {
+      console.error('Scan error:', error);
+      toast.error("Failed to scan for issues");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const repairMutation = useMutation({
+    mutationFn: async () => {
+      const invoiceIssues = issues.filter(i => i.type === 'incorrect_invoice_status');
+      let fixedCount = 0;
+
+      // Fix invoice statuses
+      for (const issue of invoiceIssues) {
+        const { data: invoice } = await supabase
+          .from('invoices')
+          .select('total_amount, paid_amount')
+          .eq('id', issue.entity_id)
+          .single();
+
+        if (invoice) {
+          const owed = invoice.total_amount - invoice.paid_amount;
+          let correctStatus: 'draft' | 'partial' | 'paid' | 'issued';
+
+          if (invoice.paid_amount === 0) {
+            correctStatus = 'draft';
+          } else if (owed <= 0) {
+            correctStatus = 'paid';
+          } else {
+            correctStatus = 'partial';
+          }
+
+          const { error } = await supabase
+            .from('invoices')
+            .update({ 
+              status: correctStatus,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', issue.entity_id);
+
+          if (!error) {
+            fixedCount++;
+            
+            // Log to audit
+            await supabase.from('audit_log').insert({
+              action: 'repair',
+              entity: 'invoice',
+              entity_id: issue.entity_id,
+              diff: {
+                repair_type: 'status_correction',
+                new_status: correctStatus,
+                issue_description: issue.description
+              }
+            });
+          }
+        }
+      }
+
+      return fixedCount;
+    },
+    onSuccess: (fixedCount) => {
+      toast.success(`Repaired ${fixedCount} issues`);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['tuition'] });
+      setIssues([]);
+    },
+    onError: (error) => {
+      console.error('Repair error:', error);
+      toast.error("Failed to repair issues");
+    }
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-warning" />
+          Payment Integrity Repair
+        </CardTitle>
+        <CardDescription>
+          Scan for and repair orphaned ledger entries and incorrect invoice statuses
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Button
+            onClick={scanForIssues}
+            disabled={scanning}
+            variant="outline"
+          >
+            {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Scan for Issues
+          </Button>
+
+          {issues.length > 0 && (
+            <Button
+              onClick={() => repairMutation.mutate()}
+              disabled={repairMutation.isPending}
+              variant="default"
+            >
+              {repairMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Repair All ({issues.length})
+            </Button>
+          )}
+        </div>
+
+        {issues.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-semibold">Issues Found:</h4>
+            {issues.map((issue, idx) => (
+              <Alert key={idx} variant="destructive">
+                <AlertDescription>
+                  <div className="font-medium">{issue.description}</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Fix: {issue.fix_action}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ))}
+          </div>
+        )}
+
+        {!scanning && issues.length === 0 && (
+          <Alert>
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertDescription>
+              Click "Scan for Issues" to check payment integrity
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
