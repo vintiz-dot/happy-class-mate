@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { FamilyPaymentEditModal } from "./FamilyPaymentEditModal";
 
 interface ModifyPaymentModalProps {
   payment: {
@@ -26,6 +27,9 @@ interface ModifyPaymentModalProps {
 
 export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPaymentModalProps) {
   const [loading, setLoading] = useState(false);
+  const [isFamilyPayment, setIsFamilyPayment] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const queryClient = useQueryClient();
   
   // Safe date formatting helper
   const formatPaymentDate = (dateStr: string | null | undefined): string => {
@@ -47,8 +51,22 @@ export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPa
     memo: payment?.memo || "",
     reason: "",
   });
-
-  const queryClient = useQueryClient();
+  
+  useEffect(() => {
+    const checkFamilyPayment = async () => {
+      if (!payment) return;
+      
+      const { data } = await supabase
+        .from("payment_allocations")
+        .select("id")
+        .eq("parent_payment_id", payment.id)
+        .limit(1);
+      
+      setIsFamilyPayment(!!data && data.length > 0);
+    };
+    
+    if (payment) checkFamilyPayment();
+  }, [payment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +109,39 @@ export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPa
   };
 
   if (!payment) return null;
+  
+  if (isFamilyPayment) {
+    return (
+      <>
+        <Dialog open={!!payment} onOpenChange={onClose}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Family Payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>This is a family payment with multiple allocations.</p>
+              <Button 
+                onClick={() => {
+                  setShowFamilyModal(true);
+                  onClose();
+                }}
+                className="w-full"
+              >
+                View Family Payment Details
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <FamilyPaymentEditModal 
+          paymentId={showFamilyModal ? payment.id : null}
+          onClose={() => setShowFamilyModal(false)}
+        />
+      </>
+    );
+  }
 
   const hasChanges = 
     formData.studentId !== payment.student_id ||

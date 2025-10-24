@@ -122,17 +122,36 @@ export function FamilyPaymentModal({ open, onClose }: FamilyPaymentModalProps) {
       setManualAllocations(allocations);
     }
 
-    // Load open invoices for family
+    // Load balances using calculate-tuition (more accurate than invoice status)
     const siblingIds = siblingsData?.map(s => s.id) || [];
     if (siblingIds.length > 0) {
-      const { data: invoicesData } = await supabase
-        .from("invoices")
-        .select("*")
-        .in("student_id", siblingIds)
-        .neq("status", "paid")
-        .order("month");
-
-      if (invoicesData) setInvoices(invoicesData);
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const balances: Invoice[] = [];
+      
+      for (const sid of siblingIds) {
+        try {
+          const { data } = await supabase.functions.invoke("calculate-tuition", {
+            body: { studentId: sid, month: currentMonth }
+          });
+          
+          if (data?.carry) {
+            const owed = data.carry.carryOutDebt || 0;
+            if (owed > 0) {
+              balances.push({
+                id: `balance-${sid}`,
+                student_id: sid,
+                month: currentMonth,
+                total_amount: owed,
+                paid_amount: 0
+              });
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch balance for student ${sid}:`, e);
+        }
+      }
+      
+      setInvoices(balances);
     }
   };
 

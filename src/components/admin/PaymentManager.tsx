@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign, Plus, Trash2, Edit2, X, Users } from "lucide-react";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 import { postStudentPayment } from "@/lib/payments";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -82,7 +83,15 @@ export function PaymentManager() {
           .eq("is_active", true),
         supabase
           .from("payments" as any)
-          .select("*, students(full_name)")
+          .select(`
+            *, 
+            students(full_name),
+            payment_allocations(
+              student_id,
+              allocated_amount,
+              students(full_name)
+            )
+          `)
           .order("occurred_at", { ascending: false })
           .limit(paymentLimit + 1),
       ]);
@@ -402,10 +411,20 @@ export function PaymentManager() {
               <p className="text-muted-foreground text-center py-8">No payments recorded</p>
             ) : (
               <>
-                {payments.map((payment) => (
+                {payments.map((payment) => {
+                  const isFamilyPayment = (payment as any).payment_allocations?.length > 0;
+                  return (
                   <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="space-y-1 flex-1">
-                      <p className="font-medium">{payment.students.full_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{payment.students.full_name}</p>
+                        {isFamilyPayment && (
+                          <Badge variant="secondary" className="gap-1">
+                            <Users className="h-3 w-3" />
+                            Family
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {format(new Date(payment.occurred_at), "MMM d, yyyy")} • {payment.method}
                       </p>
@@ -439,7 +458,8 @@ export function PaymentManager() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {hasMorePayments && (
                   <Button 
                     variant="outline" 

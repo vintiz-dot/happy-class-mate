@@ -235,31 +235,59 @@ Deno.serve(async (req) => {
       priorCharges = 0;
     }
 
-    // Payments: read from 'payments' table using occurred_at
+    // Payments: read from 'payments' table AND 'payment_allocations' using occurred_at
     let priorPayments = 0;
     let monthPayments = 0;
 
     try {
-      const { data: paysBefore } = await supabase
+      // Direct payments for this student
+      const { data: paysDirect } = await supabase
         .from("payments")
         .select("amount")
         .eq("student_id", studentId)
+        .is("parent_payment_id", null)
         .lt("occurred_at", `${startDate}T00:00:00.000Z`);
-      priorPayments = sumPayments(paysBefore);
-    } catch {
-      /* ignore */
+      
+      // Allocated payments from family payments
+      const { data: paysAlloc } = await supabase
+        .from("payment_allocations")
+        .select("allocated_amount, payments!parent_payment_id(occurred_at)")
+        .eq("student_id", studentId);
+      
+      const allocBefore = (paysAlloc || []).filter((a: any) => 
+        a.payments?.occurred_at && a.payments.occurred_at < `${startDate}T00:00:00.000Z`
+      );
+      
+      priorPayments = sumPayments(paysDirect) + allocBefore.reduce((s: number, a: any) => s + Number(a.allocated_amount || 0), 0);
+    } catch (e) {
+      console.error("Error fetching prior payments:", e);
     }
 
     try {
-      const { data: paysMonth } = await supabase
+      // Direct payments in month
+      const { data: paysMonthDirect } = await supabase
         .from("payments")
         .select("amount")
         .eq("student_id", studentId)
+        .is("parent_payment_id", null)
         .gte("occurred_at", `${startDate}T00:00:00.000Z`)
         .lt("occurred_at", `${nextMonthStart}T00:00:00.000Z`);
-      monthPayments = sumPayments(paysMonth);
-    } catch {
-      /* ignore */
+      
+      // Allocated payments in month
+      const { data: paysAllocMonth } = await supabase
+        .from("payment_allocations")
+        .select("allocated_amount, payments!parent_payment_id(occurred_at)")
+        .eq("student_id", studentId);
+      
+      const allocMonth = (paysAllocMonth || []).filter((a: any) => 
+        a.payments?.occurred_at && 
+        a.payments.occurred_at >= `${startDate}T00:00:00.000Z` &&
+        a.payments.occurred_at < `${nextMonthStart}T00:00:00.000Z`
+      );
+      
+      monthPayments = sumPayments(paysMonthDirect) + allocMonth.reduce((s: number, a: any) => s + Number(a.allocated_amount || 0), 0);
+    } catch (e) {
+      console.error("Error fetching month payments:", e);
     }
 
     // Carry-in (credit positive, debt negative)
