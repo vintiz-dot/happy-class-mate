@@ -8,10 +8,10 @@ import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface IntegrityIssue {
-  type: 'orphaned_ledger' | 'incorrect_invoice_status';
-  entity_id: string;
+  type: 'orphaned_ledger' | 'incorrect_invoice_status' | 'corrupted_contribution';
+  entityId: string;
   description: string;
-  fix_action: string;
+  suggestedFix: string;
 }
 
 export function PaymentIntegrityRepair() {
@@ -21,10 +21,28 @@ export function PaymentIntegrityRepair() {
 
   const scanForIssues = async () => {
     setScanning(true);
-    const foundIssues: IntegrityIssue[] = [];
-
+    setIssues([]);
+    
     try {
-      // Check 1: Find invoices with incorrect status
+      const foundIssues: IntegrityIssue[] = [];
+
+      // Check for voluntary contributions that incorrectly touched AR
+      const { data: corruptedContributions } = await supabase
+        .from('ledger_entries')
+        .select('tx_id, tx_key, ledger_accounts!inner(student_id, code)')
+        .ilike('tx_key', '%contribution%')
+        .eq('ledger_accounts.code', 'AR');
+
+      if (corruptedContributions && corruptedContributions.length > 0) {
+        foundIssues.push({
+          type: 'corrupted_contribution',
+          entityId: 'multiple',
+          description: `${corruptedContributions.length} voluntary contributions incorrectly posted to AR`,
+          suggestedFix: 'Use Voluntary Contribution Repair tool'
+        });
+      }
+
+      // Check for invoices with incorrect status
       const { data: invoices } = await supabase
         .from('invoices')
         .select('id, student_id, month, total_amount, paid_amount, status');
@@ -45,9 +63,9 @@ export function PaymentIntegrityRepair() {
           if (invoice.status !== expectedStatus) {
             foundIssues.push({
               type: 'incorrect_invoice_status',
-              entity_id: invoice.id,
+              entityId: invoice.id,
               description: `Invoice ${invoice.id.slice(0, 8)}... (${invoice.month}) has status '${invoice.status}' but should be '${expectedStatus}' (paid: ${invoice.paid_amount}, total: ${invoice.total_amount})`,
-              fix_action: `Update status to '${expectedStatus}'`
+              suggestedFix: `Update status to '${expectedStatus}'`
             });
           }
         }
@@ -76,9 +94,9 @@ export function PaymentIntegrityRepair() {
             if (!payment) {
               foundIssues.push({
                 type: 'orphaned_ledger',
-                entity_id: entry.id,
+                entityId: entry.id,
                 description: `Ledger entry ${entry.id.slice(0, 8)}... references deleted payment ${paymentId.slice(0, 8)}...`,
-                fix_action: 'Mark as orphaned or delete (requires confirmation)'
+                suggestedFix: 'Mark as orphaned or delete (requires confirmation)'
               });
             }
           }
@@ -110,7 +128,7 @@ export function PaymentIntegrityRepair() {
         const { data: invoice } = await supabase
           .from('invoices')
           .select('total_amount, paid_amount')
-          .eq('id', issue.entity_id)
+          .eq('id', issue.entityId)
           .single();
 
         if (invoice) {
@@ -131,7 +149,7 @@ export function PaymentIntegrityRepair() {
               status: correctStatus,
               updated_at: new Date().toISOString()
             })
-            .eq('id', issue.entity_id);
+            .eq('id', issue.entityId);
 
           if (!error) {
             fixedCount++;
@@ -140,7 +158,7 @@ export function PaymentIntegrityRepair() {
             await supabase.from('audit_log').insert({
               action: 'repair',
               entity: 'invoice',
-              entity_id: issue.entity_id,
+              entity_id: issue.entityId,
               diff: {
                 repair_type: 'status_correction',
                 new_status: correctStatus,
@@ -207,7 +225,7 @@ export function PaymentIntegrityRepair() {
                 <AlertDescription>
                   <div className="font-medium">{issue.description}</div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    Fix: {issue.fix_action}
+                    Fix: {issue.suggestedFix}
                   </div>
                 </AlertDescription>
               </Alert>

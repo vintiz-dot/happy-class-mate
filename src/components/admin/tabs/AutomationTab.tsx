@@ -10,6 +10,7 @@ import { ManualTuitionRecalc } from "@/components/admin/ManualTuitionRecalc";
 import { LedgerBalanceInspector } from "@/components/admin/LedgerBalanceInspector";
 import { InvoiceStatusManager } from "@/components/admin/InvoiceStatusManager";
 import { PaymentIntegrityRepair } from "@/components/admin/PaymentIntegrityRepair";
+import { VoluntaryContributionRepair } from "@/components/admin/VoluntaryContributionRepair";
 import { Cog, Wrench } from "lucide-react";
 
 const AutomationTab = () => {
@@ -26,6 +27,7 @@ const AutomationTab = () => {
           <LedgerBalanceInspector />
           <InvoiceStatusManager />
           <PaymentIntegrityRepair />
+          <VoluntaryContributionRepair />
         </div>
       </div>
       

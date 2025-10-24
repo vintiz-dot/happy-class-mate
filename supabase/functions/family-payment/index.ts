@@ -275,13 +275,14 @@ Deno.serve(async (req) => {
           throw new Error('Consent required for voluntary contribution');
         }
 
+        // Post contribution directly from CASH/BANK to REVENUE (bypassing AR)
         await supabase.from('ledger_entries').insert([
           {
             tx_id: leftoverTxId,
             tx_key: `family-contribution-${parentPaymentId}-${Date.now()}`,
-            account_id: accountMap.get('AR'),
-            debit: remainingAmount,
-            credit: 0,
+            account_id: method === 'cash' ? accountMap.get('CASH') : accountMap.get('BANK'),
+            debit: 0,
+            credit: remainingAmount,
             occurred_at: occurredAt,
             memo: `Voluntary contribution from family payment`,
             month,
@@ -290,10 +291,10 @@ Deno.serve(async (req) => {
           {
             tx_id: leftoverTxId,
             account_id: accountMap.get('REVENUE'),
-            debit: 0,
-            credit: remainingAmount,
+            debit: remainingAmount,
+            credit: 0,
             occurred_at: occurredAt,
-            memo: `Voluntary contribution`,
+            memo: `Voluntary contribution - direct to revenue`,
             month,
             created_by: user.id
           }
