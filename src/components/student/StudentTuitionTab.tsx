@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Award, DollarSign } from "lucide-react";
+import { Award, DollarSign, CheckCircle2 } from "lucide-react";
 import { useStudentMonthFinance, formatVND, getMonthOptions } from "@/hooks/useStudentMonthFinance";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { checkStudentFinanceParity } from "@/lib/dev/parityCheck";
+import { SettleBillModal } from "@/components/admin/SettleBillModal";
+import { useAuth } from "@/hooks/useAuth";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -18,8 +20,40 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [activeFilter, setActiveFilter] = useState("all");
+  const [settleBillOpen, setSettleBillOpen] = useState(false);
+  const [studentName, setStudentName] = useState("");
 
   const queryClient = useQueryClient();
+  const { session } = useAuth();
+  
+  // Check if user is admin
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!session?.user) return;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      setIsAdmin(data?.role === "admin");
+    };
+    checkAdmin();
+  }, [session]);
+
+  // Load student name
+  useEffect(() => {
+    const loadStudentName = async () => {
+      const { data } = await supabase
+        .from("students")
+        .select("full_name")
+        .eq("id", studentId)
+        .single();
+      if (data) setStudentName(data.full_name);
+    };
+    loadStudentName();
+  }, [studentId]);
 
   // Fetch invoice data - same as PDF download
   const { data: tuitionData, isLoading } = useStudentMonthFinance(studentId, selectedMonth);
@@ -199,12 +233,25 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
             </Badge>
           )}
         </div>
-        <InvoiceDownloadButton 
-          studentId={studentId} 
-          month={selectedMonth}
-          variant="default"
-          size="sm"
-        />
+        <div className="flex items-center gap-2">
+          {isAdmin && displayBalance !== 0 && (
+            <Button
+              onClick={() => setSettleBillOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Settle Bill
+            </Button>
+          )}
+          <InvoiceDownloadButton 
+            studentId={studentId} 
+            month={selectedMonth}
+            variant="default"
+            size="sm"
+          />
+        </div>
       </div>
 
       {/* Financial Summary Cards - Match Admin Finance column order */}
@@ -361,6 +408,17 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Settle Bill Modal */}
+      {isAdmin && (
+        <SettleBillModal
+          studentId={settleBillOpen ? studentId : null}
+          studentName={studentName}
+          month={selectedMonth}
+          balance={displayBalance}
+          onClose={() => setSettleBillOpen(false)}
+        />
       )}
     </div>
   );

@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Plus, Trash2, Edit2, X } from "lucide-react";
+import { DollarSign, Plus, Trash2, Edit2, X, Users } from "lucide-react";
 import { format } from "date-fns";
 import { postStudentPayment } from "@/lib/payments";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ModifyPaymentModal } from "./ModifyPaymentModal";
+import { FamilyPaymentModal } from "./FamilyPaymentModal";
 
 interface Student {
   id: string;
@@ -44,8 +46,9 @@ export function PaymentManager() {
     { tempId: crypto.randomUUID(), studentId: "", amount: "", method: "cash", occurredAt: format(new Date(), "yyyy-MM-dd"), memo: "" }
   ]);
   const [loading, setLoading] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [modifyingPayment, setModifyingPayment] = useState<Payment | null>(null);
+  const [familyPaymentOpen, setFamilyPaymentOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -169,44 +172,6 @@ export function PaymentManager() {
     }
   };
 
-  const handleEditPayment = async () => {
-    if (!editingPayment) return;
-
-    setLoading(true);
-    try {
-      // Delete old payment
-      await supabase.from("payments").delete().eq("id", editingPayment.id);
-      
-      // Post new payment
-      await postStudentPayment({
-        studentId: editingPayment.student_id,
-        amount: editingPayment.amount,
-        method: editingPayment.method,
-        occurredAt: editingPayment.occurred_at,
-        memo: editingPayment.memo || "",
-      });
-
-      toast({
-        title: "Success",
-        description: "Payment updated successfully",
-      });
-
-      queryClient.invalidateQueries({ queryKey: ["student-tuition", editingPayment.student_id] });
-      queryClient.invalidateQueries({ queryKey: ["invoices", editingPayment.student_id] });
-      
-      setEditingPayment(null);
-      loadData();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDeletePayment = async () => {
     if (!deletePaymentId) return;
 
@@ -239,6 +204,13 @@ export function PaymentManager() {
 
   return (
     <div className="space-y-6">
+      <div className="flex gap-3">
+        <Button onClick={() => setFamilyPaymentOpen(true)} variant="outline" className="gap-2">
+          <Users className="h-4 w-4" />
+          Post Family Payment
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -376,8 +348,9 @@ export function PaymentManager() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setEditingPayment(payment)}
+                        onClick={() => setModifyingPayment(payment)}
                         className="h-8 w-8"
+                        title="Modify Payment"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -386,6 +359,7 @@ export function PaymentManager() {
                         size="icon"
                         onClick={() => setDeletePaymentId(payment.id)}
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        title="Delete Payment"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -398,82 +372,18 @@ export function PaymentManager() {
         </CardContent>
       </Card>
 
-      {/* Edit Payment Dialog */}
-      <AlertDialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Edit Payment</AlertDialogTitle>
-            <AlertDialogDescription>Update payment details</AlertDialogDescription>
-          </AlertDialogHeader>
-          {editingPayment && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Student</label>
-                <Select 
-                  value={editingPayment.student_id}
-                  onValueChange={(v) => setEditingPayment({...editingPayment, student_id: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Amount (VND)</label>
-                <Input
-                  type="number"
-                  value={editingPayment.amount}
-                  onChange={(e) => setEditingPayment({...editingPayment, amount: parseInt(e.target.value) || 0})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Method</label>
-                <Select 
-                  value={editingPayment.method}
-                  onValueChange={(v: any) => setEditingPayment({...editingPayment, method: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date</label>
-                <Input
-                  type="date"
-                  value={format(new Date(editingPayment.occurred_at), "yyyy-MM-dd")}
-                  onChange={(e) => setEditingPayment({...editingPayment, occurred_at: new Date(e.target.value).toISOString()})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Memo</label>
-                <Textarea
-                  value={editingPayment.memo || ""}
-                  onChange={(e) => setEditingPayment({...editingPayment, memo: e.target.value})}
-                  rows={2}
-                />
-              </div>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEditPayment} disabled={loading}>
-              Update Payment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Modify Payment Modal */}
+      <ModifyPaymentModal
+        payment={modifyingPayment}
+        onClose={() => setModifyingPayment(null)}
+        students={students}
+      />
+
+      {/* Family Payment Modal */}
+      <FamilyPaymentModal
+        open={familyPaymentOpen}
+        onClose={() => setFamilyPaymentOpen(false)}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
