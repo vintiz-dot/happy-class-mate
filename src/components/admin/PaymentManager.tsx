@@ -97,9 +97,19 @@ export function PaymentManager() {
                 body: { studentId: student.id, month: currentMonth }
               });
               
+              // Calculate balance from carry object
+              let payableBalance = 0;
+              if (financeData?.carry) {
+                if (financeData.carry.status === 'debt') {
+                  payableBalance = financeData.carry.carryOutDebt || 0;
+                } else if (financeData.carry.status === 'credit') {
+                  payableBalance = -(financeData.carry.carryOutCredit || 0);
+                }
+              }
+              
               return {
                 ...student,
-                payableBalance: financeData?.balance || 0
+                payableBalance
               };
             } catch {
               return { ...student, payableBalance: 0 };
