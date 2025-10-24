@@ -26,11 +26,24 @@ interface ModifyPaymentModalProps {
 
 export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPaymentModalProps) {
   const [loading, setLoading] = useState(false);
+  
+  // Safe date formatting helper
+  const formatPaymentDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "";
+      return format(date, "yyyy-MM-dd");
+    } catch {
+      return "";
+    }
+  };
+  
   const [formData, setFormData] = useState({
     studentId: payment?.student_id || "",
     amount: payment?.amount?.toString() || "",
     method: payment?.method || "Cash",
-    occurredAt: payment?.occurred_at ? format(new Date(payment.occurred_at), "yyyy-MM-dd") : "",
+    occurredAt: formatPaymentDate(payment?.occurred_at),
     memo: payment?.memo || "",
     reason: "",
   });
@@ -83,7 +96,7 @@ export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPa
     formData.studentId !== payment.student_id ||
     parseInt(formData.amount) !== payment.amount ||
     formData.method !== payment.method ||
-    formData.occurredAt !== format(new Date(payment.occurred_at), "yyyy-MM-dd") ||
+    formData.occurredAt !== formatPaymentDate(payment.occurred_at) ||
     formData.memo !== (payment.memo || "");
 
   return (
@@ -193,8 +206,8 @@ export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPa
                 {formData.method !== payment.method && (
                   <p>• Method: {payment.method} → {formData.method}</p>
                 )}
-                {formData.occurredAt !== format(new Date(payment.occurred_at), "yyyy-MM-dd") && (
-                  <p>• Date: {format(new Date(payment.occurred_at), "MMM d, yyyy")} → {format(new Date(formData.occurredAt), "MMM d, yyyy")}</p>
+                {formData.occurredAt !== formatPaymentDate(payment.occurred_at) && formData.occurredAt && (
+                  <p>• Date: {payment.occurred_at ? format(new Date(payment.occurred_at), "MMM d, yyyy") : "N/A"} → {format(new Date(formData.occurredAt), "MMM d, yyyy")}</p>
                 )}
               </div>
             </div>
