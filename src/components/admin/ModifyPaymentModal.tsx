@@ -113,21 +113,12 @@ export function ModifyPaymentModal({ payment, onClose, students = [] }: ModifyPa
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="student">Student</Label>
-              <Select
-                value={formData.studentId}
-                onValueChange={(v) => setFormData({ ...formData, studentId: v })}
-              >
-                <SelectTrigger id="student">
-                  <SelectValue placeholder="Select student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {students.map((student) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      {student.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="student"
+                value={students.find(s => s.id === formData.studentId)?.full_name || "Unknown Student"}
+                disabled
+                className="bg-muted"
+              />
             </div>
 
             <div className="space-y-2">
