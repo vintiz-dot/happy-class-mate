@@ -171,7 +171,8 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
   const handleStartEdit = (invoice: any) => {
     setEditingInvoiceId(invoice.id);
-    setEditValue(String(invoice.recorded_payment ?? 0));
+    const balance = invoice.total_amount - (invoice.recorded_payment ?? 0);
+    setEditValue(String(balance > 0 ? balance : 0));
     setEditDate(new Date().toISOString().split('T')[0]);
     setEditMethod("Cash");
   };
