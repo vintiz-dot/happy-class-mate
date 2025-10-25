@@ -8,6 +8,7 @@ import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountComput
 import { PayrollTab } from "./PayrollTab";
 import { FinanceSummary } from "@/components/admin/FinanceSummary";
 import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
+import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
 
 const FinanceTab = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -19,6 +20,7 @@ const FinanceTab = () => {
         <TabsTrigger value="overview">Tuition</TabsTrigger>
         <TabsTrigger value="bulk">Bulk Download</TabsTrigger>
         <TabsTrigger value="payments">Payments</TabsTrigger>
+        <TabsTrigger value="recorded">Recorded Payments</TabsTrigger>
         <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
         <TabsTrigger value="discounts">Discounts</TabsTrigger>
         <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
@@ -39,6 +41,10 @@ const FinanceTab = () => {
 
       <TabsContent value="payments">
         <PaymentManager />
+      </TabsContent>
+
+      <TabsContent value="recorded">
+        <RecordedPaymentManager />
       </TabsContent>
 
       <TabsContent value="discounts">
