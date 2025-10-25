@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText } from "lucide-react";
+import { FileText, Undo2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Student {
   id: string;
@@ -23,11 +24,13 @@ interface LedgerAccount {
 
 interface LedgerEntry {
   id: string;
+  tx_id: string;
   debit: number;
   credit: number;
   memo: string;
   occurred_at: string;
   month: string;
+  payment_id?: string;
 }
 
 export function LedgerBalanceInspector() {
@@ -38,6 +41,8 @@ export function LedgerBalanceInspector() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [reversingPayment, setReversingPayment] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   useEffect(() => {
     loadStudents();
@@ -77,23 +82,57 @@ export function LedgerBalanceInspector() {
   const loadEntries = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data: ledgerData } = await supabase
         .from("ledger_entries")
         .select("*")
         .eq("account_id", selectedAccount)
         .order("occurred_at", { ascending: false })
         .limit(50);
       
-      if (data) {
-        setEntries(data);
-        // Calculate balance
-        const bal = data.reduce((sum, e) => sum + e.debit - e.credit, 0);
+      if (ledgerData) {
+        // Extract payment IDs from tx_key (format: "payment-{uuid}" or similar)
+        const enrichedEntries = ledgerData.map(entry => {
+          let paymentId: string | undefined;
+          if (entry.tx_key?.includes('payment-')) {
+            const match = entry.tx_key.match(/payment-([a-f0-9-]{36})/);
+            if (match) paymentId = match[1];
+          }
+          return {
+            ...entry,
+            payment_id: paymentId
+          };
+        });
+        
+        setEntries(enrichedEntries);
+        const bal = enrichedEntries.reduce((sum, e) => sum + e.debit - e.credit, 0);
         setBalance(bal);
       }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReversePayment = async (paymentId: string) => {
+    if (!deleteReason.trim()) {
+      toast.error("Please provide a reason for reversing this payment");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke("delete-payment", {
+        body: { paymentId, deleteReason }
+      });
+
+      if (error) throw error;
+
+      toast.success("Payment reversed successfully");
+      setReversingPayment(null);
+      setDeleteReason("");
+      loadEntries();
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -165,12 +204,13 @@ export function LedgerBalanceInspector() {
                     <TableHead className="text-right">Debit</TableHead>
                     <TableHead className="text-right">Credit</TableHead>
                     <TableHead>Memo</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {entries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         No entries found
                       </TableCell>
                     </TableRow>
@@ -188,12 +228,52 @@ export function LedgerBalanceInspector() {
                         <TableCell className="text-sm text-muted-foreground">
                           {entry.memo || "—"}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {entry.payment_id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setReversingPayment(entry.payment_id!)}
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
             </div>
+
+            <AlertDialog open={!!reversingPayment} onOpenChange={() => setReversingPayment(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reverse Payment</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will reverse the payment and all related ledger entries. Invoice statuses will be updated accordingly.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2 py-4">
+                  <Label>Reason for reversal (required)</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Explain why this payment is being reversed..."
+                    rows={3}
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeleteReason("")}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => reversingPayment && handleReversePayment(reversingPayment)}
+                    disabled={!deleteReason.trim()}
+                  >
+                    Reverse Payment
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
       </CardContent>
