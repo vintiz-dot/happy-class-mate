@@ -22,7 +22,8 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [editReason, setEditReason] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editMethod, setEditMethod] = useState("Cash");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -170,62 +171,83 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
   const handleStartEdit = (invoice: any) => {
     setEditingInvoiceId(invoice.id);
-    setEditValue((invoice.recorded_payment ?? invoice.paid_amount).toString());
-    setEditReason("");
+    setEditValue(String(invoice.recorded_payment ?? 0));
+    setEditDate(new Date().toISOString().split('T')[0]);
+    setEditMethod("Cash");
   };
 
   const handleCancelEdit = () => {
     setEditingInvoiceId(null);
     setEditValue("");
-    setEditReason("");
+    setEditDate("");
+    setEditMethod("Cash");
   };
 
   const handleSaveEdit = async (invoice: any) => {
-    if (!editReason.trim()) {
-      toast.error("Please provide a reason for this change");
+    const newValue = parseInt(editValue) || 0;
+    
+    if (!editDate) {
+      toast.error("Please provide a payment date");
       return;
     }
 
     try {
-      const newValue = parseInt(editValue);
-      const oldValue = invoice.recorded_payment ?? invoice.paid_amount;
-
-      // Update the invoice
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Determine new status based on payment
+      let newStatus = invoice.status;
+      const totalAmount = invoice.total_amount;
+      
+      if (newValue === 0 && totalAmount === 0) {
+        // Edge case: 100% discount (total_amount = 0) and no payment needed
+        newStatus = 'settled';
+      } else if (newValue >= totalAmount) {
+        newStatus = 'settled';
+      } else if (newValue > 0 && newValue < totalAmount) {
+        newStatus = 'partial';
+      } else if (newValue === 0) {
+        newStatus = 'open';
+      }
+      
+      // Update recorded_payment and status in invoices table
       const { error: updateError } = await supabase
         .from("invoices")
         .update({ 
           recorded_payment: newValue,
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq("id", invoice.id);
 
       if (updateError) throw updateError;
 
-      // Log to audit log
-      const { data: { user } } = await supabase.auth.getUser();
+      // Log to audit trail
       await supabase.from("audit_log").insert({
         entity: "invoice",
         entity_id: invoice.id,
         action: "update_recorded_payment",
         actor_user_id: user?.id,
         diff: {
-          old_recorded_payment: oldValue,
+          old_recorded_payment: invoice.recorded_payment ?? 0,
           new_recorded_payment: newValue,
-          reason: editReason,
+          old_status: invoice.status,
+          new_status: newStatus,
+          payment_date: editDate,
+          payment_method: editMethod,
           student_id: invoice.student_id,
           month: invoice.month
         }
       });
 
-      toast.success("Recorded payment updated successfully");
-      
-      // Invalidate caches
+      // Invalidate React Query caches
       queryClient.invalidateQueries({ queryKey: ["admin-tuition-list", month] });
-      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, month] });
-      
+      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, invoice.month] });
+
+      toast.success("Payment recorded successfully");
       handleCancelEdit();
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Error recording payment:", error);
+      toast.error(error.message || "Failed to record payment");
     }
   };
 
@@ -307,35 +329,58 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                     <span>Total: {item.total_amount.toLocaleString()} ₫</span>
                     <div className="flex items-center gap-2">
                       {editingInvoiceId === item.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="h-6 w-28 text-xs"
-                          />
-                          <Input
-                            placeholder="Reason"
-                            value={editReason}
-                            onChange={(e) => setEditReason(e.target.value)}
-                            className="h-6 w-32 text-xs"
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleSaveEdit(item)}
-                          >
-                            <Save className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={handleCancelEdit}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                        <div className="flex flex-col gap-2 min-w-[280px]">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Amount</label>
+                              <Input
+                                type="number"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="w-full"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Date</label>
+                              <Input
+                                type="date"
+                                value={editDate}
+                                onChange={(e) => setEditDate(e.target.value)}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Method</label>
+                            <select
+                              value={editMethod}
+                              onChange={(e) => setEditMethod(e.target.value)}
+                              className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            >
+                              <option value="Cash">Cash</option>
+                              <option value="Bank Transfer">Bank Transfer</option>
+                              <option value="Card">Card</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(item)}
+                              className="flex-1"
+                            >
+                              <Save className="h-3 w-3 mr-1" />
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <>

@@ -1,5 +1,4 @@
 import Layout from "@/components/Layout";
-import { PaymentManager } from "@/components/admin/PaymentManager";
 import { PayrollManager } from "@/components/admin/PayrollManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
@@ -16,11 +15,6 @@ const Finance = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Sibling Discount Computation</h2>
           <SiblingDiscountCompute />
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Payment Management</h2>
-          <PaymentManager />
         </div>
 
         <div>

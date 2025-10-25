@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
 import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
-import { PaymentManager } from "@/components/admin/PaymentManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { PayrollTab } from "./PayrollTab";
@@ -19,7 +18,6 @@ const FinanceTab = () => {
         <TabsTrigger value="summary">Summary</TabsTrigger>
         <TabsTrigger value="overview">Tuition</TabsTrigger>
         <TabsTrigger value="bulk">Bulk Download</TabsTrigger>
-        <TabsTrigger value="payments">Payments</TabsTrigger>
         <TabsTrigger value="recorded">Recorded Payments</TabsTrigger>
         <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
         <TabsTrigger value="discounts">Discounts</TabsTrigger>
@@ -37,10 +35,6 @@ const FinanceTab = () => {
 
       <TabsContent value="bulk">
         <BulkInvoiceDownload month={currentMonth} />
-      </TabsContent>
-
-      <TabsContent value="payments">
-        <PaymentManager />
       </TabsContent>
 
       <TabsContent value="recorded">
