@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface EditingInvoice {
 }
 
 export function RecordedPaymentManager() {
+  const queryClient = useQueryClient();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(false);
@@ -125,6 +127,11 @@ export function RecordedPaymentManager() {
 
       toast.success("Recorded payment updated successfully");
       setEditingInvoice(null);
+      
+      // Invalidate React Query caches
+      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, invoice.month] });
+      queryClient.invalidateQueries({ queryKey: ["admin-tuition"] });
+      
       loadInvoices();
     } catch (error: any) {
       toast.error(error.message);
@@ -176,6 +183,11 @@ export function RecordedPaymentManager() {
       toast.success("Recorded payment reversed successfully");
       setReversingInvoice(null);
       setReversalReason("");
+      
+      // Invalidate React Query caches
+      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, invoice.month] });
+      queryClient.invalidateQueries({ queryKey: ["admin-tuition"] });
+      
       loadInvoices();
     } catch (error: any) {
       toast.error(error.message);
