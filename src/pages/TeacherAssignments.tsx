@@ -5,8 +5,9 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +23,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FileText, Upload } from "lucide-react";
+import { Plus, FileText, Upload, Edit, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { HomeworkGrading } from "@/components/teacher/HomeworkGrading";
 
 export default function TeacherAssignments() {
   const [open, setOpen] = useState(false);
   const [gradingHomeworkId, setGradingHomeworkId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -103,11 +116,45 @@ export default function TeacherAssignments() {
     },
   });
 
+  const handleEdit = (assignment: any) => {
+    setEditingId(assignment.id);
+    setTitle(assignment.title);
+    setBody(assignment.body || "");
+    setDueDate(assignment.due_date || "");
+    setSelectedClass(assignment.class_id);
+    setOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+    setDueDate("");
+    setSelectedClass("");
+    setFiles([]);
+  };
+
   const createAssignment = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !title || !selectedClass) return;
 
+      if (editingId) {
+        // Update existing homework
+        const { error } = await supabase
+          .from("homeworks")
+          .update({
+            title,
+            body,
+            due_date: dueDate || null,
+          })
+          .eq("id", editingId);
+
+        if (error) throw error;
+        return;
+      }
+
+      // Create new homework
       const { data: homework, error: hwError } = await supabase
         .from("homeworks")
         .insert({
@@ -148,16 +195,35 @@ export default function TeacherAssignments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
       setOpen(false);
-      setTitle("");
-      setBody("");
-      setDueDate("");
-      setSelectedClass("");
-      setFiles([]);
-      toast({ title: "Assignment created successfully" });
+      handleCancelEdit();
+      toast({ title: editingId ? "Assignment updated successfully" : "Assignment created successfully" });
     },
     onError: (error) => {
       toast({
-        title: "Error creating assignment",
+        title: editingId ? "Error updating assignment" : "Error creating assignment",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAssignment = useMutation({
+    mutationFn: async (homeworkId: string) => {
+      const { error } = await supabase
+        .from("homeworks")
+        .delete()
+        .eq("id", homeworkId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Assignment deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+      setDeleteId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting assignment",
         description: error.message,
         variant: "destructive",
       });
@@ -179,11 +245,11 @@ export default function TeacherAssignments() {
                 Create Assignment
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Assignment</DialogTitle>
+                <DialogTitle>{editingId ? "Edit Assignment" : "Create New Assignment"}</DialogTitle>
                 <DialogDescription>
-                  Add a new assignment for your class
+                  {editingId ? "Update the assignment details" : "Add a new assignment for your class"}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -215,13 +281,24 @@ export default function TeacherAssignments() {
 
                 <div className="space-y-2">
                   <Label htmlFor="body">Description</Label>
-                  <Textarea
-                    id="body"
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder="Assignment description and instructions"
-                    rows={6}
-                  />
+                  <div className="min-h-[200px]">
+                    <ReactQuill
+                      theme="snow"
+                      value={body}
+                      onChange={setBody}
+                      placeholder="Assignment description and instructions"
+                      modules={{
+                        toolbar: [
+                          [{ header: [1, 2, 3, false] }],
+                          ["bold", "italic", "underline", "strike"],
+                          [{ list: "ordered" }, { list: "bullet" }],
+                          ["link", "image"],
+                          ["clean"],
+                        ],
+                      }}
+                      className="h-[150px]"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -260,13 +337,26 @@ export default function TeacherAssignments() {
                   )}
                 </div>
 
-                <Button
-                  onClick={() => createAssignment.mutate()}
-                  disabled={!title || !selectedClass || createAssignment.isPending}
-                  className="w-full"
-                >
-                  Create Assignment
-                </Button>
+                <div className="flex gap-2 pt-8">
+                  <Button
+                    onClick={() => createAssignment.mutate()}
+                    disabled={!title || !selectedClass || createAssignment.isPending}
+                    className="flex-1"
+                  >
+                    {editingId ? "Update Assignment" : "Create Assignment"}
+                  </Button>
+                  {editingId && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setOpen(false);
+                        handleCancelEdit();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -288,7 +378,7 @@ export default function TeacherAssignments() {
               <Card key={assignment.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle>{assignment.title}</CardTitle>
                       <CardDescription>
                         {assignment.classes.name}
@@ -296,13 +386,29 @@ export default function TeacherAssignments() {
                         {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setGradingHomeworkId(assignment.id)}
-                    >
-                      View Submissions
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(assignment)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteId(assignment.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGradingHomeworkId(assignment.id)}
+                      >
+                        View Submissions
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 {assignment.body && (
@@ -335,6 +441,26 @@ export default function TeacherAssignments() {
             onClose={() => setGradingHomeworkId(null)}
           />
         )}
+
+        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Assignment</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this assignment? This action cannot be undone and will also delete all student submissions.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteId && deleteAssignment.mutate(deleteId)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
