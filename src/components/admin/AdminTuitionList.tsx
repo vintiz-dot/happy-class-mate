@@ -1,14 +1,17 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, DollarSign, ArrowUpDown } from "lucide-react";
+import { Eye, DollarSign, ArrowUpDown, Settings, Save, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { dayjs } from "@/lib/date";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface AdminTuitionListProps {
   month: string;
@@ -17,7 +20,11 @@ interface AdminTuitionListProps {
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editReason, setEditReason] = useState("");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: tuitionData, isLoading } = useQuery({
     queryKey: ["admin-tuition-list", month],
@@ -87,7 +94,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         ...inv,
         hasDiscount: studentDiscounts.has(inv.student_id),
         hasSiblings: siblingStudents.has(inv.student_id),
-        balance: inv.total_amount - inv.paid_amount,
+        balance: inv.total_amount - (inv.recorded_payment ?? inv.paid_amount),
         classes: studentClasses.get(inv.student_id) || [],
       })) || [];
     },
@@ -110,16 +117,16 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         filtered = tuitionData.filter(t => t.hasSiblings);
         break;
       case "paid":
-        filtered = tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0);
         break;
       case "overpaid":
-        filtered = tuitionData.filter(t => t.paid_amount > t.total_amount);
+        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) > t.total_amount);
         break;
       case "underpaid":
-        filtered = tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0);
+        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0);
         break;
       case "settled":
-        filtered = tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0);
         break;
       default:
         filtered = tuitionData;
@@ -154,24 +161,86 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       { key: "discount", label: "Discount", count: tuitionData.filter(t => t.hasDiscount).length },
       { key: "no-discount", label: "No Discount", count: tuitionData.filter(t => !t.hasDiscount).length },
       { key: "siblings", label: "Siblings", count: tuitionData.filter(t => t.hasSiblings).length },
-      { key: "paid", label: "Paid", count: tuitionData.filter(t => t.paid_amount >= t.total_amount && t.total_amount > 0).length },
-      { key: "overpaid", label: "Overpaid", count: tuitionData.filter(t => t.paid_amount > t.total_amount).length },
-      { key: "underpaid", label: "Underpaid", count: tuitionData.filter(t => t.paid_amount < t.total_amount && t.paid_amount > 0).length },
-      { key: "settled", label: "Settled", count: tuitionData.filter(t => t.paid_amount === t.total_amount && t.total_amount > 0).length },
+      { key: "paid", label: "Paid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0).length },
+      { key: "overpaid", label: "Overpaid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) > t.total_amount).length },
+      { key: "underpaid", label: "Underpaid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0).length },
+      { key: "settled", label: "Settled", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0).length },
     ];
   }, [tuitionData]);
 
+  const handleStartEdit = (invoice: any) => {
+    setEditingInvoiceId(invoice.id);
+    setEditValue((invoice.recorded_payment ?? invoice.paid_amount).toString());
+    setEditReason("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingInvoiceId(null);
+    setEditValue("");
+    setEditReason("");
+  };
+
+  const handleSaveEdit = async (invoice: any) => {
+    if (!editReason.trim()) {
+      toast.error("Please provide a reason for this change");
+      return;
+    }
+
+    try {
+      const newValue = parseInt(editValue);
+      const oldValue = invoice.recorded_payment ?? invoice.paid_amount;
+
+      // Update the invoice
+      const { error: updateError } = await supabase
+        .from("invoices")
+        .update({ 
+          recorded_payment: newValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", invoice.id);
+
+      if (updateError) throw updateError;
+
+      // Log to audit log
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("audit_log").insert({
+        entity: "invoice",
+        entity_id: invoice.id,
+        action: "update_recorded_payment",
+        actor_user_id: user?.id,
+        diff: {
+          old_recorded_payment: oldValue,
+          new_recorded_payment: newValue,
+          reason: editReason,
+          student_id: invoice.student_id,
+          month: invoice.month
+        }
+      });
+
+      toast.success("Recorded payment updated successfully");
+      
+      // Invalidate caches
+      queryClient.invalidateQueries({ queryKey: ["admin-tuition-list", month] });
+      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, month] });
+      
+      handleCancelEdit();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const getStatusBadge = (item: any) => {
-    if (item.paid_amount > item.total_amount) {
+    const recordedPayment = item.recorded_payment ?? item.paid_amount;
+    if (recordedPayment > item.total_amount) {
       return <Badge className="bg-blue-500">Overpaid</Badge>;
     }
-    if (item.paid_amount === item.total_amount && item.total_amount > 0) {
+    if (recordedPayment === item.total_amount && item.total_amount > 0) {
       return <Badge className="bg-green-500">Settled</Badge>;
     }
-    if (item.paid_amount < item.total_amount && item.paid_amount > 0) {
+    if (recordedPayment < item.total_amount && recordedPayment > 0) {
       return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
     }
-    if (item.paid_amount >= item.total_amount && item.total_amount > 0) {
+    if (recordedPayment >= item.total_amount && item.total_amount > 0) {
       return <Badge className="bg-green-500">Paid</Badge>;
     }
     return <Badge variant="secondary">Unpaid</Badge>;
@@ -236,7 +305,52 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                     <span>Base: {item.base_amount.toLocaleString()} ₫</span>
                     <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
                     <span>Total: {item.total_amount.toLocaleString()} ₫</span>
-                    <span>Paid: {item.paid_amount.toLocaleString()} ₫</span>
+                    <div className="flex items-center gap-2">
+                      {editingInvoiceId === item.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="h-6 w-28 text-xs"
+                          />
+                          <Input
+                            placeholder="Reason"
+                            value={editReason}
+                            onChange={(e) => setEditReason(e.target.value)}
+                            className="h-6 w-32 text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleSaveEdit(item)}
+                          >
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={handleCancelEdit}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span>Recorded Pay: {(item.recorded_payment ?? item.paid_amount).toLocaleString()} ₫</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0"
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            <Settings className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                     {item.balance !== 0 && (
                       <span className={item.balance > 0 ? "text-red-600" : "text-blue-600"}>
                         Balance: {item.balance.toLocaleString()} ₫
