@@ -217,9 +217,9 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       
       if (newValue === 0 && totalAmount === 0) {
         // Edge case: 100% discount (total_amount = 0) and no payment needed
-        newStatus = 'settled';
+        newStatus = 'paid';
       } else if (newValue >= totalAmount) {
-        newStatus = 'settled';
+        newStatus = 'paid';
       } else if (newValue > 0 && newValue < totalAmount) {
         newStatus = 'partial';
       } else if (newValue === 0) {
