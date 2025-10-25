@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StudentTuitionOverview } from "@/components/admin/StudentTuitionOverview";
+import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
 import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
 import { PaymentManager } from "@/components/admin/PaymentManager";
 import { DiscountManager } from "@/components/admin/DiscountManager";
@@ -32,7 +32,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="overview">
-        <StudentTuitionOverview />
+        <AdminTuitionList month={currentMonth} />
       </TabsContent>
 
       <TabsContent value="bulk">
