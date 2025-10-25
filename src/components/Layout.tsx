@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
+import NotificationBell from "@/components/NotificationBell";
 
 interface LayoutProps {
   children: ReactNode;
@@ -90,6 +91,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           </div>
           <div className="flex items-center gap-4">
             {(role === "student" || role === "family") && <ProfileSwitcher />}
+            <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{user.email}</p>
               <p className="text-xs text-muted-foreground capitalize">{role}</p>

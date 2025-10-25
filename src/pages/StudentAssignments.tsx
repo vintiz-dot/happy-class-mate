@@ -155,7 +155,10 @@ export default function StudentAssignments() {
                       </CardHeader>
                       {assignment.body && (
                         <CardContent>
-                          <p className="text-sm whitespace-pre-wrap line-clamp-3">{assignment.body}</p>
+                          <div 
+                            className="text-sm prose prose-sm max-w-none line-clamp-3"
+                            dangerouslySetInnerHTML={{ __html: assignment.body }}
+                          />
                         </CardContent>
                       )}
                     </Card>

@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, FileText } from "lucide-react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
@@ -129,13 +130,21 @@ export default function HomeworkSubmission({
     <div className="space-y-4 p-4 border rounded-lg">
       <div>
         <Label htmlFor="submission-text">Your Response</Label>
-        <Textarea
-          id="submission-text"
+        <ReactQuill
+          theme="snow"
           value={submissionText}
-          onChange={(e) => setSubmissionText(e.target.value)}
+          onChange={setSubmissionText}
           placeholder="Write your answer here..."
-          rows={6}
-          disabled={existingSubmission?.status === "graded"}
+          readOnly={existingSubmission?.status === "graded"}
+          modules={{
+            toolbar: [
+              [{ header: [1, 2, 3, false] }],
+              ["bold", "italic", "underline", "strike"],
+              [{ list: "ordered" }, { list: "bullet" }],
+              ["link"],
+              ["clean"],
+            ],
+          }}
         />
       </div>
 
@@ -162,12 +171,24 @@ export default function HomeworkSubmission({
       )}
 
       {existingSubmission?.status === "graded" && (
-        <div className="p-3 bg-muted rounded-lg">
+        <div className="p-3 bg-muted rounded-lg space-y-2">
           <p className="text-sm font-medium">Grade: {existingSubmission.grade}</p>
           {existingSubmission.teacher_feedback && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Feedback: {existingSubmission.teacher_feedback}
-            </p>
+            <div>
+              <p className="text-sm font-medium">Feedback:</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {existingSubmission.teacher_feedback}
+              </p>
+            </div>
+          )}
+          {existingSubmission.submission_text && (
+            <div>
+              <p className="text-sm font-medium">Your Submission:</p>
+              <div 
+                className="text-sm text-muted-foreground mt-1 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: existingSubmission.submission_text }}
+              />
+            </div>
           )}
         </div>
       )}

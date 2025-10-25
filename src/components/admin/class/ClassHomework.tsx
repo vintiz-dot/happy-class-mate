@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { FileText, Upload } from "lucide-react";
+import { FileText, Upload, Trash2, Edit } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const ClassHomework = ({ classId }: { classId: string }) => {
   const [title, setTitle] = useState("");
@@ -17,6 +18,9 @@ const ClassHomework = ({ classId }: { classId: string }) => {
   const [dueDate, setDueDate] = useState("");
   const [creating, setCreating] = useState(false);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: homeworks, refetch } = useQuery({
     queryKey: ["class-homeworks", classId],
@@ -109,11 +113,75 @@ const ClassHomework = ({ classId }: { classId: string }) => {
     return data.publicUrl;
   };
 
+  const handleEdit = (homework: any) => {
+    setEditingId(homework.id);
+    setTitle(homework.title);
+    setBody(homework.body || "");
+    setDueDate(homework.due_date || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+    setDueDate("");
+  };
+
+  const handleUpdate = async () => {
+    if (!editingId || !title.trim()) {
+      toast.error("Please enter a title");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const { error } = await supabase
+        .from("homeworks")
+        .update({
+          title: title.trim(),
+          body: body.trim() || null,
+          due_date: dueDate || null,
+        })
+        .eq("id", editingId);
+
+      if (error) throw error;
+
+      toast.success("Homework updated successfully");
+      handleCancelEdit();
+      refetch();
+    } catch (error: any) {
+      console.error("Error updating homework:", error);
+      toast.error(error.message || "Failed to update homework");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async (homeworkId: string) => {
+      const { error } = await supabase
+        .from("homeworks")
+        .delete()
+        .eq("id", homeworkId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Homework deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["class-homeworks", classId] });
+      setDeleteId(null);
+    },
+    onError: (error: any) => {
+      console.error("Error deleting homework:", error);
+      toast.error(error.message || "Failed to delete homework");
+    },
+  });
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Post Homework</CardTitle>
+          <CardTitle>{editingId ? "Edit Homework" : "Post Homework"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -149,9 +217,22 @@ const ClassHomework = ({ classId }: { classId: string }) => {
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
 
-          <Button onClick={handleCreate} disabled={creating} className="w-full">
-            {creating ? "Publishing..." : "Publish Homework"}
-          </Button>
+          <div className="flex gap-2">
+            {editingId ? (
+              <>
+                <Button onClick={handleUpdate} disabled={creating} className="flex-1">
+                  {creating ? "Updating..." : "Update Homework"}
+                </Button>
+                <Button onClick={handleCancelEdit} variant="outline">
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleCreate} disabled={creating} className="w-full">
+                {creating ? "Publishing..." : "Publish Homework"}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -160,12 +241,32 @@ const ClassHomework = ({ classId }: { classId: string }) => {
         {homeworks?.map((hw) => (
           <Card key={hw.id}>
             <CardHeader>
-              <CardTitle className="text-lg">{hw.title}</CardTitle>
-              {hw.due_date && (
-                <p className="text-sm text-muted-foreground">
-                  Due: {format(new Date(hw.due_date), "MMM dd, yyyy")}
-                </p>
-              )}
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-lg">{hw.title}</CardTitle>
+                  {hw.due_date && (
+                    <p className="text-sm text-muted-foreground">
+                      Due: {format(new Date(hw.due_date), "MMM dd, yyyy")}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(hw)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteId(hw.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {hw.body && (
@@ -222,6 +323,26 @@ const ClassHomework = ({ classId }: { classId: string }) => {
           <p className="text-muted-foreground text-center py-8">No homework posted yet</p>
         )}
       </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Homework</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this homework? This action cannot be undone and will also delete all student submissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
