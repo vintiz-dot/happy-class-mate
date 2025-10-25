@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit by IP
+    const clientIP = getClientIP(req);
+    const ipLimit = checkRateLimit(clientIP, 60, 60000, 'ip');
+    
+    if (ipLimit.limited) {
+      return rateLimitResponse(ipLimit.resetAt, corsHeaders);
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -40,6 +49,13 @@ Deno.serve(async (req) => {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Rate limit by user
+    const userLimit = checkRateLimit(user.id, 40, 60000, 'user');
+    
+    if (userLimit.limited) {
+      return rateLimitResponse(userLimit.resetAt, corsHeaders);
     }
 
     // Check if user is admin or teacher

@@ -1,6 +1,7 @@
 // supabase/functions/calculate-tuition/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Rate limit by IP
+    const clientIP = getClientIP(req);
+    const ipLimit = checkRateLimit(clientIP, 30, 60000, 'ip');
+    
+    if (ipLimit.limited) {
+      return rateLimitResponse(ipLimit.resetAt, corsHeaders);
+    }
+
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Validate input

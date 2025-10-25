@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit by IP - stricter for financial operations
+    const clientIP = getClientIP(req);
+    const ipLimit = checkRateLimit(clientIP, 20, 60000, 'ip');
+    
+    if (ipLimit.limited) {
+      return rateLimitResponse(ipLimit.resetAt, corsHeaders);
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -25,6 +34,13 @@ Deno.serve(async (req) => {
     );
 
     if (userError || !user) throw new Error('Unauthorized');
+
+    // Rate limit by user - stricter for financial operations
+    const userLimit = checkRateLimit(user.id, 10, 60000, 'user');
+    
+    if (userLimit.limited) {
+      return rateLimitResponse(userLimit.resetAt, corsHeaders);
+    }
 
     // Check admin role
     const { data: roleData } = await supabase

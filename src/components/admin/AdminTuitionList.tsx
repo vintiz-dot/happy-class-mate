@@ -12,6 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const PaymentSchema = z.object({
+  amount: z.number().min(0, "Amount must be positive").max(100000000, "Amount too large"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+  method: z.enum(["Cash", "Bank Transfer", "Card", "Other"], {
+    errorMap: () => ({ message: "Invalid payment method" })
+  })
+});
 
 interface AdminTuitionListProps {
   month: string;
@@ -187,8 +196,15 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const handleSaveEdit = async (invoice: any) => {
     const newValue = parseInt(editValue) || 0;
     
-    if (!editDate) {
-      toast.error("Please provide a payment date");
+    // Validate input using zod schema
+    const validation = PaymentSchema.safeParse({
+      amount: newValue,
+      date: editDate,
+      method: editMethod
+    });
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message);
       return;
     }
 
