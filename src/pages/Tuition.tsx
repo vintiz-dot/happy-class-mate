@@ -130,12 +130,15 @@ export default function Tuition() {
         sessionDetails = sessions || [];
       }
 
+      // Use recorded_payment if available, otherwise fall back to paid_amount
+      const effectivePaidAmount = invoice.recorded_payment ?? invoice.paid_amount;
+      
       return {
         baseAmount: invoice.base_amount,
         discountAmount: invoice.discount_amount,
         totalAmount: invoice.total_amount,
-        paidAmount: invoice.paid_amount,
-        balance: invoice.total_amount - invoice.paid_amount,
+        paidAmount: effectivePaidAmount,
+        balance: invoice.total_amount - effectivePaidAmount,
         payments: payments || [],
         sessionDetails,
       };
