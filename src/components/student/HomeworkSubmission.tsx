@@ -40,13 +40,18 @@ export default function HomeworkSubmission({
         }
 
         const fileExt = file.name.split(".").pop();
-        const filePath = `homework-submissions/${studentId}/${homeworkId}/${Date.now()}.${fileExt}`;
+        const timestamp = Date.now();
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `homework-submissions/${studentId}/${timestamp}-${sanitizedFileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("homework")
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
 
         storageKey = filePath;
         fileName = file.name;
@@ -76,7 +81,16 @@ export default function HomeworkSubmission({
       onSuccess?.();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to submit homework");
+      console.error("Homework submission error:", error);
+      const errorMessage = error.message || "Failed to submit homework";
+      
+      if (errorMessage.includes("policy")) {
+        toast.error("Permission denied. Please make sure you're logged in as a student.");
+      } else if (errorMessage.includes("storage")) {
+        toast.error("File upload failed. Please check your file and try again.");
+      } else {
+        toast.error(errorMessage);
+      }
     },
   });
 
