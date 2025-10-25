@@ -49,10 +49,6 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">My Journal</h2>
-        <Button onClick={() => setIsCreating(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Entry
-        </Button>
       </div>
       <JournalList
         key={refreshKey}

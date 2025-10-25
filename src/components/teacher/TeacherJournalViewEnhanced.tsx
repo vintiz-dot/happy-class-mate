@@ -187,12 +187,6 @@ export function TeacherJournalViewEnhanced() {
                 </SelectContent>
               </Select>
             </div>
-            {selectedStudentId && (
-              <Button onClick={() => setIsCreating(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Entry
-              </Button>
-            )}
           </div>
 
           {selectedStudentId && (
@@ -224,12 +218,6 @@ export function TeacherJournalViewEnhanced() {
                 </SelectContent>
               </Select>
             </div>
-            {selectedClassId && (
-              <Button onClick={() => setIsCreating(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Class Entry
-              </Button>
-            )}
           </div>
 
           {selectedClassId && (
@@ -246,12 +234,6 @@ export function TeacherJournalViewEnhanced() {
         </TabsContent>
 
         <TabsContent value="private" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Private Entry
-            </Button>
-          </div>
           <JournalList
             key={refreshKey}
             type="personal"
