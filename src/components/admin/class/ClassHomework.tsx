@@ -57,12 +57,19 @@ const ClassHomework = ({ classId }: { classId: string }) => {
         created_by: user.user?.id,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating homework:", error);
+        throw error;
+      }
 
       toast.success("Homework posted successfully");
       setTitle("");
       setBody("");
       setDueDate("");
+      // Invalidate all homework queries
+      queryClient.invalidateQueries({ queryKey: ["class-homeworks"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       refetch();
     } catch (error: any) {
       console.error("Error creating homework:", error);
@@ -81,24 +88,38 @@ const ClassHomework = ({ classId }: { classId: string }) => {
     setUploadingFor(homeworkId);
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `${homeworkId}/${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `assignments/${homeworkId}/${timestamp}-${sanitizedFileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("homework")
-        .upload(fileName, file);
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
 
       const { error: dbError } = await supabase.from("homework_files").insert({
         homework_id: homeworkId,
         file_name: file.name,
-        storage_key: fileName,
+        storage_key: filePath,
         size_bytes: file.size,
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("File record insert error:", dbError);
+        throw dbError;
+      }
 
       toast.success("File uploaded successfully");
+      // Invalidate all homework queries
+      queryClient.invalidateQueries({ queryKey: ["class-homeworks"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
       refetch();
     } catch (error: any) {
       console.error("Error uploading file:", error);
@@ -148,6 +169,10 @@ const ClassHomework = ({ classId }: { classId: string }) => {
 
       toast.success("Homework updated successfully");
       handleCancelEdit();
+      // Invalidate all homework queries
+      queryClient.invalidateQueries({ queryKey: ["class-homeworks"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       refetch();
     } catch (error: any) {
       console.error("Error updating homework:", error);

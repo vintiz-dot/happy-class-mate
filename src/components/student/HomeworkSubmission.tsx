@@ -43,11 +43,14 @@ export default function HomeworkSubmission({
         const fileExt = file.name.split(".").pop();
         const timestamp = Date.now();
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filePath = `homework-submissions/${studentId}/${timestamp}-${sanitizedFileName}`;
+        const filePath = `submissions/${homeworkId}/${studentId}/${timestamp}-${sanitizedFileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("homework")
-          .upload(filePath, file);
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
 
         if (uploadError) {
           console.error("Storage upload error:", uploadError);
@@ -76,8 +79,10 @@ export default function HomeworkSubmission({
     },
     onSuccess: () => {
       toast.success("Homework submitted successfully");
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["homework-submission", homeworkId, studentId] });
+      queryClient.invalidateQueries({ queryKey: ["homework-submissions"] });
       setFile(null);
       onSuccess?.();
     },

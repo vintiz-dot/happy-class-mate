@@ -172,28 +172,41 @@ export default function TeacherAssignments() {
       if (files.length > 0) {
         for (const file of files) {
           const fileExt = file.name.split(".").pop();
-          const fileName = `${homework.id}/${Date.now()}.${fileExt}`;
+          const timestamp = Date.now();
+          const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const filePath = `assignments/${homework.id}/${timestamp}-${sanitizedFileName}`;
 
           const { error: uploadError } = await supabase.storage
             .from("homework")
-            .upload(fileName, file, {
+            .upload(filePath, file, {
               cacheControl: "3600",
               upsert: false,
             });
 
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error("Storage upload error:", uploadError);
+            throw new Error(`Upload failed: ${uploadError.message}`);
+          }
 
-          await supabase.from("homework_files").insert({
+          const { error: insertError } = await supabase.from("homework_files").insert({
             homework_id: homework.id,
-            storage_key: fileName,
+            storage_key: filePath,
             file_name: file.name,
             size_bytes: file.size,
           });
+
+          if (insertError) {
+            console.error("File record insert error:", insertError);
+            throw insertError;
+          }
         }
       }
     },
     onSuccess: () => {
+      // Invalidate all homework-related queries
       queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["class-homeworks"] });
+      queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       setOpen(false);
       handleCancelEdit();
       toast({ title: editingId ? "Assignment updated successfully" : "Assignment created successfully" });
