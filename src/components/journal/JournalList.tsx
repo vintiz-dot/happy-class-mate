@@ -47,6 +47,8 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isOwner, setIsOwner] = useState<Record<string, boolean>>({});
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isMember, setIsMember] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadEntries();
@@ -60,6 +62,15 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
         setLoading(false);
         return;
       }
+
+      // Get user role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      
+      setUserRole(roleData?.role || null);
 
       let query = supabase
         .from("journals" as any)
@@ -83,12 +94,27 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
 
       setEntries((data || []) as any as JournalEntry[]);
 
-      // Check ownership
+      // Check ownership and membership
       const ownershipMap: Record<string, boolean> = {};
-      ((data || []) as any as JournalEntry[]).forEach((entry) => {
+      const membershipMap: Record<string, boolean> = {};
+      
+      for (const entry of ((data || []) as any as JournalEntry[])) {
         ownershipMap[entry.id] = entry.owner_user_id === user.id;
-      });
+        
+        // Check if user is a member of this journal
+        const { data: memberData } = await supabase
+          .from("journal_members" as any)
+          .select("id")
+          .eq("journal_id", entry.id)
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single();
+        
+        membershipMap[entry.id] = !!memberData;
+      }
+      
       setIsOwner(ownershipMap);
+      setIsMember(membershipMap);
     } catch (error: any) {
       toast.error("Error loading entries", { description: error.message });
     } finally {
@@ -224,15 +250,20 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
                       Delete
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleLeave(entry.id)}
-                      className="flex-1 sm:flex-none min-h-[40px]"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Leave
-                    </Button>
+                    // Only show Leave button for teachers who are members of collaborative journals
+                    userRole === "teacher" && 
+                    isMember[entry.id] && 
+                    entry.type === "collab_student_teacher" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLeave(entry.id)}
+                        className="flex-1 sm:flex-none min-h-[40px]"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave
+                      </Button>
+                    )
                   )}
                 </div>
               </CardContent>

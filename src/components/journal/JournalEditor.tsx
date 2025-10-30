@@ -27,6 +27,7 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
   const [journalType, setJournalType] = useState<JournalType>(initialType || "personal");
   const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || "");
   const [selectedClassId, setSelectedClassId] = useState(initialClassId || "");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [students, setStudents] = useState<Array<{ id: string; full_name: string }>>([]);
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
   const [teachers, setTeachers] = useState<Array<{ id: string; full_name: string; user_id: string }>>([]);
@@ -159,17 +160,18 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
         if (error) throw error;
 
         // If collab journal, create invite for teacher
-        if (journalType === "collab_student_teacher" && selectedStudentId) {
+        if (journalType === "collab_student_teacher" && selectedTeacherId) {
           if (!newJournal) throw new Error("Failed to create journal");
           
           const journalData = newJournal as any;
-          const teacherId = teachers.find(t => t.id === selectedStudentId)?.user_id;
-          if (teacherId && journalData && typeof journalData === 'object' && 'id' in journalData) {
+          const teacher = teachers.find(t => t.id === selectedTeacherId);
+          if (teacher?.user_id && journalData && typeof journalData === 'object' && 'id' in journalData) {
             await supabase.from("journal_members" as any).insert({
               journal_id: journalData.id,
-              user_id: teacherId,
-              role: "editor",
-              status: "invited",
+              user_id: teacher.user_id,
+              role: "contributor",
+              status: "active",
+              accepted_at: new Date().toISOString(),
             });
           }
         }
@@ -245,7 +247,7 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
         {journalType === "collab_student_teacher" && !entryId && (
           <div className="space-y-2">
             <Label>Invite Teacher</Label>
-            <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+            <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a teacher" />
               </SelectTrigger>
