@@ -193,7 +193,7 @@ export function JournalEditor({ type: initialType, studentId: initialStudentId, 
         <CardTitle>{entryId ? "Edit" : "New"} Journal Entry</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!entryId && (
+        {!entryId && !initialType && (
           <div className="space-y-2">
             <Label>Journal Type</Label>
             <Select value={journalType} onValueChange={(v) => setJournalType(v as JournalType)}>

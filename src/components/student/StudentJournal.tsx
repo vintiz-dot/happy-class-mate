@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { JournalEditor } from "@/components/journal/JournalEditor";
 import { JournalList } from "@/components/journal/JournalList";
 import { JournalViewer } from "@/components/journal/JournalViewer";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 interface StudentJournalProps {
   studentId: string;
@@ -20,6 +20,7 @@ interface JournalEntry {
 }
 
 export function StudentJournal({ studentId }: StudentJournalProps) {
+  const [journalType, setJournalType] = useState<"personal" | "collab_student_teacher">("personal");
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
@@ -35,7 +36,7 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
   if (isCreating || editingId) {
     return (
       <JournalEditor
-        type={isCreating ? "personal" : undefined}
+        type={isCreating ? journalType : undefined}
         entryId={editingId || undefined}
         onSave={handleSave}
         onCancel={() => {
@@ -50,14 +51,31 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 className="text-2xl md:text-3xl font-bold">My Journals</h2>
-        <Button 
-          onClick={() => setIsCreating(true)}
-          className="w-full sm:w-auto"
-          size="lg"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          New Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => {
+              setJournalType("personal");
+              setIsCreating(true);
+            }}
+            className="flex-1 sm:flex-initial"
+            size="lg"
+            variant="outline"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Personal
+          </Button>
+          <Button 
+            onClick={() => {
+              setJournalType("collab_student_teacher");
+              setIsCreating(true);
+            }}
+            className="flex-1 sm:flex-initial"
+            size="lg"
+          >
+            <Users className="h-5 w-5 mr-2" />
+            Collaborate
+          </Button>
+        </div>
       </div>
 
       {/* Tab Navigation */}

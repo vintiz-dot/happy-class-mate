@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LayoutProps {
   children: ReactNode;
@@ -29,6 +30,50 @@ interface LayoutProps {
 const Layout = ({ children, title }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!user) return;
+      
+      // Try to get student name
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("full_name")
+        .eq("linked_user_id", user.id)
+        .single();
+      
+      if (studentData?.full_name) {
+        setUserName(studentData.full_name);
+        return;
+      }
+
+      // Try to get teacher name
+      const { data: teacherData } = await supabase
+        .from("teachers")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (teacherData?.full_name) {
+        setUserName(teacherData.full_name);
+        return;
+      }
+
+      // Try to get family name
+      const { data: familyData } = await supabase
+        .from("families")
+        .select("name")
+        .eq("primary_user_id", user.id)
+        .single();
+      
+      if (familyData?.name) {
+        setUserName(familyData.name);
+      }
+    };
+
+    fetchUserName();
+  }, [user]);
 
   if (!user) {
     return <>{children}</>;
@@ -92,10 +137,11 @@ const Layout = ({ children, title }: LayoutProps) => {
           <div className="flex items-center gap-2 md:gap-4">
             {(role === "student" || role === "family") && <ProfileSwitcher />}
             <NotificationBell />
-            <div className="text-right hidden lg:block">
-              <p className="text-sm font-medium text-foreground">{user.email}</p>
-              <p className="text-xs text-muted-foreground capitalize">{role}</p>
-            </div>
+            {userName && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
+                <span className="text-sm font-medium text-foreground">{userName}</span>
+              </div>
+            )}
             <ChangePassword />
             <Button onClick={signOut} variant="outline" size="sm" className="hidden sm:flex">
               <LogOut className="h-4 w-4 mr-2" />
