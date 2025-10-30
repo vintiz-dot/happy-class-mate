@@ -8,39 +8,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 export default function NotificationBell() {
+  const { studentId } = useStudentProfile();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], error: queryError } = useQuery({
-    queryKey: ["notifications"],
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications", studentId],
     queryFn: async () => {
-      // Get current user to debug
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log("Current user for notifications:", user?.id, user?.email);
+      if (!studentId) return [];
       
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .or(`metadata->>student_id.eq.${studentId},metadata->>student_id.is.null`)
         .order("created_at", { ascending: false })
         .limit(20);
 
-      console.log("Notifications query result:", { data, error, count: data?.length });
-      
-      if (error) {
-        console.error("Notifications query error:", error);
-        throw error;
-      }
+      if (error) throw error;
       return data || [];
     },
+    enabled: !!studentId,
   });
-
-  // Log query error if any
-  if (queryError) {
-    console.error("Notifications query error:", queryError);
-  }
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
 
@@ -54,7 +46,7 @@ export default function NotificationBell() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", studentId] });
     },
   });
 
@@ -82,15 +74,18 @@ export default function NotificationBell() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
+      if (!studentId) return;
+      
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
-        .eq("is_read", false);
+        .eq("is_read", false)
+        .or(`metadata->>student_id.eq.${studentId},metadata->>student_id.is.null`);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", studentId] });
     },
   });
 
