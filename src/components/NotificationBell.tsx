@@ -14,19 +14,33 @@ export default function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [], error: queryError } = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
+      // Get current user to debug
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current user for notifications:", user?.id, user?.email);
+      
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
 
-      if (error) throw error;
-      return data;
+      console.log("Notifications query result:", { data, error, count: data?.length });
+      
+      if (error) {
+        console.error("Notifications query error:", error);
+        throw error;
+      }
+      return data || [];
     },
   });
+
+  // Log query error if any
+  if (queryError) {
+    console.error("Notifications query error:", queryError);
+  }
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
 
