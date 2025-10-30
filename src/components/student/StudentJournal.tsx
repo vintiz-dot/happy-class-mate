@@ -24,6 +24,7 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<"personal" | "student" | "class">("personal");
 
   const handleSave = () => {
     setIsCreating(false);
@@ -46,15 +47,73 @@ export function StudentJournal({ studentId }: StudentJournalProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">My Journal</h2>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <h2 className="text-2xl md:text-3xl font-bold">My Journals</h2>
+        <Button 
+          onClick={() => setIsCreating(true)}
+          className="w-full sm:w-auto"
+          size="lg"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          New Entry
+        </Button>
       </div>
-      <JournalList
-        key={refreshKey}
-        onEdit={setEditingId}
-        onView={setViewingEntry}
-      />
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2 overflow-x-auto pb-2 border-b">
+        <Button
+          variant={activeTab === "personal" ? "default" : "ghost"}
+          onClick={() => setActiveTab("personal")}
+          className="whitespace-nowrap"
+        >
+          Personal
+        </Button>
+        <Button
+          variant={activeTab === "student" ? "default" : "ghost"}
+          onClick={() => setActiveTab("student")}
+          className="whitespace-nowrap"
+        >
+          About Me
+        </Button>
+        <Button
+          variant={activeTab === "class" ? "default" : "ghost"}
+          onClick={() => setActiveTab("class")}
+          className="whitespace-nowrap"
+        >
+          Class Journals
+        </Button>
+      </div>
+
+      {/* Journal Lists based on active tab */}
+      {activeTab === "personal" && (
+        <JournalList
+          key={`personal-${refreshKey}`}
+          type="personal"
+          onEdit={setEditingId}
+          onView={setViewingEntry}
+        />
+      )}
+
+      {activeTab === "student" && (
+        <JournalList
+          key={`student-${refreshKey}`}
+          type="student"
+          studentId={studentId}
+          onEdit={setEditingId}
+          onView={setViewingEntry}
+        />
+      )}
+
+      {activeTab === "class" && (
+        <JournalList
+          key={`class-${refreshKey}`}
+          type="class"
+          onEdit={setEditingId}
+          onView={setViewingEntry}
+        />
+      )}
+
       <JournalViewer entry={viewingEntry} onClose={() => setViewingEntry(null)} />
     </div>
   );

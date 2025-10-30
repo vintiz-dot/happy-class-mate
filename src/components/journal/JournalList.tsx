@@ -175,27 +175,28 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
           const truncatedContent = entry.content_rich.replace(/<[^>]*>/g, "").substring(0, 150);
           
           return (
-            <Card key={entry.id} className="mb-4">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{entry.title}</CardTitle>
+            <Card key={entry.id} className="mb-3 md:mb-4 overflow-hidden hover:shadow-lg transition-all border-2">
+              <CardHeader className="bg-gradient-to-br from-muted/30 to-muted/10 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <CardTitle className="text-base md:text-lg line-clamp-2">{entry.title}</CardTitle>
                   {getTypeBadge(entry.type)}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(entry.created_at), "PPP")}
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  📅 {format(new Date(entry.created_at), "MMM d, yyyy")}
                 </p>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="pt-3">
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                   {truncatedContent}
                   {entry.content_rich.length > 150 && "..."}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {onView && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onView(entry)}
+                      className="flex-1 sm:flex-none min-h-[40px]"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View
@@ -206,6 +207,7 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
                       variant="outline"
                       size="sm"
                       onClick={() => onEdit(entry.id)}
+                      className="flex-1 sm:flex-none min-h-[40px]"
                     >
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
@@ -216,6 +218,7 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
                       variant="destructive"
                       size="sm"
                       onClick={() => setDeleteId(entry.id)}
+                      className="flex-1 sm:flex-none min-h-[40px]"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -225,6 +228,7 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
                       variant="outline"
                       size="sm"
                       onClick={() => handleLeave(entry.id)}
+                      className="flex-1 sm:flex-none min-h-[40px]"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       Leave

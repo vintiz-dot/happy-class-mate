@@ -47,9 +47,13 @@ export default function NotificationBell() {
   const handleNotificationClick = (notification: any) => {
     markAsReadMutation.mutate(notification.id);
     
-    if (notification.journal_id) {
+    const metadata = notification.metadata || {};
+    
+    // Handle different notification types
+    if (notification.type === 'homework_assigned' || notification.type === 'homework_graded') {
+      navigate("/student/assignments");
+    } else if (notification.journal_id) {
       // Navigate to appropriate journal page based on type
-      const metadata = notification.metadata || {};
       if (metadata.journal_type === "student") {
         navigate("/student/journal");
       } else if (metadata.journal_type === "class") {
@@ -91,14 +95,15 @@ export default function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold">Notifications</h4>
+      <PopoverContent className="w-80 md:w-96" align="end">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between sticky top-0 bg-popover pb-2 border-b">
+            <h4 className="font-semibold text-base">Notifications</h4>
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-8 text-xs"
                 onClick={() => markAllAsReadMutation.mutate()}
               >
                 Mark all read
@@ -106,43 +111,68 @@ export default function NotificationBell() {
             )}
           </div>
 
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[min(70vh,500px)]">
             {notifications.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No notifications
-              </p>
+              <div className="text-center py-12 px-4">
+                <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">No notifications yet</p>
+              </div>
             ) : (
-              <div className="space-y-2">
-                {notifications.map((notification: any) => (
-                  <div
-                    key={notification.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      notification.is_read
-                        ? "bg-muted/50 hover:bg-muted"
-                        : "bg-primary/10 hover:bg-primary/20"
-                    }`}
-                    onClick={() => handleNotificationClick(notification)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium">{notification.title}</p>
-                        {notification.message && (
-                          <p className="text-xs text-muted-foreground">
-                            {notification.message}
+              <div className="space-y-2 pr-2">
+                {notifications.map((notification: any) => {
+                  const metadata = notification.metadata || {};
+                  const isHomework = notification.type === 'homework_assigned' || notification.type === 'homework_graded';
+                  const isJournal = notification.type === 'new_journal';
+                  
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                        notification.is_read
+                          ? "bg-muted/30 hover:bg-muted/50"
+                          : "bg-gradient-to-br from-primary/15 to-primary/5 hover:from-primary/20 hover:to-primary/10 shadow-sm"
+                      }`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-full p-2 ${
+                          isHomework ? 'bg-blue-100 dark:bg-blue-900/30' : 
+                          isJournal ? 'bg-purple-100 dark:bg-purple-900/30' :
+                          'bg-muted'
+                        }`}>
+                          {isHomework && <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                          {isJournal && <Bell className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+                          {!isHomework && !isJournal && <Bell className="h-4 w-4" />}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <p className="text-sm font-semibold leading-tight line-clamp-2">
+                            {notification.title}
                           </p>
+                          {notification.message && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {notification.message}
+                            </p>
+                          )}
+                          {metadata.class_name && (
+                            <p className="text-xs font-medium text-primary">
+                              {metadata.class_name}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(notification.created_at), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                        
+                        {!notification.is_read && (
+                          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                         )}
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
                       </div>
-                      {!notification.is_read && (
-                        <div className="h-2 w-2 rounded-full bg-primary mt-1" />
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </ScrollArea>
