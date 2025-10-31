@@ -3,9 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
+import { MonthPicker } from "@/components/MonthPicker";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,26 +31,7 @@ export default function Tuition() {
     return (
       <Layout title="Tuition">
         <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setMonth(dayjs(month).subtract(1, "month").format("YYYY-MM"))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-lg font-semibold min-w-[200px] text-center">
-              {dayjs(month).format("MMMM YYYY")}
-            </div>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => {
-                const next = dayjs(month).add(1, "month").format("YYYY-MM");
-                if (next <= currentMonth) setMonth(next);
-              }}
-              disabled={dayjs(month).add(1, "month").format("YYYY-MM") > currentMonth}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
+          <MonthPicker value={month} onChange={setMonth} maxMonth={currentMonth} />
           <AdminTuitionList month={month} />
         </div>
       </Layout>
@@ -146,17 +126,6 @@ export default function Tuition() {
     enabled: !!studentId,
   });
 
-  const prevMonth = () => {
-    setMonth(dayjs(month).subtract(1, "month").format("YYYY-MM"));
-  };
-
-  const nextMonth = () => {
-    const next = dayjs(month).add(1, "month").format("YYYY-MM");
-    if (next <= currentMonth) {
-      setMonth(next);
-    }
-  };
-
   if (!studentId) {
     return (
       <Layout title="Tuition">
@@ -198,22 +167,7 @@ export default function Tuition() {
     <Layout title="Tuition">
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={prevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-lg font-semibold min-w-[200px] text-center">
-              {dayjs(month).format("MMMM YYYY")}
-            </div>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={nextMonth}
-              disabled={dayjs(month).add(1, "month").format("YYYY-MM") > currentMonth}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <MonthPicker value={month} onChange={setMonth} maxMonth={currentMonth} />
           {tuitionData && studentId && (
             <InvoiceDownloadButton
               studentId={studentId}
