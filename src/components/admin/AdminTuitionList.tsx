@@ -39,21 +39,38 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const { data: tuitionData, isLoading } = useQuery({
     queryKey: ["admin-tuition-list", month],
     queryFn: async () => {
-      // Fetch invoices for the month
-      const { data: invoices, error: invoiceError } = await supabase
-        .from("invoices")
-        .select(`
-          *,
-          students(id, full_name, family_id, families(id))
-        `)
-        .eq("month", month);
-
-      if (invoiceError) throw invoiceError;
-
-      // Fetch discount assignments
       const monthStart = `${month}-01`;
       const monthEnd = `${month}-31`;
-      
+
+      // Fetch ALL active students with enrollments for this month
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("enrollments")
+        .select(`
+          student_id,
+          class_id,
+          classes(id, name),
+          students(id, full_name, family_id, is_active, families(id))
+        `)
+        .lte("start_date", monthEnd)
+        .or(`end_date.is.null,end_date.gte.${monthStart}`);
+
+      if (enrollError) throw enrollError;
+
+      // Get unique active students from enrollments
+      const activeStudentIds = new Set(
+        enrollments
+          ?.filter((e: any) => e.students?.is_active)
+          .map((e: any) => e.student_id) || []
+      );
+
+      // Fetch invoices for these students
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("month", month)
+        .in("student_id", Array.from(activeStudentIds));
+
+      // Fetch discount assignments
       const { data: discounts } = await supabase
         .from("discount_assignments")
         .select("student_id, discount_def_id")
@@ -79,34 +96,47 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         students?.filter(s => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map(s => s.id) || []
       );
 
-      // Fetch enrollments for the month to get class info
-      const { data: enrollments } = await supabase
-        .from("enrollments")
-        .select(`
-          student_id,
-          class_id,
-          classes(id, name)
-        `)
-        .lte("start_date", monthEnd)
-        .or(`end_date.is.null,end_date.gte.${monthStart}`);
-
       // Map student to classes
       const studentClasses = new Map<string, any[]>();
-      enrollments?.forEach(e => {
+      const studentData = new Map<string, any>();
+      
+      enrollments?.forEach((e: any) => {
+        if (!e.students?.is_active) return;
+        
         const existing = studentClasses.get(e.student_id) || [];
         if (e.classes) {
           existing.push(Array.isArray(e.classes) ? e.classes[0] : e.classes);
         }
         studentClasses.set(e.student_id, existing);
+        studentData.set(e.student_id, e.students);
       });
 
-      return invoices?.map(inv => ({
-        ...inv,
-        hasDiscount: studentDiscounts.has(inv.student_id),
-        hasSiblings: siblingStudents.has(inv.student_id),
-        balance: inv.total_amount - (inv.recorded_payment ?? inv.paid_amount),
-        classes: studentClasses.get(inv.student_id) || [],
-      })) || [];
+      // Create invoice map for quick lookup
+      const invoiceMap = new Map(invoices?.map(inv => [inv.student_id, inv]) || []);
+
+      // Build tuition data for ALL active students with enrollments
+      return Array.from(activeStudentIds).map(studentId => {
+        const invoice = invoiceMap.get(studentId);
+        const student = studentData.get(studentId);
+        
+        // If no invoice exists, create a placeholder with zeros
+        return {
+          id: invoice?.id || `placeholder-${studentId}`,
+          student_id: studentId,
+          month: month,
+          base_amount: invoice?.base_amount || 0,
+          discount_amount: invoice?.discount_amount || 0,
+          total_amount: invoice?.total_amount || 0,
+          paid_amount: invoice?.paid_amount || 0,
+          recorded_payment: invoice?.recorded_payment || 0,
+          status: invoice?.status || 'open',
+          students: student,
+          hasDiscount: studentDiscounts.has(studentId),
+          hasSiblings: siblingStudents.has(studentId),
+          balance: (invoice?.total_amount || 0) - (invoice?.recorded_payment ?? invoice?.paid_amount ?? 0),
+          classes: studentClasses.get(studentId) || [],
+        };
+      });
     },
   });
 

@@ -11,7 +11,9 @@ import { LedgerBalanceInspector } from "@/components/admin/LedgerBalanceInspecto
 import { InvoiceStatusManager } from "@/components/admin/InvoiceStatusManager";
 import { PaymentIntegrityRepair } from "@/components/admin/PaymentIntegrityRepair";
 import { VoluntaryContributionRepair } from "@/components/admin/VoluntaryContributionRepair";
+import { GenerateTuition } from "@/components/admin/GenerateTuition";
 import { Cog, Wrench } from "lucide-react";
+import { dayjs } from "@/lib/date";
 
 const AutomationTab = () => {
   return (
@@ -50,10 +52,11 @@ const AutomationTab = () => {
             </CardContent>
           </Card>
 
+          <GenerateTuition />
           <BulkEnrollmentDateSetter />
           <BulkRebuildSessions />
           <BulkSessionDelete />
-          <BulkInvoiceDownload month={new Date().toISOString().slice(0, 7)} />
+          <BulkInvoiceDownload month={dayjs().format("YYYY-MM")} />
         </div>
       </div>
     </div>

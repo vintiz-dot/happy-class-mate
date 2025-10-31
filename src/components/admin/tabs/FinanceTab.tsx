@@ -48,7 +48,8 @@ const FinanceTab = () => {
         <DiscountManager />
       </TabsContent>
 
-      <TabsContent value="expenditures">
+      <TabsContent value="expenditures" className="space-y-4">
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} />
         <ExpendituresManager selectedMonth={currentMonth} />
       </TabsContent>
 
