@@ -42,33 +42,35 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       const monthStart = `${month}-01`;
       const monthEnd = `${month}-31`;
 
-      // Fetch ALL active students with enrollments for this month
-      const { data: enrollments, error: enrollError } = await supabase
+      // Fetch ALL active students first
+      const { data: allStudents, error: studentsError } = await supabase
+        .from("students")
+        .select("id, full_name, family_id, is_active")
+        .eq("is_active", true);
+
+      if (studentsError) throw studentsError;
+      if (!allStudents || allStudents.length === 0) return [];
+
+      const allStudentIds = allStudents.map(s => s.id);
+
+      // Fetch enrollments for ALL active students
+      const { data: enrollments } = await supabase
         .from("enrollments")
         .select(`
           student_id,
           class_id,
-          classes(id, name),
-          students(id, full_name, family_id, is_active, families(id))
+          classes(id, name)
         `)
+        .in("student_id", allStudentIds)
         .lte("start_date", monthEnd)
         .or(`end_date.is.null,end_date.gte.${monthStart}`);
 
-      if (enrollError) throw enrollError;
-
-      // Get unique active students from enrollments
-      const activeStudentIds = new Set(
-        enrollments
-          ?.filter((e: any) => e.students?.is_active)
-          .map((e: any) => e.student_id) || []
-      );
-
-      // Fetch invoices for these students
+      // Fetch invoices for ALL active students
       const { data: invoices } = await supabase
         .from("invoices")
         .select("*")
         .eq("month", month)
-        .in("student_id", Array.from(activeStudentIds));
+        .in("student_id", allStudentIds);
 
       // Fetch discount assignments
       const { data: discounts } = await supabase
@@ -98,31 +100,25 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
       // Map student to classes
       const studentClasses = new Map<string, any[]>();
-      const studentData = new Map<string, any>();
       
       enrollments?.forEach((e: any) => {
-        if (!e.students?.is_active) return;
-        
         const existing = studentClasses.get(e.student_id) || [];
         if (e.classes) {
           existing.push(Array.isArray(e.classes) ? e.classes[0] : e.classes);
         }
         studentClasses.set(e.student_id, existing);
-        studentData.set(e.student_id, e.students);
       });
 
       // Create invoice map for quick lookup
       const invoiceMap = new Map(invoices?.map(inv => [inv.student_id, inv]) || []);
 
-      // Build tuition data for ALL active students with enrollments
-      return Array.from(activeStudentIds).map(studentId => {
-        const invoice = invoiceMap.get(studentId);
-        const student = studentData.get(studentId);
+      // Build tuition data for ALL active students
+      return allStudents.map(student => {
+        const invoice = invoiceMap.get(student.id);
         
-        // If no invoice exists, create a placeholder with zeros
         return {
-          id: invoice?.id || `placeholder-${studentId}`,
-          student_id: studentId,
+          id: invoice?.id || `placeholder-${student.id}`,
+          student_id: student.id,
           month: month,
           base_amount: invoice?.base_amount || 0,
           discount_amount: invoice?.discount_amount || 0,
@@ -131,10 +127,10 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           recorded_payment: invoice?.recorded_payment || 0,
           status: invoice?.status || 'open',
           students: student,
-          hasDiscount: studentDiscounts.has(studentId),
-          hasSiblings: siblingStudents.has(studentId),
+          hasDiscount: studentDiscounts.has(student.id),
+          hasSiblings: siblingStudents.has(student.id),
           balance: (invoice?.total_amount || 0) - (invoice?.recorded_payment ?? invoice?.paid_amount ?? 0),
-          classes: studentClasses.get(studentId) || [],
+          classes: studentClasses.get(student.id) || [],
         };
       });
     },
