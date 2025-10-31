@@ -8,9 +8,11 @@ import { PayrollTab } from "./PayrollTab";
 import { FinanceSummary } from "@/components/admin/FinanceSummary";
 import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
+import { MonthPicker } from "@/components/MonthPicker";
+import { dayjs } from "@/lib/date";
 
 const FinanceTab = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
 
   return (
     <Tabs defaultValue="summary" className="space-y-4">
@@ -29,7 +31,8 @@ const FinanceTab = () => {
         <FinanceSummary />
       </TabsContent>
 
-      <TabsContent value="overview">
+      <TabsContent value="overview" className="space-y-4">
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} />
         <AdminTuitionList month={currentMonth} />
       </TabsContent>
 
