@@ -163,7 +163,7 @@ const Auth = () => {
             {mode === "login" ? "Sign In" : mode === "forgot" ? "Reset Password" : "Sign Up"}
           </CardTitle>
           <CardDescription className="text-center">
-            Tuition Manager - Happy English Club
+            Education Manager - Happy English Club
           </CardDescription>
         </CardHeader>
         <CardContent>
