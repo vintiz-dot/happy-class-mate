@@ -157,16 +157,16 @@ const Layout = ({ children, title }: LayoutProps) => {
       {/* Navigation */}
       <nav className="sticky top-[73px] md:top-[81px] z-40 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 py-2 overflow-x-auto scrollbar-hide">
             {navItems.map((item) => (
               <Button
                 key={item.path}
                 variant="ghost"
-                className="gap-2 whitespace-nowrap min-h-[44px] rounded-xl"
+                className="flex-col gap-1 whitespace-nowrap min-w-[60px] h-auto py-2 px-3 rounded-xl"
                 onClick={() => navigate(item.path)}
               >
-                <item.icon className="h-4 w-4" />
-                <span className="text-xs sm:text-sm">{item.label}</span>
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="text-[10px] sm:text-xs leading-tight">{item.label}</span>
               </Button>
             ))}
           </div>

@@ -68,42 +68,10 @@ export default function ProfileSwitcher() {
 
   const currentStudent = students.find(s => s.id === studentId);
 
-  if (students.length === 1) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm bg-muted/50 rounded-md">
-        <User className="h-4 w-4" />
-        <span>{currentStudent?.full_name}</span>
-      </div>
-    );
-  }
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <User className="h-4 w-4" />
-          <span>{currentStudent?.full_name || "Select Student"}</span>
-          <ChevronDown className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {students.map((student) => (
-          <DropdownMenuItem
-            key={student.id}
-            onClick={() => setStudentId(student.id)}
-            className={studentId === student.id ? "bg-muted" : ""}
-          >
-            <div className="flex flex-col">
-              <span className="font-medium">{student.full_name}</span>
-              {student.date_of_birth && (
-                <span className="text-xs text-muted-foreground">
-                  DOB: {new Date(student.date_of_birth).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2 px-3 py-2 text-sm bg-muted/50 rounded-md">
+      <User className="h-4 w-4" />
+      <span className="hidden sm:inline">{currentStudent?.full_name}</span>
+    </div>
   );
 }
