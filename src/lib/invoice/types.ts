@@ -35,9 +35,9 @@ export interface InvoiceData {
   discounts: InvoiceDiscount[];
   
   subtotal_vnd: number;
-  total_due_vnd: number;
-  paid_to_date_vnd: number;
-  balance_vnd: number;
+  total_due_vnd: number; // Current month charges only
+  paid_to_date_vnd: number; // Prior balance (prior payments - prior charges)
+  balance_vnd: number; // Final payable after current payments
   
   sessions: InvoiceSession[];
 }

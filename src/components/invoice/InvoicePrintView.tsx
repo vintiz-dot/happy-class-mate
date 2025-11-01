@@ -102,16 +102,26 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
                   <td className="text-right py-2 px-2 text-sm">{formatVND(disc.amount_vnd)} ₫</td>
                 </tr>
               ))}
-              <tr className="border-b-2 border-gray-400">
-                <td colSpan={2} className="py-3 px-2 font-bold text-lg">Total Due</td>
-                <td className="text-right py-3 px-2 font-bold text-lg">{formatVND(invoice.total_due_vnd)} ₫</td>
+              <tr className="border-b border-gray-200">
+                <td colSpan={2} className="py-2 px-2 font-semibold">Current Month Charges</td>
+                <td className="text-right py-2 px-2 font-semibold">{formatVND(invoice.total_due_vnd)} ₫</td>
               </tr>
-              <tr className="border-b border-gray-200 bg-green-50">
-                <td colSpan={2} className="py-2 px-2 text-green-700">Paid to Date</td>
-                <td className="text-right py-2 px-2 text-green-700">{formatVND(invoice.paid_to_date_vnd)} ₫</td>
+              <tr className={`border-b border-gray-200 ${invoice.paid_to_date_vnd >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <td colSpan={2} className={`py-2 px-2 ${invoice.paid_to_date_vnd >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  Prior Balance {invoice.paid_to_date_vnd >= 0 ? '(Credit)' : '(Debt)'}
+                </td>
+                <td className={`text-right py-2 px-2 ${invoice.paid_to_date_vnd >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  {formatVND(invoice.paid_to_date_vnd)} ₫
+                </td>
+              </tr>
+              <tr className="border-b-2 border-gray-400 bg-blue-50">
+                <td colSpan={2} className="py-3 px-2 font-bold text-lg">Final Payable</td>
+                <td className="text-right py-3 px-2 font-bold text-lg">
+                  {formatVND(invoice.total_due_vnd + invoice.paid_to_date_vnd)} ₫
+                </td>
               </tr>
               <tr className="border-b-2 border-gray-400 bg-yellow-50">
-                <td colSpan={2} className="py-3 px-2 font-bold text-lg">Balance</td>
+                <td colSpan={2} className="py-3 px-2 font-bold text-lg">Outstanding Balance</td>
                 <td className="text-right py-3 px-2 font-bold text-lg">{formatVND(invoice.balance_vnd)} ₫</td>
               </tr>
             </tbody>

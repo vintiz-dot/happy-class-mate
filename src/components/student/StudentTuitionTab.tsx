@@ -57,10 +57,6 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
 
   // Fetch invoice data - same as PDF download
   const { data: tuitionData, isLoading } = useStudentMonthFinance(studentId, selectedMonth);
-  
-  // Calculate balance exactly as PDF does: totalAmount - cumulativePaidAmount
-  const displayBalance = tuitionData ? tuitionData.totalAmount - tuitionData.cumulativePaidAmount : 0;
-  const displayBalanceStatus = displayBalance > 0 ? 'debt' : displayBalance < 0 ? 'credit' : 'settled';
 
   // Real-time sync - invalidate on changes
   useEffect(() => {
@@ -142,22 +138,23 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const getStatusBadge = () => {
     if (!tuitionData) return null;
     
-    const paid = tuitionData.cumulativePaidAmount;
-    const total = tuitionData.totalAmount;
+    // Use carry-out balance to determine status
+    const carryOutDebt = tuitionData.carryOutDebt;
+    const carryOutCredit = tuitionData.carryOutCredit;
     
-    if (paid > total) {
+    if (carryOutCredit > 0) {
       return <Badge className="bg-blue-500">Overpaid</Badge>;
     }
-    if (paid === total && total > 0) {
+    if (carryOutDebt === 0 && carryOutCredit === 0 && tuitionData.totalAmount > 0) {
       return <Badge className="bg-green-500">Settled</Badge>;
     }
-    if (paid < total && paid > 0) {
-      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+    if (tuitionData.monthPayments > 0 && carryOutDebt > 0) {
+      return <Badge variant="outline">Underpaid</Badge>;
     }
-    if (paid >= total && total > 0) {
-      return <Badge className="bg-green-500">Paid</Badge>;
+    if (carryOutDebt > 0) {
+      return <Badge variant="destructive">Unpaid</Badge>;
     }
-    return <Badge variant="secondary">Unpaid</Badge>;
+    return <Badge variant="secondary">Open</Badge>;
   };
 
   if (isLoading) {
@@ -234,7 +231,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && displayBalance !== 0 && (
+          {isAdmin && ((tuitionData?.carryOutDebt ?? 0) > 0 || (tuitionData?.carryOutCredit ?? 0) > 0) && (
             <Button
               onClick={() => setSettleBillOpen(true)}
               variant="outline"
@@ -255,7 +252,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
       </div>
 
       {/* Financial Summary Cards - Match Admin Finance column order */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -311,7 +308,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Payable
+              Current Charges
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -319,7 +316,32 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
               {formatVND(tuitionData.totalAmount)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Due: {selectedMonth}-05
+              This month only
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={tuitionData.carryInDebt > 0 ? 'bg-destructive/5' : tuitionData.carryInCredit > 0 ? 'bg-success/5' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Prior Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${
+              tuitionData.carryInDebt > 0 ? 'text-destructive' : 
+              tuitionData.carryInCredit > 0 ? 'text-success' : ''
+            }`}>
+              {tuitionData.carryInCredit > 0 
+                ? `+${formatVND(tuitionData.carryInCredit)}`
+                : tuitionData.carryInDebt > 0
+                  ? `-${formatVND(tuitionData.carryInDebt)}`
+                  : formatVND(0)
+              }
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tuitionData.carryInCredit > 0 ? 'Credit from prior months' : 
+               tuitionData.carryInDebt > 0 ? 'Debt from prior months' : 'No carry-over'}
             </p>
           </CardContent>
         </Card>
@@ -327,18 +349,18 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
 
       {/* Payment Status - Match Admin Finance */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Recorded Pay
+              Final Payable
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-blue-600">
-              {formatVND(tuitionData.cumulativePaidAmount)}
+            <p className="text-2xl font-bold text-primary">
+              {formatVND(tuitionData.totalAmount + (tuitionData.carryInDebt - tuitionData.carryInCredit))}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Total paid to date
+              Current + Prior Balance
             </p>
           </CardContent>
         </Card>
@@ -346,17 +368,36 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Balance
+              Recorded Payment
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${displayBalance > 0 ? 'text-destructive' : displayBalance < 0 ? 'text-green-600' : ''}`}>
-              {formatVND(Math.abs(displayBalance))}
+            <p className="text-2xl font-bold text-blue-600">
+              {formatVND(tuitionData.monthPayments)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {displayBalanceStatus === 'credit' && 'Overpaid - Credit'}
-              {displayBalanceStatus === 'debt' && 'Amount Due'}
-              {displayBalanceStatus === 'settled' && 'Fully Paid'}
+              Paid this month
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Outstanding
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${
+              tuitionData.carryOutDebt > 0 ? 'text-destructive' : 
+              tuitionData.carryOutCredit > 0 ? 'text-green-600' : ''
+            }`}>
+              {formatVND(tuitionData.carryOutDebt > 0 ? tuitionData.carryOutDebt : tuitionData.carryOutCredit)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tuitionData.carryOutCredit > 0 && 'Overpaid - Credit'}
+              {tuitionData.carryOutDebt > 0 && 'Amount Due'}
+              {tuitionData.carryOutDebt === 0 && tuitionData.carryOutCredit === 0 && 'Fully Settled'}
             </p>
           </CardContent>
         </Card>
@@ -372,7 +413,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
               {getStatusBadge()}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              {displayBalanceStatus === 'settled' ? 'All paid up' : displayBalanceStatus === 'credit' ? 'Overpaid for this month' : 'Outstanding balance'}
+              {tuitionData.balanceStatus === 'settled' ? 'All paid up' : tuitionData.balanceStatus === 'credit' ? 'Overpaid for this month' : 'Outstanding balance'}
             </p>
           </CardContent>
         </Card>
@@ -416,7 +457,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           studentId={settleBillOpen ? studentId : null}
           studentName={studentName}
           month={selectedMonth}
-          balance={displayBalance}
+          balance={tuitionData?.carryOutDebt ?? tuitionData?.carryOutCredit ?? 0}
           onClose={() => setSettleBillOpen(false)}
         />
       )}

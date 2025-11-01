@@ -112,9 +112,29 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       // Create invoice map for quick lookup
       const invoiceMap = new Map(invoices?.map(inv => [inv.student_id, inv]) || []);
 
+      // Fetch prior invoices to calculate carry-in balance
+      const { data: priorInvoices } = await supabase
+        .from("invoices")
+        .select("student_id, total_amount, recorded_payment")
+        .lt("month", month)
+        .in("student_id", allStudentIds);
+
+      // Calculate prior balance for each student (prior payments - prior charges)
+      const priorBalanceMap = new Map<string, number>();
+      priorInvoices?.forEach(inv => {
+        const currentBalance = priorBalanceMap.get(inv.student_id) || 0;
+        priorBalanceMap.set(
+          inv.student_id, 
+          currentBalance + (inv.recorded_payment || 0) - (inv.total_amount || 0)
+        );
+      });
+
       // Build tuition data for ALL active students
       return allStudents.map(student => {
         const invoice = invoiceMap.get(student.id);
+        const priorBalance = priorBalanceMap.get(student.id) || 0;
+        const currentCharges = invoice?.total_amount || 0;
+        const finalPayable = currentCharges + priorBalance;
         
         return {
           id: invoice?.id || `placeholder-${student.id}`,
@@ -122,14 +142,16 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           month: month,
           base_amount: invoice?.base_amount || 0,
           discount_amount: invoice?.discount_amount || 0,
-          total_amount: invoice?.total_amount || 0,
+          total_amount: currentCharges,
           paid_amount: invoice?.paid_amount || 0,
           recorded_payment: invoice?.recorded_payment || 0,
           status: invoice?.status || 'open',
           students: student,
           hasDiscount: studentDiscounts.has(student.id),
           hasSiblings: siblingStudents.has(student.id),
-          balance: (invoice?.total_amount || 0) - (invoice?.recorded_payment ?? invoice?.paid_amount ?? 0),
+          priorBalance: priorBalance, // Prior payments - prior charges
+          finalPayable: finalPayable, // Current charges + prior balance
+          balance: finalPayable - (invoice?.recorded_payment || 0), // Outstanding after current payment
           classes: studentClasses.get(student.id) || [],
         };
       });
@@ -369,7 +391,13 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                     )}
                     <span>Base: {item.base_amount.toLocaleString()} ₫</span>
                     <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
-                    <span>Total: {item.total_amount.toLocaleString()} ₫</span>
+                    <span>Current: {item.total_amount.toLocaleString()} ₫</span>
+                    <span className={item.priorBalance >= 0 ? 'text-success' : 'text-destructive'}>
+                      Prior Bal: {item.priorBalance >= 0 ? '+' : ''}{item.priorBalance.toLocaleString()} ₫
+                    </span>
+                    <span className="font-semibold text-primary">
+                      Payable: {item.finalPayable.toLocaleString()} ₫
+                    </span>
                     <div className="flex items-center gap-2">
                       {editingInvoiceId === item.id ? (
                         <div className="flex flex-col gap-2 min-w-[280px]">

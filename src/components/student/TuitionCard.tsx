@@ -43,24 +43,21 @@ export function TuitionCard({ studentId }: { studentId: string }) {
       setLoading(true);
       const month = format(new Date(), "yyyy-MM");
 
-      // Fetch invoice from database (same as admin)
-      const { data: invoice, error } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("month", month)
-        .maybeSingle();
+      // Call calculate-tuition to get accurate data with carry-in balance
+      const { data, error } = await supabase.functions.invoke('calculate-tuition', {
+        body: { studentId, month }
+      });
 
       if (error) throw error;
       
-      if (invoice) {
+      if (data) {
         setCurrentMonth({
-          baseAmount: invoice.base_amount,
-          discounts: [], // Not needed for card display
-          totalDiscount: invoice.discount_amount,
-          totalAmount: invoice.total_amount,
-          sessionCount: 0, // Not available in invoice
-          siblingState: null,
+          baseAmount: data.baseAmount ?? 0,
+          discounts: data.discounts ?? [],
+          totalDiscount: data.totalDiscount ?? 0,
+          totalAmount: data.totalAmount ?? 0,
+          sessionCount: data.sessionCount ?? 0,
+          siblingState: data.siblingState,
         });
       }
     } catch (error: any) {
