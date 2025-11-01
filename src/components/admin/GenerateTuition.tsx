@@ -16,8 +16,11 @@ export function GenerateTuition() {
 
   const generateMutation = useMutation({
     mutationFn: async (month: string) => {
-      const monthStart = `${month}-01`;
-      const monthEnd = `${month}-31`;
+      // Use dayjs to properly calculate month boundaries
+      const monthStart = dayjs(`${month}-01`);
+      const monthEnd = monthStart.endOf('month');
+      const monthStartStr = monthStart.format('YYYY-MM-DD');
+      const monthEndStr = monthEnd.format('YYYY-MM-DD');
 
       // Get all active students with enrollments for the month
       const { data: enrollments, error: enrollError } = await supabase
@@ -26,8 +29,8 @@ export function GenerateTuition() {
           student_id,
           students(id, full_name, is_active)
         `)
-        .lte("start_date", monthEnd)
-        .or(`end_date.is.null,end_date.gte.${monthStart}`);
+        .lte("start_date", monthEndStr)
+        .or(`end_date.is.null,end_date.gte.${monthStartStr}`);
 
       if (enrollError) throw enrollError;
 
