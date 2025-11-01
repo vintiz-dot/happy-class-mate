@@ -94,23 +94,28 @@ export function JournalList({ type, studentId, classId, onEdit, onView }: Journa
 
       setEntries((data || []) as any as JournalEntry[]);
 
-      // Check ownership and membership
+      // Check ownership and membership in batch
       const ownershipMap: Record<string, boolean> = {};
       const membershipMap: Record<string, boolean> = {};
       
-      for (const entry of ((data || []) as any as JournalEntry[])) {
-        ownershipMap[entry.id] = entry.owner_user_id === user.id;
-        
-        // Check if user is a member of this journal
-        const { data: memberData } = await supabase
+      const entries = (data || []) as any as JournalEntry[];
+      const journalIds = entries.map(e => e.id);
+      
+      // Batch query for all memberships
+      if (journalIds.length > 0) {
+        const { data: memberships } = await supabase
           .from("journal_members" as any)
-          .select("id")
-          .eq("journal_id", entry.id)
+          .select("journal_id")
+          .in("journal_id", journalIds)
           .eq("user_id", user.id)
-          .eq("status", "active")
-          .single();
+          .eq("status", "active");
         
-        membershipMap[entry.id] = !!memberData;
+        const memberJournalIds = new Set((memberships as any)?.map((m: any) => m.journal_id) || []);
+        
+        for (const entry of entries) {
+          ownershipMap[entry.id] = entry.owner_user_id === user.id;
+          membershipMap[entry.id] = memberJournalIds.has(entry.id);
+        }
       }
       
       setIsOwner(ownershipMap);

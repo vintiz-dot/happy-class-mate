@@ -90,7 +90,7 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
             .from("enrollments")
             .select("class_id")
             .eq("student_id", activeStudentId)
-            .gte("start_date", startDate)
+            .lte("start_date", endDate)
             .or(`end_date.is.null,end_date.gte.${startDate}`);
           
           const classIds = enrollments?.map(e => e.class_id) || [];
