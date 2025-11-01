@@ -1624,6 +1624,7 @@ export type Database = {
       }
       students: {
         Row: {
+          avatar_url: string | null
           created_at: string
           created_by: string | null
           date_of_birth: string | null
@@ -1639,6 +1640,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
@@ -1654,6 +1656,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null

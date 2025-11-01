@@ -29,6 +29,38 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const [points, setPoints] = useState("");
   const queryClient = useQueryClient();
 
+  const { data: homework } = useQuery({
+    queryKey: ["homework-detail", homeworkId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("homeworks")
+        .select("*, classes(id)")
+        .eq("id", homeworkId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!homeworkId,
+  });
+
+  const { data: enrolledStudents } = useQuery({
+    queryKey: ["homework-enrolled-students", homework?.classes?.id],
+    queryFn: async () => {
+      if (!homework?.classes?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("student_id, students(id, full_name)")
+        .eq("class_id", homework.classes.id)
+        .is("end_date", null);
+
+      if (error) throw error;
+      return data?.map(e => e.students).filter(Boolean) || [];
+    },
+    enabled: !!homework?.classes?.id,
+  });
+
   const { data: submissions } = useQuery({
     queryKey: ["homework-submissions", homeworkId],
     queryFn: async () => {
@@ -47,54 +79,70 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     enabled: !!homeworkId,
   });
 
+  // Combine enrolled students with their submissions
+  const studentsWithSubmissions = enrolledStudents?.map(student => {
+    const submission = submissions?.find(s => s.student_id === student.id);
+    return { student, submission };
+  }) || [];
+
   const gradeMutation = useMutation({
-    mutationFn: async ({ submissionId, grade, feedback, points }: any) => {
-      const { data: submission, error: fetchError } = await supabase
-        .from("homework_submissions")
-        .select("student_id, homework_id")
-        .eq("id", submissionId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Update submission with grade
-      const { error } = await supabase
-        .from("homework_submissions")
-        .update({
-          grade,
-          teacher_feedback: feedback,
-          status: "graded",
-          graded_at: new Date().toISOString(),
-        })
-        .eq("id", submissionId);
-
-      if (error) throw error;
-
-      // Update or create student points for homework
-      if (points !== undefined && points !== null) {
-        const month = new Date().toISOString().slice(0, 7);
-        
-        // Get class_id from homework
-        const { data: homework } = await supabase
-          .from("homeworks")
-          .select("class_id")
-          .eq("id", submission.homework_id)
+    mutationFn: async ({ submissionId, studentId, grade, feedback, points }: any) => {
+      let finalSubmissionId = submissionId;
+      
+      // If no submission exists, create one
+      if (!submissionId && studentId) {
+        const { data: newSubmission, error: createError } = await supabase
+          .from("homework_submissions")
+          .insert({
+            homework_id: homeworkId,
+            student_id: studentId,
+            status: "graded",
+            grade,
+            teacher_feedback: feedback,
+            graded_at: new Date().toISOString(),
+          })
+          .select()
           .single();
 
-        if (homework) {
-          const { error: pointsError } = await supabase
-            .from("student_points")
-            .upsert({
-              student_id: submission.student_id,
-              class_id: homework.class_id,
-              month,
-              homework_points: points,
-            }, {
-              onConflict: "student_id,class_id,month",
-            });
+        if (createError) throw createError;
+        finalSubmissionId = newSubmission.id;
+      } else if (submissionId) {
+        // Update existing submission
+        const { error } = await supabase
+          .from("homework_submissions")
+          .update({
+            grade,
+            teacher_feedback: feedback,
+            status: "graded",
+            graded_at: new Date().toISOString(),
+          })
+          .eq("id", submissionId);
 
-          if (pointsError) throw pointsError;
-        }
+        if (error) throw error;
+      }
+
+      const targetStudentId = studentId || (await supabase
+        .from("homework_submissions")
+        .select("student_id")
+        .eq("id", finalSubmissionId)
+        .single()).data?.student_id;
+
+      // Update or create student points for homework
+      if (points !== undefined && points !== null && homework?.classes?.id) {
+        const month = new Date().toISOString().slice(0, 7);
+        
+        const { error: pointsError } = await supabase
+          .from("student_points")
+          .upsert({
+            student_id: targetStudentId,
+            class_id: homework.classes.id,
+            month,
+            homework_points: points,
+          }, {
+            onConflict: "student_id,class_id,month",
+          });
+
+        if (pointsError) throw pointsError;
       }
     },
     onSuccess: () => {
@@ -142,7 +190,8 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     }
 
     gradeMutation.mutate({
-      submissionId: selectedSubmission.id,
+      submissionId: selectedSubmission.submission?.id,
+      studentId: selectedSubmission.student.id,
       grade,
       feedback,
       points: pointsValue,
@@ -154,6 +203,8 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
       pending: "bg-yellow-100 text-yellow-800",
       submitted: "bg-blue-100 text-blue-800",
       graded: "bg-green-100 text-green-800",
+      not_submitted: "bg-gray-100 text-gray-800",
+      Not_Submitted: "bg-gray-100 text-gray-800",
     };
     return colors[status] || "bg-gray-100";
   };
@@ -170,75 +221,77 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
           </DialogHeader>
 
           <div className="space-y-4">
-            {submissions?.length === 0 ? (
+            {studentsWithSubmissions.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">
-                No submissions yet
+                No enrolled students
               </p>
             ) : (
-              submissions?.map((submission: any) => (
+              studentsWithSubmissions.map((item: any) => (
                 <div
-                  key={submission.id}
+                  key={item.student.id}
                   className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{submission.students.full_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Submitted {dayjs(submission.submitted_at).format("MMM D, YYYY h:mm A")}
-                      </p>
+                      <p className="font-medium">{item.student.full_name}</p>
+                      {item.submission ? (
+                        <p className="text-sm text-muted-foreground">
+                          Submitted {dayjs(item.submission.submitted_at).format("MMM D, YYYY h:mm A")}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Not submitted</p>
+                      )}
                     </div>
-                    <Badge className={statusColor(submission.status)}>
-                      {submission.status}
+                    <Badge className={statusColor(item.submission?.status || "not_submitted")}>
+                      {item.submission?.status || "Not Submitted"}
                     </Badge>
                   </div>
 
-                  {submission.submission_text && (
+                  {item.submission?.submission_text && (
                     <div className="bg-muted/50 p-3 rounded">
-                      <p className="text-sm whitespace-pre-wrap">{submission.submission_text}</p>
+                      <p className="text-sm whitespace-pre-wrap">{item.submission.submission_text}</p>
                     </div>
                   )}
 
-                  {submission.storage_key && (
+                  {item.submission?.storage_key && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => downloadFile(submission.storage_key, submission.file_name)}
+                      onClick={() => downloadFile(item.submission.storage_key, item.submission.file_name)}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download Attachment
                     </Button>
                   )}
 
-                  {submission.status === "graded" && (
+                  {item.submission?.status === "graded" && (
                     <div className="space-y-2 border-t pt-3">
                       <div>
-                        <p className="text-sm font-medium">Grade: {submission.grade}</p>
-                        {submission.teacher_feedback && (
+                        <p className="text-sm font-medium">Grade: {item.submission.grade}</p>
+                        {item.submission.teacher_feedback && (
                           <p className="text-sm text-muted-foreground mt-1">
-                            Feedback: {submission.teacher_feedback}
+                            Feedback: {item.submission.teacher_feedback}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
-                          Graded {dayjs(submission.graded_at).format("MMM D, YYYY")}
+                          Graded {dayjs(item.submission.graded_at).format("MMM D, YYYY")}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {submission.status !== "graded" && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedSubmission(submission);
-                        setGrade(submission.grade || "");
-                        setFeedback(submission.teacher_feedback || "");
-                        setPoints("");
-                      }}
-                    >
-                      Grade Submission
-                    </Button>
-                  )}
+                  <Button
+                    variant={item.submission?.status === "graded" ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSubmission(item);
+                      setGrade(item.submission?.grade || "");
+                      setFeedback(item.submission?.teacher_feedback || "");
+                      setPoints("");
+                    }}
+                  >
+                    {item.submission?.status === "graded" ? "Update Grade" : "Grade Assignment"}
+                  </Button>
                 </div>
               ))
             )}
@@ -250,9 +303,10 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Grade Submission</DialogTitle>
+              <DialogTitle>Grade Assignment</DialogTitle>
               <DialogDescription>
-                {selectedSubmission.students.full_name}
+                {selectedSubmission.student.full_name}
+                {!selectedSubmission.submission && " (Offline Submission)"}
               </DialogDescription>
             </DialogHeader>
 

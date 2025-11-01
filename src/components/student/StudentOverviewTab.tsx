@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { Users } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
@@ -100,7 +101,12 @@ export function StudentOverviewTab({ student }: { student: any }) {
             Edit
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          <ProfilePictureUpload 
+            studentId={student.id}
+            currentAvatarUrl={student.avatar_url}
+            studentName={student.full_name}
+          />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Full Name</p>

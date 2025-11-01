@@ -78,13 +78,18 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
 
   return (
     <div className="space-y-4">
-      {assignments?.map((assignment) => (
-        <Collapsible
-          key={assignment.id}
-          open={expandedId === assignment.id}
-          onOpenChange={() => setExpandedId(expandedId === assignment.id ? null : assignment.id)}
-        >
-          <Card>
+      {assignments?.map((assignment) => {
+        const isOverdue = assignment.due_date && new Date(assignment.due_date) < new Date();
+        const isUnsubmitted = !assignment.submission;
+        const shouldHighlight = isOverdue && isUnsubmitted;
+        
+        return (
+          <Collapsible
+            key={assignment.id}
+            open={expandedId === assignment.id}
+            onOpenChange={() => setExpandedId(expandedId === assignment.id ? null : assignment.id)}
+          >
+            <Card className={shouldHighlight ? "border-destructive bg-destructive/5" : ""}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">
@@ -144,7 +149,8 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
             </CardContent>
           </Card>
         </Collapsible>
-      ))}
+        );
+      })}
     </div>
   );
 }
