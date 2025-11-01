@@ -2,20 +2,20 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  GraduationCap, 
-  LogOut, 
-  Users, 
-  BookOpen, 
-  Calendar, 
-  DollarSign, 
+import {
+  GraduationCap,
+  LogOut,
+  Users,
+  BookOpen,
+  Calendar,
+  DollarSign,
   BarChart3,
   Receipt,
   Wallet,
   LayoutDashboard,
   FileText,
   ClipboardList,
-  BookMarked
+  BookMarked,
 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
@@ -35,26 +35,22 @@ const Layout = ({ children, title }: LayoutProps) => {
   useEffect(() => {
     const fetchUserName = async () => {
       if (!user) return;
-      
+
       // Try to get student name
       const { data: studentData } = await supabase
         .from("students")
         .select("full_name")
         .eq("linked_user_id", user.id)
         .single();
-      
+
       if (studentData?.full_name) {
         setUserName(studentData.full_name);
         return;
       }
 
       // Try to get teacher name
-      const { data: teacherData } = await supabase
-        .from("teachers")
-        .select("full_name")
-        .eq("user_id", user.id)
-        .single();
-      
+      const { data: teacherData } = await supabase.from("teachers").select("full_name").eq("user_id", user.id).single();
+
       if (teacherData?.full_name) {
         setUserName(teacherData.full_name);
         return;
@@ -66,7 +62,7 @@ const Layout = ({ children, title }: LayoutProps) => {
         .select("name")
         .eq("primary_user_id", user.id)
         .single();
-      
+
       if (familyData?.name) {
         setUserName(familyData.name);
       }
@@ -128,9 +124,7 @@ const Layout = ({ children, title }: LayoutProps) => {
               <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-base md:text-xl font-bold text-foreground">
-                {title || "Tuition Manager"}
-              </h1>
+              <h1 className="text-base md:text-xl font-bold text-foreground">{title || "Education Manager"}</h1>
               <p className="text-xs text-muted-foreground hidden md:block">Happy English Club</p>
             </div>
           </div>
@@ -174,9 +168,7 @@ const Layout = ({ children, title }: LayoutProps) => {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">
-        {children}
-      </main>
+      <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">{children}</main>
     </div>
   );
 };

@@ -17,12 +17,8 @@ export function AppLoader({ message = "Loading..." }: AppLoaderProps) {
           </div>
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-foreground">
-            Tuition Manager
-          </h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            {message}
-          </p>
+          <h2 className="text-xl font-semibold text-foreground">Education Manager</h2>
+          <p className="text-sm text-muted-foreground mt-2">{message}</p>
         </div>
       </div>
     </div>

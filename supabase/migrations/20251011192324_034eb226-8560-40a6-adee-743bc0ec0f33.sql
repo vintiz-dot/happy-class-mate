@@ -1,4 +1,4 @@
--- Phase 1: Core schema for Tuition Manager (Happy English Club)
+-- Phase 1: Core schema for Education Manager (Happy English Club)
 -- Timezone: Asia/Bangkok
 
 -- Create role enum
