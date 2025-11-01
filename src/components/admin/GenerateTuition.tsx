@@ -51,12 +51,14 @@ export function GenerateTuition() {
 
       for (const studentId of activeStudentIds) {
         try {
-          const { error } = await supabase.functions.invoke("calculate-tuition", {
-            body: { student_id: studentId, month },
+          const { data, error } = await supabase.functions.invoke("calculate-tuition", {
+            body: { studentId, month },
           });
 
           if (error) {
             results.errors.push(`Student ${studentId}: ${error.message}`);
+          } else if (data?.error) {
+            results.errors.push(`Student ${studentId}: ${data.error}`);
           } else {
             results.processed++;
           }
