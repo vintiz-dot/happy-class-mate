@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -297,7 +298,7 @@ const ClassHomework = ({ classId }: { classId: string }) => {
               {hw.body && (
                 <div 
                   className="text-sm text-muted-foreground prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: hw.body }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(hw.body) }}
                 />
               )}
 

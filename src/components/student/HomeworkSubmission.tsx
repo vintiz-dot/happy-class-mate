@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Upload, FileText } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
@@ -191,7 +193,7 @@ export default function HomeworkSubmission({
               <p className="text-sm font-medium">Your Submission:</p>
               <div 
                 className="text-sm text-muted-foreground mt-1 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: existingSubmission.submission_text }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
               />
             </div>
           )}

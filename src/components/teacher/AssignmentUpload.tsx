@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -371,7 +372,7 @@ export function AssignmentUpload() {
                     {hw.body && (
                       <div 
                         className="text-sm text-muted-foreground line-clamp-2 prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: hw.body }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(hw.body) }}
                       />
                     )}
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Download, Calendar } from "lucide-react";
 import HomeworkSubmission from "./HomeworkSubmission";
 import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface HomeworkDetailDialogProps {
   homework: any;
@@ -88,7 +89,7 @@ export default function HomeworkDetailDialog({ homework, studentId, onClose }: H
               <h3 className="font-semibold mb-2">Assignment Description</h3>
               <div 
                 className="text-sm prose prose-sm max-w-none bg-muted p-3 rounded-lg"
-                dangerouslySetInnerHTML={{ __html: homework.body }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(homework.body) }}
               />
             </div>
           )}

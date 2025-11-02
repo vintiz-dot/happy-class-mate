@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,7 +158,7 @@ export default function StudentAssignments() {
                         <CardContent>
                           <div 
                             className="text-sm prose prose-sm max-w-none line-clamp-3"
-                            dangerouslySetInnerHTML={{ __html: assignment.body }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
                           />
                         </CardContent>
                       )}

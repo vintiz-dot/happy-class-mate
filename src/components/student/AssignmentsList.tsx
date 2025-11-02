@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
               {assignment.body && (
                 <div 
                   className="text-sm text-muted-foreground prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: assignment.body }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
                 />
               )}
               

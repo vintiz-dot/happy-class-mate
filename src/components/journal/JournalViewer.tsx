@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface JournalEntry {
   id: string;
@@ -31,7 +32,7 @@ export function JournalViewer({ entry, onClose }: JournalViewerProps) {
         </DialogHeader>
         <div
           className="prose prose-sm max-w-none mt-4"
-          dangerouslySetInnerHTML={{ __html: entry.content_rich }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(entry.content_rich) }}
         />
       </DialogContent>
     </Dialog>
