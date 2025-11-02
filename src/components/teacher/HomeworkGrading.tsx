@@ -280,18 +280,36 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
                     </div>
                   )}
 
-                  <Button
-                    variant={item.submission?.status === "graded" ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => {
-                      setSelectedSubmission(item);
-                      setGrade(item.submission?.grade || "");
-                      setFeedback(item.submission?.teacher_feedback || "");
-                      setPoints("");
-                    }}
-                  >
-                    {item.submission?.status === "graded" ? "Update Grade" : "Grade Assignment"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={item.submission?.status === "graded" ? "outline" : "default"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedSubmission(item);
+                        setGrade(item.submission?.grade || "");
+                        setFeedback(item.submission?.teacher_feedback || "");
+                        setPoints("");
+                      }}
+                    >
+                      {item.submission?.status === "graded" ? "Update Grade" : "Grade Assignment"}
+                    </Button>
+                    {!item.submission && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setSelectedSubmission(item);
+                          setGrade("");
+                          setFeedback("");
+                          setPoints("");
+                        }}
+                      >
+                        Grade Offline Submission
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))
             )}

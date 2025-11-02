@@ -89,7 +89,7 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
             open={expandedId === assignment.id}
             onOpenChange={() => setExpandedId(expandedId === assignment.id ? null : assignment.id)}
           >
-            <Card className={shouldHighlight ? "border-destructive bg-destructive/5" : ""}>
+            <Card className={shouldHighlight ? "border-2 border-amber-500 bg-red-50 dark:bg-red-950/20" : ""}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">

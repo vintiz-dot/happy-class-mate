@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,71 @@ import { useStudentProfile } from "@/contexts/StudentProfileContext";
 export default function NotificationBell() {
   const { studentId } = useStudentProfile();
   const [open, setOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Determine user role
+  useEffect(() => {
+    const checkRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      if (roles && roles.length > 0) {
+        setUserRole(roles[0].role);
+      }
+    };
+    checkRole();
+  }, []);
+
   const { data: notifications = [] } = useQuery({
-    queryKey: ["notifications", studentId],
+    queryKey: ["notifications", studentId, userRole],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      // For teachers, get notifications related to their classes
+      if (userRole === "teacher") {
+        const { data: teacher } = await supabase
+          .from("teachers")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!teacher) return [];
+
+        // Get teacher's classes
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacher.id);
+
+        const classIds = Array.from(new Set(sessions?.map(s => s.class_id) || []));
+
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .or(`type.eq.homework_submitted,type.eq.journal_collaboration`)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        
+        // Filter to only show notifications for teacher's classes
+        const filtered = data?.filter((n: any) => {
+          const metadata = n.metadata || {};
+          return classIds.includes(metadata.class_id);
+        }) || [];
+
+        return filtered;
+      }
+      
+      // For students
       if (!studentId) return [];
       
       const { data, error } = await supabase
@@ -31,7 +90,7 @@ export default function NotificationBell() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!studentId,
+    enabled: !!studentId || userRole === "teacher",
   });
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
@@ -46,7 +105,7 @@ export default function NotificationBell() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", studentId, userRole] });
     },
   });
 
@@ -58,6 +117,10 @@ export default function NotificationBell() {
     // Handle different notification types
     if (notification.type === 'homework_assigned' || notification.type === 'homework_graded') {
       navigate("/student/assignments");
+    } else if (notification.type === 'homework_submitted') {
+      navigate("/teacher/assignments");
+    } else if (notification.type === 'journal_collaboration') {
+      navigate("/teacher/journal");
     } else if (notification.journal_id) {
       // Navigate to appropriate journal page based on type
       if (metadata.journal_type === "student") {
@@ -74,18 +137,19 @@ export default function NotificationBell() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      if (!studentId) return;
+      const notificationIds = notifications.map((n: any) => n.id);
+      if (notificationIds.length === 0) return;
       
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
-        .eq("is_read", false)
-        .or(`metadata->>student_id.eq.${studentId},metadata->>student_id.is.null`);
+        .in("id", notificationIds)
+        .eq("is_read", false);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", studentId, userRole] });
     },
   });
 
@@ -130,8 +194,8 @@ export default function NotificationBell() {
               <div className="space-y-2 pr-2">
                 {notifications.map((notification: any) => {
                   const metadata = notification.metadata || {};
-                  const isHomework = notification.type === 'homework_assigned' || notification.type === 'homework_graded';
-                  const isJournal = notification.type === 'new_journal';
+                  const isHomework = notification.type === 'homework_assigned' || notification.type === 'homework_graded' || notification.type === 'homework_submitted';
+                  const isJournal = notification.type === 'new_journal' || notification.type === 'journal_collaboration';
                   
                   return (
                     <div
@@ -163,9 +227,19 @@ export default function NotificationBell() {
                               {notification.message}
                             </p>
                           )}
+                          {metadata.student_name && (
+                            <p className="text-xs font-medium text-primary">
+                              👤 {metadata.student_name}
+                            </p>
+                          )}
                           {metadata.class_name && (
                             <p className="text-xs font-medium text-primary">
-                              {metadata.class_name}
+                              📚 {metadata.class_name}
+                            </p>
+                          )}
+                          {metadata.homework_title && (
+                            <p className="text-xs font-medium text-muted-foreground">
+                              📝 {metadata.homework_title}
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground">

@@ -98,12 +98,17 @@ export function ProfilePictureUpload({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <Avatar className="h-32 w-32">
-        <AvatarImage src={currentAvatarUrl || undefined} alt={studentName} />
-        <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-      </Avatar>
+      <div className="relative group">
+        <Avatar className="h-32 w-32 ring-4 ring-primary/10 transition-all group-hover:ring-primary/20">
+          <AvatarImage src={currentAvatarUrl || undefined} alt={studentName} />
+          <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-primary/10">{initials}</AvatarFallback>
+        </Avatar>
+        <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <Camera className="h-8 w-8 text-white" />
+        </div>
+      </div>
       
-      <div>
+      <div className="w-full max-w-xs">
         <input
           type="file"
           id="avatar-upload"
@@ -112,24 +117,26 @@ export function ProfilePictureUpload({
           disabled={uploading}
           className="hidden"
         />
-        <label htmlFor="avatar-upload">
+        <label htmlFor="avatar-upload" className="w-full">
           <Button
             type="button"
-            variant="outline"
+            variant="default"
+            size="lg"
             disabled={uploading}
             onClick={() => document.getElementById("avatar-upload")?.click()}
+            className="w-full font-semibold"
             asChild
           >
             <span>
               {uploading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                   Uploading...
                 </>
               ) : (
                 <>
-                  <Camera className="h-4 w-4 mr-2" />
-                  Change Photo
+                  <Camera className="h-5 w-5 mr-2" />
+                  Edit Profile Picture
                 </>
               )}
             </span>
