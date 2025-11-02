@@ -39,17 +39,17 @@ export default function StudentAssignments() {
         .in("class_id", classIds)
         .order("due_date", { ascending: true, nullsFirst: false });
 
-      // Get submission status for each homework
+      // Get submission data for each homework
       const homeworksWithStatus = await Promise.all(
         (homeworks || []).map(async (hw) => {
           const { data: submission } = await supabase
             .from("homework_submissions")
-            .select("id, status")
+            .select("*")
             .eq("homework_id", hw.id)
             .eq("student_id", studentId)
             .maybeSingle();
 
-          return { ...hw, submissionStatus: submission?.status };
+          return { ...hw, submission };
         })
       );
 
@@ -57,6 +57,40 @@ export default function StudentAssignments() {
     },
     enabled: !!studentId,
   });
+
+  // Helper function to get card background color based on status
+  const getCardStatusClass = (assignment: any) => {
+    const now = new Date();
+    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
+    const submission = assignment.submission;
+    
+    // Graded - golden green
+    if (submission?.status === "graded") {
+      return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800";
+    }
+    
+    // Submitted but not graded - lemon green
+    if (submission?.status === "submitted") {
+      return "bg-lime-50 dark:bg-lime-950/20 border-lime-200 dark:border-lime-800";
+    }
+    
+    // Not submitted - check due date
+    if (dueDate) {
+      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Overdue - red
+      if (daysUntilDue < 0) {
+        return "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800";
+      }
+      
+      // 1 day left - amber
+      if (daysUntilDue <= 1) {
+        return "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800";
+      }
+    }
+    
+    return "";
+  };
 
   const downloadFile = async (storageKey: string, fileName: string) => {
     const { data } = await supabase.storage
@@ -124,7 +158,7 @@ export default function StudentAssignments() {
                   {upcomingAssignments.map((assignment: any) => (
                     <Card 
                       key={assignment.id} 
-                      className="cursor-pointer hover:shadow-lg transition-shadow"
+                      className={`cursor-pointer hover:shadow-lg transition-shadow ${getCardStatusClass(assignment)}`}
                       onClick={() => setSelectedHomework(assignment)}
                     >
                       <CardHeader>
@@ -137,13 +171,18 @@ export default function StudentAssignments() {
                             </CardDescription>
                           </div>
                           <div className="flex items-center gap-2">
-                            {assignment.submissionStatus === "graded" && (
+                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
+                              <Badge variant="default" className="bg-emerald-600">
+                                {assignment.submission.grade}
+                              </Badge>
+                            )}
+                            {assignment.submission?.status === "graded" && (
                               <Badge className="bg-green-100 text-green-800">Graded</Badge>
                             )}
-                            {assignment.submissionStatus === "submitted" && (
+                            {assignment.submission?.status === "submitted" && (
                               <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
                             )}
-                            {!assignment.submissionStatus && (
+                            {!assignment.submission && (
                               <Badge variant="outline">Not Submitted</Badge>
                             )}
                             {assignment.due_date && (
@@ -175,7 +214,7 @@ export default function StudentAssignments() {
                   {pastAssignments.map((assignment: any) => (
                     <Card 
                       key={assignment.id} 
-                      className="opacity-60 cursor-pointer hover:opacity-80 transition-opacity"
+                      className={`opacity-60 cursor-pointer hover:opacity-80 transition-opacity ${getCardStatusClass(assignment)}`}
                       onClick={() => setSelectedHomework(assignment)}
                     >
                       <CardHeader>
@@ -188,10 +227,15 @@ export default function StudentAssignments() {
                             </CardDescription>
                           </div>
                           <div className="flex items-center gap-2">
-                            {assignment.submissionStatus === "graded" && (
+                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
+                              <Badge variant="default" className="bg-emerald-600">
+                                {assignment.submission.grade}
+                              </Badge>
+                            )}
+                            {assignment.submission?.status === "graded" && (
                               <Badge className="bg-green-100 text-green-800">Graded</Badge>
                             )}
-                            {assignment.submissionStatus === "submitted" && (
+                            {assignment.submission?.status === "submitted" && (
                               <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
                             )}
                             {assignment.due_date && (
