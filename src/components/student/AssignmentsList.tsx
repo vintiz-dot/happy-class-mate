@@ -77,12 +77,44 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
     );
   }
 
+  // Helper function to get card background color based on status
+  const getCardStatusClass = (assignment: any) => {
+    const now = new Date();
+    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
+    const submission = assignment.submission;
+    
+    // Graded - golden green
+    if (submission?.status === "graded") {
+      return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800";
+    }
+    
+    // Submitted but not graded - lemon green
+    if (submission && submission.status === "submitted") {
+      return "bg-lime-50 dark:bg-lime-950/20 border-lime-200 dark:border-lime-800";
+    }
+    
+    // Not submitted - check due date
+    if (dueDate) {
+      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Overdue - red
+      if (daysUntilDue < 0) {
+        return "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800";
+      }
+      
+      // 1 day left - amber
+      if (daysUntilDue <= 1) {
+        return "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800";
+      }
+    }
+    
+    return "";
+  };
+
   return (
     <div className="space-y-4">
       {assignments?.map((assignment) => {
-        const isOverdue = assignment.due_date && new Date(assignment.due_date) < new Date();
-        const isUnsubmitted = !assignment.submission;
-        const shouldHighlight = isOverdue && isUnsubmitted;
+        const cardClass = getCardStatusClass(assignment);
         
         return (
           <Collapsible
@@ -90,7 +122,7 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
             open={expandedId === assignment.id}
             onOpenChange={() => setExpandedId(expandedId === assignment.id ? null : assignment.id)}
           >
-            <Card className={shouldHighlight ? "border-2 border-amber-500 bg-red-50 dark:bg-red-950/20" : ""}>
+            <Card className={cardClass}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">
@@ -98,6 +130,11 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
                   <CardDescription>{(assignment.classes as any)?.name}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                  {assignment.submission?.status === "graded" && assignment.submission.grade && (
+                    <Badge variant="default" className="bg-emerald-600">
+                      {assignment.submission.grade}
+                    </Badge>
+                  )}
                   {assignment.submission && (
                     <Badge variant={assignment.submission.status === "graded" ? "default" : "secondary"}>
                       {assignment.submission.status}
