@@ -12,7 +12,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 
-/* === Zero-install dynamic imports (CDN ESM) === */
+/* === Zero-install dynamic imports (same as individual button) === */
 let _deps: null | {
   jsPDF: any;
   html2canvas: any;
@@ -30,7 +30,7 @@ async function loadPdfDeps() {
   return _deps;
 }
 
-/* === DOM -> paginated PDF (A4) === */
+/* === DOM -> paginated PDF (A4). Identical logic to individual download === */
 async function elementToPdfBlob(
   el: HTMLElement,
   opts?: { marginMm?: number; pageSize?: "a4" | "letter" },
@@ -73,21 +73,22 @@ async function elementToPdfBlob(
   while (currentY < imgHpx) {
     const sliceHeight = Math.min(pagePxHeight, imgHpx - currentY);
     if (pageCanvas.height !== sliceHeight) pageCanvas.height = sliceHeight;
+
     ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
     ctx.drawImage(canvas, 0, currentY, imgWpx, sliceHeight, 0, 0, imgWpx, sliceHeight);
 
     const imgData = pageCanvas.toDataURL("image/jpeg", 0.92);
     if (currentY > 0) pdf.addPage([page.wMm, page.hMm], "portrait");
     pdf.addImage(imgData, "JPEG", marginMm, marginMm, pdfW, sliceHeight / pxPerMm);
+
     currentY += sliceHeight;
   }
 
   return pdf.output("blob");
 }
 
-/* === ZIP all PDFs and download === */
+/* === Naming helpers (shared idea) === */
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo };
-
 function safeName(s: string) {
   return s.replace(/[^\w\-]+/g, "_").slice(0, 80);
 }
@@ -98,6 +99,7 @@ function deriveFileName(p: Pair, month: string, index: number) {
   return `INV_${month}_${safeName(String(candidate))}.pdf`;
 }
 
+/* === Build ZIP from currently rendered invoice nodes === */
 async function downloadInvoicesZipFromDom(pairs: Pair[], month: string, selector = ".page-break") {
   const { JSZip, saveAs } = await loadPdfDeps();
   const nodes = Array.from(document.querySelectorAll<HTMLElement>(selector));
@@ -106,25 +108,27 @@ async function downloadInvoicesZipFromDom(pairs: Pair[], month: string, selector
 
   const zip = new JSZip();
 
-  // sequential to control memory on large batches
   for (let i = 0; i < count; i++) {
     const node = nodes[i];
     const blob = await elementToPdfBlob(node);
     const name = deriveFileName(pairs[i], month, i);
     zip.file(name, blob);
+    // Yield to UI for very large batches
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, 0));
   }
 
   const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
   saveAs(zipBlob, `invoices_${month}.zip`);
 }
 
-/* === Component (kept intact aside from the new Download ZIP button) === */
 export function BulkInvoiceDownload({ month }: { month: string }) {
   const { toast } = useToast();
   const [downloadType, setDownloadType] = useState<"all" | "class" | "family">("all");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [invoices, setInvoices] = useState<Array<Pair>>([]);
 
@@ -182,35 +186,28 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
         return;
       }
 
-      const invoicePromises = studentIds.map((studentId) => fetchInvoiceData(studentId, month));
-      const results = await Promise.allSettled(invoicePromises);
-
-      const successfulInvoices = results
+      const results = await Promise.allSettled(studentIds.map((sid) => fetchInvoiceData(sid, month)));
+      const ok = results
         .filter(
           (r): r is PromiseFulfilledResult<{ invoice: InvoiceData; bankInfo: BankInfo }> => r.status === "fulfilled",
         )
         .map((r) => r.value);
+      const failed = results.length - ok.length;
 
-      const failedCount = results.filter((r) => r.status === "rejected").length;
-
-      if (successfulInvoices.length === 0) {
+      if (ok.length === 0) {
         toast({
           title: "No invoices generated",
-          description: "All invoice generations failed. Please check student data.",
+          description: "All invoice generations failed.",
           variant: "destructive",
         });
         return;
       }
 
-      setInvoices(successfulInvoices);
+      setInvoices(ok);
       setShowPreview(true);
-
-      toast({
-        title: "Invoices loaded",
-        description: `${successfulInvoices.length} invoice(s) ready${failedCount > 0 ? `. ${failedCount} failed.` : ""}`,
-      });
-    } catch (error: any) {
-      toast({ title: "Error loading invoices", description: error.message, variant: "destructive" });
+      toast({ title: "Invoices loaded", description: `${ok.length} ready${failed ? `. ${failed} failed.` : ""}` });
+    } catch (e: any) {
+      toast({ title: "Error loading invoices", description: e?.message ?? "Unknown error", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -220,13 +217,16 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
 
   const handleDownloadZip = async () => {
     try {
+      setDownloading(true);
       await downloadInvoicesZipFromDom(invoices, month);
     } catch (e: any) {
       const msg =
         e?.message?.includes("Failed to fetch dynamically imported module") || e?.message?.includes("module script")
-          ? "CDN modules blocked by host. Client-side download unavailable here."
+          ? "CDN modules blocked by host."
           : (e?.message ?? "Unknown error");
       toast({ title: "Download failed", description: msg, variant: "destructive" });
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -300,7 +300,7 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading Invoices...
+                Loading Invoices…
               </>
             ) : (
               <>
@@ -316,8 +316,15 @@ export function BulkInvoiceDownload({ month }: { month: string }) {
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
           <div className="flex justify-end gap-2 mb-4 no-print">
             <Button onClick={handlePrint}>Print All / Save as PDF</Button>
-            <Button variant="secondary" onClick={handleDownloadZip} disabled={invoices.length === 0}>
-              Download ZIP (PDFs)
+            <Button variant="secondary" onClick={handleDownloadZip} disabled={invoices.length === 0 || downloading}>
+              {downloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Preparing ZIP…
+                </>
+              ) : (
+                "Download ZIP (PDFs)"
+              )}
             </Button>
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               Close
