@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TeacherBankingInfo } from "@/components/teacher/TeacherBankingInfo";
 
 interface TeacherProfilePayrollProps {
   teacherId: string;
@@ -39,6 +40,8 @@ export function TeacherProfilePayroll({ teacherId, selectedMonth, hourlyRate }: 
 
   return (
     <div className="space-y-4">
+      <TeacherBankingInfo teacherId={teacherId} />
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">

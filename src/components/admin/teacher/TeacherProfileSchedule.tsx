@@ -18,7 +18,12 @@ export function TeacherProfileSchedule({ teacherId, selectedMonth }: TeacherProf
     queryFn: async () => {
       const [year, month] = selectedMonth.split("-");
       const startDate = `${year}-${month}-01`;
-      const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().slice(0, 10);
+      
+      // Calculate last day of month properly
+      const nextMonth = parseInt(month) === 12 ? 1 : parseInt(month) + 1;
+      const nextYear = parseInt(month) === 12 ? parseInt(year) + 1 : parseInt(year);
+      const lastDay = new Date(nextYear, nextMonth - 1, 0).getDate();
+      const endDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
 
       const { data, error } = await supabase
         .from("sessions")

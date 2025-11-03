@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TeacherPayrollCalendar from "@/components/teacher/TeacherPayrollCalendar";
+import { TeacherBankingInfo } from "@/components/teacher/TeacherBankingInfo";
 
 export default function TeacherPayroll() {
   const queryClient = useQueryClient();
@@ -154,6 +155,8 @@ export default function TeacherPayroll() {
   return (
     <Layout title="Payroll">
       <div className="space-y-6">
+        {payrollData?.teacherId && <TeacherBankingInfo teacherId={payrollData.teacherId} />}
+
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={prevMonth}>

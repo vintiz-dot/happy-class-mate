@@ -1702,6 +1702,56 @@ export type Database = {
           },
         ]
       }
+      teacher_banking_info: {
+        Row: {
+          account_holder_name: string
+          account_number: string
+          bank_name: string
+          branch_name: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          swift_code: string | null
+          teacher_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_holder_name: string
+          account_number: string
+          bank_name: string
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          swift_code?: string | null
+          teacher_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_holder_name?: string
+          account_number?: string
+          bank_name?: string
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          swift_code?: string | null
+          teacher_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_banking_info_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: true
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teachers: {
         Row: {
           bio: string | null
