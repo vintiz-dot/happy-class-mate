@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Eye, Calendar, FileText } from "lucide-react";
+import { Upload, Eye, Calendar, FileText, Edit, Users } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { EditHomeworkDialog } from "./EditHomeworkDialog";
+import { GradeOfflineDialog } from "./GradeOfflineDialog";
 
 interface Class {
   id: string;
@@ -42,6 +44,8 @@ export function AssignmentUpload() {
   const [uploading, setUploading] = useState(false);
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
+  const [gradingHomeworkId, setGradingHomeworkId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -396,6 +400,27 @@ export function AssignmentUpload() {
                     <p className="text-xs text-muted-foreground">
                       Created: {format(new Date(hw.created_at), "MMM dd, yyyy 'at' h:mm a")}
                     </p>
+
+                    <div className="flex gap-2 pt-2 border-t mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingHomeworkId(hw.id)}
+                        className="flex-1 min-h-[40px]"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setGradingHomeworkId(hw.id)}
+                        className="flex-1 min-h-[40px]"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Grade Offline
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -403,6 +428,26 @@ export function AssignmentUpload() {
           )}
         </CardContent>
       </Card>
+
+      <EditHomeworkDialog
+        homeworkId={editingHomeworkId}
+        isOpen={!!editingHomeworkId}
+        onClose={() => setEditingHomeworkId(null)}
+        onSuccess={() => {
+          loadHomeworks();
+          queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+        }}
+      />
+
+      <GradeOfflineDialog
+        homeworkId={gradingHomeworkId}
+        isOpen={!!gradingHomeworkId}
+        onClose={() => setGradingHomeworkId(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["homework-submissions"] });
+          queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
+        }}
+      />
     </div>
   );
 }
