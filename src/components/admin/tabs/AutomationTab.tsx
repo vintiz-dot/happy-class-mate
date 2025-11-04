@@ -4,7 +4,7 @@ import { ScheduleStatusCard } from "@/components/admin/ScheduleStatusCard";
 import { BulkSessionDelete } from "@/components/admin/BulkSessionDelete";
 import { BulkEnrollmentDateSetter } from "@/components/admin/BulkEnrollmentDateSetter";
 import { BulkRebuildSessions } from "@/components/admin/BulkRebuildSessions";
-import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
+import { TuitionBulkDownload } from "@/components/admin/TuitionBulkDownload";
 import { AttendanceRepairTool } from "@/components/admin/AttendanceRepairTool";
 import { ManualTuitionRecalc } from "@/components/admin/ManualTuitionRecalc";
 import { LedgerBalanceInspector } from "@/components/admin/LedgerBalanceInspector";
@@ -56,7 +56,7 @@ const AutomationTab = () => {
           <BulkEnrollmentDateSetter />
           <BulkRebuildSessions />
           <BulkSessionDelete />
-          <BulkInvoiceDownload month={dayjs().format("YYYY-MM")} />
+          <TuitionBulkDownload month={dayjs().format("YYYY-MM")} />
         </div>
       </div>
     </div>

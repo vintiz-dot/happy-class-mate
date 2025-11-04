@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
-import { BulkInvoiceDownload } from "@/components/admin/BulkInvoiceDownload";
+import { TuitionBulkDownload } from "@/components/admin/TuitionBulkDownload";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
 import { PayrollTab } from "./PayrollTab";
@@ -37,7 +37,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="bulk">
-        <BulkInvoiceDownload month={currentMonth} />
+        <TuitionBulkDownload month={currentMonth} />
       </TabsContent>
 
       <TabsContent value="recorded">
