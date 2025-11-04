@@ -4,12 +4,12 @@ import { Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
-import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
+import html2pdf from "html2pdf.js";
+import JSZip from "jszip";
 
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo };
 
@@ -19,7 +19,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [invoices, setInvoices] = useState<Array<Pair>>([]);
 
   const { data: classes } = useQuery({
@@ -86,8 +85,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       }
 
       setInvoices(ok);
-      setShowPreview(true);
-      toast.success(`${ok.length} invoices loaded${failed ? `. ${failed} failed.` : ""}`);
+      toast.success(`${ok.length} invoices loaded${failed ? `. ${failed} failed.` : ""}. Ready to download.`);
     } catch (e: any) {
       toast.error(e?.message ?? "Error loading invoices");
     } finally {
@@ -95,8 +93,123 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     }
   };
 
-  const handleDownloadZip = () => {
-    toast.info("Use your browser's Print dialog (Ctrl/Cmd + P) and select 'Save as PDF' to download all invoices");
+  const handleDownloadZip = async () => {
+    if (invoices.length === 0) {
+      toast.error("No invoices to download");
+      return;
+    }
+
+    setDownloading(true);
+    const zip = new JSZip();
+    const folder = zip.folder(`invoices-${month}`);
+
+    try {
+      toast.info(`Generating ${invoices.length} PDFs...`);
+
+      for (let i = 0; i < invoices.length; i++) {
+        const item = invoices[i];
+        const studentName = item.invoice.student.full_name.replace(/[^a-z0-9]/gi, '_');
+        const fileName = `${studentName}_${month}.pdf`;
+        
+        const totalDiscount = item.invoice.discounts.reduce((sum, d) => sum + d.amount_vnd, 0);
+
+        // Create a temporary div to render the invoice
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.innerHTML = `
+          <div style="width: 210mm; padding: 20mm; background: white; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">TUITION INVOICE</h1>
+              <p style="color: #666;">Invoice #${item.invoice.invoice_number}</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+              <p><strong>Student:</strong> ${item.invoice.student.full_name}</p>
+              <p><strong>Billing Period:</strong> ${item.invoice.billing_period}</p>
+              <p><strong>Date:</strong> ${item.invoice.issue_date}</p>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background: #f3f4f6;">
+                  <th style="padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Class</th>
+                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Sessions</th>
+                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Rate</th>
+                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${item.invoice.classes.map(cls => {
+                  const ratePerSession = cls.sessions_count > 0 ? cls.amount_vnd / cls.sessions_count : 0;
+                  return `
+                  <tr>
+                    <td style="padding: 12px; border: 1px solid #e5e7eb;">${cls.class_name}</td>
+                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${cls.sessions_count}</td>
+                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat('vi-VN').format(ratePerSession)} VND</td>
+                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat('vi-VN').format(cls.amount_vnd)} VND</td>
+                  </tr>
+                `}).join('')}
+              </tbody>
+            </table>
+
+            <div style="text-align: right; margin-bottom: 20px;">
+              <p><strong>Subtotal:</strong> ${new Intl.NumberFormat('vi-VN').format(item.invoice.subtotal_vnd)} VND</p>
+              ${item.invoice.discounts.length > 0 ? `
+                <p style="color: #16a34a;"><strong>Discounts:</strong> -${new Intl.NumberFormat('vi-VN').format(totalDiscount)} VND</p>
+              ` : ''}
+              <p style="font-size: 18px; margin-top: 10px;"><strong>Total Due:</strong> ${new Intl.NumberFormat('vi-VN').format(item.invoice.total_due_vnd)} VND</p>
+            </div>
+
+            ${item.bankInfo ? `
+              <div style="margin-top: 30px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb;">
+                <h3 style="margin-bottom: 10px;">Payment Instructions</h3>
+                <p><strong>Bank:</strong> ${item.bankInfo.bank_name}</p>
+                <p><strong>Account Number:</strong> ${item.bankInfo.account_number}</p>
+                <p><strong>Account Holder:</strong> ${item.bankInfo.account_name}</p>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        document.body.appendChild(tempDiv);
+
+        // Generate PDF
+        const pdfBlob = await html2pdf()
+          .from(tempDiv)
+          .set({
+            margin: 0,
+            filename: fileName,
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          })
+          .outputPdf('blob');
+
+        document.body.removeChild(tempDiv);
+        folder?.file(fileName, pdfBlob);
+
+        if ((i + 1) % 5 === 0 || i === invoices.length - 1) {
+          toast.info(`Generated ${i + 1}/${invoices.length} PDFs...`);
+        }
+      }
+
+      // Generate and download the ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoices-${month}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Successfully downloaded ${invoices.length} invoices!`);
+    } catch (error: any) {
+      console.error('Error generating ZIP:', error);
+      toast.error(error?.message ?? "Failed to generate ZIP file");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -157,51 +270,51 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             </div>
           )}
 
-          <Button
-            onClick={handleLoadInvoices}
-            disabled={
-              loading ||
-              (downloadType === "class" && !selectedClassId) ||
-              (downloadType === "family" && !selectedFamilyId)
-            }
-            className="w-full"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading Invoices…
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Load Invoices
-              </>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleLoadInvoices}
+              disabled={
+                loading ||
+                (downloadType === "class" && !selectedClassId) ||
+                (downloadType === "family" && !selectedFamilyId)
+              }
+              className="flex-1"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading Invoices…
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Load Invoices
+                </>
+              )}
+            </Button>
+
+            {invoices.length > 0 && (
+              <Button
+                onClick={handleDownloadZip}
+                disabled={downloading}
+                variant="default"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating ZIP…
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ZIP ({invoices.length})
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+          </div>
         </CardContent>
       </Card>
-
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
-          <div className="flex justify-end gap-2 mb-4">
-            <Button onClick={handleDownloadZip}>
-              <Download className="h-4 w-4 mr-2" />
-              Print / Save as PDF
-            </Button>
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Close
-            </Button>
-          </div>
-
-          <div className="space-y-8">
-            {invoices.map((item, index) => (
-              <div key={index} className="page-break">
-                <InvoicePrintView invoice={item.invoice} bankInfo={item.bankInfo} />
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
