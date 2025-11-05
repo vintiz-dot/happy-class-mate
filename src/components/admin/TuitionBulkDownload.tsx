@@ -42,10 +42,10 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("families")
-        .select("id,family_name")
-        .order("family_name", { ascending: true });
+        .select("id,name")
+        .order("name", { ascending: true });
       if (error) throw error;
-      return data as { id: string; family_name: string }[];
+      return data as { id: string; name: string }[];
     },
   });
 
@@ -67,31 +67,29 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       if (scope === "class") {
         if (!selectedClassId) return ids;
 
-        // Try many-to-many mapping first
-        const rel = await supabase.from("student_classes").select("student_id").eq("class_id", selectedClassId);
-        if (rel.error) {
-          console.warn("student_classes lookup failed, fallback to students.class_id. Error:", rel.error.message);
-        }
-        const relIds = (rel.data ?? []).map((r: any) => r.student_id as string);
-        if (relIds.length > 0) {
-          if (!includeInactive) {
-            const { data: active, error } = await supabase
-              .from("students")
-              .select("id")
-              .in("id", relIds)
-              .eq("is_active", true);
-            if (error) throw error;
-            return active.map((r: any) => r.id as string);
-          }
-          return relIds;
-        }
+        // Get students enrolled in the class
+        const { data: enrollments, error: enrollError } = await supabase
+          .from("enrollments")
+          .select("student_id")
+          .eq("class_id", selectedClassId);
+        
+        if (enrollError) throw enrollError;
+        
+        const enrolledIds = (enrollments ?? []).map((e: any) => e.student_id as string);
+        
+        if (enrolledIds.length === 0) return ids;
 
-        // Fallback to one-to-many schema
-        let q = supabase.from("students").select("id").eq("class_id", selectedClassId);
-        if (!includeInactive) q = q.eq("is_active", true);
-        const { data, error } = await q;
-        if (error) throw error;
-        return (data ?? []).map((r: any) => r.id as string);
+        if (!includeInactive) {
+          const { data: active, error } = await supabase
+            .from("students")
+            .select("id")
+            .in("id", enrolledIds)
+            .eq("is_active", true);
+          if (error) throw error;
+          return (active ?? []).map((r: any) => r.id as string);
+        }
+        
+        return enrolledIds;
       }
 
       if (scope === "family") {
@@ -407,7 +405,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                   <SelectContent>
                     {families.map((f) => (
                       <SelectItem key={f.id} value={f.id}>
-                        {f.family_name}
+                        {f.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
