@@ -1,31 +1,42 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import html2pdf from "html2pdf.js";
 import JSZip from "jszip";
-import { createRoot } from "react-dom/client";
 
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
 import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo | null };
-
-type Scope = "all" | "class" | "family" | "custom";
+type Scope = "all" | "class" | "family";
 
 export function TuitionBulkDownload({ month }: { month: string }) {
-  const [downloading, setDownloading] = useState(false);
+  const { toast } = useToast();
+  const [loadingIds, setLoadingIds] = useState(false);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [scope, setScope] = useState<Scope>("all");
-  const [includeInactive, setIncludeInactive] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
-  const [customIdsText, setCustomIdsText] = useState<string>("");
+  const [pairs, setPairs] = useState<Pair[]>([]);
+  const [includeInactive, setIncludeInactive] = useState(false);
+
+  // PDF build state
+  const [building, setBuilding] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [ready, setReady] = useState(false);
+  const pdfMapRef = useRef<Map<string, Blob>>(new Map());
+
+  // Refs to each rendered page
+  const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Pickers
   const { data: classes = [] } = useQuery({
@@ -42,79 +53,75 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("families")
-        .select("id,name")
-        .order("name", { ascending: true });
+        .select("id,family_name")
+        .order("family_name", { ascending: true });
       if (error) throw error;
-      return data as { id: string; name: string }[];
+      return data as { id: string; family_name: string }[];
     },
   });
 
-  // Resolve student IDs for the chosen scope
+  // Resolve student IDs for the chosen scope using existing schema patterns
   const { data: scopedIds = [], isLoading: idsLoading } = useQuery({
     queryKey: ["bulk-scope-ids", scope, selectedClassId, selectedFamilyId, includeInactive],
-    enabled: scope !== "custom",
+    enabled: scope !== undefined,
     queryFn: async () => {
-      const ids: string[] = [];
-
-      if (scope === "all") {
-        let q = supabase.from("students").select("id");
-        if (!includeInactive) q = q.eq("is_active", true);
-        const { data, error } = await q;
-        if (error) throw error;
-        return (data ?? []).map((r: any) => r.id as string);
-      }
-
-      if (scope === "class") {
-        if (!selectedClassId) return ids;
-
-        // Get students enrolled in the class
-        const { data: enrollments, error: enrollError } = await supabase
-          .from("enrollments")
-          .select("student_id")
-          .eq("class_id", selectedClassId);
-        
-        if (enrollError) throw enrollError;
-        
-        const enrolledIds = (enrollments ?? []).map((e: any) => e.student_id as string);
-        
-        if (enrolledIds.length === 0) return ids;
-
-        if (!includeInactive) {
-          const { data: active, error } = await supabase
-            .from("students")
-            .select("id")
-            .in("id", enrolledIds)
-            .eq("is_active", true);
+      setLoadingIds(true);
+      try {
+        if (scope === "all") {
+          let q = supabase.from("students").select("id");
+          if (!includeInactive) q = q.eq("is_active", true);
+          const { data, error } = await q;
           if (error) throw error;
-          return (active ?? []).map((r: any) => r.id as string);
+          return (data ?? []).map((r: any) => r.id as string);
         }
-        
-        return enrolledIds;
+        if (scope === "class") {
+          if (!selectedClassId) return [];
+          // First try m2m mapping if present
+          const rel = await supabase.from("student_classes").select("student_id").eq("class_id", selectedClassId);
+          if (!rel.error) {
+            const ids = (rel.data ?? []).map((r: any) => r.student_id as string);
+            if (ids.length) {
+              if (!includeInactive) {
+                const { data: active, error } = await supabase
+                  .from("students")
+                  .select("id")
+                  .in("id", ids)
+                  .eq("is_active", true);
+                if (error) throw error;
+                return (active ?? []).map((r: any) => r.id as string);
+              }
+              return ids;
+            }
+          }
+          // Fallback to one-to-many
+          let q = supabase.from("students").select("id").eq("class_id", selectedClassId);
+          if (!includeInactive) q = q.eq("is_active", true);
+          const { data, error } = await q;
+          if (error) throw error;
+          return (data ?? []).map((r: any) => r.id as string);
+        }
+        if (scope === "family") {
+          if (!selectedFamilyId) return [];
+          let q = supabase.from("students").select("id").eq("family_id", selectedFamilyId);
+          if (!includeInactive) q = q.eq("is_active", true);
+          const { data, error } = await q;
+          if (error) throw error;
+          return (data ?? []).map((r: any) => r.id as string);
+        }
+        return [];
+      } finally {
+        setLoadingIds(false);
       }
-
-      if (scope === "family") {
-        if (!selectedFamilyId) return ids;
-        let q = supabase.from("students").select("id").eq("family_id", selectedFamilyId);
-        if (!includeInactive) q = q.eq("is_active", true);
-        const { data, error } = await q;
-        if (error) throw error;
-        return (data ?? []).map((r: any) => r.id as string);
-      }
-
-      return ids;
     },
   });
 
-  const customIds = useMemo(() => {
-    const list = customIdsText
-      .split(/[\s,;\n]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return Array.from(new Set(list));
-  }, [customIdsText]);
+  const sortedPairs = useMemo(() => {
+    return [...pairs].sort((a, b) =>
+      a.invoice.student.full_name.localeCompare(b.invoice.student.full_name, undefined, { sensitivity: "base" }),
+    );
+  }, [pairs]);
 
-  const targetIds = scope === "custom" ? customIds : scopedIds;
-
+  // Download helper
   function triggerDownload(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -141,12 +148,12 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       .replace(/[^a-z0-9]/gi, "_");
   }
 
+  // Wait helpers match the reliable flow
   async function waitForImages(root: HTMLElement) {
     const imgs = Array.from(root.querySelectorAll("img"));
-    // Force eager load for Next/Image <img loading="lazy">
     for (const img of imgs) {
+      const el = img as HTMLImageElement;
       try {
-        const el = img as HTMLImageElement;
         (el as any).loading = "eager";
         el.decoding = "sync";
         el.crossOrigin = "anonymous";
@@ -162,7 +169,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
         });
       }),
     );
-    // Decode to ensure ready to paint
     await Promise.all(
       imgs.map((img) => {
         const el = img as HTMLImageElement;
@@ -188,181 +194,174 @@ export function TuitionBulkDownload({ month }: { month: string }) {
   async function ensureLaidOut(el: HTMLElement) {
     await nextFrame();
     await new Promise((r) => setTimeout(r, 40));
-    // Force reflow
+    // force reflow
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     el.offsetHeight;
     await nextFrame();
   }
 
-  async function renderInvoiceToBlob(pair: Pair): Promise<Blob> {
-    // Create container in viewport but invisible to users
-    const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.left = "-9999px";
-    container.style.top = "0";
-    container.style.width = "794px"; // ~A4 at 96dpi
-    container.style.minHeight = "1123px"; // keep aspect
-    container.style.background = "#ffffff";
-    container.style.zIndex = "-9999";
-    container.className = "print-container";
-    document.body.appendChild(container);
-
-    const root = createRoot(container);
-    
-    // Render and wait for React to complete
-    await new Promise<void>((resolve) => {
-      root.render(<InvoicePrintView invoice={pair.invoice} bankInfo={pair.bankInfo} />);
-      // Give React time to render
-      setTimeout(resolve, 100);
-    });
-
-    // Allow layout, fonts, and images
-    await ensureLaidOut(container);
-    await waitForFonts();
-    await waitForImages(container);
-    await ensureLaidOut(container);
-    
-    // Additional wait for any async content
-    await new Promise((r) => setTimeout(r, 200));
-
-    // Verify size
-    const w = container.scrollWidth || container.offsetWidth;
-    const h = container.scrollHeight || container.offsetHeight;
-    if (!w || !h) {
-      console.warn("Zero-size invoice DOM. Width:", w, "Height:", h);
-    }
-
-    const h2p: any = (html2pdf as any)?.default ?? (html2pdf as any);
-    const baseOpts = {
-      margin: [10, 10, 10, 10],
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
-      html2canvas: {
-        scale: 2.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        imageTimeout: 15000,
-        logging: false,
-        windowWidth: w || 794,
-        windowHeight: h || 1123,
-      },
-      pagebreak: { mode: ["css", "legacy"] as any },
-      filename: "tmp.pdf",
-    };
-
-    try {
-      // Generate PDF
-      const blob: Blob = await h2p()
-        .from(container)
-        .set(baseOpts)
-        .toPdf()
-        .get("pdf")
-        .then((pdf: any) => pdf.output("blob"));
-
-      // Verify blob has content
-      if (!blob || blob.size < 2048) {
-        console.warn("PDF blob too small, retrying with higher scale");
-        const retryOpts = {
-          ...baseOpts,
-          html2canvas: { ...baseOpts.html2canvas, scale: 3 },
-        };
-        const retryBlob = await h2p()
-          .from(container)
-          .set(retryOpts)
-          .toPdf()
-          .get("pdf")
-          .then((pdf: any) => pdf.output("blob"));
-        
-        return retryBlob;
-      }
-
-      return blob;
-    } finally {
-      try {
-        root.unmount();
-      } catch {}
-      try {
-        document.body.removeChild(container);
-      } catch {}
-    }
-  }
-
-  async function handleDownloadZip() {
+  // Load invoice pairs then open preview
+  const loadInvoices = async () => {
     if (!month) {
-      toast.error("Month is required");
+      toast({ title: "Month required", variant: "destructive" });
       return;
     }
     if (scope === "class" && !selectedClassId) {
-      toast.error("Select a class");
+      toast({ title: "Select a class", variant: "destructive" });
       return;
     }
     if (scope === "family" && !selectedFamilyId) {
-      toast.error("Select a family");
+      toast({ title: "Select a family", variant: "destructive" });
       return;
     }
-    if (scope === "custom" && customIds.length === 0) {
-      toast.error("Provide at least one student ID");
-      return;
-    }
-
-    const targetIds = scope === "custom" ? customIds : scopedIds;
-    if (targetIds.length === 0) {
-      toast.error("No students to process");
+    if (scopedIds.length === 0) {
+      toast({ title: "No students found for this scope" });
       return;
     }
 
-    setDownloading(true);
-    const zip = new JSZip();
-
-    let success = 0;
-    let skipped = 0;
-
-    toast.info(`Generating ${targetIds.length} invoices...`);
-
-    for (let i = 0; i < targetIds.length; i++) {
-      const studentId = targetIds[i];
-      try {
-        const { invoice, bankInfo } = await fetchInvoiceData(studentId, month);
-        const pair: Pair = { invoice, bankInfo };
-        const pdfBlob = await renderInvoiceToBlob(pair);
-
-        if (!pdfBlob || pdfBlob.size < 1024) {
-          skipped++;
-          console.warn("Tiny or empty PDF for student", studentId);
-          continue;
-        }
-
-        const studentName = sanitizeFilename(pair.invoice.student.full_name);
-        const fileName = `${studentName}_${month}.pdf`;
-        zip.file(fileName, pdfBlob);
-        success++;
-
-        if ((i + 1) % 5 === 0 || i === targetIds.length - 1) {
-          toast.message(`Progress: ${i + 1}/${targetIds.length}`);
-        }
-      } catch (err: any) {
-        console.error("Failed for", studentId, err);
-        skipped++;
-      }
-    }
+    setLoadingInvoices(true);
+    setPairs([]);
+    pdfMapRef.current = new Map();
+    setReady(false);
+    setProgress({ done: 0, total: 0 });
 
     try {
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      triggerDownload(zipBlob, `invoices-${month}.zip`);
-      toast.success(`Started download. ${success} ok, ${skipped} skipped.`);
+      const results: Pair[] = [];
+      for (let i = 0; i < scopedIds.length; i++) {
+        const sid = scopedIds[i];
+        const { invoice, bankInfo } = await fetchInvoiceData(sid, month);
+        results.push({ invoice, bankInfo });
+        if ((i + 1) % 5 === 0 || i === scopedIds.length - 1) {
+          toast({ title: "Loaded invoices", description: `${i + 1}/${scopedIds.length}` });
+        }
+      }
+      setPairs(results);
+      setShowPreview(true);
     } catch (e: any) {
-      toast.error(e?.message ?? "ZIP generation failed");
+      toast({ title: "Load failed", description: e?.message ?? "Unknown error", variant: "destructive" });
     } finally {
-      setDownloading(false);
+      setLoadingInvoices(false);
     }
-  }
+  };
+
+  // Build PDFs after the preview is shown and DOM is rendered
+  useEffect(() => {
+    if (!showPreview || pairs.length === 0) return;
+
+    const build = async () => {
+      setBuilding(true);
+      setProgress({ done: 0, total: pairs.length });
+      const h2p: any = (html2pdf as any)?.default ?? (html2pdf as any);
+
+      for (const pair of pairs) {
+        const sid = pair.invoice.student.id;
+        const node = pageRefs.current[sid];
+        if (!node) continue;
+
+        // Ensure node has proper size and white background for capture
+        node.style.width = "794px";
+        node.style.minHeight = "1123px";
+        node.style.background = "#ffffff";
+
+        await ensureLaidOut(node);
+        await waitForFonts();
+        await waitForImages(node);
+        await ensureLaidOut(node);
+
+        const w = node.scrollWidth || node.offsetWidth || 794;
+
+        const opts = {
+          margin: [10, 10, 10, 10],
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            imageTimeout: 0,
+            logging: false,
+            windowWidth: w,
+          },
+          pagebreak: { mode: ["css", "legacy"] as any },
+          filename: "tmp.pdf",
+        };
+
+        try {
+          let blob: Blob = await h2p()
+            .from(node)
+            .set(opts)
+            .toPdf()
+            .get("pdf")
+            .then((pdf: any) => pdf.output("blob"));
+
+          if (!blob || blob.size < 1024) {
+            // retry at higher scale
+            const retry = {
+              ...opts,
+              html2canvas: { ...opts.html2canvas, scale: 3 },
+            };
+            blob = await h2p()
+              .from(node)
+              .set(retry)
+              .toPdf()
+              .get("pdf")
+              .then((pdf: any) => pdf.output("blob"));
+          }
+
+          pdfMapRef.current.set(sid, blob);
+        } catch (err) {
+          console.warn("PDF generation failed for", sid, err);
+        } finally {
+          setProgress((p) => ({ done: Math.min(p.done + 1, p.total), total: p.total }));
+        }
+      }
+
+      setBuilding(false);
+      setReady(pdfMapRef.current.size === pairs.length);
+      if (pdfMapRef.current.size !== pairs.length) {
+        toast({ title: "Some PDFs failed", description: `${pdfMapRef.current.size}/${pairs.length} ready` });
+      } else {
+        toast({ title: "PDFs ready", description: `${pairs.length} generated` });
+      }
+    };
+
+    // Defer a tick so the dialog paints first
+    const t = setTimeout(build, 50);
+    return () => clearTimeout(t);
+  }, [showPreview, pairs]);
+
+  const handleZipDownload = async () => {
+    if (!ready || pdfMapRef.current.size === 0) return;
+    const zip = new JSZip();
+    for (const pair of pairs) {
+      const sid = pair.invoice.student.id;
+      const blob = pdfMapRef.current.get(sid);
+      if (!blob) continue;
+      const fileName = `${sanitizeFilename(pair.invoice.student.full_name)}_${month}.pdf`;
+      zip.file(fileName, blob);
+    }
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const count = pdfMapRef.current.size;
+    triggerDownload(zipBlob, `invoices-${month}-${count}.zip`);
+  };
+
+  const regenerate = () => {
+    // Force rebuild without reloading data
+    if (!showPreview || pairs.length === 0) return;
+    setReady(false);
+    setProgress({ done: 0, total: pairs.length });
+    pdfMapRef.current = new Map();
+    setBuilding(true);
+    // trigger effect by toggling showPreview off and back on
+    setShowPreview(false);
+    setTimeout(() => setShowPreview(true), 0);
+  };
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Invoice Download</CardTitle>
-          <CardDescription>Render each invoice to PDF and bundle into a ZIP</CardDescription>
+          <CardDescription>Preview invoices, then generate real PDFs and ZIP</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -376,7 +375,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                   <SelectItem value="all">All students</SelectItem>
                   <SelectItem value="class">By class</SelectItem>
                   <SelectItem value="family">By family</SelectItem>
-                  <SelectItem value="custom">Custom IDs</SelectItem>
                 </SelectContent>
               </Select>
               <label className="flex items-center gap-2 text-sm mt-2 select-none">
@@ -418,7 +416,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                   <SelectContent>
                     {families.map((f) => (
                       <SelectItem key={f.id} value={f.id}>
-                        {f.name}
+                        {f.family_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -427,30 +425,17 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             )}
           </div>
 
-          {scope === "custom" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Student IDs (comma or newline separated)</label>
-              <textarea
-                className="w-full rounded-md border p-2 text-sm h-28"
-                placeholder="uuid-1, uuid-2, ..."
-                value={customIdsText}
-                onChange={(e) => setCustomIdsText(e.target.value)}
-              />
-              <div className="text-xs text-muted-foreground">Detected: {customIds.length}</div>
-            </div>
-          )}
-
           <div className="flex items-center gap-2">
-            <Button onClick={handleDownloadZip} disabled={downloading || (scope !== "custom" && idsLoading)}>
-              {downloading ? (
+            <Button onClick={loadInvoices} disabled={loadingInvoices || loadingIds || idsLoading}>
+              {loadingInvoices ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating…
+                  Loading…
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-2" />
-                  Download ZIP ({targetIds.length})
+                  Load & Preview ({scopedIds.length})
                 </>
               )}
             </Button>
@@ -460,6 +445,63 @@ export function TuitionBulkDownload({ month }: { month: string }) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
+          <div className="flex items-center justify-between mb-3 no-print gap-2">
+            <div className="text-sm">
+              {building ? (
+                <>
+                  Rendering PDFs… {progress.done}/{progress.total}
+                </>
+              ) : ready ? (
+                <>PDFs ready: {pairs.length}</>
+              ) : pairs.length ? (
+                <>Preview ready. Click “Regenerate PDFs” if needed.</>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={regenerate} disabled={building || pairs.length === 0}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Regenerate PDFs
+              </Button>
+              <Button onClick={handleZipDownload} disabled={!ready}>
+                <Download className="h-4 w-4 mr-2" />
+                Download ZIP
+              </Button>
+            </div>
+          </div>
+
+          {pairs.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No invoices loaded</div>
+          ) : (
+            <div className="space-y-4">
+              {pairs.map((p) => (
+                <div
+                  key={p.invoice.student.id}
+                  ref={(el) => {
+                    pageRefs.current[p.invoice.student.id] = el;
+                  }}
+                  className="bulk-invoice-page bg-white p-0 border border-gray-200 shadow-sm"
+                  style={{ width: "794px", minHeight: "1123px", margin: "0 auto" }}
+                >
+                  <InvoicePrintView invoice={p.invoice} bankInfo={p.bankInfo} />
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <style>{`
+        .page-break { break-after: page; }
+        @media print {
+          .no-print { display: none !important; }
+          .page-break { display: block; page-break-after: always; }
+          .print-page { page-break-inside: avoid; }
+          @page { size: A4; margin: 0; }
+        }
+      `}</style>
     </>
   );
 }
