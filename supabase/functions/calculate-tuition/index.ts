@@ -112,16 +112,18 @@ Deno.serve(async (req) => {
     }
 
     // Base charges: bill Present or Absent; Excused not billable
+    // Track base amounts per enrollment for accurate discount calculation
     let baseAmount = 0;
-    const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled" }> = [];
+    const enrollmentBaseAmounts = new Map<string, number>(); // class_id -> base amount
+    const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled"; class_id: string }> = [];
 
     for (const s of sessions ?? []) {
       // Check if student was enrolled on this specific session date
-      const wasEnrolled = (enrollments ?? []).some(e => 
-        e.start_date <= s.date && (!e.end_date || e.end_date >= s.date)
+      const enrollment = (enrollments ?? []).find(e => 
+        e.class_id === s.class_id && e.start_date <= s.date && (!e.end_date || e.end_date >= s.date)
       );
       
-      if (!wasEnrolled) continue; // Skip sessions outside enrollment period
+      if (!enrollment) continue; // Skip sessions outside enrollment period
       
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
@@ -131,10 +133,13 @@ Deno.serve(async (req) => {
 
       if (billable && rate > 0) {
         baseAmount += rate;
-        sessionDetails.push({ date: s.date, rate, status: (att ?? "Present") as any });
+        // Track per-enrollment base amount
+        const currentAmount = enrollmentBaseAmounts.get(s.class_id) || 0;
+        enrollmentBaseAmounts.set(s.class_id, currentAmount + rate);
+        sessionDetails.push({ date: s.date, rate, status: (att ?? "Present") as any, class_id: s.class_id });
       } else {
         // still return session detail for UI if needed
-        if (att) sessionDetails.push({ date: s.date, rate, status: att });
+        if (att) sessionDetails.push({ date: s.date, rate, status: att, class_id: s.class_id });
       }
     }
 
@@ -149,16 +154,27 @@ Deno.serve(async (req) => {
     let totalDiscount = 0;
 
     // Enrollment-level discounts (monthly/once)
+    // Calculate discount based on the specific enrollment's base amount only
     for (const e of (enrollments as EnrollmentRow[] | null | undefined) ?? []) {
       if (!e.discount_type || !e.discount_value) continue;
       const cadence = e.discount_cadence;
       if (cadence === "monthly" || cadence === "once") {
+        // Get the base amount for THIS specific enrollment only
+        const enrollmentBase = enrollmentBaseAmounts.get(e.class_id) || 0;
+        if (enrollmentBase === 0) continue; // Skip if no billable sessions for this enrollment
+        
         const amt =
           e.discount_type === "percent"
-            ? Math.round(baseAmount * (e.discount_value / 100))
+            ? Math.round(enrollmentBase * (e.discount_value / 100))
             : Math.round(e.discount_value);
         if (amt > 0) {
-          discounts.push({ name: "Enrollment Discount", type: e.discount_type, value: e.discount_value, amount: amt });
+          discounts.push({ 
+            name: "Enrollment Discount", 
+            type: e.discount_type, 
+            value: e.discount_value, 
+            amount: amt,
+            class_id: e.class_id // Track which enrollment this discount is for
+          });
           totalDiscount += amt;
         }
       }
