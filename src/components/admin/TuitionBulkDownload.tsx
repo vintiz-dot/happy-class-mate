@@ -53,10 +53,10 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("families")
-        .select("id,family_name")
-        .order("family_name", { ascending: true });
+        .select("id,name")
+        .order("name", { ascending: true });
       if (error) throw error;
-      return data as { id: string; family_name: string }[];
+      return data as { id: string; name: string }[];
     },
   });
 
@@ -76,29 +76,19 @@ export function TuitionBulkDownload({ month }: { month: string }) {
         }
         if (scope === "class") {
           if (!selectedClassId) return [];
-          // First try m2m mapping if present
-          const rel = await supabase.from("student_classes").select("student_id").eq("class_id", selectedClassId);
-          if (!rel.error) {
-            const ids = (rel.data ?? []).map((r: any) => r.student_id as string);
-            if (ids.length) {
-              if (!includeInactive) {
-                const { data: active, error } = await supabase
-                  .from("students")
-                  .select("id")
-                  .in("id", ids)
-                  .eq("is_active", true);
-                if (error) throw error;
-                return (active ?? []).map((r: any) => r.id as string);
-              }
-              return ids;
-            }
+          const rel = await supabase.from("enrollments").select("student_id").eq("class_id", selectedClassId);
+          if (rel.error) throw rel.error;
+          const ids = (rel.data ?? []).map((r: any) => r.student_id as string);
+          if (!includeInactive && ids.length > 0) {
+            const { data: active, error } = await supabase
+              .from("students")
+              .select("id")
+              .in("id", ids)
+              .eq("is_active", true);
+            if (error) throw error;
+            return (active ?? []).map((r: any) => r.id as string);
           }
-          // Fallback to one-to-many
-          let q = supabase.from("students").select("id").eq("class_id", selectedClassId);
-          if (!includeInactive) q = q.eq("is_active", true);
-          const { data, error } = await q;
-          if (error) throw error;
-          return (data ?? []).map((r: any) => r.id as string);
+          return ids;
         }
         if (scope === "family") {
           if (!selectedFamilyId) return [];
@@ -416,7 +406,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                   <SelectContent>
                     {families.map((f) => (
                       <SelectItem key={f.id} value={f.id}>
-                        {f.family_name}
+                        {f.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
