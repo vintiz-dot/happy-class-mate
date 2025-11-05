@@ -17,31 +17,105 @@ import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo | null };
 
-type DownloadScope = "active" | "custom";
+type Scope = "all" | "class" | "family" | "custom";
 
 export function TuitionBulkDownload({ month }: { month: string }) {
   const [downloading, setDownloading] = useState(false);
-  const [downloadType, setDownloadType] = useState<DownloadScope>("active");
+  const [scope, setScope] = useState<Scope>("all");
+  const [includeInactive, setIncludeInactive] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
   const [customIdsText, setCustomIdsText] = useState<string>("");
 
-  // Fetch active student IDs by default
-  const { data: activeIds = [], isLoading } = useQuery({
-    queryKey: ["active-students"],
+  // Pickers
+  const { data: classes = [] } = useQuery({
+    queryKey: ["classes"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("students").select("id").eq("is_active", true);
+      const { data, error } = await supabase.from("classes").select("id,name").order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((r: any) => r.id as string);
+      return data as { id: string; name: string }[];
+    },
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["families"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("families")
+        .select("id,family_name")
+        .order("family_name", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; family_name: string }[];
+    },
+  });
+
+  // Resolve student IDs for the chosen scope
+  const { data: scopedIds = [], isLoading: idsLoading } = useQuery({
+    queryKey: ["bulk-scope-ids", scope, selectedClassId, selectedFamilyId, includeInactive],
+    enabled: scope !== "custom",
+    queryFn: async () => {
+      const ids: string[] = [];
+
+      if (scope === "all") {
+        let q = supabase.from("students").select("id");
+        if (!includeInactive) q = q.eq("is_active", true);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data ?? []).map((r: any) => r.id as string);
+      }
+
+      if (scope === "class") {
+        if (!selectedClassId) return ids;
+
+        // Try many-to-many mapping first
+        const rel = await supabase.from("student_classes").select("student_id").eq("class_id", selectedClassId);
+        if (rel.error) {
+          console.warn("student_classes lookup failed, fallback to students.class_id. Error:", rel.error.message);
+        }
+        const relIds = (rel.data ?? []).map((r: any) => r.student_id as string);
+        if (relIds.length > 0) {
+          if (!includeInactive) {
+            const { data: active, error } = await supabase
+              .from("students")
+              .select("id")
+              .in("id", relIds)
+              .eq("is_active", true);
+            if (error) throw error;
+            return active.map((r: any) => r.id as string);
+          }
+          return relIds;
+        }
+
+        // Fallback to one-to-many schema
+        let q = supabase.from("students").select("id").eq("class_id", selectedClassId);
+        if (!includeInactive) q = q.eq("is_active", true);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data ?? []).map((r: any) => r.id as string);
+      }
+
+      if (scope === "family") {
+        if (!selectedFamilyId) return ids;
+        let q = supabase.from("students").select("id").eq("family_id", selectedFamilyId);
+        if (!includeInactive) q = q.eq("is_active", true);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data ?? []).map((r: any) => r.id as string);
+      }
+
+      return ids;
     },
   });
 
   const customIds = useMemo(() => {
-    return customIdsText
+    const list = customIdsText
       .split(/[\s,;\n]+/)
       .map((s) => s.trim())
       .filter(Boolean);
+    return Array.from(new Set(list));
   }, [customIdsText]);
 
-  const targetIds = downloadType === "active" ? activeIds : customIds;
+  const targetIds = scope === "custom" ? customIds : scopedIds;
 
   function triggerDownload(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
@@ -69,19 +143,33 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       .replace(/[^a-z0-9]/gi, "_");
   }
 
-  function waitForImages(root: HTMLElement) {
+  async function waitForImages(root: HTMLElement) {
     const imgs = Array.from(root.querySelectorAll("img"));
-    return Promise.all(
-      imgs.map(
-        (img) =>
-          new Promise<void>((resolve) => {
-            const el = img as HTMLImageElement;
-            if (el.complete) return resolve();
-            el.crossOrigin = "anonymous";
-            el.onload = () => resolve();
-            el.onerror = () => resolve();
-          }),
-      ),
+    // Force eager load for Next/Image <img loading="lazy">
+    for (const img of imgs) {
+      try {
+        const el = img as HTMLImageElement;
+        (el as any).loading = "eager";
+        el.decoding = "sync";
+        el.crossOrigin = "anonymous";
+      } catch {}
+    }
+    await Promise.all(
+      imgs.map((img) => {
+        const el = img as HTMLImageElement;
+        if (el.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          el.onload = () => resolve();
+          el.onerror = () => resolve();
+        });
+      }),
+    );
+    // Decode to ensure ready to paint
+    await Promise.all(
+      imgs.map((img) => {
+        const el = img as HTMLImageElement;
+        return typeof el.decode === "function" ? el.decode().catch(() => {}) : Promise.resolve();
+      }),
     );
   }
 
@@ -89,43 +177,98 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
 
+  async function waitForFonts() {
+    try {
+      // @ts-ignore
+      if (document.fonts && typeof document.fonts.ready?.then === "function") {
+        // @ts-ignore
+        await document.fonts.ready;
+      }
+    } catch {}
+  }
+
+  async function ensureLaidOut(el: HTMLElement) {
+    await nextFrame();
+    await new Promise((r) => setTimeout(r, 40));
+    // Force reflow
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    el.offsetHeight;
+    await nextFrame();
+  }
+
   async function renderInvoiceToBlob(pair: Pair): Promise<Blob> {
-    // Create container off-screen but rendered
+    // Create container in viewport but invisible to users
     const container = document.createElement("div");
     container.style.position = "fixed";
-    container.style.left = "-10000px";
+    container.style.left = "0";
     container.style.top = "0";
     container.style.width = "794px"; // ~A4 at 96dpi
+    container.style.minHeight = "1123px"; // keep aspect
     container.style.background = "#ffffff";
+    container.style.opacity = "0";
+    container.style.pointerEvents = "none";
+    container.style.zIndex = "-1";
     container.className = "print-container";
     document.body.appendChild(container);
 
     const root = createRoot(container);
     root.render(<InvoicePrintView invoice={pair.invoice} bankInfo={pair.bankInfo} />);
 
-    // Allow layout and image loads
-    await nextFrame();
-    await nextFrame();
+    // Allow layout, fonts, and images
+    await ensureLaidOut(container);
+    await waitForFonts();
     await waitForImages(container);
+    await ensureLaidOut(container);
 
-    const opts = {
+    // Verify size
+    const w = container.scrollWidth || container.offsetWidth;
+    const h = container.scrollHeight || container.offsetHeight;
+    if (!w || !h) {
+      console.warn("Zero-size invoice DOM. Width:", w, "Height:", h);
+    }
+
+    const h2p: any = (html2pdf as any)?.default ?? (html2pdf as any);
+    const baseOpts = {
       margin: [10, 10, 10, 10],
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
-      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: container.scrollWidth },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        imageTimeout: 0,
+        logging: false,
+        windowWidth: w || 794,
+      },
+      pagebreak: { mode: ["css", "legacy"] as any },
       filename: "tmp.pdf",
     };
 
     try {
-      const blob: Blob = await (html2pdf() as any)
+      // First attempt
+      let blob: Blob = await h2p()
         .from(container)
-        .set(opts)
+        .set(baseOpts)
         .toPdf()
         .get("pdf")
         .then((pdf: any) => pdf.output("blob"));
 
+      // Fallback with higher scale if tiny
+      if (!blob || blob.size < 2048) {
+        console.warn("Retrying html2pdf at higher scale");
+        const retryOpts = {
+          ...baseOpts,
+          html2canvas: { ...baseOpts.html2canvas, scale: 3 },
+        };
+        blob = await h2p()
+          .from(container)
+          .set(retryOpts)
+          .toPdf()
+          .get("pdf")
+          .then((pdf: any) => pdf.output("blob"));
+      }
+
       return blob;
     } finally {
-      // Cleanup
       try {
         root.unmount();
       } catch {}
@@ -138,6 +281,20 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       toast.error("Month is required");
       return;
     }
+    if (scope === "class" && !selectedClassId) {
+      toast.error("Select a class");
+      return;
+    }
+    if (scope === "family" && !selectedFamilyId) {
+      toast.error("Select a family");
+      return;
+    }
+    if (scope === "custom" && customIds.length === 0) {
+      toast.error("Provide at least one student ID");
+      return;
+    }
+
+    const targetIds = scope === "custom" ? customIds : scopedIds;
     if (targetIds.length === 0) {
       toast.error("No students to process");
       return;
@@ -197,20 +354,69 @@ export function TuitionBulkDownload({ month }: { month: string }) {
           <CardDescription>Render each invoice to PDF and bundle into a ZIP</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Download scope</label>
-            <Select value={downloadType} onValueChange={(v: any) => setDownloadType(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select scope" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">All active students ({isLoading ? "…" : activeIds.length})</SelectItem>
-                <SelectItem value="custom">Custom list</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Scope</label>
+              <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All students</SelectItem>
+                  <SelectItem value="class">By class</SelectItem>
+                  <SelectItem value="family">By family</SelectItem>
+                  <SelectItem value="custom">Custom IDs</SelectItem>
+                </SelectContent>
+              </Select>
+              <label className="flex items-center gap-2 text-sm mt-2 select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={includeInactive}
+                  onChange={(e) => setIncludeInactive(e.target.checked)}
+                />
+                Include inactive students
+              </label>
+            </div>
+
+            {scope === "class" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Class</label>
+                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {scope === "family" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Family</label>
+                <Select value={selectedFamilyId} onValueChange={setSelectedFamilyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a family" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {families.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.family_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
-          {downloadType === "custom" && (
+          {scope === "custom" && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Student IDs (comma or newline separated)</label>
               <textarea
@@ -224,7 +430,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
           )}
 
           <div className="flex items-center gap-2">
-            <Button onClick={handleDownloadZip} disabled={downloading || (downloadType === "active" && isLoading)}>
+            <Button onClick={handleDownloadZip} disabled={downloading || (scope !== "custom" && idsLoading)}>
               {downloading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
