@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
@@ -10,6 +11,27 @@ import { useQuery } from "@tanstack/react-query";
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 import html2pdf from "html2pdf.js";
 import JSZip from "jszip";
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+
+  // Safari/iOS fallback
+  // @ts-ignore
+  if (!("download" in HTMLAnchorElement.prototype)) {
+    window.open(url, "_blank");
+  }
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 1000);
+}
 
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo };
 
@@ -108,15 +130,18 @@ export function TuitionBulkDownload({ month }: { month: string }) {
 
       for (let i = 0; i < invoices.length; i++) {
         const item = invoices[i];
-        const studentName = item.invoice.student.full_name.replace(/[^a-z0-9]/gi, '_');
+        const studentName = item.invoice.student.full_name
+          .normalize("NFD")
+          .replace(/[\\u0300-\\u036f]/g, "")
+          .replace(/[^a-z0-9]/gi, "_");
         const fileName = `${studentName}_${month}.pdf`;
-        
+
         const totalDiscount = item.invoice.discounts.reduce((sum, d) => sum + d.amount_vnd, 0);
 
         // Create a temporary div to render the invoice
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.left = "-9999px";
         tempDiv.innerHTML = `
           <div style="width: 210mm; padding: 20mm; background: white; font-family: system-ui, -apple-system, sans-serif;">
             <div style="text-align: center; margin-bottom: 30px;">
@@ -140,35 +165,46 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                 </tr>
               </thead>
               <tbody>
-                ${item.invoice.classes.map(cls => {
-                  const ratePerSession = cls.sessions_count > 0 ? cls.amount_vnd / cls.sessions_count : 0;
-                  return `
+                ${item.invoice.classes
+                  .map((cls) => {
+                    const ratePerSession = cls.sessions_count > 0 ? cls.amount_vnd / cls.sessions_count : 0;
+                    return `
                   <tr>
                     <td style="padding: 12px; border: 1px solid #e5e7eb;">${cls.class_name}</td>
                     <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${cls.sessions_count}</td>
-                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat('vi-VN').format(ratePerSession)} VND</td>
-                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat('vi-VN').format(cls.amount_vnd)} VND</td>
+                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat("vi-VN").format(ratePerSession)} VND</td>
+                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat("vi-VN").format(cls.amount_vnd)} VND</td>
                   </tr>
-                `}).join('')}
+                `;
+                  })
+                  .join("")}
               </tbody>
             </table>
 
             <div style="text-align: right; margin-bottom: 20px;">
-              <p><strong>Subtotal:</strong> ${new Intl.NumberFormat('vi-VN').format(item.invoice.subtotal_vnd)} VND</p>
-              ${item.invoice.discounts.length > 0 ? `
-                <p style="color: #16a34a;"><strong>Discounts:</strong> -${new Intl.NumberFormat('vi-VN').format(totalDiscount)} VND</p>
-              ` : ''}
-              <p style="font-size: 18px; margin-top: 10px;"><strong>Total Due:</strong> ${new Intl.NumberFormat('vi-VN').format(item.invoice.total_due_vnd)} VND</p>
+              <p><strong>Subtotal:</strong> ${new Intl.NumberFormat("vi-VN").format(item.invoice.subtotal_vnd)} VND</p>
+              ${
+                item.invoice.discounts.length > 0
+                  ? `
+                <p style="color: #16a34a;"><strong>Discounts:</strong> -${new Intl.NumberFormat("vi-VN").format(totalDiscount)} VND</p>
+              `
+                  : ""
+              }
+              <p style="font-size: 18px; margin-top: 10px;"><strong>Total Due:</strong> ${new Intl.NumberFormat("vi-VN").format(item.invoice.total_due_vnd)} VND</p>
             </div>
 
-            ${item.bankInfo ? `
+            ${
+              item.bankInfo
+                ? `
               <div style="margin-top: 30px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb;">
                 <h3 style="margin-bottom: 10px;">Payment Instructions</h3>
                 <p><strong>Bank:</strong> ${item.bankInfo.bank_name}</p>
                 <p><strong>Account Number:</strong> ${item.bankInfo.account_number}</p>
                 <p><strong>Account Holder:</strong> ${item.bankInfo.account_name}</p>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         `;
         document.body.appendChild(tempDiv);
@@ -180,9 +216,9 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             margin: 0,
             filename: fileName,
             html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
           })
-          .outputPdf('blob');
+          .outputPdf("blob");
 
         document.body.removeChild(tempDiv);
         folder?.file(fileName, pdfBlob);
@@ -193,19 +229,11 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       }
 
       // Generate and download the ZIP
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoices-${month}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      triggerDownload(zipBlob, `invoices-${month}.zip`);
       toast.success(`Successfully downloaded ${invoices.length} invoices!`);
     } catch (error: any) {
-      console.error('Error generating ZIP:', error);
+      console.error("Error generating ZIP:", error);
       toast.error(error?.message ?? "Failed to generate ZIP file");
     } finally {
       setDownloading(false);
@@ -294,11 +322,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             </Button>
 
             {invoices.length > 0 && (
-              <Button
-                onClick={handleDownloadZip}
-                disabled={downloading}
-                variant="default"
-              >
+              <Button onClick={handleDownloadZip} disabled={downloading} variant="default">
                 {downloading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
