@@ -198,25 +198,32 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     // Create container in viewport but invisible to users
     const container = document.createElement("div");
     container.style.position = "fixed";
-    container.style.left = "0";
+    container.style.left = "-9999px";
     container.style.top = "0";
     container.style.width = "794px"; // ~A4 at 96dpi
     container.style.minHeight = "1123px"; // keep aspect
     container.style.background = "#ffffff";
-    container.style.opacity = "0";
-    container.style.pointerEvents = "none";
-    container.style.zIndex = "-1";
+    container.style.zIndex = "-9999";
     container.className = "print-container";
     document.body.appendChild(container);
 
     const root = createRoot(container);
-    root.render(<InvoicePrintView invoice={pair.invoice} bankInfo={pair.bankInfo} />);
+    
+    // Render and wait for React to complete
+    await new Promise<void>((resolve) => {
+      root.render(<InvoicePrintView invoice={pair.invoice} bankInfo={pair.bankInfo} />);
+      // Give React time to render
+      setTimeout(resolve, 100);
+    });
 
     // Allow layout, fonts, and images
     await ensureLaidOut(container);
     await waitForFonts();
     await waitForImages(container);
     await ensureLaidOut(container);
+    
+    // Additional wait for any async content
+    await new Promise((r) => setTimeout(r, 200));
 
     // Verify size
     const w = container.scrollWidth || container.offsetWidth;
@@ -230,39 +237,43 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       margin: [10, 10, 10, 10],
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
       html2canvas: {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: "#ffffff",
-        imageTimeout: 0,
+        imageTimeout: 15000,
         logging: false,
         windowWidth: w || 794,
+        windowHeight: h || 1123,
       },
       pagebreak: { mode: ["css", "legacy"] as any },
       filename: "tmp.pdf",
     };
 
     try {
-      // First attempt
-      let blob: Blob = await h2p()
+      // Generate PDF
+      const blob: Blob = await h2p()
         .from(container)
         .set(baseOpts)
         .toPdf()
         .get("pdf")
         .then((pdf: any) => pdf.output("blob"));
 
-      // Fallback with higher scale if tiny
+      // Verify blob has content
       if (!blob || blob.size < 2048) {
-        console.warn("Retrying html2pdf at higher scale");
+        console.warn("PDF blob too small, retrying with higher scale");
         const retryOpts = {
           ...baseOpts,
           html2canvas: { ...baseOpts.html2canvas, scale: 3 },
         };
-        blob = await h2p()
+        const retryBlob = await h2p()
           .from(container)
           .set(retryOpts)
           .toPdf()
           .get("pdf")
           .then((pdf: any) => pdf.output("blob"));
+        
+        return retryBlob;
       }
 
       return blob;
@@ -270,7 +281,9 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       try {
         root.unmount();
       } catch {}
-      document.body.removeChild(container);
+      try {
+        document.body.removeChild(container);
+      } catch {}
     }
   }
 
