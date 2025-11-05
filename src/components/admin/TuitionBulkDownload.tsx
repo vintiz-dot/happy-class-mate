@@ -18,6 +18,16 @@ import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 type Pair = { invoice: InvoiceData; bankInfo: BankInfo | null };
 type Scope = "all" | "class" | "family";
 
+// A4 sizing at ~90% of printable content area to avoid cropping
+const CONTENT_SCALE = 0.9;
+const DPI = 96;
+const A4_W_MM = 210;
+const A4_H_MM = 297;
+const MARGIN_MM = 10; // must match jsPDF margin
+const PX_PER_MM = DPI / 25.4;
+const CONTENT_W_PX = Math.round((A4_W_MM - 2 * MARGIN_MM) * PX_PER_MM * CONTENT_SCALE); // ≈ 646 px
+const CONTENT_H_PX = Math.round((A4_H_MM - 2 * MARGIN_MM) * PX_PER_MM * CONTENT_SCALE); // ≈ 942 px
+
 export function TuitionBulkDownload({ month }: { month: string }) {
   const { toast } = useToast();
   const [loadingIds, setLoadingIds] = useState(false);
@@ -34,8 +44,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [ready, setReady] = useState(false);
   const pdfMapRef = useRef<Map<string, Blob>>(new Map());
-
-  // Refs to each rendered page
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Pickers
@@ -51,16 +59,13 @@ export function TuitionBulkDownload({ month }: { month: string }) {
   const { data: families = [] } = useQuery({
     queryKey: ["families"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("families")
-        .select("id,name")
-        .order("name", { ascending: true });
+      const { data, error } = await supabase.from("families").select("id,name").order("name", { ascending: true });
       if (error) throw error;
       return data as { id: string; name: string }[];
     },
   });
 
-  // Resolve student IDs for the chosen scope using existing schema patterns
+  // Resolve student IDs for the chosen scope
   const { data: scopedIds = [], isLoading: idsLoading } = useQuery({
     queryKey: ["bulk-scope-ids", scope, selectedClassId, selectedFamilyId, includeInactive],
     enabled: scope !== undefined,
@@ -74,22 +79,29 @@ export function TuitionBulkDownload({ month }: { month: string }) {
           if (error) throw error;
           return (data ?? []).map((r: any) => r.id as string);
         }
+
         if (scope === "class") {
           if (!selectedClassId) return [];
-          const rel = await supabase.from("enrollments").select("student_id").eq("class_id", selectedClassId);
-          if (rel.error) throw rel.error;
-          const ids = (rel.data ?? []).map((r: any) => r.student_id as string);
-          if (!includeInactive && ids.length > 0) {
+          // Use enrollments(student_id, class_id)
+          const { data: enrollments, error: enrollErr } = await supabase
+            .from("enrollments")
+            .select("student_id")
+            .eq("class_id", selectedClassId);
+          if (enrollErr) throw enrollErr;
+          const enrolled = (enrollments ?? []).map((e: any) => e.student_id as string);
+          if (enrolled.length === 0) return [];
+          if (!includeInactive) {
             const { data: active, error } = await supabase
               .from("students")
               .select("id")
-              .in("id", ids)
+              .in("id", enrolled)
               .eq("is_active", true);
             if (error) throw error;
             return (active ?? []).map((r: any) => r.id as string);
           }
-          return ids;
+          return enrolled;
         }
+
         if (scope === "family") {
           if (!selectedFamilyId) return [];
           let q = supabase.from("students").select("id").eq("family_id", selectedFamilyId);
@@ -98,6 +110,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
           if (error) throw error;
           return (data ?? []).map((r: any) => r.id as string);
         }
+
         return [];
       } finally {
         setLoadingIds(false);
@@ -111,7 +124,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     );
   }, [pairs]);
 
-  // Download helper
   function triggerDownload(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -120,11 +132,8 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
-    // Safari/iOS fallback
-    // @ts-ignore
-    if (!("download" in HTMLAnchorElement.prototype)) {
-      window.open(url, "_blank");
-    }
+    // @ts-ignore Safari fallback
+    if (!("download" in HTMLAnchorElement.prototype)) window.open(url, "_blank");
     setTimeout(() => {
       URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -138,7 +147,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       .replace(/[^a-z0-9]/gi, "_");
   }
 
-  // Wait helpers match the reliable flow
   async function waitForImages(root: HTMLElement) {
     const imgs = Array.from(root.querySelectorAll("img"));
     for (const img of imgs) {
@@ -246,11 +254,14 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       for (const pair of pairs) {
         const sid = pair.invoice.student.id;
         const node = pageRefs.current[sid];
-        if (!node) continue;
+        if (!node) {
+          setProgress((p) => ({ done: Math.min(p.done + 1, p.total), total: p.total }));
+          continue;
+        }
 
-        // Ensure node has proper size and white background for capture
-        node.style.width = "794px";
-        node.style.minHeight = "1123px";
+        // Ensure node matches content area
+        node.style.width = `${CONTENT_W_PX}px`;
+        node.style.minHeight = `${CONTENT_H_PX}px`;
         node.style.background = "#ffffff";
 
         await ensureLaidOut(node);
@@ -258,10 +269,8 @@ export function TuitionBulkDownload({ month }: { month: string }) {
         await waitForImages(node);
         await ensureLaidOut(node);
 
-        const w = node.scrollWidth || node.offsetWidth || 794;
-
         const opts = {
-          margin: [10, 10, 10, 10],
+          margin: [MARGIN_MM, MARGIN_MM, MARGIN_MM, MARGIN_MM],
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
           html2canvas: {
             scale: 2,
@@ -269,7 +278,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             backgroundColor: "#ffffff",
             imageTimeout: 0,
             logging: false,
-            windowWidth: w,
+            windowWidth: CONTENT_W_PX,
           },
           pagebreak: { mode: ["css", "legacy"] as any },
           filename: "tmp.pdf",
@@ -284,14 +293,10 @@ export function TuitionBulkDownload({ month }: { month: string }) {
             .then((pdf: any) => pdf.output("blob"));
 
           if (!blob || blob.size < 1024) {
-            // retry at higher scale
-            const retry = {
-              ...opts,
-              html2canvas: { ...opts.html2canvas, scale: 3 },
-            };
+            const retryOpts = { ...opts, html2canvas: { ...opts.html2canvas, scale: 3 } };
             blob = await h2p()
               .from(node)
-              .set(retry)
+              .set(retryOpts)
               .toPdf()
               .get("pdf")
               .then((pdf: any) => pdf.output("blob"));
@@ -314,7 +319,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       }
     };
 
-    // Defer a tick so the dialog paints first
     const t = setTimeout(build, 50);
     return () => clearTimeout(t);
   }, [showPreview, pairs]);
@@ -330,18 +334,15 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       zip.file(fileName, blob);
     }
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    const count = pdfMapRef.current.size;
-    triggerDownload(zipBlob, `invoices-${month}-${count}.zip`);
+    triggerDownload(zipBlob, `invoices-${month}-${pdfMapRef.current.size}.zip`);
   };
 
   const regenerate = () => {
-    // Force rebuild without reloading data
     if (!showPreview || pairs.length === 0) return;
     setReady(false);
     setProgress({ done: 0, total: pairs.length });
     pdfMapRef.current = new Map();
     setBuilding(true);
-    // trigger effect by toggling showPreview off and back on
     setShowPreview(false);
     setTimeout(() => setShowPreview(true), 0);
   };
@@ -351,7 +352,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Bulk Invoice Download</CardTitle>
-          <CardDescription>Preview invoices, then generate real PDFs and ZIP</CardDescription>
+          <CardDescription>Preview invoices, then generate PDFs and ZIP</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -473,7 +474,7 @@ export function TuitionBulkDownload({ month }: { month: string }) {
                     pageRefs.current[p.invoice.student.id] = el;
                   }}
                   className="bulk-invoice-page bg-white p-0 border border-gray-200 shadow-sm"
-                  style={{ width: "794px", minHeight: "1123px", margin: "0 auto" }}
+                  style={{ width: `${CONTENT_W_PX}px`, minHeight: `${CONTENT_H_PX}px`, margin: "0 auto" }}
                 >
                   <InvoicePrintView invoice={p.invoice} bankInfo={p.bankInfo} />
                 </div>
