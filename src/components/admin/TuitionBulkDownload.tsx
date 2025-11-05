@@ -1,341 +1,245 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
 import html2pdf from "html2pdf.js";
 import JSZip from "jszip";
+import { createRoot } from "react-dom/client";
 
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
+import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
+import { fetchInvoiceData } from "@/lib/invoice/fetchInvoiceData";
+import { InvoicePrintView } from "@/components/invoice/InvoicePrintView";
 
-  // Safari/iOS fallback
-  // @ts-ignore
-  if (!("download" in HTMLAnchorElement.prototype)) {
-    window.open(url, "_blank");
-  }
+type Pair = { invoice: InvoiceData; bankInfo: BankInfo | null };
 
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }, 1000);
-}
-
-type Pair = { invoice: InvoiceData; bankInfo: BankInfo };
+type DownloadScope = "active" | "custom";
 
 export function TuitionBulkDownload({ month }: { month: string }) {
-  const [downloadType, setDownloadType] = useState<"all" | "class" | "family">("all");
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [selectedFamilyId, setSelectedFamilyId] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [invoices, setInvoices] = useState<Array<Pair>>([]);
+  const [downloadType, setDownloadType] = useState<DownloadScope>("active");
+  const [customIdsText, setCustomIdsText] = useState<string>("");
 
-  const { data: classes } = useQuery({
-    queryKey: ["classes-active"],
+  // Fetch active student IDs by default
+  const { data: activeIds = [], isLoading } = useQuery({
+    queryKey: ["active-students"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("classes").select("id, name").eq("is_active", true).order("name");
+      const { data, error } = await supabase.from("students").select("id").eq("is_active", true);
       if (error) throw error;
-      return data;
+      return (data ?? []).map((r: any) => r.id as string);
     },
   });
 
-  const { data: families } = useQuery({
-    queryKey: ["families-active"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("families").select("id, name").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const customIds = useMemo(() => {
+    return customIdsText
+      .split(/[\s,;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [customIdsText]);
 
-  const handleLoadInvoices = async () => {
-    setLoading(true);
-    try {
-      let studentIds: string[] = [];
+  const targetIds = downloadType === "active" ? activeIds : customIds;
 
-      if (downloadType === "all") {
-        const { data, error } = await supabase.from("students").select("id").eq("is_active", true);
-        if (error) throw error;
-        studentIds = data.map((s) => s.id);
-      } else if (downloadType === "class" && selectedClassId) {
-        const { data, error } = await supabase
-          .from("enrollments")
-          .select("student_id")
-          .eq("class_id", selectedClassId)
-          .is("end_date", null);
-        if (error) throw error;
-        studentIds = data.map((e) => e.student_id);
-      } else if (downloadType === "family" && selectedFamilyId) {
-        const { data, error } = await supabase
-          .from("students")
-          .select("id")
-          .eq("family_id", selectedFamilyId)
-          .eq("is_active", true);
-        if (error) throw error;
-        studentIds = data.map((s) => s.id);
-      }
-
-      if (studentIds.length === 0) {
-        toast.error("No students found for the selected criteria");
-        return;
-      }
-
-      const results = await Promise.allSettled(studentIds.map((sid) => fetchInvoiceData(sid, month)));
-      const ok = results
-        .filter(
-          (r): r is PromiseFulfilledResult<{ invoice: InvoiceData; bankInfo: BankInfo }> => r.status === "fulfilled",
-        )
-        .map((r) => r.value);
-      const failed = results.length - ok.length;
-
-      if (ok.length === 0) {
-        toast.error("All invoice generations failed");
-        return;
-      }
-
-      setInvoices(ok);
-      toast.success(`${ok.length} invoices loaded${failed ? `. ${failed} failed.` : ""}. Ready to download.`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Error loading invoices");
-    } finally {
-      setLoading(false);
+  function triggerDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    // Safari/iOS fallback
+    // @ts-ignore
+    if (!("download" in HTMLAnchorElement.prototype)) {
+      window.open(url, "_blank");
     }
-  };
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 1000);
+  }
 
-  const handleDownloadZip = async () => {
-    if (invoices.length === 0) {
-      toast.error("No invoices to download");
+  function sanitizeFilename(name: string) {
+    return name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/gi, "_");
+  }
+
+  function waitForImages(root: HTMLElement) {
+    const imgs = Array.from(root.querySelectorAll("img"));
+    return Promise.all(
+      imgs.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            const el = img as HTMLImageElement;
+            if (el.complete) return resolve();
+            el.crossOrigin = "anonymous";
+            el.onload = () => resolve();
+            el.onerror = () => resolve();
+          }),
+      ),
+    );
+  }
+
+  function nextFrame() {
+    return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  async function renderInvoiceToBlob(pair: Pair): Promise<Blob> {
+    // Create container off-screen but rendered
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "794px"; // ~A4 at 96dpi
+    container.style.background = "#ffffff";
+    container.className = "print-container";
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    root.render(<InvoicePrintView invoice={pair.invoice} bankInfo={pair.bankInfo} />);
+
+    // Allow layout and image loads
+    await nextFrame();
+    await nextFrame();
+    await waitForImages(container);
+
+    const opts = {
+      margin: [10, 10, 10, 10],
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: container.scrollWidth },
+      filename: "tmp.pdf",
+    };
+
+    try {
+      const blob: Blob = await (html2pdf() as any)
+        .from(container)
+        .set(opts)
+        .toPdf()
+        .get("pdf")
+        .then((pdf: any) => pdf.output("blob"));
+
+      return blob;
+    } finally {
+      // Cleanup
+      try {
+        root.unmount();
+      } catch {}
+      document.body.removeChild(container);
+    }
+  }
+
+  async function handleDownloadZip() {
+    if (!month) {
+      toast.error("Month is required");
+      return;
+    }
+    if (targetIds.length === 0) {
+      toast.error("No students to process");
       return;
     }
 
     setDownloading(true);
     const zip = new JSZip();
-    const folder = zip.folder(`invoices-${month}`);
+
+    let success = 0;
+    let skipped = 0;
+
+    toast.info(`Generating ${targetIds.length} invoices...`);
+
+    for (let i = 0; i < targetIds.length; i++) {
+      const studentId = targetIds[i];
+      try {
+        const { invoice, bankInfo } = await fetchInvoiceData(studentId, month);
+        const pair: Pair = { invoice, bankInfo };
+        const pdfBlob = await renderInvoiceToBlob(pair);
+
+        if (!pdfBlob || pdfBlob.size < 1024) {
+          skipped++;
+          console.warn("Tiny or empty PDF for student", studentId);
+          continue;
+        }
+
+        const studentName = sanitizeFilename(pair.invoice.student.full_name);
+        const fileName = `${studentName}_${month}.pdf`;
+        zip.file(fileName, pdfBlob);
+        success++;
+
+        if ((i + 1) % 5 === 0 || i === targetIds.length - 1) {
+          toast.message(`Progress: ${i + 1}/${targetIds.length}`);
+        }
+      } catch (err: any) {
+        console.error("Failed for", studentId, err);
+        skipped++;
+      }
+    }
 
     try {
-      toast.info(`Generating ${invoices.length} PDFs...`);
-
-      for (let i = 0; i < invoices.length; i++) {
-        const item = invoices[i];
-        const studentName = item.invoice.student.full_name
-          .normalize("NFD")
-          .replace(/[\\u0300-\\u036f]/g, "")
-          .replace(/[^a-z0-9]/gi, "_");
-        const fileName = `${studentName}_${month}.pdf`;
-
-        const totalDiscount = item.invoice.discounts.reduce((sum, d) => sum + d.amount_vnd, 0);
-
-        // Create a temporary div to render the invoice
-        const tempDiv = document.createElement("div");
-        tempDiv.style.position = "absolute";
-        tempDiv.style.left = "-9999px";
-        tempDiv.innerHTML = `
-          <div style="width: 210mm; padding: 20mm; background: white; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">TUITION INVOICE</h1>
-              <p style="color: #666;">Invoice #${item.invoice.invoice_number}</p>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-              <p><strong>Student:</strong> ${item.invoice.student.full_name}</p>
-              <p><strong>Billing Period:</strong> ${item.invoice.billing_period}</p>
-              <p><strong>Date:</strong> ${item.invoice.issue_date}</p>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-              <thead>
-                <tr style="background: #f3f4f6;">
-                  <th style="padding: 12px; text-align: left; border: 1px solid #e5e7eb;">Class</th>
-                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Sessions</th>
-                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Rate</th>
-                  <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${item.invoice.classes
-                  .map((cls) => {
-                    const ratePerSession = cls.sessions_count > 0 ? cls.amount_vnd / cls.sessions_count : 0;
-                    return `
-                  <tr>
-                    <td style="padding: 12px; border: 1px solid #e5e7eb;">${cls.class_name}</td>
-                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${cls.sessions_count}</td>
-                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat("vi-VN").format(ratePerSession)} VND</td>
-                    <td style="padding: 12px; text-align: right; border: 1px solid #e5e7eb;">${new Intl.NumberFormat("vi-VN").format(cls.amount_vnd)} VND</td>
-                  </tr>
-                `;
-                  })
-                  .join("")}
-              </tbody>
-            </table>
-
-            <div style="text-align: right; margin-bottom: 20px;">
-              <p><strong>Subtotal:</strong> ${new Intl.NumberFormat("vi-VN").format(item.invoice.subtotal_vnd)} VND</p>
-              ${
-                item.invoice.discounts.length > 0
-                  ? `
-                <p style="color: #16a34a;"><strong>Discounts:</strong> -${new Intl.NumberFormat("vi-VN").format(totalDiscount)} VND</p>
-              `
-                  : ""
-              }
-              <p style="font-size: 18px; margin-top: 10px;"><strong>Total Due:</strong> ${new Intl.NumberFormat("vi-VN").format(item.invoice.total_due_vnd)} VND</p>
-            </div>
-
-            ${
-              item.bankInfo
-                ? `
-              <div style="margin-top: 30px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb;">
-                <h3 style="margin-bottom: 10px;">Payment Instructions</h3>
-                <p><strong>Bank:</strong> ${item.bankInfo.bank_name}</p>
-                <p><strong>Account Number:</strong> ${item.bankInfo.account_number}</p>
-                <p><strong>Account Holder:</strong> ${item.bankInfo.account_name}</p>
-              </div>
-            `
-                : ""
-            }
-          </div>
-        `;
-        document.body.appendChild(tempDiv);
-
-        // Generate PDF
-        const pdfBlob = await html2pdf()
-          .from(tempDiv)
-          .set({
-            margin: 0,
-            filename: fileName,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          })
-          .outputPdf("blob");
-
-        document.body.removeChild(tempDiv);
-        folder?.file(fileName, pdfBlob);
-
-        if ((i + 1) % 5 === 0 || i === invoices.length - 1) {
-          toast.info(`Generated ${i + 1}/${invoices.length} PDFs...`);
-        }
-      }
-
-      // Generate and download the ZIP
       const zipBlob = await zip.generateAsync({ type: "blob" });
       triggerDownload(zipBlob, `invoices-${month}.zip`);
-      toast.success(`Successfully downloaded ${invoices.length} invoices!`);
-    } catch (error: any) {
-      console.error("Error generating ZIP:", error);
-      toast.error(error?.message ?? "Failed to generate ZIP file");
+      toast.success(`Started download. ${success} ok, ${skipped} skipped.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "ZIP generation failed");
     } finally {
       setDownloading(false);
     }
-  };
+  }
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Invoice Download</CardTitle>
-          <CardDescription>Download multiple tuition invoices as PDFs in a ZIP file</CardDescription>
+          <CardDescription>Render each invoice to PDF and bundle into a ZIP</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Download Type</label>
+            <label className="text-sm font-medium">Download scope</label>
             <Select value={downloadType} onValueChange={(v: any) => setDownloadType(v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select scope" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Students</SelectItem>
-                <SelectItem value="class">By Class</SelectItem>
-                <SelectItem value="family">By Family</SelectItem>
+                <SelectItem value="active">All active students ({isLoading ? "…" : activeIds.length})</SelectItem>
+                <SelectItem value="custom">Custom list</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {downloadType === "class" && (
+          {downloadType === "custom" && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Class</label>
-              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes?.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Student IDs (comma or newline separated)</label>
+              <textarea
+                className="w-full rounded-md border p-2 text-sm h-28"
+                placeholder="uuid-1, uuid-2, ..."
+                value={customIdsText}
+                onChange={(e) => setCustomIdsText(e.target.value)}
+              />
+              <div className="text-xs text-muted-foreground">Detected: {customIds.length}</div>
             </div>
           )}
 
-          {downloadType === "family" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Family</label>
-              <Select value={selectedFamilyId} onValueChange={setSelectedFamilyId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a family" />
-                </SelectTrigger>
-                <SelectContent>
-                  {families?.map((family) => (
-                    <SelectItem key={family.id} value={family.id}>
-                      {family.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Button
-              onClick={handleLoadInvoices}
-              disabled={
-                loading ||
-                (downloadType === "class" && !selectedClassId) ||
-                (downloadType === "family" && !selectedFamilyId)
-              }
-              className="flex-1"
-            >
-              {loading ? (
+          <div className="flex items-center gap-2">
+            <Button onClick={handleDownloadZip} disabled={downloading || (downloadType === "active" && isLoading)}>
+              {downloading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading Invoices…
+                  Generating…
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-2" />
-                  Load Invoices
+                  Download ZIP ({targetIds.length})
                 </>
               )}
             </Button>
-
-            {invoices.length > 0 && (
-              <Button onClick={handleDownloadZip} disabled={downloading} variant="default">
-                {downloading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating ZIP…
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download ZIP ({invoices.length})
-                  </>
-                )}
-              </Button>
-            )}
+            <div className="text-xs text-muted-foreground">
+              Month: <span className="font-mono">{month}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
