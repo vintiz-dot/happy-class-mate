@@ -2,9 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Trophy, Medal, Award, TrendingUp, TrendingDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
@@ -13,6 +14,8 @@ interface ClassLeaderboardSharedProps {
 export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const previousLeaderboardRef = useRef<any[]>([]);
 
   // Set up realtime subscription for student_points changes
   useEffect(() => {
@@ -60,6 +63,54 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
       return data;
     },
   });
+
+  // Track rank changes and show notifications
+  useEffect(() => {
+    if (!leaderboard || leaderboard.length === 0) return;
+
+    const previousLeaderboard = previousLeaderboardRef.current;
+    
+    if (previousLeaderboard.length > 0) {
+      // Create rank maps
+      const previousRanks = new Map(
+        previousLeaderboard.map((entry: any, index: number) => [entry.student_id, index + 1])
+      );
+      
+      const currentRanks = new Map(
+        leaderboard.map((entry: any, index: number) => [entry.student_id, index + 1])
+      );
+
+      // Check for rank changes
+      leaderboard.forEach((entry: any, index: number) => {
+        const currentRank = index + 1;
+        const previousRank = previousRanks.get(entry.student_id);
+        
+        if (previousRank && previousRank !== currentRank) {
+          const rankChange = previousRank - currentRank;
+          const studentName = entry.students?.full_name || 'A student';
+          
+          if (rankChange > 0) {
+            // Rank improved (moved up)
+            toast({
+              title: "🎉 Rank Improved!",
+              description: `${studentName} moved up ${rankChange} ${rankChange === 1 ? 'position' : 'positions'} to #${currentRank}`,
+              duration: 5000,
+            });
+          } else {
+            // Rank dropped (moved down)
+            toast({
+              title: "Rank Changed",
+              description: `${studentName} moved to #${currentRank}`,
+              duration: 4000,
+            });
+          }
+        }
+      });
+    }
+
+    // Update reference for next comparison
+    previousLeaderboardRef.current = leaderboard;
+  }, [leaderboard, toast]);
 
   const { data: monthlyLeader } = useQuery({
     queryKey: ["monthly-leader", classId, selectedMonth],
