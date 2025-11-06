@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Medal, Award } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ClassLeaderboardProps {
@@ -12,6 +12,33 @@ interface ClassLeaderboardProps {
 
 export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const queryClient = useQueryClient();
+
+  // Set up realtime subscription for student_points changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('student-points-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_points',
+          filter: `class_id=eq.${classId}`
+        },
+        (payload) => {
+          console.log('Student points changed:', payload);
+          // Invalidate queries to refetch data
+          queryClient.invalidateQueries({ queryKey: ["class-leaderboard", classId] });
+          queryClient.invalidateQueries({ queryKey: ["monthly-leader", classId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [classId, queryClient]);
 
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ["class-leaderboard", classId, selectedMonth],
