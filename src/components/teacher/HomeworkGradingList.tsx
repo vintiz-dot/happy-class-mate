@@ -118,6 +118,8 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-homework-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-leader"] });
       toast.success("Grade submitted successfully");
       setSelectedSubmission(null);
       setGrade("");

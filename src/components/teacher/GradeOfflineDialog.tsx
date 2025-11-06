@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, GraduationCap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Student {
   id: string;
@@ -32,6 +33,7 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (homeworkId && isOpen) {
@@ -163,6 +165,10 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
         title: "Success",
         description: `Offline grade submitted for ${selectedStudent.full_name}`,
       });
+
+      // Invalidate leaderboard queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-leader"] });
 
       // Reset form and reload students
       setSelectedStudent(null);
