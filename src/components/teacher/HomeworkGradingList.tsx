@@ -326,7 +326,7 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
                     return;
                   }
                   const pointsValue = points ? parseInt(points) : undefined;
-                  if (pointsValue !== undefined && (pointsValue < 0 || pointsValue > 100)) {
+                  if (pointsValue !== undefined && (pointsValue < -100 || pointsValue > 100)) {
                     toast.error("Points must be between 0 and 100");
                     return;
                   }
