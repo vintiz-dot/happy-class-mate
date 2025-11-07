@@ -126,37 +126,28 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
 
       // Update student points if provided
       const pointsValue = Number(points);
-      if (Number.isFinite(pointsValue)) {
-        const pointsValue = parseInt(points);
+      if (Number.isFinite(pointsValue) && pointsValue >= -100 && pointsValue <= 100) {
 
-        const { data: existingPoints } = await supabase
-          .from("student_points")
-          .select("homework_points, total_points")
-          .eq("student_id", selectedStudent.id)
+        // Get homework details for class_id
+        const { data: homeworkData } = await supabase
+          .from("homeworks")
+          .select("class_id")
+          .eq("id", homeworkId)
           .single();
 
-        if (existingPoints) {
-          const { error: pointsError } = await supabase
-            .from("student_points")
-            .update({
-              homework_points: (existingPoints.homework_points || 0) + pointsValue,
-              total_points: (existingPoints.total_points || 0) + pointsValue,
-            })
-            .eq("student_id", selectedStudent.id);
+        // Insert point transaction - the trigger will update student_points automatically
+        const { error: pointsError } = await supabase.from("point_transactions").insert({
+          student_id: selectedStudent.id,
+          class_id: homeworkData?.class_id,
+          month: new Date().toISOString().slice(0, 7),
+          type: "homework",
+          points: pointsValue,
+          homework_id: homeworkId,
+          homework_title: (await supabase.from("homeworks").select("title").eq("id", homeworkId).single()).data?.title,
+          date: new Date().toISOString().slice(0, 10),
+        });
 
-          if (pointsError) throw pointsError;
-        } else {
-          const { error: pointsError } = await supabase.from("student_points").insert({
-            student_id: selectedStudent.id,
-            homework_points: pointsValue,
-            total_points: pointsValue,
-            class_id: (await supabase.from("homeworks").select("class_id").eq("id", homeworkId).single()).data
-              ?.class_id,
-            month: new Date().toISOString().slice(0, 7),
-          });
-
-          if (pointsError) throw pointsError;
-        }
+        if (pointsError) throw pointsError;
       }
 
       toast({
@@ -250,10 +241,12 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="points">Points (-100-100)</Label>
+                  <Label htmlFor="points">Points (-100 to 100)</Label>
                   <Input
                     id="points"
                     type="number"
+                    min="-100"
+                    max="100"
                     value={points}
                     onChange={(e) => setPoints(e.target.value)}
                     placeholder="Optional leaderboard points"
