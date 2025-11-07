@@ -1,13 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -32,11 +26,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const { data: homework } = useQuery({
     queryKey: ["homework-detail", homeworkId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("homeworks")
-        .select("*, classes(id)")
-        .eq("id", homeworkId)
-        .single();
+      const { data, error } = await supabase.from("homeworks").select("*, classes(id)").eq("id", homeworkId).single();
 
       if (error) throw error;
       return data;
@@ -48,7 +38,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     queryKey: ["homework-enrolled-students", homework?.classes?.id],
     queryFn: async () => {
       if (!homework?.classes?.id) return [];
-      
+
       const { data, error } = await supabase
         .from("enrollments")
         .select("student_id, students(id, full_name)")
@@ -56,7 +46,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         .is("end_date", null);
 
       if (error) throw error;
-      return data?.map(e => e.students).filter(Boolean) || [];
+      return data?.map((e) => e.students).filter(Boolean) || [];
     },
     enabled: !!homework?.classes?.id,
   });
@@ -66,10 +56,12 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("homework_submissions")
-        .select(`
+        .select(
+          `
           *,
           students!inner(full_name)
-        `)
+        `,
+        )
         .eq("homework_id", homeworkId)
         .order("submitted_at", { ascending: false });
 
@@ -80,15 +72,16 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   });
 
   // Combine enrolled students with their submissions
-  const studentsWithSubmissions = enrolledStudents?.map(student => {
-    const submission = submissions?.find(s => s.student_id === student.id);
-    return { student, submission };
-  }) || [];
+  const studentsWithSubmissions =
+    enrolledStudents?.map((student) => {
+      const submission = submissions?.find((s) => s.student_id === student.id);
+      return { student, submission };
+    }) || [];
 
   const gradeMutation = useMutation({
     mutationFn: async ({ submissionId, studentId, grade, feedback, points }: any) => {
       let finalSubmissionId = submissionId;
-      
+
       // If no submission exists, create one
       if (!submissionId && studentId) {
         const { data: newSubmission, error: createError } = await supabase
@@ -121,26 +114,26 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         if (error) throw error;
       }
 
-      const targetStudentId = studentId || (await supabase
-        .from("homework_submissions")
-        .select("student_id")
-        .eq("id", finalSubmissionId)
-        .single()).data?.student_id;
+      const targetStudentId =
+        studentId ||
+        (await supabase.from("homework_submissions").select("student_id").eq("id", finalSubmissionId).single()).data
+          ?.student_id;
 
       // Update or create student points for homework
       if (points !== undefined && points !== null && homework?.classes?.id) {
         const month = new Date().toISOString().slice(0, 7);
-        
-        const { error: pointsError } = await supabase
-          .from("student_points")
-          .upsert({
+
+        const { error: pointsError } = await supabase.from("student_points").upsert(
+          {
             student_id: targetStudentId,
             class_id: homework.classes.id,
             month,
             homework_points: points,
-          }, {
+          },
+          {
             onConflict: "student_id,class_id,month",
-          });
+          },
+        );
 
         if (pointsError) throw pointsError;
       }
@@ -161,9 +154,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
 
   const downloadFile = async (storageKey: string, fileName: string) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("homework")
-        .download(storageKey);
+      const { data, error } = await supabase.storage.from("homework").download(storageKey);
 
       if (error) throw error;
 
@@ -183,9 +174,9 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const handleGradeSubmit = () => {
     if (!selectedSubmission) return;
 
-    const pointsValue = points ? parseInt(points) : undefined;
-    if (pointsValue !== undefined && (pointsValue < 0 || pointsValue > 100)) {
-      toast.error("Points must be between 0 and 100");
+    const pointsValue = points !== "" ? Number(points) : undefined;
+    if (pointsValue !== undefined && (pointsValue < -100 || pointsValue > 100)) {
+      toast.error("Points must be between -100 and 100");
       return;
     }
 
@@ -215,16 +206,12 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Homework Submissions</DialogTitle>
-            <DialogDescription>
-              Review and grade student submissions
-            </DialogDescription>
+            <DialogDescription>Review and grade student submissions</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {studentsWithSubmissions.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">
-                No enrolled students
-              </p>
+              <p className="text-center py-8 text-muted-foreground">No enrolled students</p>
             ) : (
               studentsWithSubmissions.map((item: any) => (
                 <div
@@ -340,11 +327,11 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="points">Points (0-100)</Label>
+                <Label htmlFor="points">Points (-100-100)</Label>
                 <Input
                   id="points"
                   type="number"
-                  min="0"
+                  min="-100"
                   max="100"
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
@@ -366,11 +353,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
                 />
               </div>
 
-              <Button
-                onClick={handleGradeSubmit}
-                disabled={!grade || gradeMutation.isPending}
-                className="w-full"
-              >
+              <Button onClick={handleGradeSubmit} disabled={!grade || gradeMutation.isPending} className="w-full">
                 Submit Grade
               </Button>
             </div>

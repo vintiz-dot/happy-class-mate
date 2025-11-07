@@ -26,45 +26,44 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["all-homework-submissions"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
+      const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).single();
 
       if (!teacher) return [];
 
       // Get all classes this teacher teaches
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacher.id);
+      const { data: sessions } = await supabase.from("sessions").select("class_id").eq("teacher_id", teacher.id);
 
-      const classIds = Array.from(new Set(sessions?.map(s => s.class_id) || []));
+      const classIds = Array.from(new Set(sessions?.map((s) => s.class_id) || []));
 
       // Get all homeworks for these classes
       const { data: homeworks } = await supabase
         .from("homeworks")
-        .select(`
+        .select(
+          `
           *,
           classes!inner(name)
-        `)
+        `,
+        )
         .in("class_id", classIds);
 
       if (!homeworks) return [];
 
       // Get all submissions for these homeworks
-      const homeworkIds = homeworks.map(h => h.id);
+      const homeworkIds = homeworks.map((h) => h.id);
       const { data } = await supabase
         .from("homework_submissions")
-        .select(`
+        .select(
+          `
           *,
           students!inner(full_name),
           homeworks!inner(title, class_id, classes!inner(name))
-        `)
+        `,
+        )
         .in("homework_id", homeworkIds)
         .order("submitted_at", { ascending: false });
 
@@ -103,16 +102,17 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
           .single();
 
         if (homework) {
-          await supabase
-            .from("student_points")
-            .upsert({
+          await supabase.from("student_points").upsert(
+            {
               student_id: submission.student_id,
               class_id: homework.class_id,
               month,
               homework_points: points,
-            }, {
+            },
+            {
               onConflict: "student_id,class_id,month",
-            });
+            },
+          );
         }
       }
     },
@@ -133,9 +133,7 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
 
   const downloadFile = async (storageKey: string, fileName: string) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("homework")
-        .download(storageKey);
+      const { data, error } = await supabase.storage.from("homework").download(storageKey);
 
       if (error) throw error;
 
@@ -169,7 +167,11 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
     if (submission.submitted_at) {
       return <Badge className="bg-yellow-500 hover:bg-yellow-600 rounded-full">⏳ Submitted</Badge>;
     }
-    return <Badge variant="secondary" className="bg-gray-500 hover:bg-gray-600 rounded-full text-white">○ Not Submitted</Badge>;
+    return (
+      <Badge variant="secondary" className="bg-gray-500 hover:bg-gray-600 rounded-full text-white">
+        ○ Not Submitted
+      </Badge>
+    );
   };
 
   if (filteredSubmissions.length === 0) {
@@ -180,13 +182,9 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
             <Star className="h-8 w-8 text-muted-foreground" />
           </div>
           <p className="text-lg font-medium mb-1">
-            {statusFilter === "all" 
-              ? "No submissions yet" 
-              : `No ${statusFilter.replace('_', ' ')} submissions`}
+            {statusFilter === "all" ? "No submissions yet" : `No ${statusFilter.replace("_", " ")} submissions`}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Submissions will appear here once students submit their work
-          </p>
+          <p className="text-sm text-muted-foreground">Submissions will appear here once students submit their work</p>
         </CardContent>
       </Card>
     );
@@ -207,21 +205,15 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
                       <span className="text-2xl">📚</span>
                       <span>{homework?.title}</span>
                     </CardTitle>
-                    <p className="text-sm font-bold text-primary">
-                      {submission.students?.full_name}
-                    </p>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      Class: {homework?.classes?.name}
-                    </p>
+                    <p className="text-sm font-bold text-primary">{submission.students?.full_name}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Class: {homework?.classes?.name}</p>
                     {submission.submitted_at && (
                       <p className="text-xs text-muted-foreground">
                         📅 Submitted: {format(new Date(submission.submitted_at), "MMM d, yyyy")}
                       </p>
                     )}
                   </div>
-                  <div className="flex sm:flex-col gap-2">
-                    {getStatusBadge(submission)}
-                  </div>
+                  <div className="flex sm:flex-col gap-2">{getStatusBadge(submission)}</div>
                 </div>
               </CardHeader>
 
@@ -251,9 +243,7 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
                       <p className="text-sm font-bold">Grade: {submission.grade}</p>
                     </div>
                     {submission.teacher_feedback && (
-                      <p className="text-sm text-muted-foreground">
-                        💬 {submission.teacher_feedback}
-                      </p>
+                      <p className="text-sm text-muted-foreground">💬 {submission.teacher_feedback}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
                       Graded: {format(new Date(submission.graded_at), "MMM d, yyyy")}
@@ -303,20 +293,18 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="points">Points (0-100)</Label>
+                <Label htmlFor="points">Points (-100-100)</Label>
                 <Input
                   id="points"
                   type="number"
-                  min="0"
+                  min="-100"
                   max="100"
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
                   placeholder="For leaderboard"
                   className="text-base"
                 />
-                <p className="text-xs text-muted-foreground">
-                  ⭐ Points will appear on the class leaderboard
-                </p>
+                <p className="text-xs text-muted-foreground">⭐ Points will appear on the class leaderboard</p>
               </div>
 
               <div className="space-y-2">
