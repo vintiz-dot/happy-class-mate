@@ -2,10 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award, TrendingUp, TrendingDown } from "lucide-react";
+import { Trophy, Medal, Award } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { PointHistoryDialog } from "./PointHistoryDialog";
 
 interface ClassLeaderboardProps {
   classId: string;
@@ -13,6 +14,7 @@ interface ClassLeaderboardProps {
 
 export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const previousLeaderboardRef = useRef<any[]>([]);
@@ -196,7 +198,8 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
             {leaderboard?.map((entry: any, index: number) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 flex items-center justify-center">
@@ -217,6 +220,17 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
           </div>
         )}
       </CardContent>
+
+      {selectedStudent && (
+        <PointHistoryDialog
+          studentId={selectedStudent.id}
+          classId={classId}
+          month={selectedMonth}
+          studentName={selectedStudent.name}
+          open={!!selectedStudent}
+          onOpenChange={(open) => !open && setSelectedStudent(null)}
+        />
+      )}
     </Card>
   );
 }

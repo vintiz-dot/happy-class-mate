@@ -1336,6 +1336,80 @@ export type Database = {
           },
         ]
       }
+      point_transactions: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          date: string
+          homework_id: string | null
+          homework_title: string | null
+          id: string
+          notes: string | null
+          points: number
+          session_id: string | null
+          student_id: string
+          type: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          homework_id?: string | null
+          homework_title?: string | null
+          id?: string
+          notes?: string | null
+          points: number
+          session_id?: string | null
+          student_id: string
+          type: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          homework_id?: string | null
+          homework_title?: string | null
+          id?: string
+          notes?: string | null
+          points?: number
+          session_id?: string | null
+          student_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_transactions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homeworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_bonuses: {
         Row: {
           cadence: Database["public"]["Enums"]["discount_cadence"]
