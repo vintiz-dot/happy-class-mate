@@ -71,12 +71,12 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
 
       if (subError) throw subError;
 
-      const submittedStudentIds = new Set(submissions?.map(s => s.student_id) || []);
+      const submittedStudentIds = new Set(submissions?.map((s) => s.student_id) || []);
 
       // Filter out students who have already submitted
-      const studentsWithoutSubmission = enrollments
-        ?.map(e => e.students)
-        .filter((s): s is Student => s !== null && !submittedStudentIds.has(s.id)) || [];
+      const studentsWithoutSubmission =
+        enrollments?.map((e) => e.students).filter((s): s is Student => s !== null && !submittedStudentIds.has(s.id)) ||
+        [];
 
       setStudents(studentsWithoutSubmission);
     } catch (error: any) {
@@ -112,24 +112,23 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
     setSubmitting(true);
     try {
       // Create or update homework submission with grade
-      const { error: submissionError } = await supabase
-        .from("homework_submissions")
-        .upsert({
-          homework_id: homeworkId,
-          student_id: selectedStudent.id,
-          status: "graded",
-          grade: grade,
-          teacher_feedback: feedback || null,
-          graded_at: new Date().toISOString(),
-          submission_text: "Graded offline",
-        });
+      const { error: submissionError } = await supabase.from("homework_submissions").upsert({
+        homework_id: homeworkId,
+        student_id: selectedStudent.id,
+        status: "graded",
+        grade: grade,
+        teacher_feedback: feedback || null,
+        graded_at: new Date().toISOString(),
+        submission_text: "Graded offline",
+      });
 
       if (submissionError) throw submissionError;
 
       // Update student points if provided
-      if (points && parseInt(points) > 0) {
+      const pointsValue = Number(points);
+      if (Number.isFinite(pointsValue)) {
         const pointsValue = parseInt(points);
-        
+
         const { data: existingPoints } = await supabase
           .from("student_points")
           .select("homework_points, total_points")
@@ -139,23 +138,22 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
         if (existingPoints) {
           const { error: pointsError } = await supabase
             .from("student_points")
-            .update({ 
+            .update({
               homework_points: (existingPoints.homework_points || 0) + pointsValue,
-              total_points: (existingPoints.total_points || 0) + pointsValue
+              total_points: (existingPoints.total_points || 0) + pointsValue,
             })
             .eq("student_id", selectedStudent.id);
 
           if (pointsError) throw pointsError;
         } else {
-          const { error: pointsError } = await supabase
-            .from("student_points")
-            .insert({ 
-              student_id: selectedStudent.id, 
-              homework_points: pointsValue,
-              total_points: pointsValue,
-              class_id: (await supabase.from("homeworks").select("class_id").eq("id", homeworkId).single()).data?.class_id,
-              month: new Date().toISOString().slice(0, 7)
-            });
+          const { error: pointsError } = await supabase.from("student_points").insert({
+            student_id: selectedStudent.id,
+            homework_points: pointsValue,
+            total_points: pointsValue,
+            class_id: (await supabase.from("homeworks").select("class_id").eq("id", homeworkId).single()).data
+              ?.class_id,
+            month: new Date().toISOString().slice(0, 7),
+          });
 
           if (pointsError) throw pointsError;
         }
@@ -193,9 +191,7 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Grade Offline Submissions</DialogTitle>
-          <DialogDescription>
-            Grade students who submitted their work offline or didn't submit online
-          </DialogDescription>
+          <DialogDescription>Grade students who submitted their work offline or didn't submit online</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -216,9 +212,7 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
                   <Card
                     key={student.id}
                     className={`p-3 cursor-pointer transition-all hover:shadow-md ${
-                      selectedStudent?.id === student.id
-                        ? "border-primary bg-primary/5"
-                        : "border-muted"
+                      selectedStudent?.id === student.id ? "border-primary bg-primary/5" : "border-muted"
                     }`}
                     onClick={() => setSelectedStudent(student)}
                   >
@@ -228,7 +222,9 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{student.full_name}</p>
-                        <Badge variant="outline" className="text-xs">No submission</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          No submission
+                        </Badge>
                       </div>
                     </div>
                   </Card>
@@ -254,12 +250,10 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="points">Points (0-100)</Label>
+                  <Label htmlFor="points">Points (-100-100)</Label>
                   <Input
                     id="points"
                     type="number"
-                    min="0"
-                    max="100"
                     value={points}
                     onChange={(e) => setPoints(e.target.value)}
                     placeholder="Optional leaderboard points"
