@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      archived_leaderboards: {
+        Row: {
+          archived_at: string
+          archived_by: string | null
+          class_id: string
+          homework_points: number
+          id: string
+          month: string
+          participation_points: number
+          rank: number | null
+          student_id: string
+          total_points: number
+        }
+        Insert: {
+          archived_at?: string
+          archived_by?: string | null
+          class_id: string
+          homework_points?: number
+          id?: string
+          month: string
+          participation_points?: number
+          rank?: number | null
+          student_id: string
+          total_points?: number
+        }
+        Update: {
+          archived_at?: string
+          archived_by?: string | null
+          class_id?: string
+          homework_points?: number
+          id?: string
+          month?: string
+          participation_points?: number
+          rank?: number | null
+          student_id?: string
+          total_points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archived_leaderboards_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archived_leaderboards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           created_at: string
@@ -1345,6 +1399,7 @@ export type Database = {
           homework_id: string | null
           homework_title: string | null
           id: string
+          month: string
           notes: string | null
           points: number
           session_id: string | null
@@ -1359,6 +1414,7 @@ export type Database = {
           homework_id?: string | null
           homework_title?: string | null
           id?: string
+          month?: string
           notes?: string | null
           points: number
           session_id?: string | null
@@ -1373,6 +1429,7 @@ export type Database = {
           homework_id?: string | null
           homework_title?: string | null
           id?: string
+          month?: string
           notes?: string | null
           points?: number
           session_id?: string | null
@@ -1960,6 +2017,13 @@ export type Database = {
       _attendance_seed_for_class_dates: {
         Args: { p_class: string; p_from: string; p_to: string }
         Returns: undefined
+      }
+      archive_and_reset_monthly_leaderboard: {
+        Args: { target_month: string }
+        Returns: {
+          archived_count: number
+          reset_count: number
+        }[]
       }
       assert_job_lock: {
         Args: { p_job: string; p_month: string }
