@@ -63,33 +63,37 @@ export default function StudentAssignments() {
     const now = new Date();
     const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
     const submission = assignment.submission;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Graded - golden green
+    // Graded - green
     if (submission?.status === "graded") {
-      return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800";
-    }
-    
-    // Submitted but not graded - lemon green
-    if (submission?.status === "submitted") {
-      return "bg-lime-50 dark:bg-lime-950/20 border-lime-200 dark:border-lime-800";
+      return "bg-success/10 dark:bg-success/5 border-success/30 dark:border-success/20 backdrop-blur-sm";
     }
     
     // Not submitted - check due date
-    if (dueDate) {
-      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (!submission && dueDate) {
+      const dueDay = new Date(dueDate);
+      dueDay.setHours(0, 0, 0, 0);
+      const daysDiff = Math.ceil((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Overdue - red
-      if (daysUntilDue < 0) {
-        return "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800";
+      // Late - red (past due and not submitted)
+      if (daysDiff < 0) {
+        return "bg-destructive/10 dark:bg-destructive/5 border-destructive/30 dark:border-destructive/20 backdrop-blur-sm";
       }
       
-      // 1 day left - amber
-      if (daysUntilDue <= 1) {
-        return "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800";
+      // Due today - amber
+      if (daysDiff === 0) {
+        return "bg-warning/10 dark:bg-warning/5 border-warning/30 dark:border-warning/20 backdrop-blur-sm";
       }
     }
     
-    return "";
+    // Submitted but not graded
+    if (submission?.status === "submitted") {
+      return "bg-primary/5 dark:bg-primary/5 border-primary/20 dark:border-primary/20 backdrop-blur-sm";
+    }
+    
+    return "glass-sm";
   };
 
   const downloadFile = async (storageKey: string, fileName: string) => {
