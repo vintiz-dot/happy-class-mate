@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Filter } from "lucide-react";
+import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
 
 export default function TeacherAssignments() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -19,17 +20,24 @@ export default function TeacherAssignments() {
         </div>
 
         <Tabs defaultValue="create" className="w-full">
-          <TabsList className="w-full grid grid-cols-2 h-auto">
+          <TabsList className="w-full grid grid-cols-3 h-auto">
             <TabsTrigger value="create" className="text-xs sm:text-sm py-3">
-              Create Assignment
+              Create
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="text-xs sm:text-sm py-3">
+              Calendar
             </TabsTrigger>
             <TabsTrigger value="grade" className="text-xs sm:text-sm py-3">
-              Grade Submissions
+              Grade
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="create" className="space-y-4 md:space-y-6 mt-4">
             <AssignmentUpload />
+          </TabsContent>
+
+          <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
+            <AssignmentCalendar role="teacher" />
           </TabsContent>
 
           <TabsContent value="grade" className="space-y-4 md:space-y-6 mt-4">

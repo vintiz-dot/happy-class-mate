@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
 
 export default function StudentAssignments() {
   const { studentId } = useStudentProfile();
@@ -154,8 +156,21 @@ export default function StudentAssignments() {
             </CardContent>
           </Card>
         ) : (
-          <>
-            {upcomingAssignments.length > 0 && (
+          <Tabs defaultValue="list" className="w-full">
+            <TabsList className="w-full grid grid-cols-3 h-auto">
+              <TabsTrigger value="list" className="text-xs sm:text-sm py-3">
+                List View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="text-xs sm:text-sm py-3">
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-3">
+                Upcoming
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="list" className="space-y-4 md:space-y-6 mt-4">
+              {upcomingAssignments.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">Current & Upcoming</h2>
                 <div className="grid gap-4">
@@ -255,7 +270,71 @@ export default function StudentAssignments() {
                 </div>
               </div>
             )}
-          </>
+            </TabsContent>
+
+            <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
+              <AssignmentCalendar 
+                role="student"
+                onSelectAssignment={(assignment) => {
+                  const hw = assignments.find((h: any) => h.id === assignment.id);
+                  if (hw) setSelectedHomework(hw);
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="upcoming" className="space-y-4 md:space-y-6 mt-4">
+              {upcomingAssignments.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No upcoming assignments</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {upcomingAssignments.map((assignment: any) => (
+                    <Card 
+                      key={assignment.id} 
+                      className={`cursor-pointer hover:shadow-lg transition-shadow ${getCardStatusClass(assignment)}`}
+                      onClick={() => setSelectedHomework(assignment)}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <CardTitle>{assignment.title}</CardTitle>
+                            <CardDescription>
+                              {assignment.classes.name}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
+                              <Badge variant="default" className="bg-success">
+                                {assignment.submission.grade}
+                              </Badge>
+                            )}
+                            {assignment.submission?.status === "graded" && (
+                              <Badge className="bg-success text-success-foreground">Graded</Badge>
+                            )}
+                            {assignment.submission?.status === "submitted" && (
+                              <Badge className="bg-primary text-primary-foreground">Submitted</Badge>
+                            )}
+                            {!assignment.submission && (
+                              <Badge variant="outline">Not Submitted</Badge>
+                            )}
+                            {assignment.due_date && (
+                              <Badge variant="outline">
+                                Due {new Date(assignment.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
 
