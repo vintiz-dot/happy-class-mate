@@ -36,19 +36,19 @@ export function StudentTuitionOverview() {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [sortBy, setSortBy] = useState<"name" | "class" | "balance" | "total">("name");
 
   const { data: students, isLoading: studentsLoading } = useQuery({
-    queryKey: ['students-active'],
+    queryKey: ["students-active"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('students')
-        .select('id, full_name, family:families(name)')
-        .eq('is_active', true)
-        .order('full_name');
-      
+        .from("students")
+        .select("id, full_name, family:families(name)")
+        .eq("is_active", true)
+        .order("full_name");
+
       if (error) throw error;
       return data;
     },
@@ -56,25 +56,29 @@ export function StudentTuitionOverview() {
 
   // Fetch enrollments to get class info
   const { data: enrollments } = useQuery({
-    queryKey: ['student-enrollments', selectedMonth],
+    queryKey: ["student-enrollments", selectedMonth],
     queryFn: async () => {
       const monthStart = `${selectedMonth}-01`;
-      const monthEnd = `${selectedMonth}-31`;
-      
+      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+        .toISOString()
+        .slice(0, 10);
+
       const { data, error } = await supabase
-        .from('enrollments')
-        .select(`
+        .from("enrollments")
+        .select(
+          `
           student_id,
           classes(id, name)
-        `)
-        .lte('start_date', monthEnd)
+        `,
+        )
+        .lte("start_date", monthEnd)
         .or(`end_date.is.null,end_date.gte.${monthStart}`);
-      
+
       if (error) throw error;
-      
+
       // Map student to classes
       const studentClasses = new Map<string, string[]>();
-      data?.forEach(e => {
+      data?.forEach((e) => {
         const existing = studentClasses.get(e.student_id) || [];
         if (e.classes) {
           const className = Array.isArray(e.classes) ? e.classes[0]?.name : e.classes.name;
@@ -82,41 +86,41 @@ export function StudentTuitionOverview() {
         }
         studentClasses.set(e.student_id, existing);
       });
-      
+
       return studentClasses;
     },
   });
 
   const { data: tuitionData, isLoading: tuitionLoading } = useQuery({
-    queryKey: ['all-student-tuition', selectedMonth, students],
+    queryKey: ["all-student-tuition", selectedMonth, students],
     queryFn: async () => {
       if (!students?.length) return [];
-      
+
       const results = await Promise.all(
         students.map(async (student) => {
           try {
-            const { data, error } = await supabase.functions.invoke('calculate-tuition', {
-              body: { studentId: student.id, month: selectedMonth }
+            const { data, error } = await supabase.functions.invoke("calculate-tuition", {
+              body: { studentId: student.id, month: selectedMonth },
             });
-            
+
             if (error) throw error;
             return data as TuitionData;
           } catch (err) {
             console.error(`Error fetching tuition for ${student.full_name}:`, err);
             return null;
           }
-        })
+        }),
       );
-      
+
       return results.filter((r): r is TuitionData => r !== null);
     },
     enabled: !!students?.length,
   });
 
   const formatVND = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(amount);
   };
 
@@ -125,8 +129,8 @@ export function StudentTuitionOverview() {
     const now = new Date();
     for (let i = -2; i <= 2; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const label = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
       options.push({ value, label });
     }
     return options;
@@ -135,7 +139,7 @@ export function StudentTuitionOverview() {
   // Sort students based on selected sort option
   const sortedStudents = useMemo(() => {
     if (!students) return [];
-    
+
     return [...students].sort((a, b) => {
       switch (sortBy) {
         case "name":
@@ -145,14 +149,14 @@ export function StudentTuitionOverview() {
           const bClass = enrollments?.get(b.id)?.[0] || "";
           return aClass.localeCompare(bClass);
         case "balance":
-          const aTuition = tuitionData?.find(t => t.studentId === a.id);
-          const bTuition = tuitionData?.find(t => t.studentId === b.id);
-          const aBalance = aTuition?.carry?.status === 'debt' ? (aTuition?.carry?.carryOutDebt || 0) : 0;
-          const bBalance = bTuition?.carry?.status === 'debt' ? (bTuition?.carry?.carryOutDebt || 0) : 0;
+          const aTuition = tuitionData?.find((t) => t.studentId === a.id);
+          const bTuition = tuitionData?.find((t) => t.studentId === b.id);
+          const aBalance = aTuition?.carry?.status === "debt" ? aTuition?.carry?.carryOutDebt || 0 : 0;
+          const bBalance = bTuition?.carry?.status === "debt" ? bTuition?.carry?.carryOutDebt || 0 : 0;
           return bBalance - aBalance;
         case "total":
-          const aTotal = tuitionData?.find(t => t.studentId === a.id)?.totalAmount || 0;
-          const bTotal = tuitionData?.find(t => t.studentId === b.id)?.totalAmount || 0;
+          const aTotal = tuitionData?.find((t) => t.studentId === a.id)?.totalAmount || 0;
+          const bTotal = tuitionData?.find((t) => t.studentId === b.id)?.totalAmount || 0;
           return bTotal - aTotal;
         default:
           return 0;
@@ -174,9 +178,7 @@ export function StudentTuitionOverview() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Student Tuition Overview</CardTitle>
-            <CardDescription>
-              View tuition details for all active students
-            </CardDescription>
+            <CardDescription>View tuition details for all active students</CardDescription>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -232,68 +234,57 @@ export function StudentTuitionOverview() {
             </TableHeader>
             <TableBody>
               {sortedStudents?.map((student) => {
-                const tuition = tuitionData?.find(t => t.studentId === student.id);
+                const tuition = tuitionData?.find((t) => t.studentId === student.id);
                 const recordedPay = tuition?.payments?.cumulativePaidAmount || 0;
-                const balanceStatus = tuition?.carry?.status || 'settled';
-                const balanceAmount = balanceStatus === 'credit' 
-                  ? tuition?.carry?.carryOutCredit || 0
-                  : balanceStatus === 'debt'
-                  ? tuition?.carry?.carryOutDebt || 0
-                  : 0;
-                
+                const balanceStatus = tuition?.carry?.status || "settled";
+                const balanceAmount =
+                  balanceStatus === "credit"
+                    ? tuition?.carry?.carryOutCredit || 0
+                    : balanceStatus === "debt"
+                      ? tuition?.carry?.carryOutDebt || 0
+                      : 0;
+
                 return (
-                  <TableRow 
+                  <TableRow
                     key={student.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => navigate(`/students/${student.id}`)}
                   >
                     <TableCell className="font-medium">{student.full_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{student.family?.name || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {student.family?.name || '—'}
+                      {enrollments?.get(student.id)?.join(", ") || "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {enrollments?.get(student.id)?.join(", ") || '—'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {tuition?.sessionCount || 0}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {tuition ? formatVND(tuition.baseAmount) : '—'}
-                    </TableCell>
+                    <TableCell className="text-right">{tuition?.sessionCount || 0}</TableCell>
+                    <TableCell className="text-right">{tuition ? formatVND(tuition.baseAmount) : "—"}</TableCell>
                     <TableCell className="text-right text-green-600">
-                      {tuition && tuition.totalDiscount > 0 
-                        ? `-${formatVND(tuition.totalDiscount)}`
-                        : '—'}
+                      {tuition && tuition.totalDiscount > 0 ? `-${formatVND(tuition.totalDiscount)}` : "—"}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {tuition ? formatVND(tuition.totalAmount) : '—'}
+                      {tuition ? formatVND(tuition.totalAmount) : "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium text-blue-600">
-                      {recordedPay > 0 ? formatVND(recordedPay) : '—'}
+                      {recordedPay > 0 ? formatVND(recordedPay) : "—"}
                     </TableCell>
                     <TableCell>
-                      {balanceStatus === 'credit' && balanceAmount > 0 && (
+                      {balanceStatus === "credit" && balanceAmount > 0 && (
                         <Badge variant="default" className="bg-green-600">
                           Credit: {formatVND(balanceAmount)}
                         </Badge>
                       )}
-                      {balanceStatus === 'debt' && balanceAmount > 0 && (
-                        <Badge variant="destructive">
-                          Balance Due: {formatVND(balanceAmount)}
-                        </Badge>
+                      {balanceStatus === "debt" && balanceAmount > 0 && (
+                        <Badge variant="destructive">Balance Due: {formatVND(balanceAmount)}</Badge>
                       )}
-                      {balanceStatus === 'settled' && (
-                        <Badge variant="secondary">Settled</Badge>
-                      )}
+                      {balanceStatus === "settled" && <Badge variant="secondary">Settled</Badge>}
                     </TableCell>
                     <TableCell>
-                      {tuition?.siblingState?.status === 'assigned' && tuition.siblingState.isWinner && (
+                      {tuition?.siblingState?.status === "assigned" && tuition.siblingState.isWinner && (
                         <Badge variant="secondary" className="gap-1">
                           <Award className="h-3 w-3" />
                           Sibling {tuition.siblingState.percent}%
                         </Badge>
                       )}
-                      {tuition?.siblingState?.status === 'pending' && (
+                      {tuition?.siblingState?.status === "pending" && (
                         <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                           Pending
                         </Badge>
@@ -301,12 +292,7 @@ export function StudentTuitionOverview() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {tuition && (
-                        <InvoiceDownloadButton 
-                          studentId={student.id} 
-                          month={selectedMonth}
-                          variant="ghost"
-                          size="sm"
-                        />
+                        <InvoiceDownloadButton studentId={student.id} month={selectedMonth} variant="ghost" size="sm" />
                       )}
                     </TableCell>
                   </TableRow>

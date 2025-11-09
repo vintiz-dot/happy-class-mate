@@ -16,23 +16,24 @@ export default function TeacherAttendance() {
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["teacher-sessions", month],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).maybeSingle();
 
       if (!teacher) throw new Error("Not a teacher");
 
       const startDate = `${month}-01`;
-      const endDate = `${month}-31`;
+      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+        .toISOString()
+        .slice(0, 10);
 
       const { data } = await supabase
         .from("sessions")
-        .select(`
+        .select(
+          `
           id,
           date,
           start_time,
@@ -40,22 +41,25 @@ export default function TeacherAttendance() {
           status,
           notes,
           classes!inner(id, name)
-        `)
+        `,
+        )
         .eq("teacher_id", teacher.id)
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: true });
 
-      return data?.map(s => ({
-        id: s.id,
-        date: s.date,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        status: s.status,
-        notes: s.notes,
-        class_name: (s.classes as any).name,
-        class_id: (s.classes as any).id
-      })) || [];
+      return (
+        data?.map((s) => ({
+          id: s.id,
+          date: s.date,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          status: s.status,
+          notes: s.notes,
+          class_name: (s.classes as any).name,
+          class_id: (s.classes as any).id,
+        })) || []
+      );
     },
   });
 
@@ -66,11 +70,13 @@ export default function TeacherAttendance() {
 
       const { data } = await supabase
         .from("enrollments")
-        .select(`
+        .select(
+          `
           student_id,
           students!inner(id, full_name),
           start_date
-        `)
+        `,
+        )
         .eq("class_id", selectedSession.class_id)
         .is("end_date", null);
 
@@ -87,9 +93,9 @@ export default function TeacherAttendance() {
             id: enrollment.student_id,
             full_name: (enrollment.students as any).full_name,
             enrolled_since: enrollment.start_date,
-            attendance_status: attendance?.status
+            attendance_status: attendance?.status,
           };
-        })
+        }),
       );
 
       return studentsWithAttendance;
@@ -120,9 +126,7 @@ export default function TeacherAttendance() {
             <Button variant="outline" size="icon" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="text-lg font-semibold min-w-[200px] text-center">
-              {dayjs(month).format("MMMM YYYY")}
-            </div>
+            <div className="text-lg font-semibold min-w-[200px] text-center">{dayjs(month).format("MMMM YYYY")}</div>
             <Button
               variant="outline"
               size="icon"
@@ -134,19 +138,10 @@ export default function TeacherAttendance() {
           </div>
         </div>
 
-        <CalendarMonth
-          month={month}
-          events={sessions || []}
-          onSelectEvent={(event) => setSelectedSession(event)}
-        />
+        <CalendarMonth month={month} events={sessions || []} onSelectEvent={(event) => setSelectedSession(event)} />
       </div>
 
-      {selectedSession && (
-        <AttendanceDrawer
-          session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-        />
-      )}
+      {selectedSession && <AttendanceDrawer session={selectedSession} onClose={() => setSelectedSession(null)} />}
     </Layout>
   );
 }

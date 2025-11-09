@@ -23,11 +23,14 @@ export function PastAttendanceEditor({ classId }: PastAttendanceEditorProps) {
     queryKey: ["past-attendance-sessions", classId, selectedMonth],
     queryFn: async () => {
       const startDate = `${selectedMonth}-01`;
-      const endDate = `${selectedMonth}-31`;
+      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+        .toISOString()
+        .slice(0, 10);
 
       const { data, error } = await supabase
         .from("sessions")
-        .select(`
+        .select(
+          `
           id,
           date,
           start_time,
@@ -39,7 +42,8 @@ export function PastAttendanceEditor({ classId }: PastAttendanceEditorProps) {
             status,
             students (id, full_name)
           )
-        `)
+        `,
+        )
         .eq("class_id", classId)
         .gte("date", startDate)
         .lte("date", endDate)
@@ -167,17 +171,14 @@ export function PastAttendanceEditor({ classId }: PastAttendanceEditorProps) {
                         {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
                       </p>
                     </div>
-                    <Badge variant={session.status === "Held" ? "default" : "secondary"}>
-                      {session.status}
-                    </Badge>
+                    <Badge variant={session.status === "Held" ? "default" : "secondary"}>{session.status}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {session.attendance && session.attendance.length > 0 ? (
                     <div className="space-y-2">
                       {session.attendance.map((att: any) => {
-                        const currentStatus =
-                          attendance[session.id]?.[att.student_id] || att.status;
+                        const currentStatus = attendance[session.id]?.[att.student_id] || att.status;
                         return (
                           <div
                             key={att.id}
