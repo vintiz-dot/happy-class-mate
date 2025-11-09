@@ -18,8 +18,8 @@ const PaymentSchema = z.object({
   amount: z.number().min(0, "Amount must be positive").max(100000000, "Amount too large"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
   method: z.enum(["Cash", "Bank Transfer", "Card", "Other"], {
-    errorMap: () => ({ message: "Invalid payment method" })
-  })
+    errorMap: () => ({ message: "Invalid payment method" }),
+  }),
 });
 
 interface AdminTuitionListProps {
@@ -40,7 +40,9 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     queryKey: ["admin-tuition-list", month],
     queryFn: async () => {
       const monthStart = `${month}-01`;
-      const monthEnd = `${month}-31`;
+      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+        .toISOString()
+        .slice(0, 10);
 
       // Fetch ALL active students first
       const { data: allStudents, error: studentsError } = await supabase
@@ -51,16 +53,18 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       if (studentsError) throw studentsError;
       if (!allStudents || allStudents.length === 0) return [];
 
-      const allStudentIds = allStudents.map(s => s.id);
+      const allStudentIds = allStudents.map((s) => s.id);
 
       // Fetch enrollments for ALL active students
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select(`
+        .select(
+          `
           student_id,
           class_id,
           classes(id, name)
-        `)
+        `,
+        )
         .in("student_id", allStudentIds)
         .lte("start_date", monthEnd)
         .or(`end_date.is.null,end_date.gte.${monthStart}`);
@@ -79,28 +83,25 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         .lte("effective_from", monthEnd)
         .or(`effective_to.is.null,effective_to.gte.${monthStart}`);
 
-      const studentDiscounts = new Set(discounts?.map(d => d.student_id) || []);
+      const studentDiscounts = new Set(discounts?.map((d) => d.student_id) || []);
 
       // Get families with multiple students
-      const { data: students } = await supabase
-        .from("students")
-        .select("id, family_id")
-        .eq("is_active", true);
+      const { data: students } = await supabase.from("students").select("id, family_id").eq("is_active", true);
 
       const familyCounts = new Map<string, number>();
-      students?.forEach(s => {
+      students?.forEach((s) => {
         if (s.family_id) {
           familyCounts.set(s.family_id, (familyCounts.get(s.family_id) || 0) + 1);
         }
       });
 
       const siblingStudents = new Set(
-        students?.filter(s => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map(s => s.id) || []
+        students?.filter((s) => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map((s) => s.id) || [],
       );
 
       // Map student to classes
       const studentClasses = new Map<string, any[]>();
-      
+
       enrollments?.forEach((e: any) => {
         const existing = studentClasses.get(e.student_id) || [];
         if (e.classes) {
@@ -110,7 +111,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       });
 
       // Create invoice map for quick lookup
-      const invoiceMap = new Map(invoices?.map(inv => [inv.student_id, inv]) || []);
+      const invoiceMap = new Map(invoices?.map((inv) => [inv.student_id, inv]) || []);
 
       // Fetch prior invoices to calculate carry-in balance
       const { data: priorInvoices } = await supabase
@@ -121,21 +122,18 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
       // Calculate prior balance for each student (prior payments - prior charges)
       const priorBalanceMap = new Map<string, number>();
-      priorInvoices?.forEach(inv => {
+      priorInvoices?.forEach((inv) => {
         const currentBalance = priorBalanceMap.get(inv.student_id) || 0;
-        priorBalanceMap.set(
-          inv.student_id, 
-          currentBalance + (inv.recorded_payment || 0) - (inv.total_amount || 0)
-        );
+        priorBalanceMap.set(inv.student_id, currentBalance + (inv.recorded_payment || 0) - (inv.total_amount || 0));
       });
 
       // Build tuition data for ALL active students
-      return allStudents.map(student => {
+      return allStudents.map((student) => {
         const invoice = invoiceMap.get(student.id);
         const priorBalance = priorBalanceMap.get(student.id) || 0;
         const currentCharges = invoice?.total_amount || 0;
         const finalPayable = currentCharges + priorBalance;
-        
+
         return {
           id: invoice?.id || `placeholder-${student.id}`,
           student_id: student.id,
@@ -145,7 +143,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           total_amount: currentCharges,
           paid_amount: invoice?.paid_amount || 0,
           recorded_payment: invoice?.recorded_payment || 0,
-          status: invoice?.status || 'open',
+          status: invoice?.status || "open",
           students: student,
           hasDiscount: studentDiscounts.has(student.id),
           hasSiblings: siblingStudents.has(student.id),
@@ -162,29 +160,35 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     if (!tuitionData) return [];
 
     let filtered = tuitionData;
-    
+
     // Apply filter
     switch (activeFilter) {
       case "discount":
-        filtered = tuitionData.filter(t => t.hasDiscount);
+        filtered = tuitionData.filter((t) => t.hasDiscount);
         break;
       case "no-discount":
-        filtered = tuitionData.filter(t => !t.hasDiscount);
+        filtered = tuitionData.filter((t) => !t.hasDiscount);
         break;
       case "siblings":
-        filtered = tuitionData.filter(t => t.hasSiblings);
+        filtered = tuitionData.filter((t) => t.hasSiblings);
         break;
       case "paid":
-        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(
+          (t) => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0,
+        );
         break;
       case "overpaid":
-        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) > t.total_amount);
+        filtered = tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) > t.total_amount);
         break;
       case "underpaid":
-        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0);
+        filtered = tuitionData.filter(
+          (t) => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0,
+        );
         break;
       case "settled":
-        filtered = tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0);
+        filtered = tuitionData.filter(
+          (t) => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0,
+        );
         break;
       default:
         filtered = tuitionData;
@@ -216,13 +220,33 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
     return [
       { key: "all", label: "All", count: tuitionData.length },
-      { key: "discount", label: "Discount", count: tuitionData.filter(t => t.hasDiscount).length },
-      { key: "no-discount", label: "No Discount", count: tuitionData.filter(t => !t.hasDiscount).length },
-      { key: "siblings", label: "Siblings", count: tuitionData.filter(t => t.hasSiblings).length },
-      { key: "paid", label: "Paid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0).length },
-      { key: "overpaid", label: "Overpaid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) > t.total_amount).length },
-      { key: "underpaid", label: "Underpaid", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0).length },
-      { key: "settled", label: "Settled", count: tuitionData.filter(t => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0).length },
+      { key: "discount", label: "Discount", count: tuitionData.filter((t) => t.hasDiscount).length },
+      { key: "no-discount", label: "No Discount", count: tuitionData.filter((t) => !t.hasDiscount).length },
+      { key: "siblings", label: "Siblings", count: tuitionData.filter((t) => t.hasSiblings).length },
+      {
+        key: "paid",
+        label: "Paid",
+        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0)
+          .length,
+      },
+      {
+        key: "overpaid",
+        label: "Overpaid",
+        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) > t.total_amount).length,
+      },
+      {
+        key: "underpaid",
+        label: "Underpaid",
+        count: tuitionData.filter(
+          (t) => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0,
+        ).length,
+      },
+      {
+        key: "settled",
+        label: "Settled",
+        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0)
+          .length,
+      },
     ];
   }, [tuitionData]);
 
@@ -230,7 +254,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     setEditingInvoiceId(invoice.id);
     const balance = invoice.total_amount - (invoice.recorded_payment ?? 0);
     setEditValue(String(balance > 0 ? balance : 0));
-    setEditDate(new Date().toISOString().split('T')[0]);
+    setEditDate(new Date().toISOString().split("T")[0]);
     setEditMethod("Cash");
   };
 
@@ -243,12 +267,12 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
 
   const handleSaveEdit = async (invoice: any) => {
     const newValue = parseInt(editValue) || 0;
-    
+
     // Validate input using zod schema
     const validation = PaymentSchema.safeParse({
       amount: newValue,
       date: editDate,
-      method: editMethod
+      method: editMethod,
     });
 
     if (!validation.success) {
@@ -257,30 +281,32 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       // Determine new status based on payment
       let newStatus = invoice.status;
       const totalAmount = invoice.total_amount;
-      
+
       if (newValue === 0 && totalAmount === 0) {
         // Edge case: 100% discount (total_amount = 0) and no payment needed
-        newStatus = 'paid';
+        newStatus = "paid";
       } else if (newValue >= totalAmount) {
-        newStatus = 'paid';
+        newStatus = "paid";
       } else if (newValue > 0 && newValue < totalAmount) {
-        newStatus = 'partial';
+        newStatus = "partial";
       } else if (newValue === 0) {
-        newStatus = 'open';
+        newStatus = "open";
       }
-      
+
       // Update recorded_payment and status in invoices table
       const { error: updateError } = await supabase
         .from("invoices")
-        .update({ 
+        .update({
           recorded_payment: newValue,
           status: newStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", invoice.id);
 
@@ -300,8 +326,8 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           payment_date: editDate,
           payment_method: editMethod,
           student_id: invoice.student_id,
-          month: invoice.month
-        }
+          month: invoice.month,
+        },
       });
 
       // Invalidate React Query caches
@@ -325,7 +351,11 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       return <Badge className="bg-green-500">Settled</Badge>;
     }
     if (recordedPayment < item.total_amount && recordedPayment > 0) {
-      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+      return (
+        <Badge variant="outline" className="border-amber-500 text-amber-700">
+          Underpaid
+        </Badge>
+      );
     }
     if (recordedPayment >= item.total_amount && item.total_amount > 0) {
       return <Badge className="bg-green-500">Paid</Badge>;
@@ -347,12 +377,8 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">
-          <TuitionPageFilters
-            filters={filterChips}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-          />
-          
+          <TuitionPageFilters filters={filterChips} activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+
           <div className="flex items-center gap-2">
             <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Sort by:</span>
@@ -385,19 +411,16 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                   </div>
                   <div className="flex gap-4 text-sm text-muted-foreground">
                     {(item as any).classes?.length > 0 && (
-                      <span className="font-medium">
-                        {(item as any).classes.map((c: any) => c.name).join(", ")}
-                      </span>
+                      <span className="font-medium">{(item as any).classes.map((c: any) => c.name).join(", ")}</span>
                     )}
                     <span>Base: {item.base_amount.toLocaleString()} ₫</span>
                     <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
                     <span>Current: {item.total_amount.toLocaleString()} ₫</span>
-                    <span className={item.priorBalance >= 0 ? 'text-success' : 'text-destructive'}>
-                      Prior Bal: {item.priorBalance >= 0 ? '+' : ''}{item.priorBalance.toLocaleString()} ₫
+                    <span className={item.priorBalance >= 0 ? "text-success" : "text-destructive"}>
+                      Prior Bal: {item.priorBalance >= 0 ? "+" : ""}
+                      {item.priorBalance.toLocaleString()} ₫
                     </span>
-                    <span className="font-semibold text-primary">
-                      Payable: {item.finalPayable.toLocaleString()} ₫
-                    </span>
+                    <span className="font-semibold text-primary">Payable: {item.finalPayable.toLocaleString()} ₫</span>
                     <div className="flex items-center gap-2">
                       {editingInvoiceId === item.id ? (
                         <div className="flex flex-col gap-2 min-w-[280px]">
@@ -436,19 +459,11 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                             </select>
                           </div>
                           <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSaveEdit(item)}
-                              className="flex-1"
-                            >
+                            <Button size="sm" onClick={() => handleSaveEdit(item)} className="flex-1">
                               <Save className="h-3 w-3 mr-1" />
                               Save
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={handleCancelEdit}
-                            >
+                            <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
@@ -474,11 +489,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/students/${item.student_id}`)}
-                >
+                <Button variant="outline" size="sm" onClick={() => navigate(`/students/${item.student_id}`)}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
