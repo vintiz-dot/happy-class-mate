@@ -11,14 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function Tuition() {
   const { role } = useAuth();
@@ -69,7 +62,10 @@ export default function Tuition() {
 
       // Fetch payments from database
       const monthStart = `${month}-01`;
-      const monthEnd = `${month}-31`;
+      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+        .toISOString()
+        .slice(0, 10);
+
       const { data: payments } = await supabase
         .from("payments")
         .select("*")
@@ -86,13 +82,14 @@ export default function Tuition() {
         .lte("start_date", `${month}-31`)
         .or(`end_date.is.null,end_date.gte.${month}-01`);
 
-      const classIds = enrollments?.map(e => e.class_id) || [];
+      const classIds = enrollments?.map((e) => e.class_id) || [];
       let sessionDetails: any[] = [];
-      
+
       if (classIds.length > 0) {
         const { data: sessions } = await supabase
           .from("sessions")
-          .select(`
+          .select(
+            `
             id,
             date,
             start_time,
@@ -100,7 +97,8 @@ export default function Tuition() {
             status,
             class_id,
             classes(name)
-          `)
+          `,
+          )
           .in("class_id", classIds)
           .gte("date", `${month}-01`)
           .lte("date", `${month}-31`)
@@ -112,7 +110,7 @@ export default function Tuition() {
 
       // Use recorded_payment if available, otherwise fall back to paid_amount
       const effectivePaidAmount = invoice.recorded_payment ?? invoice.paid_amount;
-      
+
       return {
         baseAmount: invoice.base_amount,
         discountAmount: invoice.discount_amount,
@@ -143,11 +141,11 @@ export default function Tuition() {
   }
 
   const balance = tuitionData?.balance || 0;
-  
+
   const getStatusBadge = () => {
     if (!tuitionData) return null;
     const { paidAmount, totalAmount } = tuitionData;
-    
+
     if (paidAmount > totalAmount) {
       return <Badge className="bg-blue-500">Overpaid</Badge>;
     }
@@ -155,7 +153,11 @@ export default function Tuition() {
       return <Badge className="bg-green-500">Settled</Badge>;
     }
     if (paidAmount < totalAmount && paidAmount > 0) {
-      return <Badge variant="outline" className="border-amber-500 text-amber-700">Underpaid</Badge>;
+      return (
+        <Badge variant="outline" className="border-amber-500 text-amber-700">
+          Underpaid
+        </Badge>
+      );
     }
     if (paidAmount >= totalAmount && totalAmount > 0) {
       return <Badge className="bg-green-500">Paid</Badge>;
@@ -168,20 +170,13 @@ export default function Tuition() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <MonthPicker value={month} onChange={setMonth} maxMonth={currentMonth} />
-          {tuitionData && studentId && (
-            <InvoiceDownloadButton
-              studentId={studentId}
-              month={month}
-            />
-          )}
+          {tuitionData && studentId && <InvoiceDownloadButton studentId={studentId} month={month} />}
         </div>
 
         {!tuitionData || tuitionData.totalAmount === undefined ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No tuition record found for {dayjs(month).format("MMMM YYYY")}
-              </p>
+              <p className="text-muted-foreground">No tuition record found for {dayjs(month).format("MMMM YYYY")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -192,9 +187,7 @@ export default function Tuition() {
                   <CardDescription>Current Balance</CardDescription>
                   {getStatusBadge()}
                 </div>
-                <CardTitle className="text-4xl">
-                  {balance.toLocaleString()} ₫
-                </CardTitle>
+                <CardTitle className="text-4xl">{balance.toLocaleString()} ₫</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mt-4">
@@ -204,7 +197,9 @@ export default function Tuition() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Discounts</p>
-                    <p className="text-lg font-semibold text-green-600">-{tuitionData.discountAmount.toLocaleString()} ₫</p>
+                    <p className="text-lg font-semibold text-green-600">
+                      -{tuitionData.discountAmount.toLocaleString()} ₫
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Payable</p>
@@ -222,9 +217,7 @@ export default function Tuition() {
               <Card>
                 <CardHeader>
                   <CardTitle>Payment History</CardTitle>
-                  <CardDescription>
-                    Payments made in {dayjs(month).format("MMMM YYYY")}
-                  </CardDescription>
+                  <CardDescription>Payments made in {dayjs(month).format("MMMM YYYY")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -239,14 +232,10 @@ export default function Tuition() {
                     <TableBody>
                       {tuitionData.payments.map((payment: any) => (
                         <TableRow key={payment.id}>
-                          <TableCell>
-                            {dayjs(payment.occurred_at).format("MMM D, YYYY")}
-                          </TableCell>
+                          <TableCell>{dayjs(payment.occurred_at).format("MMM D, YYYY")}</TableCell>
                           <TableCell>{payment.method}</TableCell>
                           <TableCell>{payment.memo || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            {payment.amount.toLocaleString()} ₫
-                          </TableCell>
+                          <TableCell className="text-right">{payment.amount.toLocaleString()} ₫</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -259,9 +248,7 @@ export default function Tuition() {
               <Card>
                 <CardHeader>
                   <CardTitle>Session Details</CardTitle>
-                  <CardDescription>
-                    Classes attended in {dayjs(month).format("MMMM YYYY")}
-                  </CardDescription>
+                  <CardDescription>Classes attended in {dayjs(month).format("MMMM YYYY")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -276,17 +263,17 @@ export default function Tuition() {
                     <TableBody>
                       {tuitionData.sessionDetails.map((session: any) => (
                         <TableRow key={session.id}>
-                          <TableCell>
-                            {dayjs(session.date).format("MMM D, YYYY")}
-                          </TableCell>
+                          <TableCell>{dayjs(session.date).format("MMM D, YYYY")}</TableCell>
                           <TableCell>{session.classes?.name || "-"}</TableCell>
                           <TableCell>
                             {session.start_time} - {session.end_time}
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              session.status === "Held" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
-                            }`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                session.status === "Held" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
                               {session.status}
                             </span>
                           </TableCell>
