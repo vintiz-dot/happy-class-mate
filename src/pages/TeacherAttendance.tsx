@@ -45,7 +45,7 @@ export default function TeacherAttendance() {
         )
         .eq("teacher_id", teacher.id)
         .gte("date", startDate)
-        .lte("date", endDate)
+        .lte("date", monthEnd)
         .order("date", { ascending: true });
 
       return (

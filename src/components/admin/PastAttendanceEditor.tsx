@@ -23,7 +23,7 @@ export function PastAttendanceEditor({ classId }: PastAttendanceEditorProps) {
     queryKey: ["past-attendance-sessions", classId, selectedMonth],
     queryFn: async () => {
       const startDate = `${selectedMonth}-01`;
-      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+      const monthEnd = new Date(Date.UTC(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0))
         .toISOString()
         .slice(0, 10);
 
@@ -46,7 +46,7 @@ export function PastAttendanceEditor({ classId }: PastAttendanceEditorProps) {
         )
         .eq("class_id", classId)
         .gte("date", startDate)
-        .lte("date", endDate)
+        .lte("date", monthEnd)
         .order("date", { ascending: false });
 
       if (error) throw error;

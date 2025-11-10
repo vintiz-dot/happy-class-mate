@@ -59,7 +59,7 @@ export function StudentTuitionOverview() {
     queryKey: ["student-enrollments", selectedMonth],
     queryFn: async () => {
       const monthStart = `${selectedMonth}-01`;
-      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
+      const monthEnd = new Date(Date.UTC(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0))
         .toISOString()
         .slice(0, 10);
 

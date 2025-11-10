@@ -40,18 +40,19 @@ export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalen
       if (!session) throw new Error("No session");
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar?ym=${currentMonth}`,
         {
-          method: "POST",
+          method: "GET",
           headers: {
             Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ month: currentMonth }),
         }
       );
 
-      if (!response.ok) throw new Error("Failed to fetch assignments");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch assignments");
+      }
       return response.json();
     },
   });
