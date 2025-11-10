@@ -17,6 +17,7 @@ import { TeacherProfileFilesNotes } from "@/components/admin/teacher/TeacherProf
 import { TeacherProfileAudit } from "@/components/admin/teacher/TeacherProfileAudit";
 import { TeacherEditDrawer } from "@/components/admin/TeacherEditDrawer";
 import { TeacherLinkDialog } from "@/components/admin/TeacherLinkDialog";
+import { TeacherProfilePictureUpload } from "@/components/teacher/TeacherProfilePictureUpload";
 
 const TeacherProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -174,7 +175,17 @@ const TeacherProfile = () => {
           </TabsContent>
 
           <TabsContent value="audit">
-            <TeacherProfileAudit teacherId={teacher.id} />
+            <div className="space-y-6">
+              <div className="glass-sm rounded-xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Profile Picture</h3>
+                <TeacherProfilePictureUpload
+                  teacherId={teacher.id}
+                  currentAvatarUrl={teacher.avatar_url}
+                  teacherName={teacher.full_name}
+                />
+              </div>
+              <TeacherProfileAudit teacherId={teacher.id} />
+            </div>
           </TabsContent>
         </Tabs>
 

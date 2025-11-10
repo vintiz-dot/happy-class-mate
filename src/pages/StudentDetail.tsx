@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "lucide-react";
 import { useState } from "react";
 import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
+import { ProfilePictureUpload } from "@/components/student/ProfilePictureUpload";
 
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -168,7 +169,19 @@ const StudentDetail = () => {
           </TabsContent>
 
           <TabsContent value="account" className="space-y-6">
-            <StudentAccountInfo studentId={student.id} />
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="glass-sm rounded-xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Profile Picture</h3>
+                <ProfilePictureUpload
+                  studentId={student.id}
+                  currentAvatarUrl={student.avatar_url}
+                  studentName={student.full_name}
+                />
+              </div>
+              <div className="glass-sm rounded-xl p-6">
+                <StudentAccountInfo studentId={student.id} />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

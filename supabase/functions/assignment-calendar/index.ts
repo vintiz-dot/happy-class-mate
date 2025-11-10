@@ -174,7 +174,15 @@ serve(async (req) => {
       throw error;
     }
 
-    const items = (data ?? []) as Row[];
+    // Map to items format - classes comes as array but we need single object
+    const items = (data ?? []).map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      due_date: row.due_date,
+      class_id: row.class_id,
+      classes: row.classes?.[0] || null,
+      homework_submissions: row.homework_submissions || []
+    })) as Row[];
 
     // optional day buckets for full-month ranges
     const firstOfMonth = from.endsWith("-01");
