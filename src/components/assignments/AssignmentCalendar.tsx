@@ -228,27 +228,32 @@ export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalen
                   <button
                     key={d}
                     onClick={() => dayAssignments.length > 0 && setSelectedDate(d)}
-                    className={`glass-sm rounded-lg p-2 min-h-[80px] transition-all hover:scale-[1.02] ${
+                    className={`glass-sm rounded-lg p-2 min-h-[80px] transition-all hover:scale-[1.02] relative ${
                       isToday(d) ? "ring-2 ring-primary" : ""
                     } ${!isCurrentMonth ? "opacity-40" : ""} ${
                       dayAssignments.length > 0 ? "cursor-pointer" : "cursor-default"
                     }`}
                   >
-                    <div className="text-right">
+                    <div className="text-right mb-1">
                       <div className={`text-sm font-medium ${isToday(d) ? "text-primary" : ""}`}>
                         {dayjs(d).format("D")}
                       </div>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-1 justify-center">
-                      {dayAssignments.map((assignment) => (
+                    <div className="flex flex-col gap-0.5 mt-2">
+                      {dayAssignments.slice(0, 3).map((assignment) => (
                         <div
                           key={assignment.id}
-                          className={`w-2 h-2 rounded-full ${getStatusColor(
+                          className={`h-2 rounded-full ${getStatusColor(
                             getAssignmentStatus(assignment)
-                          )}`}
+                          )} animate-fade-in`}
                           title={assignment.title}
                         />
                       ))}
+                      {dayAssignments.length > 3 && (
+                        <div className="text-[10px] text-center text-muted-foreground mt-0.5">
+                          +{dayAssignments.length - 3} more
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
