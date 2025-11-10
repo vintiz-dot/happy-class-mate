@@ -1,18 +1,37 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, BookOpen } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, BookOpen, Edit, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
 
 export default function TeacherDashboard() {
   const queryClient = useQueryClient();
   const currentMonth = dayjs().format("YYYY-MM");
+  const [showEditProfile, setShowEditProfile] = useState(false);
+
+  const { data: teacherProfile } = useQuery({
+    queryKey: ["teacher-dashboard-profile"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      return teacher;
+    },
+  });
 
   const { data: todaySessions } = useQuery({
     queryKey: ["teacher-today-sessions"],
@@ -165,6 +184,38 @@ export default function TeacherDashboard() {
   return (
     <Layout title="Dashboard">
       <div className="space-y-6">
+        {/* Teacher Profile Header */}
+        {teacherProfile && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
+                    {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-3xl font-bold">{teacherProfile.full_name}</h1>
+                      <Badge variant={teacherProfile.is_active ? "default" : "secondary"} className={teacherProfile.is_active ? "bg-green-500" : ""}>
+                        {teacherProfile.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col gap-1 text-muted-foreground text-sm">
+                      {teacherProfile.email && <span>{teacherProfile.email}</span>}
+                      {teacherProfile.phone && <span>{teacherProfile.phone}</span>}
+                      <span>Hourly Rate: {(teacherProfile.hourly_rate_vnd || 0).toLocaleString()} ₫/hour</span>
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={() => setShowEditProfile(true)} variant="outline" size="sm">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+        )}
+
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
@@ -326,6 +377,18 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Profile Dialog */}
+      {teacherProfile && (
+        <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Your Profile</DialogTitle>
+            </DialogHeader>
+            <TeacherProfileEdit teacherId={teacherProfile.id} />
+          </DialogContent>
+        </Dialog>
+      )}
     </Layout>
   );
 }

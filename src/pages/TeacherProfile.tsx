@@ -17,7 +17,7 @@ import { TeacherProfileFilesNotes } from "@/components/admin/teacher/TeacherProf
 import { TeacherProfileAudit } from "@/components/admin/teacher/TeacherProfileAudit";
 import { TeacherEditDrawer } from "@/components/admin/TeacherEditDrawer";
 import { TeacherLinkDialog } from "@/components/admin/TeacherLinkDialog";
-import { TeacherProfilePictureUpload } from "@/components/teacher/TeacherProfilePictureUpload";
+import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
 
 const TeacherProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -145,11 +145,12 @@ const TeacherProfile = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="classes">Classes</TabsTrigger>
             <TabsTrigger value="payroll">Payroll</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="files">Files & Notes</TabsTrigger>
             <TabsTrigger value="audit">Audit</TabsTrigger>
           </TabsList>
@@ -170,22 +171,16 @@ const TeacherProfile = () => {
             <TeacherProfilePayroll teacherId={teacher.id} selectedMonth={selectedMonth} hourlyRate={teacher.hourly_rate_vnd} />
           </TabsContent>
 
+          <TabsContent value="profile">
+            <TeacherProfileEdit teacherId={teacher.id} />
+          </TabsContent>
+
           <TabsContent value="files">
             <TeacherProfileFilesNotes teacherId={teacher.id} />
           </TabsContent>
 
           <TabsContent value="audit">
-            <div className="space-y-6">
-              <div className="glass-sm rounded-xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Profile Picture</h3>
-                <TeacherProfilePictureUpload
-                  teacherId={teacher.id}
-                  currentAvatarUrl={teacher.avatar_url}
-                  teacherName={teacher.full_name}
-                />
-              </div>
-              <TeacherProfileAudit teacherId={teacher.id} />
-            </div>
+            <TeacherProfileAudit teacherId={teacher.id} />
           </TabsContent>
         </Tabs>
 

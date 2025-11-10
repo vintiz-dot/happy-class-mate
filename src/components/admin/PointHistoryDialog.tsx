@@ -26,13 +26,17 @@ export function PointHistoryDialog({
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["point-transactions", studentId, classId, month],
     queryFn: async () => {
+      // Calculate first day of next month for proper date range
+      const [year, monthNum] = month.split('-').map(Number);
+      const nextMonth = monthNum === 12 ? `${year + 1}-01-01` : `${year}-${String(monthNum + 1).padStart(2, '0')}-01`;
+      
       const { data, error } = await supabase
         .from("point_transactions")
         .select("*")
         .eq("student_id", studentId)
         .eq("class_id", classId)
         .gte("date", `${month}-01`)
-        .lt("date", `${month}-32`)
+        .lt("date", nextMonth)
         .order("date", { ascending: false })
         .order("created_at", { ascending: false });
 

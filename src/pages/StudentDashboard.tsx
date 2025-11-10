@@ -5,15 +5,19 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
@@ -204,11 +208,15 @@ export default function StudentDashboard() {
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                   <p className="text-sm text-muted-foreground">
                     Last updated: {new Date(studentProfile.updated_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>
+              <Button onClick={() => setShowEditProfile(true)} variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
             </div>
           </CardHeader>
         </Card>
@@ -388,6 +396,16 @@ export default function StudentDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Your Profile</DialogTitle>
+          </DialogHeader>
+          <StudentProfileEdit studentId={studentId} />
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
