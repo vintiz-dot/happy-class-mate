@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildMonthGrid, todayKey, dayjs } from "@/lib/date";
@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-reac
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { StudentProfileContext } from "@/contexts/StudentProfileContext";
 
 type Assignment = {
   id: string;
@@ -32,22 +33,27 @@ interface AssignmentCalendarProps {
 export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const context = useContext(StudentProfileContext);
+  const studentId = context?.studentId;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["assignment-calendar", currentMonth],
+    queryKey: ["assignment-calendar", currentMonth, studentId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No session");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar?ym=${currentMonth}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+      // Build URL with student_id for student role
+      let url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar?ym=${currentMonth}`;
+      if (role === "student" && studentId) {
+        url += `&student_id=${studentId}`;
+      }
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -55,9 +61,10 @@ export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalen
       }
       return response.json();
     },
+    enabled: role !== "student" || !!studentId, // Only fetch for students if studentId is available
   });
 
-  const assignments: Assignment[] = data?.assignments || [];
+  const assignments: Assignment[] = data?.items || [];
 
   const cells = useMemo(() => buildMonthGrid(currentMonth), [currentMonth]);
   

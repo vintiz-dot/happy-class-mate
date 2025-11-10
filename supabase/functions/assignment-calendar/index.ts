@@ -8,6 +8,13 @@ type Row = {
   due_date?: string | null; // DATE or TIMESTAMP
   class_id?: string | null;
   classes?: { id: string; name?: string | null } | null;
+  homework_submissions?: Array<{
+    id: string;
+    status?: string | null;
+    student_id?: string | null;
+    submitted_at?: string | null;
+    graded_at?: string | null;
+  }>;
 };
 
 /* ---------- helpers ---------- */
@@ -105,15 +112,67 @@ serve(async (req) => {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
     });
 
-    // inclusive lower bound, exclusive upper bound
-    const { data, error } = await supabase
-      .from("homeworks")
-      .select("id,title,due_date,class_id,classes(id,name)")
-      .gte("due_date", from)
-      .lt("due_date", toExclusive)
-      .order("due_date", { ascending: true });
+    // Get user role to filter assignments appropriately
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
 
-    if (error) throw error;
+    // Check user role
+    const userRole = user.user_metadata?.role;
+    
+    let query = supabase
+      .from("homeworks")
+      .select("id,title,due_date,class_id,classes!inner(id,name),homework_submissions(id,status,student_id,submitted_at,graded_at)")
+      .gte("due_date", from)
+      .lt("due_date", toExclusive);
+
+    // Filter based on user role
+    if (userRole === "student") {
+      // Students see assignments from their enrolled classes with their own submissions
+      const studentId = url.searchParams.get("student_id");
+      if (!studentId) throw new Error("student_id parameter required for student users");
+      
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("class_id")
+        .eq("student_id", studentId)
+        .is("end_date", null);
+      
+      const classIds = enrollments?.map(e => e.class_id) || [];
+      if (classIds.length === 0) {
+        return json({ from, to, items: [], days: [] }, 200, req.headers);
+      }
+      
+      query = query.in("class_id", classIds).eq("homework_submissions.student_id", studentId);
+    } else if (userRole === "teacher") {
+      // Teachers see assignments from their classes with all submissions
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!teacher) throw new Error("Teacher not found");
+      
+      const { data: classes } = await supabase
+        .from("classes")
+        .select("id")
+        .eq("teacher_id", teacher.id);
+      
+      const classIds = classes?.map(c => c.id) || [];
+      if (classIds.length === 0) {
+        return json({ from, to, items: [], days: [] }, 200, req.headers);
+      }
+      
+      query = query.in("class_id", classIds);
+    }
+    // Admin sees all assignments with all submissions (no additional filter needed)
+
+    const { data, error } = await query.order("due_date", { ascending: true });
+
+    if (error) {
+      console.error("[assignment-calendar] query error:", error);
+      throw error;
+    }
 
     const items = (data ?? []) as Row[];
 

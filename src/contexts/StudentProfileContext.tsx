@@ -9,6 +9,8 @@ const StudentProfileContext = createContext<StudentProfileContextType>({
   setStudentId: () => {},
 });
 
+export { StudentProfileContext };
+
 export function StudentProfileProvider({ children }: { children: ReactNode }) {
   const [studentId, setStudentIdState] = useState<string | undefined>(undefined);
 
