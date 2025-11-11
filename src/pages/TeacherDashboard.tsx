@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, BookOpen, Edit, User } from "lucide-react";
+import { Calendar, Clock, DollarSign, BookOpen, Users, Edit, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function TeacherDashboard() {
   const queryClient = useQueryClient();
@@ -189,10 +190,13 @@ export default function TeacherDashboard() {
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
-                    {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                  </div>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={teacherProfile.avatar_url || undefined} alt={teacherProfile.full_name} />
+                    <AvatarFallback className="text-xl">
+                      {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <h1 className="text-3xl font-bold">{teacherProfile.full_name}</h1>

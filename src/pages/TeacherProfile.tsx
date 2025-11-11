@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Mail, Phone, DollarSign, Link } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TeacherProfileOverview } from "@/components/admin/teacher/TeacherProfileOverview";
 import { TeacherProfileSchedule } from "@/components/admin/teacher/TeacherProfileSchedule";
 import { TeacherProfileClasses } from "@/components/admin/teacher/TeacherProfileClasses";
@@ -85,9 +86,12 @@ const TeacherProfile = () => {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
-                  {teacher.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
+                <Avatar className="w-16 h-16">
+                  <AvatarImage src={teacher.avatar_url || undefined} alt={teacher.full_name} />
+                  <AvatarFallback className="text-2xl">
+                    {teacher.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-bold">{teacher.full_name}</h1>

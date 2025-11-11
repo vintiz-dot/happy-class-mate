@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PointHistoryDialog } from "@/components/admin/PointHistoryDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
@@ -54,7 +55,8 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
           *,
           students (
             id,
-            full_name
+            full_name,
+            avatar_url
           )
         `)
         .eq("class_id", classId)
@@ -205,6 +207,12 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
                   <div className="w-8 flex items-center justify-center">
                     {getRankIcon(index)}
                   </div>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
+                    <AvatarFallback className="text-sm">
+                      {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="font-medium">{entry.students?.full_name}</p>
                     <p className="text-xs text-muted-foreground">

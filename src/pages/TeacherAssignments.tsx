@@ -37,6 +37,11 @@ export default function TeacherAssignments() {
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
+            <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border p-4 mb-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Click on any date</strong> to create a new assignment for that day
+              </p>
+            </div>
             <AssignmentCalendar role="teacher" />
           </TabsContent>
 

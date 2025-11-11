@@ -21,6 +21,7 @@ import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -31,28 +32,35 @@ const Layout = ({ children, title }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserName = async () => {
+    const fetchUserInfo = async () => {
       if (!user) return;
 
-      // Try to get student name
+      // Try to get student info
       const { data: studentData } = await supabase
         .from("students")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("linked_user_id", user.id)
         .single();
 
       if (studentData?.full_name) {
         setUserName(studentData.full_name);
+        setAvatarUrl(studentData.avatar_url);
         return;
       }
 
-      // Try to get teacher name
-      const { data: teacherData } = await supabase.from("teachers").select("full_name").eq("user_id", user.id).single();
+      // Try to get teacher info
+      const { data: teacherData } = await supabase
+        .from("teachers")
+        .select("full_name, avatar_url")
+        .eq("user_id", user.id)
+        .single();
 
       if (teacherData?.full_name) {
         setUserName(teacherData.full_name);
+        setAvatarUrl(teacherData.avatar_url);
         return;
       }
 
@@ -68,7 +76,7 @@ const Layout = ({ children, title }: LayoutProps) => {
       }
     };
 
-    fetchUserName();
+    fetchUserInfo();
   }, [user]);
 
   if (!user) {
@@ -133,6 +141,12 @@ const Layout = ({ children, title }: LayoutProps) => {
             <NotificationBell />
             {userName && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={avatarUrl || undefined} alt={userName} />
+                  <AvatarFallback className="text-xs">
+                    {userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
                 <span className="text-sm font-medium text-foreground">{userName}</span>
               </div>
             )}

@@ -12,6 +12,7 @@ import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
@@ -30,6 +31,8 @@ export default function StudentDashboard() {
           full_name, 
           email, 
           phone, 
+          date_of_birth,
+          avatar_url,
           is_active,
           family:families(name),
           updated_at
@@ -178,10 +181,13 @@ export default function StudentDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold">
-                  {studentProfile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={studentProfile.avatar_url || undefined} alt={studentProfile.full_name} />
+                  <AvatarFallback className="text-xl">
+                    {studentProfile.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-bold">{studentProfile.full_name}</h1>

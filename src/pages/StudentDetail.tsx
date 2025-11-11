@@ -17,6 +17,7 @@ import { Link } from "lucide-react";
 import { useState } from "react";
 import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -90,21 +91,29 @@ const StudentDetail = () => {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">{student.full_name}</h1>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-muted-foreground">
-                Family: {student.family?.name || "No family"}
-              </p>
-              {student.linked_user_id && student.linkedUserEmail && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Registered Email:</span>
-                  <span className="font-medium text-foreground">{student.linkedUserEmail}</span>
-                  <Badge variant="outline" className="text-xs">
-                    Linked
-                  </Badge>
-                </div>
-              )}
+          <div className="flex items-center gap-4">
+            <Avatar className="w-16 h-16">
+              <AvatarImage src={student.avatar_url || undefined} alt={student.full_name} />
+              <AvatarFallback className="text-2xl">
+                {student.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">{student.full_name}</h1>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-muted-foreground">
+                  Family: {student.family?.name || "No family"}
+                </p>
+                {student.linked_user_id && student.linkedUserEmail && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Registered Email:</span>
+                    <span className="font-medium text-foreground">{student.linkedUserEmail}</span>
+                    <Badge variant="outline" className="text-xs">
+                      Linked
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowLinkDialog(true)}>
