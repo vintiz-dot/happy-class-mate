@@ -201,7 +201,7 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
       <CardContent className="space-y-4">
         {enrollments && enrollments.length > 0 && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Enrolled Classes Breakdown</p>
+            <p className="text-sm font-medium text-muted-foreground">Monthly Tuition Breakdown</p>
             
             {enrollments.map(enrollment => {
               const isWinnerClass = enrollment.classId === winnerClassId;
@@ -213,62 +213,44 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
               return (
                 <div 
                   key={enrollment.classId}
-                  className={`p-4 rounded-lg border-2 space-y-3 ${
-                    isWinnerClass 
-                      ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30' 
-                      : 'border-border bg-background'
-                  }`}
+                  className="p-4 rounded-lg border bg-card space-y-3"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-base font-semibold">{enrollment.className}</p>
-                        {isWinnerClass && (
-                          <Badge variant="default" className="bg-green-600 text-xs">
-                            <Check className="h-3 w-3 mr-1" />
-                            Discount Applied
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {enrollment.sessionsCount} sessions this month
-                      </p>
+                  {/* Class Name with Badge */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold">{enrollment.className}</h4>
+                      {isWinnerClass && (
+                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                          <Check className="h-3 w-3 mr-1" />
+                          Winner
+                        </Badge>
+                      )}
                     </div>
+                    <span className="text-xs text-muted-foreground">{enrollment.sessionsCount} sessions</span>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Total Fee</span>
-                      <span className="font-medium">{formatVND(enrollment.totalAmount)}</span>
+                  {/* Base Tuition */}
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-muted-foreground">Base Tuition</span>
+                    <span className="text-base font-medium">{formatVND(enrollment.totalAmount)}</span>
+                  </div>
+
+                  {/* Discount (only for winner) */}
+                  {isWinnerClass && (
+                    <div className="flex items-center justify-between py-2 -mt-1">
+                      <span className="text-sm text-green-600 dark:text-green-400">Discount ({discountPercent}%)</span>
+                      <span className="text-base font-medium text-green-600 dark:text-green-400">
+                        -{formatVND(discountAmount)}
+                      </span>
                     </div>
+                  )}
 
-                    {isWinnerClass && (
-                      <>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-green-600 dark:text-green-400">Discount ({discountPercent}%)</span>
-                          <span className="font-medium text-green-600 dark:text-green-400">
-                            -{formatVND(discountAmount)}
-                          </span>
-                        </div>
-                        <div className="pt-2 border-t border-green-200 dark:border-green-800">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Final Payable</span>
-                            <span className="text-lg font-bold text-green-700 dark:text-green-300">
-                              {formatVND(finalAmount)}
-                            </span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {!isWinnerClass && (
-                      <div className="pt-2 border-t">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Payable</span>
-                          <span className="text-lg font-bold">{formatVND(finalAmount)}</span>
-                        </div>
-                      </div>
-                    )}
+                  {/* Final Payable */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="text-sm font-semibold">Final Payable</span>
+                    <span className={`text-lg font-bold ${isWinnerClass ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
+                      {formatVND(finalAmount)}
+                    </span>
                   </div>
                 </div>
               );
