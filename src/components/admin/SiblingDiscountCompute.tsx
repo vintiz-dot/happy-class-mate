@@ -16,6 +16,7 @@ interface PreviewResult {
   status: 'assigned' | 'pending' | 'none';
   reason?: string;
   winner_student_id?: string;
+  winner_student_name?: string;
   winner_class_name?: string;
   winner_base?: number;
   discount_percent?: number;
@@ -200,6 +201,11 @@ export function SiblingDiscountCompute() {
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
                           <span className="font-semibold">{result.family_name || 'Unknown Family'}</span>
+                          {result.status === 'assigned' && result.winner_student_name && (
+                            <Badge variant="default" className="ml-2 bg-green-600">
+                              Winner: {result.winner_student_name}
+                            </Badge>
+                          )}
                         </div>
                         {result.students && result.students.length > 0 && (
                           <div className="text-xs text-muted-foreground ml-6">

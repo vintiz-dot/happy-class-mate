@@ -318,6 +318,31 @@ Deno.serve(async (req) => {
           ? `Bạn còn nợ ${carryOutDebt.toLocaleString("vi-VN")} ₫ cần thanh toán.`
           : "Tháng này đã thanh toán đầy đủ.";
 
+    // Build per-class breakdown for multi-enrollment students
+    const classBreakdown = [];
+    for (const [classId, baseAmount] of enrollmentBaseAmounts.entries()) {
+      // Get class details from sessions
+      const classSession = sessions?.find(s => s.class_id === classId);
+      const classData = classSession?.classes ? 
+        (Array.isArray(classSession.classes) ? classSession.classes[0] : classSession.classes) : null;
+      
+      const className = classData ? 
+        (await supabase.from('classes').select('name').eq('id', classId).single()).data?.name || 'Unknown' : 
+        'Unknown';
+      const sessionRate = Number(classData?.session_rate_vnd ?? 0);
+      const sessionsCount = sessionDetails.filter(sd => 
+        sd.class_id === classId && (sd.status === 'Present' || sd.status === 'Absent')
+      ).length;
+      
+      classBreakdown.push({
+        class_id: classId,
+        class_name: className,
+        amount_vnd: baseAmount,
+        sessions_count: sessionsCount,
+        session_rate_vnd: sessionRate
+      });
+    }
+
     // ---------- Persist invoice (safe) ----------
     // Calculate cumulative paid amount (all payments up to and including this month)
     const cumulativePaidAmount = priorPayments + monthPayments;
@@ -397,6 +422,19 @@ Deno.serve(async (req) => {
         message: balanceMessage, // show in UI
       },
       siblingState,
+      breakdown: {
+        classes: classBreakdown
+      },
+      enrollments: enrollments?.map(e => ({
+        class_id: e.class_id,
+        class_name: sessions?.find(s => s.class_id === e.class_id)?.classes ? 
+          (Array.isArray(sessions.find(s => s.class_id === e.class_id)!.classes) 
+            ? (sessions.find(s => s.class_id === e.class_id)!.classes as any)[0]?.name 
+            : (sessions.find(s => s.class_id === e.class_id)!.classes as any)?.name) 
+          : 'Unknown',
+        start_date: e.start_date,
+        end_date: e.end_date
+      })) || [],
       invoice: {
         base_amount: baseAmount,
         discount_amount: totalDiscount,

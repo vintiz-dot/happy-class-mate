@@ -351,6 +351,7 @@ Deno.serve(async (req) => {
           status: 'assigned',
           student_count: students?.length || 0,
           winner_student_id: winner.student_id,
+          winner_student_name: winner.student_name,
           winner_class_id: winner.class_id,
           winner_class_name: winner.class_name,
           winner_base: winner.projected_base,
