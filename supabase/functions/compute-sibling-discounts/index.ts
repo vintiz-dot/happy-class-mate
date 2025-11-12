@@ -49,23 +49,29 @@ async function getHighestClassPerStudent(supabase: any, familyId: string, month:
     const tuitionData = await getActualTuitionPerStudent(supabase, student.id, month);
     
     if (!tuitionData || !tuitionData.classes || tuitionData.classes.length === 0) {
-      // No tuition data - determine why
-      const { data: enrollments } = await supabase
-        .from('enrollments')
-        .select('class_id, classes(name)')
-        .eq('student_id', student.id)
-        .lte('start_date', `${month}-31`)
-        .or(`end_date.is.null,end_date.gte.${month}-01`);
+      // No tuition but may have enrollments - use enrollment data from calculate-tuition response
+      const enrollments = tuitionData?.enrollments || [];
+      
+      // Find highest class from enrollments (by class name for display)
+      let highestClassName = 'N/A';
+      let highestClassId = null;
+      
+      if (enrollments.length > 0) {
+        // Use the first enrollment's class info for display
+        const firstEnrollment = enrollments[0];
+        highestClassName = firstEnrollment.class_name || 'Unknown Class';
+        highestClassId = firstEnrollment.class_id || null;
+      }
       
       result.push({
         student_id: student.id,
         student_name: student.full_name,
         projected_base: 0,
         projected_sessions: 0,
-        class_name: 'N/A',
-        class_id: null,
-        enrollment_count: enrollments?.length || 0,
-        reason: enrollments && enrollments.length > 0 ? 'no billable sessions' : 'no active enrollments'
+        class_name: highestClassName,
+        class_id: highestClassId,
+        enrollment_count: enrollments.length,
+        reason: enrollments.length > 0 ? 'no billable sessions (paused or no sessions scheduled)' : 'no active enrollments'
       });
       continue;
     }
