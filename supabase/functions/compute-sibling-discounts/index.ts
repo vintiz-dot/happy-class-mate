@@ -2,7 +2,101 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { acquireLock, releaseLock, ymNowBangkok } from '../_lib/lock.ts'
 import { tieHash } from '../_lib/hash.ts'
-import { getHighestClassPerStudent } from '../_lib/projected-per-class.ts'
+
+// Helper to get actual tuition per student per class using calculate-tuition
+async function getActualTuitionPerStudent(supabase: any, studentId: string, month: string) {
+  try {
+    // Call calculate-tuition edge function to get actual tuition
+    const { data, error } = await supabase.functions.invoke('calculate-tuition', {
+      body: { studentId, month }
+    });
+    
+    if (error) {
+      console.error(`Error calculating tuition for student ${studentId}:`, error);
+      return null;
+    }
+    
+    // Extract class breakdown from the response
+    const classBreakdown = data?.breakdown?.classes || [];
+    
+    return {
+      student_id: studentId,
+      total_base: data?.tuition?.baseAmount || 0,
+      classes: classBreakdown,
+      enrollments: data?.enrollments || []
+    };
+  } catch (err) {
+    console.error(`Exception calculating tuition for student ${studentId}:`, err);
+    return null;
+  }
+}
+
+// Get highest-tuition class per student based on actual tuition calculation
+async function getHighestClassPerStudent(supabase: any, familyId: string, month: string) {
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, full_name')
+    .eq('family_id', familyId)
+    .eq('is_active', true);
+  
+  if (!students || students.length === 0) {
+    return [];
+  }
+  
+  const result = [];
+  
+  for (const student of students) {
+    const tuitionData = await getActualTuitionPerStudent(supabase, student.id, month);
+    
+    if (!tuitionData || !tuitionData.classes || tuitionData.classes.length === 0) {
+      // No tuition data - determine why
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('class_id, classes(name)')
+        .eq('student_id', student.id)
+        .lte('start_date', `${month}-31`)
+        .or(`end_date.is.null,end_date.gte.${month}-01`);
+      
+      result.push({
+        student_id: student.id,
+        student_name: student.full_name,
+        projected_base: 0,
+        projected_sessions: 0,
+        class_name: 'N/A',
+        class_id: null,
+        enrollment_count: enrollments?.length || 0,
+        reason: enrollments && enrollments.length > 0 ? 'no billable sessions' : 'no active enrollments'
+      });
+      continue;
+    }
+    
+    // Find the highest-tuition class
+    let highestClass = null;
+    let highestAmount = 0;
+    
+    for (const classInfo of tuitionData.classes) {
+      if (classInfo.amount_vnd > highestAmount) {
+        highestAmount = classInfo.amount_vnd;
+        highestClass = classInfo;
+      }
+    }
+    
+    if (highestClass) {
+      result.push({
+        student_id: student.id,
+        student_name: student.full_name,
+        projected_base: highestClass.amount_vnd,
+        projected_sessions: highestClass.sessions_count,
+        class_name: highestClass.class_name,
+        class_id: highestClass.class_id || null,
+        enrollment_count: tuitionData.enrollments?.length || 0,
+        reason: highestClass.amount_vnd > 0 ? 'has tuition' : 'no billable sessions'
+      });
+    }
+  }
+  
+  return result;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,45 +234,23 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Get highest-tuition class per student
+        // Get highest-tuition class per student using actual tuition calculation
+        console.log(`Calculating actual tuition for family ${family.id} (${family.name})`)
         const highestPerStudent = await getHighestClassPerStudent(supabase, family.id, month)
         console.log(`Family ${family.id} highest classes per student:`, highestPerStudent)
 
         // Filter students with positive tuition in their highest class
         const positives = highestPerStudent.filter((r: any) => r.projected_base > 0)
         
-        // Prepare detailed diagnostic info for all students
-        const allStudentsDetail = await Promise.all(students.map(async (student: any) => {
-          const studentHighest = highestPerStudent.find((h: any) => h.student_id === student.id)
-          
-          // Check for enrollments
-          const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('class_id, classes(name)')
-            .eq('student_id', student.id)
-            .lte('start_date', `${month}-31`)
-            .or(`end_date.is.null,end_date.gte.${month}-01`)
-          
-          let reason = 'unknown'
-          if (!enrollments || enrollments.length === 0) {
-            reason = 'no active enrollments'
-          } else if (!studentHighest) {
-            reason = 'no sessions found for enrolled classes'
-          } else if (studentHighest.projected_base === 0) {
-            reason = 'no billable sessions (possibly all paused or canceled)'
-          } else {
-            reason = 'has tuition'
-          }
-          
-          return {
-            id: student.id,
-            name: student.full_name,
-            projected_base: studentHighest?.projected_base || 0,
-            projected_sessions: studentHighest?.projected_sessions || 0,
-            highest_class: studentHighest?.class_name || 'N/A',
-            enrollment_count: enrollments?.length || 0,
-            reason
-          }
+        // All students detail is already in highestPerStudent with reason
+        const allStudentsDetail = highestPerStudent.map((h: any) => ({
+          id: h.student_id,
+          name: h.student_name,
+          projected_base: h.projected_base,
+          projected_sessions: h.projected_sessions,
+          highest_class: h.class_name,
+          enrollment_count: h.enrollment_count,
+          reason: h.reason
         }))
 
         if (positives.length < 2) {
@@ -257,18 +329,15 @@ Deno.serve(async (req) => {
 
         const discountAmount = Math.round(winner.projected_base * (percent / 100))
 
-        // Get student names for display
-        const studentsWithNames = positives.map((p: any) => {
-          const studentData = students?.find((s: any) => s.id === p.student_id)
-          return {
-            student_id: p.student_id,
-            student_name: studentData?.full_name || 'Unknown',
-            class_id: p.class_id,
-            class_name: p.class_name,
-            projected_base: p.projected_base,
-            is_winner: p.student_id === winner.student_id
-          }
-        })
+        // Get student names for display - already in highestPerStudent
+        const studentsWithNames = positives.map((p: any) => ({
+          student_id: p.student_id,
+          student_name: p.student_name || 'Unknown',
+          class_id: p.class_id,
+          class_name: p.class_name,
+          projected_base: p.projected_base,
+          is_winner: p.student_id === winner.student_id
+        }))
 
         results.push({ 
           family_id: family.id,

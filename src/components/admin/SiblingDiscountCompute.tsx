@@ -164,8 +164,9 @@ export function SiblingDiscountCompute() {
           <div className="text-sm text-muted-foreground space-y-1">
             <p><strong>Logic:</strong></p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Threshold: ≥2 students with projected tuition &gt; 0</li>
-              <li><strong>Multi-class students:</strong> System selects their highest-tuition class</li>
+              <li>Uses actual tuition calculation from Finance → Tuition (same as invoices)</li>
+              <li>Threshold: ≥2 students with actual tuition &gt; 0₫ (after attendance and discounts)</li>
+              <li><strong>Multi-class students:</strong> System selects their highest-tuition class based on actual billable amount</li>
               <li>Winner: Student with lowest highest-class tuition (tie → deterministic hash)</li>
               <li>Discount: Family override or default 5% <strong>applied to winner's selected class only</strong></li>
               <li>If threshold met later in month, discount applies retroactively from month start</li>
@@ -180,6 +181,8 @@ export function SiblingDiscountCompute() {
             <DialogTitle>Discount Preview for {format(new Date(selectedMonth + "-01"), "MMMM yyyy")}</DialogTitle>
             <DialogDescription>
               Review the discount assignments before applying them. No changes will be made until you click "Apply Now".
+              <br />
+              <strong className="text-foreground">Note:</strong> Uses actual tuition calculation (same as Finance → Tuition page) including real attendance and all discounts.
             </DialogDescription>
           </DialogHeader>
 
