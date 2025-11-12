@@ -119,21 +119,22 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         (await supabase.from("homework_submissions").select("student_id").eq("id", finalSubmissionId).single()).data
           ?.student_id;
 
-      // Update or create student points for homework
+      // Create point transaction for homework (trigger will update student_points automatically)
       if (points !== undefined && points !== null && homework?.classes?.id) {
+        const today = new Date().toISOString().split('T')[0];
         const month = new Date().toISOString().slice(0, 7);
 
-        const { error: pointsError } = await supabase.from("student_points").upsert(
-          {
-            student_id: targetStudentId,
-            class_id: homework.classes.id,
-            month,
-            homework_points: points,
-          },
-          {
-            onConflict: "student_id,class_id,month",
-          },
-        );
+        const { error: pointsError } = await supabase.from("point_transactions").insert({
+          student_id: targetStudentId,
+          class_id: homework.classes.id,
+          homework_id: homeworkId,
+          homework_title: homework.title,
+          points: points,
+          type: 'homework',
+          date: today,
+          month,
+          notes: `Homework graded: ${grade}`,
+        });
 
         if (pointsError) throw pointsError;
       }
@@ -175,10 +176,6 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     if (!selectedSubmission) return;
 
     const pointsValue = points !== "" ? Number(points) : undefined;
-    if (pointsValue !== undefined && (pointsValue < -100 || pointsValue > 100)) {
-      toast.error("Points must be between -100 and 100");
-      return;
-    }
 
     gradeMutation.mutate({
       submissionId: selectedSubmission.submission?.id,
@@ -327,15 +324,13 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="points">Points (-100-100)</Label>
+                <Label htmlFor="points">Points</Label>
                 <Input
                   id="points"
                   type="number"
-                  min="-100"
-                  max="100"
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
-                  placeholder="Enter points for leaderboard (max 100)"
+                  placeholder="Enter points for leaderboard"
                 />
                 <p className="text-xs text-muted-foreground">
                   These points will be added to the student's homework score on the leaderboard
