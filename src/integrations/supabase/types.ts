@@ -1663,6 +1663,7 @@ export type Database = {
           reason: string | null
           sibling_percent: number
           status: string
+          winner_class_id: string | null
           winner_student_id: string | null
         }
         Insert: {
@@ -1673,6 +1674,7 @@ export type Database = {
           reason?: string | null
           sibling_percent: number
           status: string
+          winner_class_id?: string | null
           winner_student_id?: string | null
         }
         Update: {
@@ -1683,6 +1685,7 @@ export type Database = {
           reason?: string | null
           sibling_percent?: number
           status?: string
+          winner_class_id?: string | null
           winner_student_id?: string | null
         }
         Relationships: [
@@ -1691,6 +1694,13 @@ export type Database = {
             columns: ["family_id"]
             isOneToOne: false
             referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sibling_discount_state_winner_class_id_fkey"
+            columns: ["winner_class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
             referencedColumns: ["id"]
           },
           {

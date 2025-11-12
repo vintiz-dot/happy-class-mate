@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { acquireLock, releaseLock, ymNowBangkok } from '../_lib/lock.ts'
 import { tieHash } from '../_lib/hash.ts'
-import { projectedByFamily } from '../_lib/projected.ts'
+import { getHighestClassPerStudent } from '../_lib/projected-per-class.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -126,12 +126,12 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Get projected bases using the view
-        const baseRows = await projectedByFamily(supabase, family.id, month)
-        console.log(`Family ${family.id} projections:`, baseRows)
+        // Get highest-tuition class per student
+        const highestPerStudent = await getHighestClassPerStudent(supabase, family.id, month)
+        console.log(`Family ${family.id} highest classes per student:`, highestPerStudent)
 
-        // Filter students with positive tuition
-        const positives = baseRows.filter((r: any) => r.projected_base > 0)
+        // Filter students with positive tuition in their highest class
+        const positives = highestPerStudent.filter((r: any) => r.projected_base > 0)
 
         if (positives.length < 2) {
           // Threshold not met
@@ -190,9 +190,10 @@ Deno.serve(async (req) => {
             month,
             status: 'assigned',
             winner_student_id: winner.student_id,
+            winner_class_id: winner.class_id,
             sibling_percent: percent,
             projected_base_snapshot: winner.projected_base,
-            reason: `Winner: lowest positive projected base (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
+            reason: `Winner: ${winner.class_name} - lowest projected base (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
             computed_at: new Date().toISOString()
           })
 
@@ -200,6 +201,8 @@ Deno.serve(async (req) => {
           family_id: family.id, 
           status: 'assigned',
           winner_student_id: winner.student_id,
+          winner_class_id: winner.class_id,
+          winner_class_name: winner.class_name,
           winner_base: winner.projected_base,
           retroactive: wasPending
         })

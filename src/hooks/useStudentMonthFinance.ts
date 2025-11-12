@@ -40,6 +40,8 @@ export interface StudentMonthFinanceData {
     type: 'percent' | 'amount';
     value: number;
     amount: number;
+    isSiblingWinner?: boolean;
+    appliedToClass?: string;
   }>;
   
   // Sibling state
@@ -48,6 +50,7 @@ export interface StudentMonthFinanceData {
     percent: number;
     isWinner?: boolean;
     reason?: string;
+    winnerClassId?: string;
   };
   
   // Session details for display

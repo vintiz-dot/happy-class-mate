@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0'
 import { ymNowBangkok } from '../_lib/lock.ts'
 import { tieHash } from '../_lib/hash.ts'
-import { projectedByFamily } from '../_lib/projected.ts'
+import { getHighestClassPerStudent } from '../_lib/projected-per-class.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
     for (const state of pendingStates || []) {
       console.log(`Checking family ${state.family_id}`)
       
-      const baseRows = await projectedByFamily(supabase, state.family_id, month)
-      const positives = baseRows.filter((r: any) => r.projected_base > 0)
+      const highestPerStudent = await getHighestClassPerStudent(supabase, state.family_id, month)
+      const positives = highestPerStudent.filter((r: any) => r.projected_base > 0)
 
       console.log(`Family ${state.family_id} has ${positives.length} students with positive tuition`)
 
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       const winner = positives[0]
       const percent = state.sibling_percent ?? 5
 
-      console.log(`Assigning sibling discount to ${winner.student_id} with ${percent}% on base ${winner.projected_base}`)
+      console.log(`Assigning sibling discount to ${winner.student_id} class ${winner.class_id} with ${percent}% on base ${winner.projected_base}`)
 
       // Update state to assigned with snapshot
       await supabase.from('sibling_discount_state').upsert({
@@ -67,9 +67,10 @@ Deno.serve(async (req) => {
         month,
         status: 'assigned',
         winner_student_id: winner.student_id,
+        winner_class_id: winner.class_id,
         sibling_percent: percent,
         projected_base_snapshot: winner.projected_base,
-        reason: 'Threshold met mid-month - retroactive credit applied',
+        reason: `Threshold met mid-month for ${winner.class_name} - retroactive credit applied`,
         computed_at: new Date().toISOString()
       }, { onConflict: 'family_id,month' })
 

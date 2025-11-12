@@ -33,7 +33,7 @@ export function SiblingDiscountCompute() {
         title: "Success",
         description: `Processed ${data.processed} families for ${selectedMonth}. ${
           data.results?.filter((r: any) => r.status === 'assigned').length || 0
-        } assigned, ${
+        } assigned${data.results?.some((r: any) => r.winner_class_name) ? ' (with class selection)' : ''}, ${
           data.results?.filter((r: any) => r.status === 'pending').length || 0
         } pending.`,
       });
@@ -90,8 +90,9 @@ export function SiblingDiscountCompute() {
           <p><strong>Logic:</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>Threshold: ≥2 students with projected tuition &gt; 0</li>
-            <li>Winner: Lowest positive projected base (tie → deterministic hash)</li>
-            <li>Discount: Family override or default 5%</li>
+            <li><strong>Multi-class students:</strong> System selects their highest-tuition class</li>
+            <li>Winner: Student with lowest highest-class tuition (tie → deterministic hash)</li>
+            <li>Discount: Family override or default 5% <strong>applied to winner's selected class only</strong></li>
             <li>If threshold met later in month, discount applies retroactively from month start</li>
           </ul>
         </div>

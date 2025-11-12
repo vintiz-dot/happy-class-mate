@@ -15,6 +15,7 @@ interface TuitionData {
     value: number;
     amount: number;
     isSiblingWinner?: boolean;
+    appliedToClass?: string;
   }>;
   totalDiscount: number;
   totalAmount: number;
@@ -24,6 +25,7 @@ interface TuitionData {
     percent: number;
     reason?: string;
     isWinner: boolean;
+    winnerClassId?: string;
   } | null;
 }
 
@@ -132,7 +134,10 @@ export function TuitionCard({ studentId }: { studentId: string }) {
                 <Award className="h-5 w-5 text-primary mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Sibling Discount Recipient ({currentMonth.siblingState.percent}%)</p>
-                  <p className="text-xs text-muted-foreground">You have the lowest tuition among siblings</p>
+                  <p className="text-xs text-muted-foreground">
+                    You have the lowest tuition among siblings
+                    {currentMonth.siblingState.winnerClassId && ' - Applied to highest-tuition class'}
+                  </p>
                 </div>
               </>
             ) : currentMonth.siblingState.status === 'pending' ? (
@@ -171,6 +176,11 @@ export function TuitionCard({ studentId }: { studentId: string }) {
                       <Badge variant="secondary" className="ml-2 text-xs">
                         {discount.value}{discount.type === 'percent' ? '%' : ' ₫'}
                       </Badge>
+                      {discount.isSiblingWinner && discount.appliedToClass && (
+                        <span className="text-[10px] block text-primary mt-0.5">
+                          Applied to one class only
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

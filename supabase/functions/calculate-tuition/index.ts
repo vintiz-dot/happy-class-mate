@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
     if (family?.id) {
       const { data: sd } = await supabase
         .from("sibling_discount_state")
-        .select("status, winner_student_id, sibling_percent, reason")
+        .select("status, winner_student_id, winner_class_id, sibling_percent, reason")
         .eq("family_id", family.id)
         .eq("month", month)
         .maybeSingle();
@@ -227,9 +227,12 @@ Deno.serve(async (req) => {
           percent: sd.sibling_percent,
           reason: sd.reason,
           isWinner: sd.winner_student_id === studentId,
+          winnerClassId: sd.winner_class_id,
         };
-        if (sd.status === "assigned" && sd.winner_student_id === studentId) {
-          const amt = Math.round(baseAmount * (sd.sibling_percent / 100));
+        if (sd.status === "assigned" && sd.winner_student_id === studentId && sd.winner_class_id) {
+          // Apply discount only to the winner class
+          const winnerClassBase = enrollmentBaseAmounts.get(sd.winner_class_id) || 0;
+          const amt = Math.round(winnerClassBase * (sd.sibling_percent / 100));
           if (amt > 0) {
             discounts.push({
               name: "Sibling Discount",
@@ -237,6 +240,7 @@ Deno.serve(async (req) => {
               value: sd.sibling_percent,
               amount: amt,
               isSiblingWinner: true,
+              appliedToClass: sd.winner_class_id,
             });
             totalDiscount += amt;
           }

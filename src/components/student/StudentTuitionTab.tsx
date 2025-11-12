@@ -222,6 +222,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
             <Badge variant="secondary" className="gap-1">
               <Award className="h-3 w-3" />
               Sibling {tuitionData.siblingState.percent}%
+              {tuitionData.siblingState.winnerClassId && ' (1 class)'}
             </Badge>
           )}
           {tuitionData.siblingState?.status === 'pending' && (
@@ -298,6 +299,11 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
                 {tuitionData.discounts.map((d, i) => (
                   <p key={i} className="text-xs text-muted-foreground">
                     {d.name}: -{formatVND(d.amount)}
+                    {d.isSiblingWinner && d.appliedToClass && (
+                      <span className="text-[10px] block text-primary">
+                        Applied to one class only
+                      </span>
+                    )}
                   </p>
                 ))}
               </div>
