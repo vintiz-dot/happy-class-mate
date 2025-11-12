@@ -62,32 +62,29 @@ export default function StudentAssignments() {
 
   // Helper function to get card background color based on status
   const getCardStatusClass = (assignment: any) => {
-    const now = new Date();
     const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
     const submission = assignment.submission;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Graded - green
-    if (submission?.status === "graded") {
-      return "bg-success/10 dark:bg-success/5 border-success/30 dark:border-success/20 backdrop-blur-sm";
-    }
-    
-    // Not submitted - check due date
+    // Not submitted and late - HOT RED (check this FIRST before graded status)
     if (!submission && dueDate) {
       const dueDay = new Date(dueDate);
       dueDay.setHours(0, 0, 0, 0);
-      const daysDiff = Math.ceil((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Late - HOT RED (past due and not submitted)
-      if (daysDiff < 0) {
+      if (dueDay < today) {
         return "bg-red-500/20 dark:bg-red-500/15 border-red-500/50 dark:border-red-500/40 backdrop-blur-sm";
       }
       
       // Due today - AMBER
-      if (daysDiff === 0) {
+      if (dueDay.getTime() === today.getTime()) {
         return "bg-amber-500/20 dark:bg-amber-500/15 border-amber-500/50 dark:border-amber-500/40 backdrop-blur-sm";
       }
+    }
+    
+    // Graded - green
+    if (submission?.status === "graded") {
+      return "bg-success/10 dark:bg-success/5 border-success/30 dark:border-success/20 backdrop-blur-sm";
     }
     
     // Submitted but not graded
@@ -257,6 +254,9 @@ export default function StudentAssignments() {
                             )}
                             {assignment.submission?.status === "submitted" && (
                               <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
+                            )}
+                            {!assignment.submission && (
+                              <Badge variant="destructive">Not Submitted</Badge>
                             )}
                             {assignment.due_date && (
                               <Badge variant="secondary">

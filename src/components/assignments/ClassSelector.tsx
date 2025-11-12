@@ -30,10 +30,21 @@ export function ClassSelector({ value, onChange }: ClassSelectorProps) {
 
       if (!teacher) return [];
 
-      // Get classes where this teacher has sessions
+      // Get unique class IDs where this teacher has sessions
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("class_id")
+        .eq("teacher_id", teacher.id);
+
+      if (!sessions || sessions.length === 0) return [];
+
+      const classIds = [...new Set(sessions.map(s => s.class_id))];
+
+      // Get class details for only those classes
       const { data: classes } = await supabase
         .from("classes")
         .select("id, name")
+        .in("id", classIds)
         .eq("is_active", true)
         .order("name");
 
