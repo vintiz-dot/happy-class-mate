@@ -178,11 +178,11 @@ export function SiblingDiscountCompute() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {previewResults && previewResults.filter(r => (r.student_count || 0) >= 2 || r.status === 'assigned').length === 0 && (
-              <p className="text-center text-muted-foreground py-8">No families with 2+ students found for this month.</p>
+            {previewResults && previewResults.filter(r => r.status === 'assigned' || r.status === 'pending').length === 0 && (
+              <p className="text-center text-muted-foreground py-8">No eligible families found for this month.</p>
             )}
 
-            {previewResults?.filter(r => (r.student_count || 0) >= 2 || r.status === 'assigned').map((result) => (
+            {previewResults?.filter(r => r.status === 'assigned' || r.status === 'pending').map((result) => (
               <Card key={result.family_id}>
                 <CardContent className="pt-6">
                   <div className="space-y-3">

@@ -170,6 +170,7 @@ Deno.serve(async (req) => {
             family_name: family.name,
             status: 'pending', 
             reason: 'threshold not met',
+            student_count: students?.length || 0,
             positive_count: positives.length,
             students_data: positives,
             students: students?.map((s: any) => ({ id: s.id, name: s.full_name }))
@@ -238,6 +239,7 @@ Deno.serve(async (req) => {
           family_id: family.id,
           family_name: family.name,
           status: 'assigned',
+          student_count: students?.length || 0,
           winner_student_id: winner.student_id,
           winner_class_id: winner.class_id,
           winner_class_name: winner.class_name,
