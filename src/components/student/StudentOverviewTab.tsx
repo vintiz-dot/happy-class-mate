@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
+import { PointsBreakdownChart } from "./PointsBreakdownChart";
 import { Users } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
@@ -52,6 +53,9 @@ export function StudentOverviewTab({ student }: { student: any }) {
 
   return (
     <>
+      {/* Points Breakdown Visualization */}
+      <PointsBreakdownChart studentId={student.id} />
+
       {/* Class Leaderboards - Show full leaderboard like admin view */}
       {enrolledClasses && enrolledClasses.length > 0 && (
         <div className="space-y-6">
