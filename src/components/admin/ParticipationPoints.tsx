@@ -25,7 +25,6 @@ export function ParticipationPoints({ session, students, onClose }: Participatio
 
   const updatePointsMutation = useMutation({
     mutationFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
       const month = new Date().toISOString().slice(0, 7);
       
       for (const [studentId, pointValue] of Object.entries(points)) {
@@ -36,18 +35,28 @@ export function ParticipationPoints({ session, students, onClose }: Participatio
           throw new Error(`Points for student must be between 0 and 20`);
         }
 
-        // Create point transaction (trigger will update student_points automatically)
+        // Get current points
+        const { data: existing } = await supabase
+          .from("student_points")
+          .select("participation_points")
+          .eq("student_id", studentId)
+          .eq("class_id", session.class_id)
+          .eq("month", month)
+          .maybeSingle();
+
+        const currentPoints = existing?.participation_points || 0;
+        const newTotal = currentPoints + pointsInt;
+
+        // Upsert points
         const { error } = await supabase
-          .from("point_transactions")
-          .insert({
+          .from("student_points")
+          .upsert({
             student_id: studentId,
             class_id: session.class_id,
-            session_id: session.id,
-            points: pointsInt,
-            type: 'participation',
-            date: today,
             month,
-            notes: 'Class participation points',
+            participation_points: newTotal,
+          }, {
+            onConflict: "student_id,class_id,month",
           });
 
         if (error) throw error;

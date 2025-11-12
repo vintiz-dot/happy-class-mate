@@ -11,8 +11,8 @@ interface RateLimitEntry {
 const userLimits = new Map<string, RateLimitEntry>();
 const ipLimits = new Map<string, RateLimitEntry>();
 
-// Cleanup function to be called during rate limit checks
-function cleanupExpiredEntries() {
+// Cleanup old entries every 5 minutes
+setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of userLimits.entries()) {
     if (entry.resetAt < now) userLimits.delete(key);
@@ -20,7 +20,7 @@ function cleanupExpiredEntries() {
   for (const [key, entry] of ipLimits.entries()) {
     if (entry.resetAt < now) ipLimits.delete(key);
   }
-}
+}, 5 * 60 * 1000);
 
 /**
  * Check if a request should be rate limited
@@ -36,9 +36,6 @@ export function checkRateLimit(
   windowMs: number,
   type: 'user' | 'ip' = 'user'
 ): { limited: boolean; remaining: number; resetAt: number } {
-  // Clean up expired entries periodically
-  cleanupExpiredEntries();
-  
   const store = type === 'user' ? userLimits : ipLimits;
   const now = Date.now();
   const key = `${type}:${identifier}`;
