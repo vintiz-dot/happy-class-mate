@@ -153,7 +153,7 @@ const StudentDetail = () => {
                   return (
                     <div key={enrollment.id} className="space-y-2">
                       <h3 className="text-lg font-semibold">{classData.name || 'Class'}</h3>
-                      <ClassLeaderboard classId={classData.id} />
+                      <ClassLeaderboard classId={classData.id} showAddPoints={false} />
                     </div>
                   );
                 }).filter(Boolean)}

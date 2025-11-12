@@ -78,6 +78,35 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
     enabled: open && pointType === "homework",
   });
 
+  const playSound = (isPositive: boolean) => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    if (isPositive) {
+      // Happy ascending tone for positive points
+      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+      oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+    } else {
+      // Descending tone for negative points
+      oscillator.frequency.setValueAtTime(392, audioContext.currentTime); // G4
+      oscillator.frequency.setValueAtTime(329.63, audioContext.currentTime + 0.1); // E4
+      oscillator.frequency.setValueAtTime(261.63, audioContext.currentTime + 0.2); // C4
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+    }
+  };
+
   const addPointsMutation = useMutation({
     mutationFn: async () => {
       const pointsValue = parseInt(points);
@@ -108,14 +137,18 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
       });
 
       if (error) throw error;
+      return pointsValue;
     },
-    onSuccess: () => {
+    onSuccess: (pointsValue) => {
       queryClient.invalidateQueries({ queryKey: ["class-leaderboard", classId] });
       queryClient.invalidateQueries({ queryKey: ["student-points"] });
       queryClient.invalidateQueries({ queryKey: ["point-history"] });
       
+      // Play sound based on positive or negative
+      playSound(pointsValue > 0);
+      
       toast.success(
-        `${parseInt(points) > 0 ? "Added" : "Deducted"} ${Math.abs(parseInt(points))} ${pointType} points`,
+        `${pointsValue > 0 ? "Added" : "Deducted"} ${Math.abs(pointsValue)} ${pointType} points`,
         {
           description: "Leaderboard updated in real-time",
           icon: <Sparkles className="h-4 w-4" />,

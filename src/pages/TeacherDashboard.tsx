@@ -5,13 +5,16 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, DollarSign, BookOpen, Users, Edit, FileText } from "lucide-react";
+import { Calendar, Clock, DollarSign, BookOpen, Users, Edit, FileText, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 
 export default function TeacherDashboard() {
   const queryClient = useQueryClient();
@@ -80,16 +83,27 @@ export default function TeacherDashboard() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!teacher) return 0;
+      if (!teacher) return [];
 
       const { data } = await supabase
         .from("sessions")
-        .select("class_id")
+        .select(`
+          class_id,
+          classes!inner(id, name)
+        `)
         .eq("teacher_id", teacher.id)
         .gte("date", dayjs().format("YYYY-MM-DD"));
 
-      const uniqueClasses = new Set(data?.map(s => s.class_id));
-      return uniqueClasses.size;
+      // Get unique classes
+      const classMap = new Map();
+      data?.forEach(s => {
+        const classData = Array.isArray(s.classes) ? s.classes[0] : s.classes;
+        if (classData && !classMap.has(classData.id)) {
+          classMap.set(classData.id, classData);
+        }
+      });
+
+      return Array.from(classMap.values());
     },
   });
 
@@ -236,7 +250,7 @@ export default function TeacherDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Active Classes</CardDescription>
-              <CardTitle className="text-3xl">{activeClasses || 0}</CardTitle>
+              <CardTitle className="text-3xl">{activeClasses?.length || 0}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Teaching this term</p>
@@ -371,15 +385,54 @@ export default function TeacherDashboard() {
           </Link>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Teaching Schedule</CardTitle>
-            <CardDescription>Your upcoming and recent classes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TeacherScheduleCalendar />
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="schedule" className="w-full">
+          <TabsList>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="leaderboards">Class Leaderboards</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="schedule" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Teaching Schedule</CardTitle>
+                <CardDescription>Your upcoming and recent classes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TeacherScheduleCalendar />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="leaderboards" className="space-y-6">
+            {activeClasses && activeClasses.length > 0 ? (
+              activeClasses.map((classData: any) => (
+                <Card key={classData.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Trophy className="h-5 w-5" />
+                          {classData.name}
+                        </CardTitle>
+                        <CardDescription>Class Rankings & Points</CardDescription>
+                      </div>
+                      <ManualPointsDialog classId={classData.id} isAdmin={false} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ClassLeaderboardShared classId={classData.id} />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">No active classes found</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Edit Profile Dialog */}

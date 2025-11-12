@@ -218,24 +218,24 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
                 className="flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md"
                 onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 flex items-center justify-center">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-10 flex-shrink-0 flex items-center justify-center">
                     {getRankIcon(entry.rank)}
                   </div>
-                  <Avatar className="h-12 w-12 border-2">
+                  <Avatar className="h-12 w-12 flex-shrink-0 border-2">
                     <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
                     <AvatarFallback className="text-sm font-semibold">
                       {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-semibold text-base">{entry.students?.full_name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-base truncate">{entry.students?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                       HW: {entry.homework_points} • Part: {entry.participation_points}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <Badge variant={entry.rank <= 3 ? "default" : "secondary"} className="text-base px-4 py-2">
                     {entry.total_points}
                   </Badge>
