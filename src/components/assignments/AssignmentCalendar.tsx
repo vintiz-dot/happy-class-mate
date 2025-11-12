@@ -28,24 +28,28 @@ type Assignment = {
 interface AssignmentCalendarProps {
   onSelectAssignment?: (assignment: Assignment) => void;
   role: "student" | "teacher" | "admin";
+  classId?: string;
 }
 
-export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalendarProps) {
+export function AssignmentCalendar({ onSelectAssignment, role, classId }: AssignmentCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const context = useContext(StudentProfileContext);
   const studentId = context?.studentId;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["assignment-calendar", currentMonth, studentId],
+    queryKey: ["assignment-calendar", currentMonth, studentId, classId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No session");
 
-      // Build URL with student_id for student role
+      // Build URL with parameters
       let url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar?ym=${currentMonth}`;
       if (role === "student" && studentId) {
         url += `&student_id=${studentId}`;
+      }
+      if (role === "teacher" && classId && classId !== "all") {
+        url += `&class_id=${classId}`;
       }
 
       const response = await fetch(url, {
@@ -239,19 +243,19 @@ export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalen
                         {dayjs(d).format("D")}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-0.5 mt-2">
+                    <div className="flex flex-col gap-1 mt-2">
                       {dayAssignments.slice(0, 3).map((assignment) => (
                         <div
                           key={assignment.id}
-                          className={`h-2 rounded-full ${getStatusColor(
+                          className={`h-2.5 rounded-full ${getStatusColor(
                             getAssignmentStatus(assignment)
-                          )} animate-fade-in`}
+                          )} animate-fade-in shadow-sm`}
                           title={assignment.title}
                         />
                       ))}
                       {dayAssignments.length > 3 && (
-                        <div className="text-[10px] text-center text-muted-foreground mt-0.5">
-                          +{dayAssignments.length - 3} more
+                        <div className="text-[10px] text-center font-bold text-foreground mt-0.5">
+                          +{dayAssignments.length - 3}
                         </div>
                       )}
                     </div>
@@ -288,7 +292,7 @@ export function AssignmentCalendar({ onSelectAssignment, role }: AssignmentCalen
                         <div className="flex-1">
                           <h3 className="font-semibold">{assignment.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {assignment.classes.name}
+                            {assignment.classes?.name || "No class"}
                           </p>
                         </div>
                         <Badge

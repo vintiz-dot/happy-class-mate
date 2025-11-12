@@ -79,14 +79,14 @@ export default function StudentAssignments() {
       dueDay.setHours(0, 0, 0, 0);
       const daysDiff = Math.ceil((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Late - red (past due and not submitted)
+      // Late - HOT RED (past due and not submitted)
       if (daysDiff < 0) {
-        return "bg-destructive/10 dark:bg-destructive/5 border-destructive/30 dark:border-destructive/20 backdrop-blur-sm";
+        return "bg-red-500/20 dark:bg-red-500/15 border-red-500/50 dark:border-red-500/40 backdrop-blur-sm";
       }
       
-      // Due today - amber
+      // Due today - AMBER
       if (daysDiff === 0) {
-        return "bg-warning/10 dark:bg-warning/5 border-warning/30 dark:border-warning/20 backdrop-blur-sm";
+        return "bg-amber-500/20 dark:bg-amber-500/15 border-amber-500/50 dark:border-amber-500/40 backdrop-blur-sm";
       }
     }
     
@@ -95,6 +95,7 @@ export default function StudentAssignments() {
       return "bg-primary/5 dark:bg-primary/5 border-primary/20 dark:border-primary/20 backdrop-blur-sm";
     }
     
+    // Future assignments - no background color
     return "glass-sm";
   };
 

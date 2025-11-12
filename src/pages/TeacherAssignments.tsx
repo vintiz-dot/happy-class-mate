@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Filter } from "lucide-react";
 import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
+import { ClassSelector } from "@/components/assignments/ClassSelector";
 
 export default function TeacherAssignments() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
 
   return (
     <Layout title="Assignments">
@@ -37,12 +39,13 @@ export default function TeacherAssignments() {
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
-            <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border p-4 mb-4">
+            <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border p-4 mb-4 space-y-4">
               <p className="text-sm text-muted-foreground">
-                <strong>Click on any date</strong> to create a new assignment for that day
+                <strong>Click on any date</strong> to view assignment details
               </p>
+              <ClassSelector value={selectedClassId} onChange={setSelectedClassId} />
             </div>
-            <AssignmentCalendar role="teacher" />
+            <AssignmentCalendar role="teacher" classId={selectedClassId} />
           </TabsContent>
 
           <TabsContent value="grade" className="space-y-4 md:space-y-6 mt-4">

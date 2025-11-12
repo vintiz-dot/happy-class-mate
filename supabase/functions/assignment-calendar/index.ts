@@ -145,6 +145,8 @@ serve(async (req) => {
       query = query.in("class_id", classIds).eq("homework_submissions.student_id", studentId);
     } else if (userRole === "teacher") {
       // Teachers see assignments from their classes with all submissions
+      const classIdParam = url.searchParams.get("class_id");
+      
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
@@ -153,17 +155,23 @@ serve(async (req) => {
       
       if (!teacher) throw new Error("Teacher not found");
       
-      const { data: classes } = await supabase
-        .from("classes")
-        .select("id")
-        .eq("teacher_id", teacher.id);
-      
-      const classIds = classes?.map(c => c.id) || [];
-      if (classIds.length === 0) {
-        return json({ from, to, items: [], days: [] }, 200, req.headers);
+      // If specific class_id provided, filter by that
+      if (classIdParam && classIdParam !== "all") {
+        query = query.eq("class_id", classIdParam);
+      } else {
+        // Otherwise get all classes the teacher teaches
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacher.id);
+        
+        const classIds = [...new Set(sessions?.map(s => s.class_id) || [])];
+        if (classIds.length === 0) {
+          return json({ from, to, items: [], days: [] }, 200, req.headers);
+        }
+        
+        query = query.in("class_id", classIds);
       }
-      
-      query = query.in("class_id", classIds);
     }
     // Admin sees all assignments with all submissions (no additional filter needed)
 
