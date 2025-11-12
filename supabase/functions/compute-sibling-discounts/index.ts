@@ -11,6 +11,7 @@ const corsHeaders = {
 
 const SiblingDiscountRequestSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format").optional(),
+  dryRun: z.boolean().optional().default(false),
 });
 
 Deno.serve(async (req) => {
@@ -69,19 +70,23 @@ Deno.serve(async (req) => {
     }
 
     const month = validationResult.data.month ?? ymNowBangkok()
+    const dryRun = validationResult.data.dryRun ?? false
     
-    console.log('Computing sibling discounts for month:', month)
+    console.log('Computing sibling discounts for month:', month, 'dryRun:', dryRun)
 
-    // Acquire lock
-    const lockAcquired = await acquireLock(supabase, 'compute-sibling-discounts', month)
-    if (!lockAcquired) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        reason: 'Job already running for this month' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+    // Acquire lock (skip in dry run mode)
+    let lockAcquired = true
+    if (!dryRun) {
+      lockAcquired = await acquireLock(supabase, 'compute-sibling-discounts', month)
+      if (!lockAcquired) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          reason: 'Job already running for this month' 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
     }
 
     try {
@@ -109,20 +114,27 @@ Deno.serve(async (req) => {
 
         if (!students || students.length < 2) {
           // Less than 2 students - no sibling discount possible
-          await supabase
-            .from('sibling_discount_state')
-            .upsert({
-              family_id: family.id,
-              month,
-              status: 'none',
-              winner_student_id: null,
-              sibling_percent: family.sibling_percent_override || 5,
-              projected_base_snapshot: null,
-              reason: `Family has ${students?.length || 0} student(s), need ≥2`,
-              computed_at: new Date().toISOString()
-            })
+          if (!dryRun) {
+            await supabase
+              .from('sibling_discount_state')
+              .upsert({
+                family_id: family.id,
+                month,
+                status: 'none',
+                winner_student_id: null,
+                sibling_percent: family.sibling_percent_override || 5,
+                projected_base_snapshot: null,
+                reason: `Family has ${students?.length || 0} student(s), need ≥2`,
+                computed_at: new Date().toISOString()
+              })
+          }
           
-          results.push({ family_id: family.id, status: 'none', reason: 'insufficient students' })
+          results.push({ 
+            family_id: family.id, 
+            status: 'none', 
+            reason: 'insufficient students',
+            student_count: students?.length || 0
+          })
           continue
         }
 
@@ -136,24 +148,27 @@ Deno.serve(async (req) => {
         if (positives.length < 2) {
           // Threshold not met
           const percent = family.sibling_percent_override ?? 5
-          await supabase
-            .from('sibling_discount_state')
-            .upsert({
-              family_id: family.id,
-              month,
-              status: 'pending',
-              winner_student_id: null,
-              sibling_percent: percent,
-              projected_base_snapshot: null,
-              reason: `Only ${positives.length} student(s) with positive tuition, need ≥2`,
-              computed_at: new Date().toISOString()
-            })
+          if (!dryRun) {
+            await supabase
+              .from('sibling_discount_state')
+              .upsert({
+                family_id: family.id,
+                month,
+                status: 'pending',
+                winner_student_id: null,
+                sibling_percent: percent,
+                projected_base_snapshot: null,
+                reason: `Only ${positives.length} student(s) with positive tuition, need ≥2`,
+                computed_at: new Date().toISOString()
+              })
+          }
 
           results.push({ 
             family_id: family.id, 
             status: 'pending', 
             reason: 'threshold not met',
-            positive_count: positives.length
+            positive_count: positives.length,
+            students_data: positives
           })
           continue
         }
@@ -174,28 +189,33 @@ Deno.serve(async (req) => {
         const winner = positives[0]
 
         // Check if status was previously pending (for retroactive application)
-        const { data: existingState } = await supabase
-          .from('sibling_discount_state')
-          .select('status, winner_student_id')
-          .eq('family_id', family.id)
-          .eq('month', month)
-          .maybeSingle()
+        let wasPending = false
+        if (!dryRun) {
+          const { data: existingState } = await supabase
+            .from('sibling_discount_state')
+            .select('status, winner_student_id')
+            .eq('family_id', family.id)
+            .eq('month', month)
+            .maybeSingle()
 
-        const wasPending = existingState?.status === 'pending'
+          wasPending = existingState?.status === 'pending'
 
-        await supabase
-          .from('sibling_discount_state')
-          .upsert({
-            family_id: family.id,
-            month,
-            status: 'assigned',
-            winner_student_id: winner.student_id,
-            winner_class_id: winner.class_id,
-            sibling_percent: percent,
-            projected_base_snapshot: winner.projected_base,
-            reason: `Winner: ${winner.class_name} - lowest highest-tuition (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
-            computed_at: new Date().toISOString()
-          })
+          await supabase
+            .from('sibling_discount_state')
+            .upsert({
+              family_id: family.id,
+              month,
+              status: 'assigned',
+              winner_student_id: winner.student_id,
+              winner_class_id: winner.class_id,
+              sibling_percent: percent,
+              projected_base_snapshot: winner.projected_base,
+              reason: `Winner: ${winner.class_name} - lowest highest-tuition (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
+              computed_at: new Date().toISOString()
+            })
+        }
+
+        const discountAmount = Math.round(winner.projected_base * (percent / 100))
 
         results.push({ 
           family_id: family.id, 
@@ -204,7 +224,16 @@ Deno.serve(async (req) => {
           winner_class_id: winner.class_id,
           winner_class_name: winner.class_name,
           winner_base: winner.projected_base,
-          retroactive: wasPending
+          discount_percent: percent,
+          discount_amount: discountAmount,
+          retroactive: wasPending,
+          all_students: positives.map((p: any) => ({
+            student_id: p.student_id,
+            class_id: p.class_id,
+            class_name: p.class_name,
+            projected_base: p.projected_base,
+            is_winner: p.student_id === winner.student_id
+          }))
         })
 
         console.log(`Assigned sibling discount to student ${winner.student_id} (${winner.projected_base})`)
@@ -212,6 +241,7 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ 
         success: true, 
+        dryRun,
         month,
         processed: families?.length || 0,
         results 
@@ -220,8 +250,10 @@ Deno.serve(async (req) => {
         status: 200,
       })
     } finally {
-      // Release lock
-      await releaseLock(supabase, 'compute-sibling-discounts', month)
+      // Release lock (only if not dry run)
+      if (!dryRun) {
+        await releaseLock(supabase, 'compute-sibling-discounts', month)
+      }
     }
   } catch (error) {
     console.error('Sibling discount computation error:', error)
