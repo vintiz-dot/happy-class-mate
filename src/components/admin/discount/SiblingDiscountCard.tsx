@@ -59,12 +59,11 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
     queryKey: ["student-enrollments-tuition", studentId, currentMonth],
     queryFn: async () => {
-      // Fetch active enrollments - explicitly typed to avoid deep type instantiation
+      // Fetch enrollments - explicitly typed to avoid deep type instantiation
       const enrollQuery = await (supabase as any)
         .from("enrollments")
         .select("id, class_id")
-        .eq("student_id", studentId)
-        .eq("status", "active");
+        .eq("student_id", studentId);
 
       const { data: enrollData, error: enrollError } = enrollQuery;
 
@@ -120,7 +119,7 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
     enabled: !!studentId,
   });
 
-  if (isLoading) {
+  if (isLoading || enrollmentsLoading) {
     return (
       <Card>
         <CardHeader>
@@ -136,7 +135,17 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
     );
   }
 
-  if (!siblingState || siblingState.status !== 'assigned' || siblingState.winner_student_id !== studentId) {
+  // Determine if this student is the discount winner
+  const isWinner = siblingState?.status === 'assigned' && siblingState.winner_student_id === studentId;
+  const discountPercent = siblingState?.sibling_percent || 0;
+  
+  // Find the highest tuition class to apply discount (winner class)
+  const winnerClass = enrollments && enrollments.length > 0
+    ? enrollments.reduce((max, current) => current.totalAmount > max.totalAmount ? current : max)
+    : null;
+
+  // No sibling discount scenario
+  if (!siblingState || siblingState.status === 'none') {
     return (
       <Card>
         <CardHeader>
@@ -145,35 +154,22 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
             <CardTitle>Sibling Discount</CardTitle>
           </div>
           <CardDescription>
-            {siblingState?.status === 'pending' 
-              ? 'Threshold not met for this month'
-              : siblingState?.status === 'none'
-              ? 'Not eligible (requires ≥2 students in family)'
-              : 'Not the discount recipient this month'}
+            Not eligible (requires ≥2 students in family)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <Badge variant="secondary" className="text-xs">
-              {siblingState?.status === 'assigned' ? 'Sibling Winner' : 'Not Active'}
-            </Badge>
-            {siblingState?.reason && (
-              <p className="text-sm text-muted-foreground">{siblingState.reason}</p>
-            )}
-          </div>
-
-          {/* Show all enrolled classes even if not winner */}
           {enrollments && enrollments.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">Enrolled Classes</p>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">Monthly Tuition Breakdown</p>
               {enrollments.map(enrollment => (
-                <div key={enrollment.classId} className="p-3 rounded-lg bg-muted/50 border">
+                <div key={enrollment.classId} className="p-4 rounded-lg border bg-card space-y-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{enrollment.className}</p>
-                      <p className="text-xs text-muted-foreground">{enrollment.sessionsCount} sessions</p>
-                    </div>
-                    <p className="text-sm font-semibold">{formatVND(enrollment.totalAmount)}</p>
+                    <h4 className="font-semibold">{enrollment.className}</h4>
+                    <span className="text-xs text-muted-foreground">{enrollment.sessionsCount} sessions</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm font-medium">Total Payable</span>
+                    <span className="text-lg font-bold">{formatVND(enrollment.totalAmount)}</span>
                   </div>
                 </div>
               ))}
@@ -184,33 +180,50 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
     );
   }
 
-  // This student is the winner - show all classes with discount applied
-  const discountPercent = siblingState.sibling_percent || 0;
-  const winnerClassId = siblingState.winner_class_id;
+  // Calculate grand totals
+  const grandTotal = enrollments?.reduce((sum, e) => sum + e.totalAmount, 0) || 0;
+  const totalDiscount = isWinner && winnerClass
+    ? Math.round(winnerClass.totalAmount * (discountPercent / 100))
+    : 0;
+  const grandFinalPayable = grandTotal - totalDiscount;
 
   return (
-    <Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+    <Card className={isWinner ? "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : ""}>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <Users className={`h-5 w-5 ${isWinner ? 'text-green-600 dark:text-green-400' : ''}`} />
           <div className="flex-1">
-            <CardTitle className="text-green-700 dark:text-green-300">Sibling Discount Active</CardTitle>
+            <CardTitle className={isWinner ? "text-green-700 dark:text-green-300" : ""}>
+              {isWinner ? 'Sibling Discount Active' : 'Sibling Discount Status'}
+            </CardTitle>
             <CardDescription>
-              {discountPercent}% discount applied to highest tuition class
+              {isWinner 
+                ? `${discountPercent}% discount applied to highest tuition class`
+                : siblingState?.status === 'assigned' 
+                ? 'Sibling receives the discount this month'
+                : 'Threshold not met for this month'}
             </CardDescription>
           </div>
-          <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-            Winner
-          </Badge>
+          {isWinner && (
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+              Winner
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!isWinner && siblingState?.reason && (
+          <div className="p-3 rounded-lg bg-muted/50 border">
+            <p className="text-sm text-muted-foreground">{siblingState.reason}</p>
+          </div>
+        )}
+
         {enrollments && enrollments.length > 0 && (
           <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground">Monthly Tuition Breakdown</p>
             
             {enrollments.map(enrollment => {
-              const isWinnerClass = enrollment.classId === winnerClassId;
+              const isWinnerClass = isWinner && winnerClass?.classId === enrollment.classId;
               const discountAmount = isWinnerClass 
                 ? Math.round(enrollment.totalAmount * (discountPercent / 100))
                 : 0;
@@ -241,7 +254,7 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
                     <span className="text-base font-medium">{formatVND(enrollment.totalAmount)}</span>
                   </div>
 
-                  {/* Discount (only for winner) */}
+                  {/* Discount (only for winner class) */}
                   {isWinnerClass && (
                     <div className="flex items-center justify-between py-2 -mt-1">
                       <span className="text-sm text-green-600 dark:text-green-400">Discount ({discountPercent}%)</span>
@@ -261,14 +274,38 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
                 </div>
               );
             })}
+
+            {/* Grand Total Summary */}
+            <div className="p-4 rounded-lg border-2 bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Total Before Discount</span>
+                <span className="text-base font-semibold">{formatVND(grandTotal)}</span>
+              </div>
+              {isWinner && totalDiscount > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">Total Discount</span>
+                  <span className="text-base font-semibold text-green-600 dark:text-green-400">
+                    -{formatVND(totalDiscount)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <span className="font-bold">Grand Total Payable</span>
+                <span className={`text-xl font-bold ${isWinner ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
+                  {formatVND(grandFinalPayable)}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="pt-2 border-t border-green-200 dark:border-green-800">
-          <p className="text-xs text-muted-foreground">
-            Sibling discount applies only to the highest tuition class. Other classes are charged at full rate.
-          </p>
-        </div>
+        {isWinner && (
+          <div className="pt-2 border-t border-green-200 dark:border-green-800">
+            <p className="text-xs text-muted-foreground">
+              Sibling discount applies only to the highest tuition class. Other classes are charged at full rate.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
