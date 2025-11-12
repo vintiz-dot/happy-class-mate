@@ -55,66 +55,47 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
     enabled: !!student?.family_id,
   });
 
-  // Get all enrollments and their tuition breakdown
+  // Get all enrollments and their tuition breakdown using the same source as tuition page
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
     queryKey: ["student-enrollments-tuition", studentId, currentMonth],
     queryFn: async () => {
-      // Fetch enrollments - explicitly typed to avoid deep type instantiation
-      const enrollQuery = await (supabase as any)
-        .from("enrollments")
-        .select("id, class_id")
-        .eq("student_id", studentId);
+      // Use the calculate-tuition function to get accurate data
+      const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke('calculate-tuition', {
+        body: { studentId, month: currentMonth }
+      });
 
-      const { data: enrollData, error: enrollError } = enrollQuery;
+      if (tuitionError) {
+        console.error("Tuition calculation error:", tuitionError);
+        throw tuitionError;
+      }
 
-      if (enrollError) throw enrollError;
-      if (!enrollData || enrollData.length === 0) return [];
+      if (!tuitionData?.sessionDetails || tuitionData.sessionDetails.length === 0) {
+        return [];
+      }
 
-      // Fetch class details separately
-      const classIds = enrollData.map((e: any) => e.class_id);
-      const classQuery = await (supabase as any)
-        .from("classes")
-        .select("id, name, session_rate_vnd")
-        .in("id", classIds);
+      // Group sessions by class and calculate totals
+      const classMap = new Map<string, ClassTuition>();
+      
+      tuitionData.sessionDetails.forEach((session: any) => {
+        const classId = session.class_id;
+        const className = session.class_name;
+        const lineTotal = session.line_total_vnd || 0;
+        
+        if (!classMap.has(classId)) {
+          classMap.set(classId, {
+            classId,
+            className,
+            sessionsCount: 0,
+            totalAmount: 0,
+          });
+        }
+        
+        const classData = classMap.get(classId)!;
+        classData.sessionsCount += 1;
+        classData.totalAmount += lineTotal;
+      });
 
-      const { data: classData, error: classError } = classQuery;
-
-      if (classError) throw classError;
-
-      // For each enrollment, count sessions in the given month
-      const classTuitions: ClassTuition[] = await Promise.all(
-        enrollData.map(async (enrollment: any) => {
-          const classInfo = classData?.find((c: any) => c.id === enrollment.class_id);
-          
-          // Count sessions for this class in the given month
-          const startDate = `${currentMonth}-01`;
-          const endDate = `${currentMonth}-31`;
-          
-          const sessionQuery = await (supabase as any)
-            .from("sessions")
-            .select("id")
-            .eq("class_id", enrollment.class_id)
-            .gte("date", startDate)
-            .lte("date", endDate)
-            .neq("status", "Canceled");
-
-          const { data: sessions, error: sessionError } = sessionQuery;
-
-          if (sessionError) console.error("Session fetch error:", sessionError);
-          
-          const sessionsCount = sessions?.length || 0;
-          const totalAmount = sessionsCount * (classInfo?.session_rate_vnd || 0);
-
-          return {
-            classId: enrollment.class_id || '',
-            className: classInfo?.name || 'Unknown',
-            sessionsCount,
-            totalAmount,
-          };
-        })
-      );
-
-      return classTuitions;
+      return Array.from(classMap.values());
     },
     enabled: !!studentId,
   });
@@ -281,9 +262,11 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
                 <span className="text-sm font-medium">Total Before Discount</span>
                 <span className="text-base font-semibold">{formatVND(grandTotal)}</span>
               </div>
-              {isWinner && totalDiscount > 0 && (
+              {isWinner && totalDiscount > 0 && winnerClass && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-600 dark:text-green-400">Total Discount</span>
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                    Discount ({discountPercent}% on {winnerClass.className})
+                  </span>
                   <span className="text-base font-semibold text-green-600 dark:text-green-400">
                     -{formatVND(totalDiscount)}
                   </span>
