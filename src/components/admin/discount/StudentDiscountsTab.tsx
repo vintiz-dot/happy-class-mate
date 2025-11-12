@@ -8,6 +8,7 @@ import { Plus, Calendar, Edit, XCircle, Trash2, GraduationCap } from "lucide-rea
 import { AssignDiscountModal } from "./AssignDiscountModal";
 import { EditDiscountModal } from "./EditDiscountModal";
 import { EditEnrollmentDiscountModal } from "./EditEnrollmentDiscountModal";
+import { SiblingDiscountCard } from "./SiblingDiscountCard";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -156,6 +157,8 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
 
   return (
     <div className="space-y-6">
+      <SiblingDiscountCard studentId={studentId} />
+      
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
