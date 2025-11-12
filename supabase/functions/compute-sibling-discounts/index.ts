@@ -146,6 +146,40 @@ Deno.serve(async (req) => {
 
         // Filter students with positive tuition in their highest class
         const positives = highestPerStudent.filter((r: any) => r.projected_base > 0)
+        
+        // Prepare detailed diagnostic info for all students
+        const allStudentsDetail = await Promise.all(students.map(async (student: any) => {
+          const studentHighest = highestPerStudent.find((h: any) => h.student_id === student.id)
+          
+          // Check for enrollments
+          const { data: enrollments } = await supabase
+            .from('enrollments')
+            .select('class_id, classes(name)')
+            .eq('student_id', student.id)
+            .lte('start_date', `${month}-31`)
+            .or(`end_date.is.null,end_date.gte.${month}-01`)
+          
+          let reason = 'unknown'
+          if (!enrollments || enrollments.length === 0) {
+            reason = 'no active enrollments'
+          } else if (!studentHighest) {
+            reason = 'no sessions found for enrolled classes'
+          } else if (studentHighest.projected_base === 0) {
+            reason = 'no billable sessions (possibly all paused or canceled)'
+          } else {
+            reason = 'has tuition'
+          }
+          
+          return {
+            id: student.id,
+            name: student.full_name,
+            projected_base: studentHighest?.projected_base || 0,
+            projected_sessions: studentHighest?.projected_sessions || 0,
+            highest_class: studentHighest?.class_name || 'N/A',
+            enrollment_count: enrollments?.length || 0,
+            reason
+          }
+        }))
 
         if (positives.length < 2) {
           // Threshold not met
@@ -173,7 +207,8 @@ Deno.serve(async (req) => {
             student_count: students?.length || 0,
             positive_count: positives.length,
             students_data: positives,
-            students: students?.map((s: any) => ({ id: s.id, name: s.full_name }))
+            students: students?.map((s: any) => ({ id: s.id, name: s.full_name })),
+            all_students: allStudentsDetail
           })
           continue
         }

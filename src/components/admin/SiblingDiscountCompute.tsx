@@ -27,11 +27,17 @@ interface PreviewResult {
     name: string;
   }>;
   all_students?: Array<{
-    student_id: string;
-    student_name: string;
-    class_name: string;
+    id?: string;
+    student_id?: string;
+    name?: string;
+    student_name?: string;
+    class_name?: string;
+    highest_class?: string;
     projected_base: number;
-    is_winner: boolean;
+    projected_sessions?: number;
+    enrollment_count?: number;
+    reason?: string;
+    is_winner?: boolean;
   }>;
 }
 
@@ -178,11 +184,11 @@ export function SiblingDiscountCompute() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {previewResults && previewResults.filter(r => r.status === 'assigned' || r.status === 'pending').length === 0 && (
-              <p className="text-center text-muted-foreground py-8">No eligible families found for this month.</p>
+            {previewResults && previewResults.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">No families found for this month.</p>
             )}
 
-            {previewResults?.filter(r => r.status === 'assigned' || r.status === 'pending').map((result) => (
+            {previewResults?.map((result) => (
               <Card key={result.family_id}>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
@@ -249,7 +255,39 @@ export function SiblingDiscountCompute() {
                       </div>
                     )}
 
-                    {(result.status === 'pending' || result.status === 'none') && (
+                    {result.status === 'pending' && result.reason === 'threshold not met' && (
+                      <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-md border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                          ⚠️ Threshold Not Met: Only {result.positive_count} of {result.student_count} student(s) have positive tuition
+                        </p>
+                        {result.all_students && result.all_students.length > 0 && (
+                          <div className="space-y-2 mt-3">
+                            <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">Student Breakdown:</p>
+                            {result.all_students.map((student) => (
+                              <div key={student.id || student.student_id} className="text-xs pl-3 border-l-2 border-yellow-400 space-y-0.5">
+                                <div className="font-semibold text-yellow-900 dark:text-yellow-100">
+                                  {student.name || student.student_name}
+                                </div>
+                                <div className="text-yellow-700 dark:text-yellow-300">
+                                  Highest Class: {student.highest_class || student.class_name || 'N/A'}
+                                </div>
+                                <div className="text-yellow-700 dark:text-yellow-300">
+                                  Tuition: {formatVND(student.projected_base)} ({student.projected_sessions || 0} sessions)
+                                </div>
+                                <div className="text-yellow-700 dark:text-yellow-300">
+                                  Active Enrollments: {student.enrollment_count || 0}
+                                </div>
+                                <div className={`font-medium ${student.projected_base > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                                  Status: {student.reason || 'unknown'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {result.status === 'none' && (
                       <p className="text-sm text-muted-foreground">{result.reason}</p>
                     )}
                   </div>
