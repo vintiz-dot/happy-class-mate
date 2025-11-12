@@ -158,11 +158,11 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Select winner: lowest positive projected base with deterministic tie-break
+        // Select winner: HIGHEST positive projected base with deterministic tie-break
         const percent = family.sibling_percent_override ?? 5
         positives.sort((a: any, b: any) => {
           if (a.projected_base !== b.projected_base) {
-            return a.projected_base - b.projected_base
+            return b.projected_base - a.projected_base // Sort DESCENDING - highest first
           }
           // Tie-breaker: hash(familyId+month) XOR hash(studentId), then student_id
           const hashA = tieHash(family.id + month) ^ tieHash(String(a.student_id))
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
             winner_class_id: winner.class_id,
             sibling_percent: percent,
             projected_base_snapshot: winner.projected_base,
-            reason: `Winner: ${winner.class_name} - lowest projected base (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
+            reason: `Winner: ${winner.class_name} - highest projected base (${winner.projected_base.toLocaleString('vi-VN')} ₫)`,
             computed_at: new Date().toISOString()
           })
 
