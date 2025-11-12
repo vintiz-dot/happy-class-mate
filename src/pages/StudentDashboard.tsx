@@ -344,7 +344,7 @@ export default function StudentDashboard() {
                 
                 return (
                   <div key={enrollment.id} className="space-y-2">
-                    <ClassLeaderboard classId={classData.id} />
+                    <ClassLeaderboard classId={classData.id} showAddPoints={false} />
                   </div>
                 );
               }).filter(Boolean)}
