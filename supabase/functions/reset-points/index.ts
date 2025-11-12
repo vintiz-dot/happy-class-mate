@@ -62,7 +62,7 @@ serve(async (req) => {
       .update({
         homework_points: 0,
         participation_points: 0,
-        total_points: 0,
+        // total_points is a generated column, it will auto-update
       })
       .eq("month", targetMonth);
 
