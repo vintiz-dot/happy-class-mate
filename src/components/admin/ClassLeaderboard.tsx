@@ -7,6 +7,8 @@ import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PointHistoryDialog } from "./PointHistoryDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 
 interface ClassLeaderboardProps {
   classId: string;
@@ -54,7 +56,8 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
           *,
           students (
             id,
-            full_name
+            full_name,
+            avatar_url
           )
         `)
         .eq("class_id", classId)
@@ -62,6 +65,21 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
         .order("total_points", { ascending: false });
 
       if (error) throw error;
+
+      // Implement dense ranking
+      if (data && data.length > 0) {
+        let currentRank = 1;
+        let previousPoints = data[0].total_points;
+        
+        return data.map((entry, index) => {
+          if (entry.total_points !== previousPoints) {
+            currentRank = index + 1;
+            previousPoints = entry.total_points;
+          }
+          return { ...entry, rank: currentRank };
+        });
+      }
+      
       return data;
     },
   });
@@ -135,16 +153,16 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
     },
   });
 
-  const getRankIcon = (index: number) => {
-    switch (index) {
-      case 0:
-        return <Trophy className="h-5 w-5 text-yellow-500" />;
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
       case 1:
-        return <Medal className="h-5 w-5 text-gray-400" />;
+        return <Trophy className="h-5 w-5 text-yellow-500" />;
       case 2:
+        return <Medal className="h-5 w-5 text-gray-400" />;
+      case 3:
         return <Award className="h-5 w-5 text-amber-700" />;
       default:
-        return <span className="text-muted-foreground">{index + 1}</span>;
+        return <span className="text-muted-foreground font-semibold">#{rank}</span>;
     }
   };
 
@@ -155,18 +173,20 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5" />
               Class Leaderboard
             </CardTitle>
-            <CardDescription>Top performers in this class</CardDescription>
+            <CardDescription>Raw point totals • Dense ranking • No caps</CardDescription>
           </div>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
+          <div className="flex items-center gap-2">
+            <ManualPointsDialog classId={classId} isAdmin={true} />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
             <SelectContent>
               {Array.from({ length: 6 }, (_, i) => {
                 const date = new Date();
@@ -179,7 +199,8 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
                 );
               })}
             </SelectContent>
-          </Select>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -194,27 +215,35 @@ export function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
         {leaderboard?.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No scores yet for this month</p>
         ) : (
-          <div className="space-y-2">
-            {leaderboard?.map((entry: any, index: number) => (
+          <div className="space-y-3">
+            {leaderboard?.map((entry: any) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                className="flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md"
                 onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 flex items-center justify-center">
-                    {getRankIcon(index)}
+                <div className="flex items-center gap-4">
+                  <div className="w-10 flex items-center justify-center">
+                    {getRankIcon(entry.rank)}
                   </div>
+                  <Avatar className="h-12 w-12 border-2">
+                    <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
+                    <AvatarFallback className="text-sm font-semibold">
+                      {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <p className="font-medium">{entry.students?.full_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Homework: {entry.homework_points} | Participation: {entry.participation_points}
+                    <p className="font-semibold text-base">{entry.students?.full_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      HW: {entry.homework_points} • Part: {entry.participation_points}
                     </p>
                   </div>
                 </div>
-                <Badge variant={index < 3 ? "default" : "secondary"}>
-                  {entry.total_points} pts
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant={entry.rank <= 3 ? "default" : "secondary"} className="text-base px-4 py-2">
+                    {entry.total_points}
+                  </Badge>
+                </div>
               </div>
             ))}
           </div>

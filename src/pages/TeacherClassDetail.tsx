@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, ArrowLeft, Mail } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -201,7 +202,10 @@ export default function TeacherClassDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="leaderboard">
+        <TabsContent value="leaderboard" className="space-y-4">
+          <div className="flex justify-end">
+            <ManualPointsDialog classId={id!} isAdmin={false} />
+          </div>
           <ClassLeaderboardShared classId={id!} />
         </TabsContent>
 
