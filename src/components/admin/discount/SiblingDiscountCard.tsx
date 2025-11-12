@@ -56,10 +56,10 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
   });
 
   // Get all enrollments and their tuition breakdown
-  const { data: enrollments } = useQuery({
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
     queryKey: ["student-enrollments-tuition", studentId, currentMonth],
     queryFn: async () => {
-      // Fetch enrollments - explicitly typed to avoid deep type instantiation
+      // Fetch active enrollments - explicitly typed to avoid deep type instantiation
       const enrollQuery = await (supabase as any)
         .from("enrollments")
         .select("id, class_id")
@@ -82,32 +82,38 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
 
       if (classError) throw classError;
 
-      // Get tuition calculation to get per-class session counts
-      const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke('calculate-tuition', {
-        body: { studentId, month: currentMonth }
-      });
+      // For each enrollment, count sessions in the given month
+      const classTuitions: ClassTuition[] = await Promise.all(
+        enrollData.map(async (enrollment: any) => {
+          const classInfo = classData?.find((c: any) => c.id === enrollment.class_id);
+          
+          // Count sessions for this class in the given month
+          const startDate = `${currentMonth}-01`;
+          const endDate = `${currentMonth}-31`;
+          
+          const sessionQuery = await (supabase as any)
+            .from("sessions")
+            .select("id")
+            .eq("class_id", enrollment.class_id)
+            .gte("date", startDate)
+            .lte("date", endDate)
+            .neq("status", "Canceled");
 
-      if (tuitionError) throw tuitionError;
+          const { data: sessions, error: sessionError } = sessionQuery;
 
-      // Map enrollments to class tuition data
-      const classTuitions: ClassTuition[] = enrollData.map((enrollment: any) => {
-        const classInfo = classData?.find((c: any) => c.id === enrollment.class_id);
-        
-        // Count sessions for this class from session details
-        const classSessions = (tuitionData?.sessionDetails || []).filter(
-          (s: any) => s.class_id === enrollment.class_id
-        );
-        
-        const sessionsCount = classSessions.length;
-        const totalAmount = sessionsCount * (classInfo?.session_rate_vnd || 0);
+          if (sessionError) console.error("Session fetch error:", sessionError);
+          
+          const sessionsCount = sessions?.length || 0;
+          const totalAmount = sessionsCount * (classInfo?.session_rate_vnd || 0);
 
-        return {
-          classId: enrollment.class_id || '',
-          className: classInfo?.name || 'Unknown',
-          sessionsCount,
-          totalAmount,
-        };
-      });
+          return {
+            classId: enrollment.class_id || '',
+            className: classInfo?.name || 'Unknown',
+            sessionsCount,
+            totalAmount,
+          };
+        })
+      );
 
       return classTuitions;
     },
