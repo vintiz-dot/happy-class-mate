@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
       // Get all active families
       const { data: families, error: familiesError } = await supabase
         .from('families')
-        .select('id, sibling_percent_override')
+        .select('id, name, sibling_percent_override')
         .eq('is_active', true)
 
       if (familiesError) throw familiesError
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         // Get all active students in family
         const { data: students, error: studentsError } = await supabase
           .from('students')
-          .select('id')
+          .select('id, full_name')
           .eq('family_id', family.id)
           .eq('is_active', true)
 
@@ -130,10 +130,12 @@ Deno.serve(async (req) => {
           }
           
           results.push({ 
-            family_id: family.id, 
+            family_id: family.id,
+            family_name: family.name,
             status: 'none', 
             reason: 'insufficient students',
-            student_count: students?.length || 0
+            student_count: students?.length || 0,
+            students: students?.map((s: any) => ({ id: s.id, name: s.full_name }))
           })
           continue
         }
@@ -164,11 +166,13 @@ Deno.serve(async (req) => {
           }
 
           results.push({ 
-            family_id: family.id, 
+            family_id: family.id,
+            family_name: family.name,
             status: 'pending', 
             reason: 'threshold not met',
             positive_count: positives.length,
-            students_data: positives
+            students_data: positives,
+            students: students?.map((s: any) => ({ id: s.id, name: s.full_name }))
           })
           continue
         }
@@ -217,8 +221,22 @@ Deno.serve(async (req) => {
 
         const discountAmount = Math.round(winner.projected_base * (percent / 100))
 
+        // Get student names for display
+        const studentsWithNames = positives.map((p: any) => {
+          const studentData = students?.find((s: any) => s.id === p.student_id)
+          return {
+            student_id: p.student_id,
+            student_name: studentData?.full_name || 'Unknown',
+            class_id: p.class_id,
+            class_name: p.class_name,
+            projected_base: p.projected_base,
+            is_winner: p.student_id === winner.student_id
+          }
+        })
+
         results.push({ 
-          family_id: family.id, 
+          family_id: family.id,
+          family_name: family.name,
           status: 'assigned',
           winner_student_id: winner.student_id,
           winner_class_id: winner.class_id,
@@ -227,13 +245,8 @@ Deno.serve(async (req) => {
           discount_percent: percent,
           discount_amount: discountAmount,
           retroactive: wasPending,
-          all_students: positives.map((p: any) => ({
-            student_id: p.student_id,
-            class_id: p.class_id,
-            class_name: p.class_name,
-            projected_base: p.projected_base,
-            is_winner: p.student_id === winner.student_id
-          }))
+          all_students: studentsWithNames,
+          students: students?.map((s: any) => ({ id: s.id, name: s.full_name }))
         })
 
         console.log(`Assigned sibling discount to student ${winner.student_id} (${winner.projected_base})`)

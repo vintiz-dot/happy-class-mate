@@ -12,6 +12,7 @@ import { formatVND } from "@/lib/invoice/formatter";
 
 interface PreviewResult {
   family_id: string;
+  family_name?: string;
   status: 'assigned' | 'pending' | 'none';
   reason?: string;
   winner_student_id?: string;
@@ -21,8 +22,13 @@ interface PreviewResult {
   discount_amount?: number;
   student_count?: number;
   positive_count?: number;
+  students?: Array<{
+    id: string;
+    name: string;
+  }>;
   all_students?: Array<{
     student_id: string;
+    student_name: string;
     class_name: string;
     projected_base: number;
     is_winner: boolean;
@@ -172,18 +178,25 @@ export function SiblingDiscountCompute() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {previewResults && previewResults.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">No families found for this month.</p>
+            {previewResults && previewResults.filter(r => (r.student_count || 0) >= 2 || r.status === 'assigned').length === 0 && (
+              <p className="text-center text-muted-foreground py-8">No families with 2+ students found for this month.</p>
             )}
 
-            {previewResults?.map((result) => (
+            {previewResults?.filter(r => (r.student_count || 0) >= 2 || r.status === 'assigned').map((result) => (
               <Card key={result.family_id}>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span className="font-medium text-sm">Family ID: {result.family_id.slice(0, 8)}</span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span className="font-semibold">{result.family_name || 'Unknown Family'}</span>
+                        </div>
+                        {result.students && result.students.length > 0 && (
+                          <div className="text-xs text-muted-foreground ml-6">
+                            Members: {result.students.map(s => s.name).join(', ')}
+                          </div>
+                        )}
                       </div>
                       <Badge variant={
                         result.status === 'assigned' ? 'default' :
@@ -198,22 +211,25 @@ export function SiblingDiscountCompute() {
 
                     {result.status === 'assigned' && result.all_students && (
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">Students & Classes:</p>
+                        <p className="text-sm font-medium">Students & Highest Classes:</p>
                         <div className="space-y-1.5">
                           {result.all_students.map((student) => (
                             <div
                               key={student.student_id}
-                              className={`flex items-center justify-between p-2 rounded text-sm ${
+                              className={`flex items-center justify-between p-3 rounded text-sm ${
                                 student.is_winner
                                   ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800'
                                   : 'bg-muted/50'
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{student.class_name}</span>
-                                {student.is_winner && (
-                                  <Badge variant="default" className="bg-green-600 text-xs">Winner</Badge>
-                                )}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">{student.student_name}</span>
+                                  {student.is_winner && (
+                                    <Badge variant="default" className="bg-green-600 text-xs">Winner</Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground">{student.class_name}</span>
                               </div>
                               <span className={student.is_winner ? 'font-semibold' : ''}>
                                 {formatVND(student.projected_base)}
