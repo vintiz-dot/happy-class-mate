@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
+import { useStudentProfile } from "@/contexts/StudentProfileContext";
 
 type UserRole = "admin" | "teacher" | "family" | "student";
 
@@ -20,6 +21,7 @@ export function useAuth() {
     loading: true,
   });
   const navigate = useNavigate();
+  const { setStudentId } = useStudentProfile();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -28,6 +30,7 @@ export function useAuth() {
         // Handle token expiry or revocation
         if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
           if (event === "SIGNED_OUT") {
+            setStudentId(undefined); // Clear student profile on logout
             setAuthState({
               user: null,
               session: null,
@@ -127,6 +130,7 @@ export function useAuth() {
   }, [navigate]);
 
   const signOut = async () => {
+    setStudentId(undefined); // Clear student profile on logout
     await supabase.auth.signOut();
     navigate("/auth");
   };

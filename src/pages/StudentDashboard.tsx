@@ -9,16 +9,24 @@ import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit } 
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2 } from "lucide-react";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    // Give ProfilePicker time to auto-select
+    const timer = setTimeout(() => setIsInitializing(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
@@ -166,10 +174,16 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
-  if (!studentId || !studentProfile) {
+  if (isInitializing || !studentId || !studentProfile) {
     return (
       <Layout title="Dashboard">
-        <p className="text-center text-muted-foreground">Please select a student profile.</p>
+        {isInitializing ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground">Please select a student profile.</p>
+        )}
       </Layout>
     );
   }

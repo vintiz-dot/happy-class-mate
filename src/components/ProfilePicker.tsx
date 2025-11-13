@@ -43,7 +43,16 @@ export default function ProfilePicker() {
 
         setStudents(studentData || []);
         
-        if (studentData && studentData.length === 1 && !studentId) {
+        // Check if current studentId is valid for this user
+        const isValidStudentId = studentData?.some(s => s.id === studentId);
+        
+        if (!isValidStudentId && studentId) {
+          // Clear invalid studentId from previous user session
+          setStudentId(undefined);
+        }
+        
+        // Auto-select if only 1 student and no valid studentId
+        if (studentData && studentData.length === 1 && !isValidStudentId) {
           setStudentId(studentData[0].id);
         }
       } catch (error) {
