@@ -228,10 +228,14 @@ export default function StudentAssignments() {
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">Past Assignments</h2>
                 <div className="grid gap-4">
-                  {pastAssignments.map((assignment: any) => (
+                  {pastAssignments.map((assignment: any) => {
+                    const isOverdueNotSubmitted = !assignment.submission && assignment.due_date && new Date(assignment.due_date) < new Date();
+                    const cardOpacity = isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-80";
+                    
+                    return (
                     <Card 
                       key={assignment.id} 
-                      className={`opacity-60 cursor-pointer hover:opacity-80 transition-opacity ${getCardStatusClass(assignment)}`}
+                      className={`cursor-pointer transition-opacity ${cardOpacity} ${getCardStatusClass(assignment)}`}
                       onClick={() => setSelectedHomework(assignment)}
                     >
                       <CardHeader>
@@ -267,7 +271,8 @@ export default function StudentAssignments() {
                         </div>
                       </CardHeader>
                     </Card>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
