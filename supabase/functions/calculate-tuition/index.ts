@@ -115,7 +115,15 @@ Deno.serve(async (req) => {
     // Track base amounts per enrollment for accurate discount calculation
     let baseAmount = 0;
     const enrollmentBaseAmounts = new Map<string, number>(); // class_id -> base amount
-    const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled"; class_id: string }> = [];
+    const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled"; class_id: string; class_name: string }> = [];
+
+    // Fetch class names once for efficiency
+    const classIds = [...new Set((sessions ?? []).map(s => s.class_id))];
+    const { data: classesData } = await supabase
+      .from('classes')
+      .select('id, name')
+      .in('id', classIds);
+    const classNameMap = new Map(classesData?.map(c => [c.id, c.name]) || []);
 
     for (const s of sessions ?? []) {
       // Check if student was enrolled on this specific session date
@@ -128,6 +136,7 @@ Deno.serve(async (req) => {
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
       const rate = Number(classData?.session_rate_vnd ?? 0);
+      const className = classNameMap.get(s.class_id) || 'Unknown';
       // Only bill sessions with explicit Present or Absent attendance
       const billable = att === "Present" || att === "Absent";
 
@@ -136,10 +145,10 @@ Deno.serve(async (req) => {
         // Track per-enrollment base amount
         const currentAmount = enrollmentBaseAmounts.get(s.class_id) || 0;
         enrollmentBaseAmounts.set(s.class_id, currentAmount + rate);
-        sessionDetails.push({ date: s.date, rate, status: (att ?? "Present") as any, class_id: s.class_id });
+        sessionDetails.push({ date: s.date, rate, status: (att ?? "Present") as any, class_id: s.class_id, class_name: className });
       } else {
         // still return session detail for UI if needed
-        if (att) sessionDetails.push({ date: s.date, rate, status: att, class_id: s.class_id });
+        if (att) sessionDetails.push({ date: s.date, rate, status: att, class_id: s.class_id, class_name: className });
       }
     }
 

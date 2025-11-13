@@ -52,12 +52,14 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
     total_due_vnd: currentCharges,
     paid_to_date_vnd: carryInBalance, // Now shows carry-in balance (prior payments - prior charges)
     balance_vnd: finalPayable - nv(upstream.payments?.monthPayments, 0), // Final balance after current month payment
+    recorded_payment_vnd: nv(upstream.payments?.monthPayments, 0), // Current month recorded payment
     
     sessions: (upstream.sessionDetails ?? []).map((s: any) => ({
       date: nv(s.date, ''),
       status: nv(s.status, 'Scheduled'),
       unit_price_vnd: nv(s.rate, 0),
       line_total_vnd: nv(s.rate, 0),
+      class_name: nv(s.class_name, 'Unknown'),
     })),
   };
 }

@@ -99,7 +99,7 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
       
       // Overdue - red
       if (daysUntilDue < 0) {
-        return "bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800";
+        return "bg-red-500/20 dark:bg-red-500/15 border-red-500/50 dark:border-red-500/40";
       }
       
       // 1 day left - amber

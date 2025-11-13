@@ -44,16 +44,34 @@ export async function fetchInvoiceData(
   if (bankError) throw new Error(`Failed to fetch bank info: ${bankError.message}`);
   if (!bankData) throw new Error('Payment information not configured. Please contact administration.');
 
-  // Group sessions by class
-  const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
+  // Use class breakdown from tuition data if available, otherwise group by class
+  let classBreakdownArray;
   
-  for (const session of tuitionData.sessionDetails || []) {
-    const className = 'Class'; // Since sessionDetails don't include class name
-    if (!classBreakdown[className]) {
-      classBreakdown[className] = { sessions: [], total: 0 };
+  if (tuitionData.breakdown?.classes && tuitionData.breakdown.classes.length > 0) {
+    // Use the class breakdown directly from the backend
+    classBreakdownArray = tuitionData.breakdown.classes.map((c: any) => ({
+      class_name: c.class_name || 'Unknown',
+      sessions_count: c.sessions_count || 0,
+      amount_vnd: c.amount_vnd || 0,
+    }));
+  } else {
+    // Fallback: Group sessions by class
+    const classBreakdown: Record<string, { sessions: any[], total: number }> = {};
+    
+    for (const session of tuitionData.sessionDetails || []) {
+      const className = session.class_name || 'Unknown';
+      if (!classBreakdown[className]) {
+        classBreakdown[className] = { sessions: [], total: 0 };
+      }
+      classBreakdown[className].sessions.push(session);
+      classBreakdown[className].total += session.rate || 0;
     }
-    classBreakdown[className].sessions.push(session);
-    classBreakdown[className].total += session.rate || 0;
+    
+    classBreakdownArray = Object.entries(classBreakdown).map(([name, data]) => ({
+      class_name: name,
+      sessions_count: data.sessions.length,
+      amount_vnd: data.total,
+    }));
   }
 
   // Map to invoice format
@@ -62,11 +80,7 @@ export async function fetchInvoiceData(
     student_id: studentData.id,
     student_name: studentData.full_name,
     family_name: studentData.family?.name,
-    class_breakdown: Object.entries(classBreakdown).map(([name, data]) => ({
-      class_name: name,
-      sessions_count: data.sessions.length,
-      amount_vnd: data.total,
-    })),
+    class_breakdown: classBreakdownArray,
   });
 
   return { invoice, bankInfo: bankData };

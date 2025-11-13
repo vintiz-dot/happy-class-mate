@@ -120,6 +120,12 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
                   {formatVND(invoice.total_due_vnd + invoice.paid_to_date_vnd)} ₫
                 </td>
               </tr>
+              <tr className="border-b border-gray-200 bg-green-50">
+                <td colSpan={2} className="py-2 px-2 text-green-700">Current Month Recorded Payment</td>
+                <td className="text-right py-2 px-2 text-green-700">
+                  {formatVND((invoice as any).recorded_payment_vnd || 0)} ₫
+                </td>
+              </tr>
               <tr className="border-b-2 border-gray-400 bg-yellow-50">
                 <td colSpan={2} className="py-3 px-2 font-bold text-lg">Outstanding Balance</td>
                 <td className="text-right py-3 px-2 font-bold text-lg">{formatVND(invoice.balance_vnd)} ₫</td>
@@ -135,6 +141,7 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
             <thead>
               <tr className="border-b-2 border-gray-300">
                 <th className="text-left py-2 px-2 font-semibold">Date</th>
+                <th className="text-left py-2 px-2 font-semibold">Class</th>
                 <th className="text-center py-2 px-2 font-semibold">Status</th>
                 <th className="text-right py-2 px-2 font-semibold">Unit Price</th>
                 <th className="text-right py-2 px-2 font-semibold">Line Total</th>
@@ -144,6 +151,7 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
               {invoice.sessions.map((session, idx) => (
                 <tr key={idx} className="border-b border-gray-200">
                   <td className="py-1 px-2">{formatDate(session.date)}</td>
+                  <td className="py-1 px-2">{session.class_name}</td>
                   <td className="text-center py-1 px-2">{session.status}</td>
                   <td className="text-right py-1 px-2">{formatVND(session.unit_price_vnd)} ₫</td>
                   <td className="text-right py-1 px-2">{formatVND(session.line_total_vnd)} ₫</td>

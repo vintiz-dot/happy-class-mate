@@ -27,7 +27,6 @@ interface AdminTuitionListProps {
 }
 
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
-  const [activeFilter, setActiveFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -159,43 +158,8 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const filteredAndSortedData = useMemo(() => {
     if (!tuitionData) return [];
 
-    let filtered = tuitionData;
-
-    // Apply filter
-    switch (activeFilter) {
-      case "discount":
-        filtered = tuitionData.filter((t) => t.hasDiscount);
-        break;
-      case "no-discount":
-        filtered = tuitionData.filter((t) => !t.hasDiscount);
-        break;
-      case "siblings":
-        filtered = tuitionData.filter((t) => t.hasSiblings);
-        break;
-      case "paid":
-        filtered = tuitionData.filter(
-          (t) => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0,
-        );
-        break;
-      case "overpaid":
-        filtered = tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) > t.total_amount);
-        break;
-      case "underpaid":
-        filtered = tuitionData.filter(
-          (t) => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0,
-        );
-        break;
-      case "settled":
-        filtered = tuitionData.filter(
-          (t) => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0,
-        );
-        break;
-      default:
-        filtered = tuitionData;
-    }
-
     // Apply sort
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...tuitionData].sort((a, b) => {
       switch (sortBy) {
         case "name":
           return ((a.students as any)?.full_name || "").localeCompare((b.students as any)?.full_name || "");
@@ -213,42 +177,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     });
 
     return sorted;
-  }, [tuitionData, activeFilter, sortBy]);
-
-  const filterChips = useMemo(() => {
-    if (!tuitionData) return [];
-
-    return [
-      { key: "all", label: "All", count: tuitionData.length },
-      { key: "discount", label: "Discount", count: tuitionData.filter((t) => t.hasDiscount).length },
-      { key: "no-discount", label: "No Discount", count: tuitionData.filter((t) => !t.hasDiscount).length },
-      { key: "siblings", label: "Siblings", count: tuitionData.filter((t) => t.hasSiblings).length },
-      {
-        key: "paid",
-        label: "Paid",
-        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) >= t.total_amount && t.total_amount > 0)
-          .length,
-      },
-      {
-        key: "overpaid",
-        label: "Overpaid",
-        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) > t.total_amount).length,
-      },
-      {
-        key: "underpaid",
-        label: "Underpaid",
-        count: tuitionData.filter(
-          (t) => (t.recorded_payment ?? t.paid_amount) < t.total_amount && (t.recorded_payment ?? t.paid_amount) > 0,
-        ).length,
-      },
-      {
-        key: "settled",
-        label: "Settled",
-        count: tuitionData.filter((t) => (t.recorded_payment ?? t.paid_amount) === t.total_amount && t.total_amount > 0)
-          .length,
-      },
-    ];
-  }, [tuitionData]);
+  }, [tuitionData, sortBy]);
 
   const handleStartEdit = (invoice: any) => {
     setEditingInvoiceId(invoice.id);
@@ -377,8 +306,6 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">
-          <TuitionPageFilters filters={filterChips} activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-
           <div className="flex items-center gap-2">
             <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Sort by:</span>

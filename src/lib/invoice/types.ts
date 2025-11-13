@@ -16,6 +16,7 @@ export interface InvoiceSession {
   status: string;
   unit_price_vnd: number;
   line_total_vnd: number;
+  class_name: string;
 }
 
 export interface InvoiceData {
@@ -38,6 +39,7 @@ export interface InvoiceData {
   total_due_vnd: number; // Current month charges only
   paid_to_date_vnd: number; // Prior balance (prior payments - prior charges)
   balance_vnd: number; // Final payable after current payments
+  recorded_payment_vnd?: number; // Current month recorded payment
   
   sessions: InvoiceSession[];
 }
