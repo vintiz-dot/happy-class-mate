@@ -126,7 +126,9 @@ export function PointsBreakdownChart({ studentId, classId }: PointsBreakdownChar
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold">Points Breakdown</h3>
+          <h3 className="text-lg font-semibold">
+            Points Breakdown {classId ? '(This Class)' : '(All Classes)'}
+          </h3>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
           <SelectTrigger className="w-[180px]">

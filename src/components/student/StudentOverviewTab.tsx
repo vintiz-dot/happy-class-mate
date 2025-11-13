@@ -53,14 +53,31 @@ export function StudentOverviewTab({ student }: { student: any }) {
 
   return (
     <>
-      {/* Points Breakdown Visualization */}
-      <PointsBreakdownChart studentId={student.id} />
+      {/* Overall Points Summary - All Classes Combined */}
+      {enrolledClasses && enrolledClasses.length > 1 && (
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Overall Performance (All Classes)</h2>
+          <PointsBreakdownChart studentId={student.id} />
+        </div>
+      )}
 
-      {/* Class Leaderboards - Show full leaderboard like admin view */}
+      {/* Per-Class Points and Leaderboards */}
       {enrolledClasses && enrolledClasses.length > 0 && (
-        <div className="space-y-6">
+        <div className="space-y-8">
+          <h2 className="text-2xl font-bold">My Classes</h2>
           {enrolledClasses.map((cls: any) => (
-            <ClassLeaderboardShared key={cls.id} classId={cls.id} />
+            <div key={cls.id} className="space-y-4">
+              <div className="border-l-4 border-primary pl-4">
+                <h3 className="text-xl font-semibold">{cls.name}</h3>
+                <p className="text-sm text-muted-foreground">Class Performance</p>
+              </div>
+              
+              {/* Points breakdown for this specific class */}
+              <PointsBreakdownChart studentId={student.id} classId={cls.id} />
+              
+              {/* Leaderboard for this class */}
+              <ClassLeaderboardShared classId={cls.id} />
+            </div>
           ))}
         </div>
       )}
