@@ -100,6 +100,11 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
     --sidebar-glass: 0 0% 98% / 0.7;
+    
+    /* Premium gradient colors for animations */
+    --gradient-start: 213 94% 68%;
+    --gradient-middle: 260 100% 75%;
+    --gradient-end: 280 90% 70%;
   }
 
   .dark {
@@ -159,6 +164,11 @@ All colors MUST be HSL.
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
     --sidebar-glass: 240 5.9% 10% / 0.6;
+    
+    /* Premium gradient colors for animations */
+    --gradient-start: 213 94% 68%;
+    --gradient-middle: 260 100% 75%;
+    --gradient-end: 280 90% 70%;
   }
 }
 
@@ -235,6 +245,28 @@ All colors MUST be HSL.
     backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
     border: 1px solid hsla(var(--border-glass));
+  }
+  
+  /* Premium animated background */
+  @keyframes gradient-flow {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .premium-bg {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gradient-start)),
+      hsl(var(--gradient-middle)),
+      hsl(var(--gradient-end)),
+      hsl(var(--gradient-start))
+    );
+    background-size: 300% 300%;
+    animation: gradient-flow 15s ease infinite;
   }
 }
 
