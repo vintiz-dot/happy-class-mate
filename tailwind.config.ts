@@ -144,6 +144,82 @@ export default {
             transform: "translateY(-2px)",
           },
         },
+        "float-gentle": {
+          "0%, 100%": {
+            transform: "translateY(0px)",
+          },
+          "50%": {
+            transform: "translateY(-4px)",
+          },
+        },
+        "shimmer": {
+          "0%": {
+            backgroundPosition: "-1000px 0",
+          },
+          "100%": {
+            backgroundPosition: "1000px 0",
+          },
+        },
+        "slide-up-fade": {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(10px)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
+        "scale-bounce": {
+          "0%, 100%": {
+            transform: "scale(1)",
+          },
+          "50%": {
+            transform: "scale(0.95)",
+          },
+        },
+        "glow-pulse": {
+          "0%, 100%": {
+            boxShadow: "0 0 10px rgba(var(--primary), 0.3)",
+          },
+          "50%": {
+            boxShadow: "0 0 20px rgba(var(--primary), 0.6)",
+          },
+        },
+        "elastic": {
+          "0%": {
+            transform: "scale(1)",
+          },
+          "30%": {
+            transform: "scale(1.05)",
+          },
+          "40%": {
+            transform: "scale(0.98)",
+          },
+          "50%": {
+            transform: "scale(1.02)",
+          },
+          "65%": {
+            transform: "scale(0.99)",
+          },
+          "75%": {
+            transform: "scale(1.01)",
+          },
+          "100%": {
+            transform: "scale(1)",
+          },
+        },
+        "shake": {
+          "0%, 100%": {
+            transform: "translateX(0)",
+          },
+          "10%, 30%, 50%, 70%, 90%": {
+            transform: "translateX(-4px)",
+          },
+          "20%, 40%, 60%, 80%": {
+            transform: "translateX(4px)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -151,6 +227,13 @@ export default {
         "spring-in": "spring-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
         "spring-out": "spring-out 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
         "bounce-subtle": "bounce-subtle 0.6s ease-in-out",
+        "float-gentle": "float-gentle 3s ease-in-out infinite",
+        "shimmer": "shimmer 2s linear infinite",
+        "slide-up-fade": "slide-up-fade 0.3s ease-out",
+        "scale-bounce": "scale-bounce 0.15s ease-out",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "elastic": "elastic 0.5s ease-out",
+        "shake": "shake 0.4s ease-in-out",
       },
     },
   },

@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-95 hover:scale-[1.02] active:transition-transform active:duration-100",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 premium-click hover:scale-[1.02] active:transition-transform active:duration-100",
   {
     variants: {
       variant: {
@@ -37,9 +37,40 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, onClick, onMouseEnter, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      // Play click sound
+      if (typeof window !== 'undefined' && !props.disabled) {
+        import('@/lib/soundManager').then(({ soundManager }) => {
+          soundManager.play('click');
+        });
+      }
+      onClick?.(e);
+    };
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+      // Play subtle hover sound
+      if (typeof window !== 'undefined' && !props.disabled) {
+        import('@/lib/soundManager').then(({ soundManager }) => {
+          if (soundManager.getVolume() > 0.5) { // Only on higher volume settings
+            soundManager.play('hover');
+          }
+        });
+      }
+      onMouseEnter?.(e);
+    };
+
+    return (
+      <Comp 
+        className={cn(buttonVariants({ variant, size, className }))} 
+        ref={ref} 
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        {...props} 
+      />
+    );
   },
 );
 Button.displayName = "Button";
