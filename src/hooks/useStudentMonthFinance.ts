@@ -53,6 +53,15 @@ export interface StudentMonthFinanceData {
     winnerClassId?: string;
   };
   
+  // Class breakdown for multi-enrollment students
+  classBreakdown?: Array<{
+    class_id: string;
+    class_name: string;
+    amount_vnd: number;
+    sessions_count: number;
+    session_rate_vnd: number;
+  }>;
+  
   // Session details for display
   sessionDetails: Array<{
     date: string;
@@ -137,6 +146,9 @@ export function useStudentMonthFinance(
         
         // Sibling state
         siblingState: data.siblingState,
+        
+        // Class breakdown
+        classBreakdown: data.breakdown?.classes ?? [],
         
         // Session details
         sessionDetails: data.sessionDetails ?? [],

@@ -55,11 +55,10 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
     enabled: !!student?.family_id,
   });
 
-  // Get all enrollments and their tuition breakdown using the same source as tuition page
-  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["student-enrollments-tuition", studentId, currentMonth],
+  // Get class breakdown directly from the calculate-tuition edge function
+  const { data: classBreakdown, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ["student-class-breakdown", studentId, currentMonth],
     queryFn: async () => {
-      // Use the calculate-tuition function to get accurate data
       const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke('calculate-tuition', {
         body: { studentId, month: currentMonth }
       });
@@ -69,33 +68,17 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
         throw tuitionError;
       }
 
-      if (!tuitionData?.sessionDetails || tuitionData.sessionDetails.length === 0) {
+      // Use the new breakdown.classes array directly
+      if (!tuitionData?.breakdown?.classes || tuitionData.breakdown.classes.length === 0) {
         return [];
       }
 
-      // Group sessions by class and calculate totals
-      const classMap = new Map<string, ClassTuition>();
-      
-      tuitionData.sessionDetails.forEach((session: any) => {
-        const classId = session.class_id;
-        const className = session.class_name;
-        const lineTotal = session.line_total_vnd || 0;
-        
-        if (!classMap.has(classId)) {
-          classMap.set(classId, {
-            classId,
-            className,
-            sessionsCount: 0,
-            totalAmount: 0,
-          });
-        }
-        
-        const classData = classMap.get(classId)!;
-        classData.sessionsCount += 1;
-        classData.totalAmount += lineTotal;
-      });
-
-      return Array.from(classMap.values());
+      return tuitionData.breakdown.classes.map((cls: any) => ({
+        classId: cls.class_id,
+        className: cls.class_name,
+        sessionsCount: cls.sessions_count,
+        totalAmount: cls.amount_vnd,
+      }));
     },
     enabled: !!studentId,
   });
@@ -121,8 +104,8 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
   const discountPercent = siblingState?.sibling_percent || 0;
   
   // Find the highest tuition class to apply discount (winner class)
-  const winnerClass = enrollments && enrollments.length > 0
-    ? enrollments.reduce((max, current) => current.totalAmount > max.totalAmount ? current : max)
+  const winnerClass = classBreakdown && classBreakdown.length > 0
+    ? classBreakdown.reduce((max, current) => current.totalAmount > max.totalAmount ? current : max)
     : null;
 
   // No sibling discount scenario
@@ -139,10 +122,10 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {enrollments && enrollments.length > 0 && (
+          {classBreakdown && classBreakdown.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-medium text-muted-foreground">Monthly Tuition Breakdown</p>
-              {enrollments.map(enrollment => (
+              {classBreakdown.map(enrollment => (
                 <div key={enrollment.classId} className="p-4 rounded-lg border bg-card space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold">{enrollment.className}</h4>
@@ -162,7 +145,7 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
   }
 
   // Calculate grand totals
-  const grandTotal = enrollments?.reduce((sum, e) => sum + e.totalAmount, 0) || 0;
+  const grandTotal = classBreakdown?.reduce((sum, e) => sum + e.totalAmount, 0) || 0;
   const totalDiscount = isWinner && winnerClass
     ? Math.round(winnerClass.totalAmount * (discountPercent / 100))
     : 0;
@@ -199,11 +182,11 @@ export function SiblingDiscountCard({ studentId, month }: SiblingDiscountCardPro
           </div>
         )}
 
-        {enrollments && enrollments.length > 0 && (
+        {classBreakdown && classBreakdown.length > 0 && (
           <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground">Monthly Tuition Breakdown</p>
             
-            {enrollments.map(enrollment => {
+            {classBreakdown.map(enrollment => {
               const isWinnerClass = isWinner && winnerClass?.classId === enrollment.classId;
               const discountAmount = isWinnerClass 
                 ? Math.round(enrollment.totalAmount * (discountPercent / 100))

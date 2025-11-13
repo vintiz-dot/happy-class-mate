@@ -353,6 +353,66 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
         </Card>
       </div>
 
+      {/* Class Breakdown - Show per-class tuition */}
+      {tuitionData.classBreakdown && tuitionData.classBreakdown.length > 0 && (
+        <Card className="md:col-span-2 lg:col-span-5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Tuition by Class
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {tuitionData.classBreakdown.map((classItem) => {
+                // Check if this is the winner class for sibling discount
+                const isWinnerClass = tuitionData.siblingState?.isWinner && 
+                                     tuitionData.siblingState?.winnerClassId === classItem.class_id;
+                const siblingDiscountAmount = isWinnerClass 
+                  ? Math.round(classItem.amount_vnd * ((tuitionData.siblingState?.percent || 0) / 100))
+                  : 0;
+                const finalAmount = classItem.amount_vnd - siblingDiscountAmount;
+
+                return (
+                  <div 
+                    key={classItem.class_id} 
+                    className={`flex items-center justify-between p-3 border rounded-lg ${
+                      isWinnerClass ? 'bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : ''
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{classItem.class_name}</p>
+                        {isWinnerClass && (
+                          <Badge variant="default" className="bg-green-600 text-xs">
+                            Sibling Winner
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {classItem.sessions_count} sessions × {formatVND(classItem.session_rate_vnd)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{formatVND(classItem.amount_vnd)}</p>
+                      {isWinnerClass && siblingDiscountAmount > 0 && (
+                        <>
+                          <p className="text-xs text-green-600 dark:text-green-400">
+                            -{formatVND(siblingDiscountAmount)} ({tuitionData.siblingState?.percent}%)
+                          </p>
+                          <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                            = {formatVND(finalAmount)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Payment Status - Match Admin Finance */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-primary/5">
