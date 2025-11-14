@@ -1,5 +1,8 @@
 project_id = "yxdcngazogqmrffllbkl"
 
+[functions.student-leaderboard]
+verify_jwt = true
+
 [functions.generate-sessions]
 verify_jwt = true
 
