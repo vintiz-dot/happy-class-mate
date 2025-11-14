@@ -55,6 +55,10 @@ export function ParticipationPoints({ session, students, onClose }: Participatio
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-leader"] });
+      queryClient.invalidateQueries({ queryKey: ["point-breakdown"] });
+      queryClient.invalidateQueries({ queryKey: ["available-months"] });
+      queryClient.invalidateQueries({ queryKey: ["point-transactions"] });
       toast.success("Participation points updated");
       onClose();
     },

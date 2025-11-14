@@ -142,6 +142,10 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["homework-submissions", homeworkId] });
       queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-leader"] });
+      queryClient.invalidateQueries({ queryKey: ["point-breakdown"] });
+      queryClient.invalidateQueries({ queryKey: ["available-months"] });
+      queryClient.invalidateQueries({ queryKey: ["point-transactions"] });
       toast.success("Grade submitted successfully");
       setSelectedSubmission(null);
       setGrade("");
