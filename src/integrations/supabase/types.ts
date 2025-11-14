@@ -2064,6 +2064,12 @@ export type Database = {
         Args: { p_class_id: string; p_end_date: string; p_student_id: string }
         Returns: Json
       }
+      get_student_active_class_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          class_id: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
