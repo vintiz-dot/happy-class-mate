@@ -93,26 +93,32 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
 
       if (error) throw error;
 
+      // Create point transaction for homework (trigger will update student_points automatically)
       if (points !== undefined && points !== null) {
+        const today = new Date().toISOString().split('T')[0];
         const month = new Date().toISOString().slice(0, 7);
+        const pointsValue = parseInt(points);
+        
         const { data: homework } = await supabase
           .from("homeworks")
-          .select("class_id")
+          .select("class_id, title")
           .eq("id", submission.homework_id)
           .single();
 
         if (homework) {
-          await supabase.from("student_points").upsert(
-            {
-              student_id: submission.student_id,
-              class_id: homework.class_id,
-              month,
-              homework_points: points,
-            },
-            {
-              onConflict: "student_id,class_id,month",
-            },
-          );
+          const { error: pointsError } = await supabase.from("point_transactions").insert({
+            student_id: submission.student_id,
+            class_id: homework.class_id,
+            homework_id: submission.homework_id,
+            homework_title: homework.title,
+            points: pointsValue,
+            type: 'homework',
+            date: today,
+            month,
+            notes: `Homework graded: ${grade}`,
+          });
+          
+          if (pointsError) throw pointsError;
         }
       }
     },
