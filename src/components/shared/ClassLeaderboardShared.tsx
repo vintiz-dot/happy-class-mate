@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award } from "lucide-react";
+import { Trophy, Medal, Award, Flag } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -11,9 +11,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
+  currentStudentId?: string;
 }
 
-export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps) {
+export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeaderboardSharedProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
@@ -212,36 +213,46 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
           <p className="text-muted-foreground text-center py-8">No scores yet for this month</p>
         ) : (
           <div className="space-y-3">
-            {leaderboard?.map((entry: any) => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md"
-                onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-10 flex-shrink-0 flex items-center justify-center">
-                    {getRankIcon(entry.rank)}
+            {leaderboard?.map((entry: any) => {
+              const isCurrentStudent = currentStudentId && entry.student_id === currentStudentId;
+              return (
+                <div
+                  key={entry.id}
+                  className={`flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md ${
+                    isCurrentStudent ? 'bg-primary/10 border-primary shadow-md ring-2 ring-primary/20' : ''
+                  }`}
+                  onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 flex-shrink-0 flex items-center justify-center">
+                      {getRankIcon(entry.rank)}
+                    </div>
+                    <Avatar className={`h-12 w-12 flex-shrink-0 ${isCurrentStudent ? 'border-primary border-3' : 'border-2'}`}>
+                      <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
+                      <AvatarFallback className="text-sm font-semibold">
+                        {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-base truncate">{entry.students?.full_name}</p>
+                        {isCurrentStudent && (
+                          <Flag className="h-4 w-4 text-primary fill-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        HW: {entry.homework_points} • Part: {entry.participation_points}
+                      </p>
+                    </div>
                   </div>
-                  <Avatar className="h-12 w-12 flex-shrink-0 border-2">
-                    <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
-                    <AvatarFallback className="text-sm font-semibold">
-                      {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base truncate">{entry.students?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      HW: {entry.homework_points} • Part: {entry.participation_points}
-                    </p>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <Badge variant={entry.rank <= 3 ? "default" : "secondary"} className="text-base px-4 py-2">
+                      {entry.total_points}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <Badge variant={entry.rank <= 3 ? "default" : "secondary"} className="text-base px-4 py-2">
-                    {entry.total_points}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
