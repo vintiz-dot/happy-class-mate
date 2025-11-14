@@ -1,18 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
-import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { PointsBreakdownChart } from "./PointsBreakdownChart";
-import { Users } from "lucide-react";
+import { Users, Trophy, Medal, Award } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   // Fetch family and siblings
   const { data: familyData } = useQuery({
@@ -36,25 +37,33 @@ export function StudentOverviewTab({ student }: { student: any }) {
     enabled: !!student.family_id,
   });
 
-  // Fetch student's enrolled classes
-  const { data: enrolledClasses } = useQuery({
-    queryKey: ["student-enrolled-classes", student.id],
+  // Fetch leaderboards from edge function
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useQuery({
+    queryKey: ["student-leaderboard", selectedMonth],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("enrollments")
-        .select("class_id, classes(id, name)")
-        .eq("student_id", student.id)
-        .not("end_date", "lt", new Date().toISOString().split("T")[0]);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('student-leaderboard', {
+        body: { month: selectedMonth }
+      });
 
       if (error) throw error;
-      return data?.map(e => e.classes).filter(Boolean) || [];
+      return data;
     },
   });
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
+    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (rank === 3) return <Award className="h-5 w-5 text-amber-600" />;
+    return null;
+  };
 
   return (
     <>
       {/* Overall Points Summary - All Classes Combined */}
-      {enrolledClasses && enrolledClasses.length > 1 && (
+      {leaderboardData?.leaderboards && leaderboardData.leaderboards.length > 1 && (
         <div className="space-y-2">
           <h2 className="text-xl font-semibold">Overall Performance (All Classes)</h2>
           <PointsBreakdownChart studentId={student.id} />
@@ -62,24 +71,84 @@ export function StudentOverviewTab({ student }: { student: any }) {
       )}
 
       {/* Per-Class Points and Leaderboards */}
-      {enrolledClasses && enrolledClasses.length > 0 && (
+      {leaderboardLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Loading leaderboards...</div>
+      ) : leaderboardData?.leaderboards && leaderboardData.leaderboards.length > 0 ? (
         <div className="space-y-8">
           <h2 className="text-2xl font-bold">My Classes</h2>
-          {enrolledClasses.map((cls: any) => (
-            <div key={cls.id} className="space-y-4">
+          {leaderboardData.leaderboards.map((classData: any) => (
+            <div key={classData.class_id} className="space-y-4">
               <div className="border-l-4 border-primary pl-4">
-                <h3 className="text-xl font-semibold">{cls.name}</h3>
+                <h3 className="text-xl font-semibold">{classData.class_name}</h3>
                 <p className="text-sm text-muted-foreground">Class Performance</p>
               </div>
               
               {/* Points breakdown for this specific class */}
-              <PointsBreakdownChart studentId={student.id} classId={cls.id} />
+              <PointsBreakdownChart studentId={student.id} classId={classData.class_id} />
               
               {/* Leaderboard for this class */}
-              <ClassLeaderboard classId={cls.id} showAddPoints={false} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Class Leaderboard</span>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {format(new Date(classData.month + '-01'), 'MMMM yyyy')}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {classData.entries.map((entry: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-4 p-3 rounded-lg transition-colors ${
+                          entry.is_current_user
+                            ? 'bg-primary/10 border border-primary shadow-lg ring-2 ring-primary/20'
+                            : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-[60px]">
+                          {getRankIcon(entry.rank)}
+                          <span className="font-semibold text-lg">{entry.rank}</span>
+                        </div>
+                        
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={entry.avatar_url} alt={entry.student_name} />
+                          <AvatarFallback>
+                            {entry.student_name.split(' ').map((n: string) => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {entry.student_name}
+                            {entry.is_current_user && (
+                              <span className="ml-2 text-xs text-primary font-normal">(You)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            HW: {entry.homework_points} | Participation: {entry.participation_points}
+                          </p>
+                        </div>
+                        
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{entry.total_points}</p>
+                          <p className="text-xs text-muted-foreground">points</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           ))}
         </div>
+      ) : (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No active class enrollments found.
+          </CardContent>
+        </Card>
       )}
 
       {/* Family & Siblings Card */}
