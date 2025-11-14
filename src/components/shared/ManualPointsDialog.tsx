@@ -141,8 +141,11 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
     },
     onSuccess: (pointsValue) => {
       queryClient.invalidateQueries({ queryKey: ["class-leaderboard", classId] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-leader"] });
       queryClient.invalidateQueries({ queryKey: ["student-points"] });
       queryClient.invalidateQueries({ queryKey: ["point-history"] });
+      queryClient.invalidateQueries({ queryKey: ["point-breakdown"] });
+      queryClient.invalidateQueries({ queryKey: ["available-months"] });
       
       // Play sound based on positive or negative
       playSound(pointsValue > 0);
