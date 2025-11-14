@@ -3,20 +3,24 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 interface StudentProfileContextType {
   studentId?: string;
   setStudentId: (id?: string) => void;
+  isHydrated?: boolean;
 }
 
 const StudentProfileContext = createContext<StudentProfileContextType>({
   setStudentId: () => {},
+  isHydrated: false,
 });
 
 export { StudentProfileContext };
 
 export function StudentProfileProvider({ children }: { children: ReactNode }) {
   const [studentId, setStudentIdState] = useState<string | undefined>(undefined);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("selected_student_id");
     if (stored) setStudentIdState(stored);
+    setIsHydrated(true);
   }, []);
 
   const setStudentId = (id?: string) => {
@@ -29,7 +33,7 @@ export function StudentProfileProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <StudentProfileContext.Provider value={{ studentId, setStudentId }}>
+    <StudentProfileContext.Provider value={{ studentId, setStudentId, isHydrated }}>
       {children}
     </StudentProfileContext.Provider>
   );
