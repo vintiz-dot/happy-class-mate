@@ -46,42 +46,40 @@ export function ClassLeaderboardShared({ classId }: ClassLeaderboardSharedProps)
     };
   }, [classId, queryClient]);
 
-  // Fetch leaderboard data for the selected month - query student_points directly
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ["class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
-      // Query student_points directly with JOIN to students
-      const { data: points, error } = await supabase
+      const { data, error } = await supabase
         .from("student_points")
         .select(`
           *,
-          students!inner(
+          students (
             id,
             full_name,
             avatar_url
           )
         `)
         .eq("class_id", classId)
-        .eq("month", selectedMonth);
+        .eq("month", selectedMonth)
+        .order("total_points", { ascending: false });
 
       if (error) throw error;
 
-      // Sort by total points descending
-      const leaderboardData = (points || []).sort((a: any, b: any) => 
-        b.total_points - a.total_points
-      );
-
-      // Calculate dense rank
-      let currentRank = 0;
-      let previousPoints = -1;
+      // Implement dense ranking
+      if (data && data.length > 0) {
+        let currentRank = 1;
+        let previousPoints = data[0].total_points;
+        
+        return data.map((entry, index) => {
+          if (entry.total_points !== previousPoints) {
+            currentRank = index + 1;
+            previousPoints = entry.total_points;
+          }
+          return { ...entry, rank: currentRank };
+        });
+      }
       
-      return leaderboardData.map((entry: any, index: number) => {
-        if (entry.total_points !== previousPoints) {
-          currentRank = index + 1;
-          previousPoints = entry.total_points;
-        }
-        return { ...entry, rank: currentRank };
-      });
+      return data;
     },
   });
 

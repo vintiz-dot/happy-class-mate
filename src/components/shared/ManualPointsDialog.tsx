@@ -34,21 +34,6 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
   const [notes, setNotes] = useState("");
   const queryClient = useQueryClient();
 
-  // Fetch class info
-  const { data: classInfo } = useQuery({
-    queryKey: ["class-info", classId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("classes")
-        .select("name")
-        .eq("id", classId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
-
   // Fetch enrolled students for the class
   const { data: students, isLoading: studentsLoading } = useQuery({
     queryKey: ["enrolled-students", classId],
@@ -137,20 +122,6 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
         throw new Error("Please select a homework assignment");
       }
 
-      // Validate that the student is enrolled in this class
-      const { data: enrollment, error: enrollError } = await supabase
-        .from("enrollments")
-        .select("id")
-        .eq("student_id", selectedStudent)
-        .eq("class_id", classId)
-        .is("end_date", null)
-        .maybeSingle();
-
-      if (enrollError) throw enrollError;
-      if (!enrollment) {
-        throw new Error("Student is not enrolled in this class");
-      }
-
       const currentMonth = monthKey();
 
       // Insert point transaction
@@ -223,7 +194,7 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
             Manual Point Addition
           </DialogTitle>
           <DialogDescription>
-            Award or deduct points for <strong>{classInfo?.name || "this class"}</strong>. Changes are reflected immediately on the leaderboard.
+            Award or deduct points for students in this class. Changes are reflected immediately on the leaderboard.
           </DialogDescription>
         </DialogHeader>
 

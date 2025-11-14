@@ -2042,10 +2042,6 @@ export type Database = {
         Args: { p_job: string; p_month: string }
         Returns: boolean
       }
-      can_view_classmate: {
-        Args: { student_id_to_view: string; viewer_user_id: string }
-        Returns: boolean
-      }
       can_view_family: {
         Args: { family_id: string; user_id: string }
         Returns: boolean
@@ -2085,10 +2081,6 @@ export type Database = {
       }
       is_journal_owner: {
         Args: { _journal_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_student_enrolled_in_class: {
-        Args: { class_id_check: string; user_id: string }
         Returns: boolean
       }
       is_teacher_of_class: {

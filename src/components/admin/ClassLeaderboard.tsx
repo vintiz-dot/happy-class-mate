@@ -22,23 +22,6 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
   const { toast } = useToast();
   const previousLeaderboardRef = useRef<any[]>([]);
 
-  // Fetch current logged-in student's ID for highlighting
-  const { data: currentStudent } = useQuery({
-    queryKey: ["current-student"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      const { data } = await supabase
-        .from("students")
-        .select("id")
-        .eq("linked_user_id", user.id)
-        .maybeSingle();
-      
-      return data;
-    },
-  });
-
   // Set up realtime subscription for student_points changes
   useEffect(() => {
     const channel = supabase
@@ -65,42 +48,40 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
     };
   }, [classId, queryClient]);
 
-  // Fetch leaderboard data for the selected month - query student_points directly
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ["class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
-      // Query student_points directly with JOIN to students
-      const { data: points, error } = await supabase
+      const { data, error } = await supabase
         .from("student_points")
         .select(`
           *,
-          students!inner(
+          students (
             id,
             full_name,
             avatar_url
           )
         `)
         .eq("class_id", classId)
-        .eq("month", selectedMonth);
+        .eq("month", selectedMonth)
+        .order("total_points", { ascending: false });
 
       if (error) throw error;
 
-      // Sort by total points descending
-      const leaderboardData = (points || []).sort((a: any, b: any) => 
-        b.total_points - a.total_points
-      );
-
-      // Calculate dense rank
-      let currentRank = 0;
-      let previousPoints = -1;
+      // Implement dense ranking
+      if (data && data.length > 0) {
+        let currentRank = 1;
+        let previousPoints = data[0].total_points;
+        
+        return data.map((entry, index) => {
+          if (entry.total_points !== previousPoints) {
+            currentRank = index + 1;
+            previousPoints = entry.total_points;
+          }
+          return { ...entry, rank: currentRank };
+        });
+      }
       
-      return leaderboardData.map((entry: any, index: number) => {
-        if (entry.total_points !== previousPoints) {
-          currentRank = index + 1;
-          previousPoints = entry.total_points;
-        }
-        return { ...entry, rank: currentRank };
-      });
+      return data;
     },
   });
 
@@ -236,31 +217,24 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           <p className="text-muted-foreground text-center py-8">No scores yet for this month</p>
         ) : (
           <div className="space-y-3">
-            {leaderboard?.map((entry: any) => {
-              const isCurrentStudent = currentStudent?.id === entry.student_id;
-              return (
+            {leaderboard?.map((entry: any) => (
               <div
                 key={entry.id}
-                className={`flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md ${
-                  isCurrentStudent ? 'bg-primary/10 border-primary shadow-lg ring-2 ring-primary/20' : ''
-                }`}
+                className="flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md"
                 onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 flex-shrink-0 flex items-center justify-center">
                     {getRankIcon(entry.rank)}
                   </div>
-                  <Avatar className={`h-12 w-12 flex-shrink-0 border-2 ${isCurrentStudent ? 'border-primary' : ''}`}>
+                  <Avatar className="h-12 w-12 flex-shrink-0 border-2">
                     <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
                     <AvatarFallback className="text-sm font-semibold">
                       {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base truncate">
-                      {entry.students?.full_name}
-                      {isCurrentStudent && <span className="ml-2 text-xs text-primary font-normal">(You)</span>}
-                    </p>
+                    <p className="font-semibold text-base truncate">{entry.students?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                       HW: {entry.homework_points} • Part: {entry.participation_points}
                     </p>
@@ -272,8 +246,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                   </Badge>
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
         )}
       </CardContent>
