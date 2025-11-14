@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,19 +8,23 @@ export default function ProfilePicker() {
   const { studentId, setStudentId } = useStudentProfile();
   const [students, setStudents] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasAutoSelectedRef = useRef(false);
 
   useEffect(() => {
     async function loadStudents() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setLoading(false);
+          return;
+        }
 
         // Get students linked to user or in their family
         const { data: familyData } = await supabase
           .from("families")
           .select("id")
           .eq("primary_user_id", user.id)
-          .single();
+          .maybeSingle();
 
         let studentData;
         if (familyData) {
@@ -43,17 +47,17 @@ export default function ProfilePicker() {
 
         setStudents(studentData || []);
         
-        // Check if current studentId is valid for this user
-        const isValidStudentId = studentData?.some(s => s.id === studentId);
-        
-        if (!isValidStudentId && studentId) {
-          // Clear invalid studentId from previous user session
-          setStudentId(undefined);
-        }
-        
-        // Auto-select if only 1 student and no valid studentId
-        if (studentData && studentData.length === 1 && !isValidStudentId) {
+        // Auto-select logic with ref to prevent multiple runs
+        if (studentData && studentData.length === 1 && !hasAutoSelectedRef.current) {
+          hasAutoSelectedRef.current = true;
           setStudentId(studentData[0].id);
+        } else if (studentData && studentData.length > 0) {
+          // Check if current studentId is valid
+          const isValidStudentId = studentData.some(s => s.id === studentId);
+          if (!isValidStudentId && studentId) {
+            // Clear invalid studentId
+            setStudentId(undefined);
+          }
         }
       } catch (error) {
         console.error("Error loading students:", error);
@@ -64,7 +68,7 @@ export default function ProfilePicker() {
     }
 
     loadStudents();
-  }, [studentId, setStudentId]);
+  }, []);
 
   if (loading || !students || students.length < 2 || studentId) {
     return null;

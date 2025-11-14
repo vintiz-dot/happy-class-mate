@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,18 +14,22 @@ export default function ProfileSwitcher() {
   const { studentId, setStudentId } = useStudentProfile();
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasAutoSelectedRef = useRef(false);
 
   useEffect(() => {
     async function loadStudents() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setLoading(false);
+          return;
+        }
 
         const { data: familyData } = await supabase
           .from("families")
           .select("id")
           .eq("primary_user_id", user.id)
-          .single();
+          .maybeSingle();
 
         let studentData;
         if (familyData) {
@@ -48,7 +52,9 @@ export default function ProfileSwitcher() {
 
         setStudents(studentData || []);
         
-        if (studentData && studentData.length === 1 && !studentId) {
+        // Auto-select only if 1 student and not already done
+        if (studentData && studentData.length === 1 && !studentId && !hasAutoSelectedRef.current) {
+          hasAutoSelectedRef.current = true;
           setStudentId(studentData[0].id);
         }
       } catch (error) {
@@ -60,7 +66,7 @@ export default function ProfileSwitcher() {
     }
 
     loadStudents();
-  }, [studentId, setStudentId]);
+  }, []);
 
   if (loading || students.length === 0) {
     return null;
