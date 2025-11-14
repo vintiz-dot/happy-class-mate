@@ -2083,6 +2083,10 @@ export type Database = {
         Args: { _journal_id: string; _user_id: string }
         Returns: boolean
       }
+      is_student_enrolled_in_class: {
+        Args: { class_id_check: string; user_id: string }
+        Returns: boolean
+      }
       is_teacher_of_class: {
         Args: { class_id: string; user_id: string }
         Returns: boolean
