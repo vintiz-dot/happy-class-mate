@@ -2042,6 +2042,10 @@ export type Database = {
         Args: { p_job: string; p_month: string }
         Returns: boolean
       }
+      can_view_classmate: {
+        Args: { student_id_to_view: string; viewer_user_id: string }
+        Returns: boolean
+      }
       can_view_family: {
         Args: { family_id: string; user_id: string }
         Returns: boolean
