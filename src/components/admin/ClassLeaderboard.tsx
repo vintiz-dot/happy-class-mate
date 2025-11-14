@@ -48,40 +48,71 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
     };
   }, [classId, queryClient]);
 
+  // Fetch leaderboard data for the selected month - includes ALL enrolled students
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ["class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("student_points")
+      // First, get all active enrollments for the class
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("enrollments")
         .select(`
-          *,
-          students (
+          student_id,
+          students!inner(
             id,
             full_name,
             avatar_url
           )
         `)
         .eq("class_id", classId)
-        .eq("month", selectedMonth)
-        .order("total_points", { ascending: false });
+        .is("end_date", null);
 
-      if (error) throw error;
+      if (enrollError) throw enrollError;
 
-      // Implement dense ranking
-      if (data && data.length > 0) {
-        let currentRank = 1;
-        let previousPoints = data[0].total_points;
-        
-        return data.map((entry, index) => {
-          if (entry.total_points !== previousPoints) {
-            currentRank = index + 1;
-            previousPoints = entry.total_points;
-          }
-          return { ...entry, rank: currentRank };
-        });
-      }
+      // Then get points for these students in the selected month
+      const studentIds = enrollments?.map((e: any) => e.student_id) || [];
       
-      return data;
+      const { data: points, error: pointsError } = await supabase
+        .from("student_points")
+        .select("*")
+        .in("student_id", studentIds)
+        .eq("class_id", classId)
+        .eq("month", selectedMonth);
+
+      if (pointsError) throw pointsError;
+
+      // Merge enrollments with points (default to 0 if no points record)
+      const pointsMap = new Map(points?.map(p => [p.student_id, p]) || []);
+      
+      const leaderboardData = enrollments?.map((e: any) => {
+        const pointsData = pointsMap.get(e.student_id);
+        return {
+          student_id: e.student_id,
+          class_id: classId,
+          month: selectedMonth,
+          homework_points: pointsData?.homework_points || 0,
+          participation_points: pointsData?.participation_points || 0,
+          total_points: pointsData?.total_points || 0,
+          students: e.students
+        };
+      }) || [];
+
+      // Sort by total points descending
+      leaderboardData.sort((a: any, b: any) => b.total_points - a.total_points);
+
+      // Calculate dense rank
+      let currentRank = 0;
+      let previousPoints = -1;
+      
+      return leaderboardData.map((entry: any, index: number) => {
+        if (entry.total_points !== previousPoints) {
+          currentRank = index + 1;
+          previousPoints = entry.total_points;
+        }
+        return {
+          ...entry,
+          rank: currentRank
+        };
+      });
     },
   });
 
