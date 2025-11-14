@@ -76,7 +76,7 @@ export function StudentOverviewTab({ student }: { student: any }) {
               <PointsBreakdownChart studentId={student.id} classId={cls.id} />
               
               {/* Leaderboard for this class */}
-              <ClassLeaderboardShared classId={cls.id} />
+              <ClassLeaderboardShared classId={cls.id} currentStudentId={student.id} />
             </div>
           ))}
         </div>
