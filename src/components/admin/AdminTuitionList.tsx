@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, DollarSign, ArrowUpDown, Settings, Save, X } from "lucide-react";
+import { Eye, DollarSign, ArrowUpDown, Settings, Save, X, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { dayjs } from "@/lib/date";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +28,7 @@ interface AdminTuitionListProps {
 
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
+  const [confirmationFilter, setConfirmationFilter] = useState<string>("all");
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editDate, setEditDate] = useState("");
@@ -158,8 +159,16 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const filteredAndSortedData = useMemo(() => {
     if (!tuitionData) return [];
 
+    // Apply confirmation filter
+    let filtered = tuitionData;
+    if (confirmationFilter !== "all") {
+      filtered = tuitionData.filter((item: any) => 
+        item.confirmation_status === confirmationFilter
+      );
+    }
+
     // Apply sort
-    const sorted = [...tuitionData].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "name":
           return ((a.students as any)?.full_name || "").localeCompare((b.students as any)?.full_name || "");
@@ -177,7 +186,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     });
 
     return sorted;
-  }, [tuitionData, sortBy]);
+  }, [tuitionData, sortBy, confirmationFilter]);
 
   const handleStartEdit = (invoice: any) => {
     setEditingInvoiceId(invoice.id);
@@ -305,6 +314,36 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex items-center gap-4 mb-4">
+          {/* Review Queue Button */}
+          <Button 
+            variant="outline" 
+            onClick={() => navigate(`/admin/tuition-review?month=${month}`)}
+            className="gap-2"
+          >
+            <AlertCircle className="h-4 w-4" />
+            Review Queue
+            {tuitionData?.filter((i: any) => i.confirmation_status === 'needs_review').length > 0 && (
+              <Badge variant="destructive">
+                {tuitionData?.filter((i: any) => i.confirmation_status === 'needs_review').length}
+              </Badge>
+            )}
+          </Button>
+          
+          {/* Confirmation Status Filter */}
+          <Select value={confirmationFilter} onValueChange={setConfirmationFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Confirmations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Confirmations</SelectItem>
+              <SelectItem value="needs_review">Needs Review</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="auto_approved">Auto Approved</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <ArrowUpDown className="h-4 w-4 text-muted-foreground" />

@@ -35,3 +35,9 @@ verify_jwt = true
 
 [functions.reset-points]
 verify_jwt = true
+
+[functions.confirm-tuition]
+verify_jwt = true
+
+[functions.update-enrollment-rate]
+verify_jwt = true

@@ -361,6 +361,7 @@ export type Database = {
           discount_value: number | null
           end_date: string | null
           id: string
+          rate_override_vnd: number | null
           start_date: string
           student_id: string
           updated_at: string
@@ -377,6 +378,7 @@ export type Database = {
           discount_value?: number | null
           end_date?: string | null
           id?: string
+          rate_override_vnd?: number | null
           start_date?: string
           student_id: string
           updated_at?: string
@@ -393,6 +395,7 @@ export type Database = {
           discount_value?: number | null
           end_date?: string | null
           id?: string
+          rate_override_vnd?: number | null
           start_date?: string
           student_id?: string
           updated_at?: string
@@ -675,6 +678,10 @@ export type Database = {
       invoices: {
         Row: {
           base_amount: number
+          confirmation_notes: string | null
+          confirmation_status: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           created_by: string | null
           discount_amount: number
@@ -684,6 +691,7 @@ export type Database = {
           paid_amount: number
           pdf_storage_key: string | null
           recorded_payment: number | null
+          review_flags: Json | null
           status: Database["public"]["Enums"]["invoice_status"]
           student_id: string
           total_amount: number
@@ -692,6 +700,10 @@ export type Database = {
         }
         Insert: {
           base_amount?: number
+          confirmation_notes?: string | null
+          confirmation_status?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           discount_amount?: number
@@ -701,6 +713,7 @@ export type Database = {
           paid_amount?: number
           pdf_storage_key?: string | null
           recorded_payment?: number | null
+          review_flags?: Json | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id: string
           total_amount?: number
@@ -709,6 +722,10 @@ export type Database = {
         }
         Update: {
           base_amount?: number
+          confirmation_notes?: string | null
+          confirmation_status?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           discount_amount?: number
@@ -718,6 +735,7 @@ export type Database = {
           paid_amount?: number
           pdf_storage_key?: string | null
           recorded_payment?: number | null
+          review_flags?: Json | null
           status?: Database["public"]["Enums"]["invoice_status"]
           student_id?: string
           total_amount?: number
@@ -1962,6 +1980,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tuition_review_sessions: {
+        Row: {
+          ended_at: string | null
+          id: string
+          month: string
+          reviewer_id: string | null
+          started_at: string | null
+          students_adjusted: number | null
+          students_confirmed: number | null
+          students_reviewed: number | null
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          month: string
+          reviewer_id?: string | null
+          started_at?: string | null
+          students_adjusted?: number | null
+          students_confirmed?: number | null
+          students_reviewed?: number | null
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          month?: string
+          reviewer_id?: string | null
+          started_at?: string | null
+          students_adjusted?: number | null
+          students_confirmed?: number | null
+          students_reviewed?: number | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

@@ -36,6 +36,7 @@ import Tuition from "./pages/Tuition";
 import TeacherProfile from "./pages/TeacherProfile";
 import StudentJournal from "./pages/StudentJournal";
 import TeacherJournal from "./pages/TeacherJournal";
+import { TuitionReviewQueue } from "./components/admin/TuitionReviewQueue";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +78,7 @@ function AppContent() {
             <Route path="/families/:id" element={<ProtectedRoute allowedRole="admin"><FamilyDetail /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><Admin /></ProtectedRoute>} />
             <Route path="/admin/classes/:id" element={<ProtectedRoute allowedRole="admin"><ClassDetail /></ProtectedRoute>} />
+            <Route path="/admin/tuition-review" element={<ProtectedRoute allowedRole="admin"><TuitionReviewQueue /></ProtectedRoute>} />
             <Route path="/students/:id/tuition" element={<ProtectedRoute allowedRole="admin"><Tuition /></ProtectedRoute>} />
             
             {/* Teacher routes */}
