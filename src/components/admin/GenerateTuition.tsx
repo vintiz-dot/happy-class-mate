@@ -16,48 +16,34 @@ export function GenerateTuition() {
 
   const generateMutation = useMutation({
     mutationFn: async (month: string) => {
-      // Use dayjs to properly calculate month boundaries
       const monthStart = dayjs(`${month}-01`);
       const monthEnd = monthStart.endOf('month');
       const monthStartStr = monthStart.format('YYYY-MM-DD');
       const monthEndStr = monthEnd.format('YYYY-MM-DD');
 
-      // Get all active students with enrollments for the month
       const { data: enrollments, error: enrollError } = await supabase
         .from("enrollments")
-        .select(`
-          student_id,
-          students(id, full_name, is_active)
-        `)
+        .select(`student_id, students(id, full_name, is_active)`)
         .lte("start_date", monthEndStr)
         .or(`end_date.is.null,end_date.gte.${monthStartStr}`);
 
       if (enrollError) throw enrollError;
 
       const activeStudentIds = Array.from(
-        new Set(
-          enrollments
-            ?.filter((e: any) => e.students?.is_active)
-            .map((e: any) => e.student_id) || []
-        )
+        new Set(enrollments?.filter((e: any) => e.students?.is_active).map((e: any) => e.student_id) || [])
       );
 
       if (activeStudentIds.length === 0) {
-        return { success: true, processed: 0, errors: [] };
+        return { success: true, processed: 0, errors: [], needsReview: 0 };
       }
 
-      // Generate tuition for each student
-      const results = {
-        processed: 0,
-        errors: [] as string[],
-      };
+      const results = { processed: 0, errors: [] as string[], needsReview: 0 };
 
       for (const studentId of activeStudentIds) {
         try {
           const { data, error } = await supabase.functions.invoke("calculate-tuition", {
             body: { studentId, month },
           });
-
           if (error) {
             results.errors.push(`Student ${studentId}: ${error.message}`);
           } else if (data?.error) {
@@ -70,33 +56,28 @@ export function GenerateTuition() {
         }
       }
 
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("confirmation_status")
+        .eq("month", month)
+        .eq("confirmation_status", "needs_review");
+      
+      results.needsReview = invoices?.length || 0;
       return results;
     },
     onSuccess: (data) => {
       setResults(data);
       queryClient.invalidateQueries({ queryKey: ["admin-tuition-list"] });
-      
       if (data.errors.length === 0) {
-        toast.success(`Successfully generated tuition for ${data.processed} students`);
+        toast.success(`Generated tuition for ${data.processed} students`);
       } else {
-        toast.warning(
-          `Generated tuition for ${data.processed} students with ${data.errors.length} errors`
-        );
+        toast.warning(`Generated tuition for ${data.processed} students with ${data.errors.length} errors`);
       }
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to generate tuition");
     },
   });
-
-  const handleGenerate = () => {
-    if (!selectedMonth) {
-      toast.error("Please select a month");
-      return;
-    }
-    setResults(null);
-    generateMutation.mutate(selectedMonth);
-  };
 
   return (
     <Card>
@@ -105,9 +86,7 @@ export function GenerateTuition() {
           <Calculator className="h-5 w-5" />
           Generate Tuition
         </CardTitle>
-        <CardDescription>
-          Calculate and generate tuition invoices for all active students in a specific month
-        </CardDescription>
+        <CardDescription>Calculate and generate tuition invoices for all active students</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-end gap-4">
@@ -115,48 +94,23 @@ export function GenerateTuition() {
             <label className="text-sm font-medium mb-2 block">Select Month</label>
             <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           </div>
-          <Button 
-            onClick={handleGenerate} 
-            disabled={generateMutation.isPending}
-            className="min-w-[140px]"
-          >
-            {generateMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Calculator className="h-4 w-4 mr-2" />
-                Generate
-              </>
-            )}
+          <Button onClick={() => generateMutation.mutate(selectedMonth)} disabled={generateMutation.isPending}>
+            {generateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Generate
           </Button>
         </div>
-
         {results && (
           <Alert>
             <AlertDescription>
-              <div className="space-y-2">
-                <p className="font-medium">
-                  Successfully processed: {results.processed} students
-                </p>
-                {results.errors.length > 0 && (
-                  <div>
-                    <p className="font-medium text-destructive">
-                      Errors ({results.errors.length}):
-                    </p>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground mt-1">
-                      {results.errors.slice(0, 5).map((err: string, i: number) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                      {results.errors.length > 5 && (
-                        <li>... and {results.errors.length - 5} more errors</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              Generated tuition for {results.processed} students.
+              {results.needsReview > 0 && (
+                <div className="mt-2">
+                  <strong className="text-amber-600">{results.needsReview} students need review.</strong>
+                  <Button variant="link" className="p-0 h-auto ml-2" onClick={() => window.location.href = `/admin/tuition-review?month=${selectedMonth}`}>
+                    Go to Review Queue →
+                  </Button>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}
