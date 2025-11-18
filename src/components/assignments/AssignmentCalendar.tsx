@@ -42,55 +42,61 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
     console.log("[AssignmentCalendar] studentId changed:", studentId);
   }, [studentId]);
 
-  const { data, isLoading } = useQuery({
+  // Use the same logic as AssignmentsList - fetch enrollments, then homeworks with submissions
+  const { data: assignments, isLoading } = useQuery({
     queryKey: ["assignment-calendar", currentMonth, studentId, classId, role],
     queryFn: async () => {
-      console.log("[AssignmentCalendar] Fetching for studentId:", studentId);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No session");
-
-      // Build URL with parameters
-      let url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assignment-calendar?ym=${currentMonth}`;
       if (role === "student" && studentId) {
-        url += `&student_id=${studentId}`;
-      }
-      if (role === "teacher" && classId && classId !== "all") {
-        url += `&class_id=${classId}`;
-      }
+        // Get student's enrollments
+        const { data: enrollments } = await supabase
+          .from("enrollments")
+          .select("class_id")
+          .eq("student_id", studentId)
+          .is("end_date", null);
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+        const classIds = enrollments?.map(e => e.class_id) || [];
+        if (classIds.length === 0) return [];
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to fetch assignments");
+        // Get homeworks for those classes
+        const { data: homeworks } = await supabase
+          .from("homeworks")
+          .select(`
+            id,
+            title,
+            body,
+            due_date,
+            created_at,
+            class_id,
+            classes(name, id)
+          `)
+          .in("class_id", classIds)
+          .order("due_date", { ascending: true });
+
+        // Fetch submissions for each homework
+        const homeworksWithSubmissions = await Promise.all(
+          (homeworks || []).map(async (hw) => {
+            const { data: submission } = await supabase
+              .from("homework_submissions")
+              .select("*")
+              .eq("homework_id", hw.id)
+              .eq("student_id", studentId)
+              .maybeSingle();
+
+            return { 
+              ...hw, 
+              homework_submissions: submission ? [submission] : []
+            };
+          })
+        );
+
+        return homeworksWithSubmissions;
       }
-
-      const result = await response.json();
-      console.log("[AssignmentCalendar] Received", result.items?.length, "items for studentId:", studentId);
-      console.log("[AssignmentCalendar] First item submissions:", result.items?.[0]?.homework_submissions);
-      return result;
+      
+      return [];
     },
     enabled: (role !== "student" || (!!studentId && isHydrated)),
-    staleTime: 0, // Force fresh data on studentId change
+    staleTime: 0,
   });
-
-  // Client-side validation: ensure only current student's submissions are shown
-  const assignments: Assignment[] = useMemo(() => {
-    const items = data?.items || [];
-    
-    // Double-check: Filter out any submissions that don't belong to this student
-    return items.map(assignment => ({
-      ...assignment,
-      homework_submissions: (assignment.homework_submissions || []).filter(
-        sub => role !== "student" || sub.student_id === studentId
-      )
-    }));
-  }, [data, studentId, role]);
 
   // Early return for empty state
   if (!isLoading && assignments.length === 0 && studentId && role === "student") {
