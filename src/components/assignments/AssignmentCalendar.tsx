@@ -69,13 +69,28 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
         const error = await response.json();
         throw new Error(error.error || "Failed to fetch assignments");
       }
-      return response.json();
+
+      const result = await response.json();
+      console.log("[AssignmentCalendar] Received", result.items?.length, "items for studentId:", studentId);
+      console.log("[AssignmentCalendar] First item submissions:", result.items?.[0]?.homework_submissions);
+      return result;
     },
     enabled: (role !== "student" || (!!studentId && isHydrated)),
     staleTime: 0, // Force fresh data on studentId change
   });
 
-  const assignments: Assignment[] = data?.items || [];
+  // Client-side validation: ensure only current student's submissions are shown
+  const assignments: Assignment[] = useMemo(() => {
+    const items = data?.items || [];
+    
+    // Double-check: Filter out any submissions that don't belong to this student
+    return items.map(assignment => ({
+      ...assignment,
+      homework_submissions: (assignment.homework_submissions || []).filter(
+        sub => role !== "student" || sub.student_id === studentId
+      )
+    }));
+  }, [data, studentId, role]);
 
   // Early return for empty state
   if (!isLoading && assignments.length === 0 && studentId && role === "student") {

@@ -142,7 +142,8 @@ serve(async (req) => {
         return json({ from, to, items: [], days: [] }, 200, req.headers);
       }
       
-      query = query.in("class_id", classIds).eq("homework_submissions.student_id", studentId);
+      // Note: Cannot filter nested relations with .eq(), will filter in mapping step
+      query = query.in("class_id", classIds);
     } else if (userRole === "teacher") {
       // Teachers see assignments from their classes with all submissions
       const classIdParam = url.searchParams.get("class_id");
@@ -184,17 +185,26 @@ serve(async (req) => {
 
     // Map to items format - classes comes as array but we need single object
     const studentIdParam = url.searchParams.get("student_id");
-    const items = (data ?? []).map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      due_date: row.due_date,
-      class_id: row.class_id,
-      classes: row.classes?.[0] || null,
-      // Only include submissions for THIS student
-      homework_submissions: (row.homework_submissions || []).filter((sub: any) => 
-        userRole === "student" ? sub.student_id === studentIdParam : true
-      )
-    })) as Row[];
+    console.log("[assignment-calendar] Filtering for studentId:", studentIdParam, "role:", userRole);
+    
+    const items = (data ?? []).map((row: any) => {
+      // Strictly filter submissions for ONLY this student
+      const filteredSubmissions = (row.homework_submissions || []).filter((sub: any) => {
+        const matches = userRole === "student" ? sub.student_id === studentIdParam : true;
+        return matches;
+      });
+
+      return {
+        id: row.id,
+        title: row.title,
+        due_date: row.due_date,
+        class_id: row.class_id,
+        classes: row.classes?.[0] || null,
+        homework_submissions: filteredSubmissions
+      };
+    }) as Row[];
+
+    console.log("[assignment-calendar] Returning", items.length, "items for student:", studentIdParam);
 
     // optional day buckets for full-month ranges
     const firstOfMonth = from.endsWith("-01");
