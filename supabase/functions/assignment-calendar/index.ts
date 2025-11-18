@@ -183,13 +183,17 @@ serve(async (req) => {
     }
 
     // Map to items format - classes comes as array but we need single object
+    const studentIdParam = url.searchParams.get("student_id");
     const items = (data ?? []).map((row: any) => ({
       id: row.id,
       title: row.title,
       due_date: row.due_date,
       class_id: row.class_id,
       classes: row.classes?.[0] || null,
-      homework_submissions: row.homework_submissions || []
+      // Only include submissions for THIS student
+      homework_submissions: (row.homework_submissions || []).filter((sub: any) => 
+        userRole === "student" ? sub.student_id === studentIdParam : true
+      )
     })) as Row[];
 
     // optional day buckets for full-month ranges

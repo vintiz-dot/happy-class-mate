@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ export default function ProfileSwitcher() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const hasAutoSelectedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     async function loadStudents() {
@@ -92,7 +94,12 @@ export default function ProfileSwitcher() {
         {students.map((student) => (
           <DropdownMenuItem
             key={student.id}
-            onClick={() => setStudentId(student.id)}
+            onClick={() => {
+              setStudentId(student.id);
+              // Invalidate assignment queries to force refetch
+              queryClient.invalidateQueries({ queryKey: ["assignment-calendar"] });
+              queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
+            }}
             className="flex items-center gap-2"
           >
             <User className="h-4 w-4" />

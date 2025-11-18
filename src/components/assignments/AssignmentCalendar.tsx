@@ -1,4 +1,4 @@
-import { useMemo, useState, useContext } from "react";
+import { useMemo, useState, useContext, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildMonthGrid, todayKey, dayjs } from "@/lib/date";
@@ -36,10 +36,16 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const context = useContext(StudentProfileContext);
   const studentId = context?.studentId;
+  const isHydrated = context?.isHydrated;
+
+  useEffect(() => {
+    console.log("[AssignmentCalendar] studentId changed:", studentId);
+  }, [studentId]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["assignment-calendar", currentMonth, studentId, classId],
+    queryKey: ["assignment-calendar", currentMonth, studentId, classId, role],
     queryFn: async () => {
+      console.log("[AssignmentCalendar] Fetching for studentId:", studentId);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No session");
 
@@ -65,10 +71,26 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
       }
       return response.json();
     },
-    enabled: role !== "student" || !!studentId, // Only fetch for students if studentId is available
+    enabled: (role !== "student" || (!!studentId && isHydrated)),
+    staleTime: 0, // Force fresh data on studentId change
   });
 
   const assignments: Assignment[] = data?.items || [];
+
+  // Early return for empty state
+  if (!isLoading && assignments.length === 0 && studentId && role === "student") {
+    return (
+      <Card>
+        <div className="py-12 text-center px-4">
+          <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No assignments for this month</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            No assignments found for the selected student
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   const cells = useMemo(() => buildMonthGrid(currentMonth), [currentMonth]);
   
