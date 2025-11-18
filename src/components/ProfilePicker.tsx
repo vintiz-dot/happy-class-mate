@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +10,7 @@ export default function ProfilePicker() {
   const [students, setStudents] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
   const hasAutoSelectedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     async function loadStudents() {
@@ -51,6 +53,9 @@ export default function ProfilePicker() {
         if (studentData && studentData.length === 1 && !hasAutoSelectedRef.current) {
           hasAutoSelectedRef.current = true;
           setStudentId(studentData[0].id);
+          // Invalidate on auto-selection
+          queryClient.invalidateQueries({ queryKey: ["assignment-calendar"] });
+          queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
         } else if (studentData && studentData.length > 0) {
           // Check if current studentId is valid
           const isValidStudentId = studentData.some(s => s.id === studentId);
@@ -89,7 +94,11 @@ export default function ProfilePicker() {
               key={student.id}
               variant="outline"
               className="w-full justify-start"
-              onClick={() => setStudentId(student.id)}
+              onClick={() => {
+                setStudentId(student.id);
+                queryClient.invalidateQueries({ queryKey: ["assignment-calendar"] });
+                queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
+              }}
             >
               <div className="text-left">
                 <div className="font-medium">{student.full_name}</div>
