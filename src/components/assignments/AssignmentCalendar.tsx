@@ -117,6 +117,8 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
   
   const assignmentsByDate = useMemo(() => {
     const map: Record<string, Assignment[]> = {};
+    if (!assignments) return map;
+    
     for (const assignment of assignments) {
       if (assignment.due_date) {
         (map[assignment.due_date] ||= []).push(assignment);
