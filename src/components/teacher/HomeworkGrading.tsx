@@ -308,7 +308,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Grade Assignment</DialogTitle>
               <DialogDescription>
@@ -317,10 +317,10 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 px-1">
               {selectedSubmission.submission?.assignment_instructions && (
                 <div className="space-y-2 pb-4 mb-4 border-b">
-                  <Label className="text-base font-semibold">Original Assignment Instructions</Label>
+                  <Label className="text-base font-semibold">Assignment Instructions</Label>
                   <div 
                     className="p-4 bg-muted/50 rounded-md prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission.assignment_instructions) }}
