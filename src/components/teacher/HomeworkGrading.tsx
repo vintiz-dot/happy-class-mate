@@ -318,12 +318,12 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
             </DialogHeader>
 
             <div className="space-y-4 overflow-y-auto flex-1 px-1">
-              {selectedSubmission.submission?.assignment_instructions && (
+              {homework?.body && (
                 <div className="space-y-2 pb-4 mb-4 border-b">
                   <Label className="text-base font-semibold">Assignment Instructions</Label>
                   <div 
                     className="p-4 bg-muted/50 rounded-md prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission.assignment_instructions) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(homework.body) }}
                   />
                 </div>
               )}
