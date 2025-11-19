@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { dayjs } from "@/lib/date";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface HomeworkGradingProps {
   homeworkId: string;
@@ -317,6 +318,26 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
             </DialogHeader>
 
             <div className="space-y-4">
+              {selectedSubmission.submission?.assignment_instructions && (
+                <div className="space-y-2 pb-4 mb-4 border-b">
+                  <Label className="text-base font-semibold">Original Assignment Instructions</Label>
+                  <div 
+                    className="p-4 bg-muted/50 rounded-md prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission.assignment_instructions) }}
+                  />
+                </div>
+              )}
+
+              {selectedSubmission.submission?.submission_text && (
+                <div className="space-y-2 pb-4 mb-4 border-b">
+                  <Label className="text-base font-semibold">Student Submission</Label>
+                  <div 
+                    className="p-4 bg-background border rounded-md prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission.submission_text) }}
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="grade">Grade</Label>
                 <Input
