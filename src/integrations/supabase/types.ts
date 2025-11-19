@@ -555,6 +555,7 @@ export type Database = {
       }
       homework_submissions: {
         Row: {
+          assignment_instructions: string | null
           created_at: string
           file_name: string | null
           file_size: number | null
@@ -571,6 +572,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assignment_instructions?: string | null
           created_at?: string
           file_name?: string | null
           file_size?: number | null
@@ -587,6 +589,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assignment_instructions?: string | null
           created_at?: string
           file_name?: string | null
           file_size?: number | null

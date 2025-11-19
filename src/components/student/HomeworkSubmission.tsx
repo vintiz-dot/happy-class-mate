@@ -64,6 +64,13 @@ export default function HomeworkSubmission({
         fileSize = file.size;
       }
 
+      // Get homework instructions to store with submission
+      const { data: homework } = await supabase
+        .from("homeworks")
+        .select("body")
+        .eq("id", homeworkId)
+        .single();
+
       // Upsert submission
       const { error } = await supabase.from("homework_submissions").upsert({
         id: existingSubmission?.id,
@@ -75,6 +82,7 @@ export default function HomeworkSubmission({
         file_size: fileSize,
         status: "submitted",
         submitted_at: new Date().toISOString(),
+        assignment_instructions: homework?.body || null,
       });
 
       if (error) throw error;
@@ -178,23 +186,37 @@ export default function HomeworkSubmission({
       )}
 
       {existingSubmission?.status === "graded" && (
-        <div className="p-3 bg-muted rounded-lg space-y-2">
-          <p className="text-sm font-medium">Grade: {existingSubmission.grade}</p>
-          {existingSubmission.teacher_feedback && (
-            <div>
-              <p className="text-sm font-medium">Feedback:</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {existingSubmission.teacher_feedback}
-              </p>
+        <div className="p-4 bg-muted rounded-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-base font-bold">Grade: {existingSubmission.grade}</p>
+          </div>
+          
+          {existingSubmission.assignment_instructions && (
+            <div className="border-t pt-3">
+              <p className="text-sm font-semibold mb-2">Assignment Instructions:</p>
+              <div 
+                className="prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.assignment_instructions) }}
+              />
             </div>
           )}
+          
           {existingSubmission.submission_text && (
-            <div>
-              <p className="text-sm font-medium">Your Submission:</p>
+            <div className="border-t pt-3">
+              <p className="text-sm font-semibold mb-2">Your Submission:</p>
               <div 
-                className="text-sm text-muted-foreground mt-1 prose prose-sm max-w-none"
+                className="prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
               />
+            </div>
+          )}
+          
+          {existingSubmission.teacher_feedback && (
+            <div className="border-t pt-3">
+              <p className="text-sm font-semibold mb-2">Teacher Feedback:</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap">
+                {existingSubmission.teacher_feedback}
+              </p>
             </div>
           )}
         </div>

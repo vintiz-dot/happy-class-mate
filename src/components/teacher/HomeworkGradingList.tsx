@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Download, Star } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface HomeworkGradingListProps {
   statusFilter?: string;
@@ -287,6 +288,26 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
+              {selectedSubmission?.assignment_instructions && (
+                <div className="space-y-2 pb-4 mb-4 border-b">
+                  <Label className="text-base font-semibold">Original Assignment Instructions</Label>
+                  <div 
+                    className="p-4 bg-muted/50 rounded-md prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.assignment_instructions) }}
+                  />
+                </div>
+              )}
+
+              {selectedSubmission?.submission_text && (
+                <div className="space-y-2 pb-4 mb-4 border-b">
+                  <Label className="text-base font-semibold">Student Submission</Label>
+                  <div 
+                    className="p-4 bg-background border rounded-md prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission_text) }}
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="grade">Grade *</Label>
                 <Input
