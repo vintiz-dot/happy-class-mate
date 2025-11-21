@@ -328,15 +328,29 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
                 </div>
               )}
 
-              {selectedSubmission.submission?.submission_text && (
-                <div className="space-y-2 pb-4 mb-4 border-b">
-                  <Label className="text-base font-semibold">Student Submission</Label>
+              <div className="space-y-2 pb-4 mb-4 border-b">
+                <Label className="text-base font-semibold">Student Submission</Label>
+                {selectedSubmission.submission?.submission_text ? (
                   <div 
                     className="p-4 bg-background border rounded-md prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.submission.submission_text) }}
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="p-4 bg-muted/30 border border-dashed rounded-md text-muted-foreground text-sm">
+                    {selectedSubmission.submission ? "No text submission provided" : "Grading offline submission - no online submission found"}
+                  </div>
+                )}
+                {selectedSubmission.submission?.storage_key && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadFile(selectedSubmission.submission.storage_key, selectedSubmission.submission.file_name)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Student Attachment
+                  </Button>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="grade">Grade</Label>
