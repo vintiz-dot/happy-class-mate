@@ -149,6 +149,36 @@ export type Database = {
         }
         Relationships: []
       }
+      avatars: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string
+          is_active: boolean
+          is_premium: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order: number
+          id?: string
+          image_url: string
+          is_active?: boolean
+          is_premium?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          is_premium?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       bank_info: {
         Row: {
           account_name: string

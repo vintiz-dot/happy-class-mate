@@ -8,6 +8,7 @@ import { Loader2, Save, User, Mail, Phone, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
+import { AvatarPicker } from "./AvatarPicker";
 
 interface StudentProfileEditProps {
   studentId: string;
@@ -90,14 +91,45 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
 
   return (
     <div className="space-y-6">
-      {/* Profile Picture Section */}
+      {/* Avatar Selection Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Profile Picture
+            Choose Your Avatar
           </CardTitle>
-          <CardDescription>Upload or change your profile picture</CardDescription>
+          <CardDescription>Select from standard avatars or unlock premium ones by ranking top-3</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AvatarPicker
+            studentId={studentId}
+            currentAvatarUrl={student?.avatar_url}
+            onSelect={async (avatarUrl) => {
+              const { error } = await supabase
+                .from("students")
+                .update({ avatar_url: avatarUrl })
+                .eq("id", studentId);
+              
+              if (error) {
+                toast.error("Failed to update avatar");
+              } else {
+                queryClient.invalidateQueries({ queryKey: ["student", studentId] });
+                queryClient.invalidateQueries({ queryKey: ["student-profile-edit", studentId] });
+                toast.success("Avatar updated successfully");
+              }
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Profile Picture Upload (Custom) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Custom Profile Picture
+          </CardTitle>
+          <CardDescription>Or upload your own custom picture</CardDescription>
         </CardHeader>
         <CardContent>
           <ProfilePictureUpload
