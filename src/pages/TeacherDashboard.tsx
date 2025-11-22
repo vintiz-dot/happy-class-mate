@@ -198,11 +198,19 @@ export default function TeacherDashboard() {
 
   return (
     <Layout title="Dashboard">
-      <div className="space-y-6">
+      {/* Premium animated background orbs - different color scheme from auth */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-40 right-40 w-96 h-96 bg-accent/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-40 left-40 w-[28rem] h-[28rem] bg-secondary/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+        <div className="absolute top-1/2 right-1/3 w-80 h-80 bg-muted/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
+      </div>
+
+      <div className="space-y-6 relative z-10">
         {/* Teacher Profile Header */}
         {teacherProfile && (
-          <Card>
-            <CardHeader>
+          <Card className="glass-lg border-0 shadow-2xl backdrop-blur-xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.01] animate-fade-in overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/20 via-transparent to-secondary/10 pointer-events-none"></div>
+            <CardHeader className="relative">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
@@ -235,8 +243,9 @@ export default function TeacherDashboard() {
         )}
 
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-2 relative">
               <CardDescription>Today's Sessions</CardDescription>
               <CardTitle className="text-3xl">{todaySessions?.length || 0}</CardTitle>
             </CardHeader>
@@ -247,8 +256,9 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-2 relative">
               <CardDescription>Active Classes</CardDescription>
               <CardTitle className="text-3xl">{activeClasses?.length || 0}</CardTitle>
             </CardHeader>
@@ -257,8 +267,9 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-2 relative">
               <CardDescription>Pending Grading</CardDescription>
               <CardTitle className="text-3xl">{pendingGrading || 0}</CardTitle>
             </CardHeader>
@@ -267,8 +278,9 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-2 relative">
               <CardDescription>Earned (Actual)</CardDescription>
               <CardTitle className="text-3xl">
                 {(payrollData?.totalAmountActual || 0).toLocaleString()} ₫
@@ -281,8 +293,9 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <CardHeader className="pb-2 relative">
               <CardDescription>Projected Total</CardDescription>
               <CardTitle className="text-3xl">
                 {(payrollData?.totalAmountProjected || 0).toLocaleString()} ₫

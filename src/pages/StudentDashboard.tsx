@@ -176,18 +176,18 @@ export default function StudentDashboard() {
 
   return (
     <Layout title={`Dashboard - ${studentProfile.full_name}`}>
-      {/* Animated background orbs */}
+      {/* Premium animated background orbs - different color scheme from auth */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-[500px] h-[500px] bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-40 left-40 w-96 h-96 bg-secondary/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-40 right-40 w-[28rem] h-[28rem] bg-muted/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+        <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
       </div>
 
-      <div className="space-y-8 relative">
+      <div className="space-y-8 relative z-10">
         {/* Premium Profile Header */}
-        <div className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden animate-slide-up">
-          {/* Glossy overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 pointer-events-none"></div>
+        <div className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden animate-fade-in backdrop-blur-xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.01]">
+          {/* Premium glossy overlay effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 via-transparent to-muted/10 pointer-events-none"></div>
           
           <div className="p-8 relative">
             <div className="flex items-start justify-between">
@@ -257,12 +257,12 @@ export default function StudentDashboard() {
 
         {/* Premium Stats Cards */}
         <div className="grid gap-6 md:grid-cols-3">
-          <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 premium-hover relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden group animate-fade-in">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
-                  <Clock className="h-6 w-6 text-primary" />
+                <div className="p-3 rounded-xl bg-gradient-to-br from-secondary/30 to-muted/30 group-hover:scale-110 transition-transform duration-300">
+                  <Clock className="h-6 w-6 text-secondary-foreground" />
                 </div>
                 <CardDescription className="text-base font-medium">Upcoming Sessions</CardDescription>
               </div>
@@ -273,12 +273,12 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 premium-hover relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden group animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10">
-                  <FileText className="h-6 w-6 text-accent" />
+                <div className="p-3 rounded-xl bg-gradient-to-br from-accent/30 to-secondary/30 group-hover:scale-110 transition-transform duration-300">
+                  <FileText className="h-6 w-6 text-accent-foreground" />
                 </div>
                 <CardDescription className="text-base font-medium">Pending Homework</CardDescription>
               </div>
@@ -291,13 +291,13 @@ export default function StudentDashboard() {
 
           <div 
             onClick={() => navigate('/tuition')} 
-            className="glass-lg border-0 shadow-xl rounded-2xl p-6 premium-hover cursor-pointer relative overflow-hidden group"
+            className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer relative overflow-hidden group animate-fade-in" style={{ animationDelay: '0.2s' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/10">
-                  <DollarSign className="h-6 w-6 text-warning" />
+                <div className="p-3 rounded-xl bg-gradient-to-br from-muted/30 to-accent/30 group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <CardDescription className="text-base font-medium">Current Balance</CardDescription>
               </div>
