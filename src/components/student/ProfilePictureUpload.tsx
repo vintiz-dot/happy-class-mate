@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getAvatarUrl } from "@/lib/avatars";
 
 interface ProfilePictureUploadProps {
   studentId: string;
@@ -100,7 +101,7 @@ export function ProfilePictureUpload({
     <div className="flex flex-col items-center gap-4">
       <div className="relative group">
         <Avatar className="h-32 w-32 ring-4 ring-primary/10 transition-all group-hover:ring-primary/20">
-          <AvatarImage src={currentAvatarUrl || undefined} alt={studentName} />
+          <AvatarImage src={getAvatarUrl(currentAvatarUrl) || undefined} alt={studentName} className="object-cover" />
           <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-primary/10">{initials}</AvatarFallback>
         </Avatar>
         <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

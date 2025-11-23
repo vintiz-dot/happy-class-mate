@@ -5,6 +5,7 @@ import { Lock, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { dayjs } from "@/lib/date";
+import { getAvatarUrl } from "@/lib/avatars";
 
 interface AvatarPickerProps {
   studentId: string;
@@ -163,7 +164,9 @@ export const AvatarPicker = ({ studentId, currentAvatarUrl, onSelect }: AvatarPi
     <div className="space-y-6">
       {/* Standard Avatars */}
       <div>
-        <h3 className="text-sm font-medium mb-3">Standard Avatars</h3>
+        <h3 className="text-sm font-semibold mb-3 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          Standard Avatars
+        </h3>
         <div className="grid grid-cols-5 gap-3">
           {standardAvatars.map((avatar) => (
             <button
@@ -174,12 +177,12 @@ export const AvatarPicker = ({ studentId, currentAvatarUrl, onSelect }: AvatarPi
                 currentAvatarUrl === avatar.image_url && "ring-2 ring-primary ring-offset-2"
               )}
             >
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={avatar.image_url} alt={avatar.name} />
+              <Avatar className="h-16 w-16 border-2 border-border">
+                <AvatarImage src={getAvatarUrl(avatar.image_url)} alt={avatar.name} />
                 <AvatarFallback>{avatar.name[0]}</AvatarFallback>
               </Avatar>
-              <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
-                <span className="text-xs font-medium">{avatar.name}</span>
+              <div className="absolute inset-0 bg-background/90 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
+                <span className="text-xs font-semibold">{avatar.name}</span>
               </div>
             </button>
           ))}
@@ -190,9 +193,13 @@ export const AvatarPicker = ({ studentId, currentAvatarUrl, onSelect }: AvatarPi
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Crown className="h-4 w-4 text-yellow-500" />
-          <h3 className="text-sm font-medium">Premium Avatars</h3>
+          <h3 className="text-sm font-semibold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
+            Premium Avatars
+          </h3>
           {isPremiumUnlocked && (
-            <span className="text-xs text-green-600 dark:text-green-400 font-medium">Unlocked!</span>
+            <span className="text-xs text-green-600 dark:text-green-400 font-semibold px-2 py-0.5 bg-green-500/10 rounded-full">
+              Unlocked!
+            </span>
           )}
         </div>
         <div className="grid grid-cols-5 gap-3">
@@ -208,8 +215,8 @@ export const AvatarPicker = ({ studentId, currentAvatarUrl, onSelect }: AvatarPi
                 currentAvatarUrl === avatar.image_url && "ring-2 ring-yellow-500 ring-offset-2"
               )}
             >
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={avatar.image_url} alt={avatar.name} />
+              <Avatar className="h-16 w-16 border-2 border-yellow-500/30">
+                <AvatarImage src={getAvatarUrl(avatar.image_url)} alt={avatar.name} />
                 <AvatarFallback>{avatar.name[0]}</AvatarFallback>
               </Avatar>
               {!isPremiumUnlocked && (
@@ -218,10 +225,10 @@ export const AvatarPicker = ({ studentId, currentAvatarUrl, onSelect }: AvatarPi
                 </div>
               )}
               <div className={cn(
-                "absolute inset-0 bg-background/80 opacity-0 transition-opacity rounded-full flex items-center justify-center",
+                "absolute inset-0 bg-background/90 opacity-0 transition-opacity rounded-full flex items-center justify-center",
                 isPremiumUnlocked && "group-hover:opacity-100"
               )}>
-                <span className="text-xs font-medium">{avatar.name}</span>
+                <span className="text-xs font-semibold">{avatar.name}</span>
               </div>
             </button>
           ))}
