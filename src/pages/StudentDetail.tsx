@@ -13,6 +13,7 @@ import { StudentEnrollmentsTab } from "@/components/student/StudentEnrollmentsTa
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getAvatarUrl } from "@/lib/avatars";
 import { Link } from "lucide-react";
 import { useState } from "react";
 import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
@@ -92,9 +93,9 @@ const StudentDetail = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={student.avatar_url || undefined} alt={student.full_name} />
-              <AvatarFallback className="text-2xl">
+            <Avatar className="w-16 h-16 ring-2 ring-border">
+              <AvatarImage src={getAvatarUrl(student.avatar_url) || undefined} alt={student.full_name} className="object-cover" />
+              <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-primary/10">
                 {student.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>

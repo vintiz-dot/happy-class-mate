@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TeacherProfileOverview } from "@/components/admin/teacher/TeacherProfileOverview";
 import { TeacherProfileSchedule } from "@/components/admin/teacher/TeacherProfileSchedule";
 import { TeacherProfileClasses } from "@/components/admin/teacher/TeacherProfileClasses";
+import { getAvatarUrl } from "@/lib/avatars";
 import { TeacherProfilePayroll } from "@/components/admin/teacher/TeacherProfilePayroll";
 import { TeacherProfileFilesNotes } from "@/components/admin/teacher/TeacherProfileFilesNotes";
 import { TeacherProfileAudit } from "@/components/admin/teacher/TeacherProfileAudit";
@@ -86,9 +87,9 @@ const TeacherProfile = () => {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarImage src={teacher.avatar_url || undefined} alt={teacher.full_name} />
-                  <AvatarFallback className="text-2xl">
+                <Avatar className="w-16 h-16 ring-2 ring-border">
+                  <AvatarImage src={getAvatarUrl(teacher.avatar_url) || undefined} alt={teacher.full_name} className="object-cover" />
+                  <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-primary/10">
                     {teacher.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>

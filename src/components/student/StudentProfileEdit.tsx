@@ -105,17 +105,23 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
             studentId={studentId}
             currentAvatarUrl={student?.avatar_url}
             onSelect={async (avatarUrl) => {
-              const { error } = await supabase
+              console.log("🎨 Saving avatar:", avatarUrl, "for student:", studentId);
+              const { error, data } = await supabase
                 .from("students")
                 .update({ avatar_url: avatarUrl })
-                .eq("id", studentId);
+                .eq("id", studentId)
+                .select();
               
               if (error) {
-                toast.error("Failed to update avatar");
+                console.error("❌ Avatar save error:", error);
+                toast.error(`Failed to update avatar: ${error.message}`);
               } else {
+                console.log("✅ Avatar saved successfully:", data);
+                // Invalidate all related queries
                 queryClient.invalidateQueries({ queryKey: ["student", studentId] });
                 queryClient.invalidateQueries({ queryKey: ["student-profile-edit", studentId] });
-                toast.success("Avatar updated successfully");
+                queryClient.invalidateQueries({ queryKey: ["student-profile", studentId] });
+                toast.success("Avatar updated successfully! Refresh to see changes.");
               }
             }}
           />
