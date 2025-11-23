@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatars";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
@@ -196,7 +197,7 @@ export default function StudentDashboard() {
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl animate-pulse"></div>
                   <Avatar className="h-24 w-24 border-4 border-white/20 shadow-2xl relative ring-2 ring-primary/20">
-                    <AvatarImage src={studentProfile.avatar_url || undefined} alt={studentProfile.full_name} />
+                    <AvatarImage src={getAvatarUrl(studentProfile.avatar_url) || undefined} alt={studentProfile.full_name} className="object-cover" />
                     <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-primary to-accent text-white">
                       {studentProfile.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
                     </AvatarFallback>

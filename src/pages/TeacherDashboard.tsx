@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getAvatarUrl } from "@/lib/avatars";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 
@@ -213,9 +214,9 @@ export default function TeacherDashboard() {
             <CardHeader className="relative">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={teacherProfile.avatar_url || undefined} alt={teacherProfile.full_name} />
-                    <AvatarFallback className="text-xl">
+                  <Avatar className="h-16 w-16 ring-2 ring-border">
+                    <AvatarImage src={getAvatarUrl(teacherProfile.avatar_url) || undefined} alt={teacherProfile.full_name} className="object-cover" />
+                    <AvatarFallback className="text-xl bg-gradient-to-br from-accent/20 to-secondary/10">
                       {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
