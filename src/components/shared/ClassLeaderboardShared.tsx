@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { PointHistoryDialog } from "@/components/admin/PointHistoryDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatars";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
@@ -227,9 +228,9 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                     <div className="w-10 flex-shrink-0 flex items-center justify-center">
                       {getRankIcon(entry.rank)}
                     </div>
-                    <Avatar className={`h-12 w-12 flex-shrink-0 ${isCurrentStudent ? 'border-primary border-3' : 'border-2'}`}>
-                      <AvatarImage src={entry.students?.avatar_url || undefined} alt={entry.students?.full_name} />
-                      <AvatarFallback className="text-sm font-semibold">
+                    <Avatar className={`h-12 w-12 flex-shrink-0 ring-2 ${isCurrentStudent ? 'ring-primary' : 'ring-border'}`}>
+                      <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover" />
+                      <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
                         {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>

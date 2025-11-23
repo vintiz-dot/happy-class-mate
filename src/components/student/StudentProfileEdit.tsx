@@ -92,15 +92,15 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
   return (
     <div className="space-y-6">
       {/* Avatar Selection Section */}
-      <Card>
+      <Card className="glass-lg border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <User className="h-5 w-5 text-primary" />
             Choose Your Avatar
           </CardTitle>
           <CardDescription>Select from standard avatars or unlock premium ones by ranking top-3</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <AvatarPicker
             studentId={studentId}
             currentAvatarUrl={student?.avatar_url}
@@ -123,10 +123,10 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
       </Card>
 
       {/* Profile Picture Upload (Custom) */}
-      <Card>
+      <Card className="glass-lg border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <User className="h-5 w-5 text-primary" />
             Custom Profile Picture
           </CardTitle>
           <CardDescription>Or upload your own custom picture</CardDescription>
@@ -141,10 +141,10 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
       </Card>
 
       {/* Contact Information Section */}
-      <Card>
+      <Card className="glass-lg border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <Mail className="h-5 w-5 text-primary" />
             Contact Information
           </CardTitle>
           <CardDescription>Update your contact details</CardDescription>
