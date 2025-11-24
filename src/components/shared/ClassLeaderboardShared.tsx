@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Medal, Award, Flag } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -133,27 +132,6 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
     previousLeaderboardRef.current = leaderboard;
   }, [leaderboard, toast]);
 
-  const { data: monthlyLeader } = useQuery({
-    queryKey: ["monthly-leader", classId, selectedMonth],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("monthly_leaders")
-        .select(`
-          *,
-          students (
-            id,
-            full_name
-          )
-        `)
-        .eq("class_id", classId)
-        .eq("month", selectedMonth)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -172,16 +150,12 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              Class Leaderboard
-            </CardTitle>
-            <CardDescription>Raw point totals • Dense ranking • No caps</CardDescription>
-          </div>
+    <Card className="border-primary/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            CLASS RANK
+          </CardTitle>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -201,59 +175,63 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
           </Select>
         </div>
       </CardHeader>
-      <CardContent>
-        {monthlyLeader && (
-          <div className="mb-6 p-4 bg-primary/10 rounded-lg">
-            <p className="text-sm text-muted-foreground mb-1">🏆 Top Student This Month</p>
-            <p className="text-lg font-bold">{monthlyLeader.students?.full_name}</p>
-            <p className="text-sm text-primary">{monthlyLeader.total_points} points</p>
-          </div>
-        )}
-
+      <CardContent className="p-0">
         {leaderboard?.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">No scores yet for this month</p>
+          <p className="text-muted-foreground text-center py-12">No scores yet for this month</p>
         ) : (
-          <div className="space-y-3">
-            {leaderboard?.map((entry: any) => {
-              const isCurrentStudent = currentStudentId && entry.student_id === currentStudentId;
-              return (
-                <div
-                  key={entry.id}
-                  className={`flex items-center justify-between p-4 border-2 rounded-xl hover:bg-accent/50 cursor-pointer transition-all hover:shadow-md ${
-                    isCurrentStudent ? 'bg-primary/10 border-primary shadow-md ring-2 ring-primary/20' : ''
-                  }`}
-                  onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 flex-shrink-0 flex items-center justify-center">
+          <div className="overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-3 bg-muted/50 border-y font-semibold text-sm text-muted-foreground">
+              <div>Rank</div>
+              <div>Name</div>
+              <div className="text-right">Score</div>
+            </div>
+
+            {/* Table Rows */}
+            <div className="divide-y">
+              {leaderboard?.map((entry: any, index: number) => {
+                const isCurrentStudent = currentStudentId && entry.student_id === currentStudentId;
+                return (
+                  <div
+                    key={entry.id}
+                    className={`grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 cursor-pointer transition-all hover:bg-accent/50 ${
+                      index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
+                    } ${entry.rank <= 3 ? 'bg-primary/5' : ''} ${
+                      isCurrentStudent ? 'ring-2 ring-primary/50 bg-primary/10' : ''
+                    }`}
+                    onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                  >
+                    {/* Rank Column */}
+                    <div className="flex items-center gap-2">
                       {getRankIcon(entry.rank)}
                     </div>
-                    <Avatar className={`h-12 w-12 flex-shrink-0 ring-2 ${isCurrentStudent ? 'ring-primary' : 'ring-border'}`}>
-                      <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover" />
-                      <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
-                        {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-base truncate">{entry.students?.full_name}</p>
+
+                    {/* Name Column */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className={`h-10 w-10 flex-shrink-0 ring-2 ${isCurrentStudent ? 'ring-primary' : 'ring-primary/20'}`}>
+                        <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover" />
+                        <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
+                          {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="font-medium text-base truncate">{entry.students?.full_name}</span>
                         {isCurrentStudent && (
                           <Flag className="h-4 w-4 text-primary fill-primary flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        HW: {entry.homework_points} • Part: {entry.participation_points}
-                      </p>
+                    </div>
+
+                    {/* Score Column */}
+                    <div className="flex items-center justify-end">
+                      <span className={`text-lg font-bold ${entry.rank <= 3 ? 'text-primary' : 'text-foreground'}`}>
+                        {entry.total_points}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <Badge variant={entry.rank <= 3 ? "default" : "secondary"} className="text-base px-4 py-2">
-                      {entry.total_points}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>
