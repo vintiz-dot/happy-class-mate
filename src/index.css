@@ -107,6 +107,10 @@ All colors MUST be HSL.
     --gradient-middle: 240 100% 70%;
     --gradient-end: 280 80% 65%;
     --gradient-accent: 195 100% 60%;
+    
+    /* Leaderboard vibrant pink theme */
+    --leaderboard-pink: 310 93% 50%;
+    --leaderboard-text: 0 0% 100%;
   }
 
   .dark {
@@ -174,6 +178,10 @@ All colors MUST be HSL.
     --gradient-middle: 240 100% 70%;
     --gradient-end: 280 80% 65%;
     --gradient-accent: 195 100% 60%;
+    
+    /* Leaderboard vibrant pink theme */
+    --leaderboard-pink: 310 93% 50%;
+    --leaderboard-text: 0 0% 100%;
   }
 }
 
