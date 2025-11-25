@@ -19,8 +19,14 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        "leaderboard-pink": "hsl(var(--leaderboard-pink))",
-        "leaderboard-text": "hsl(var(--leaderboard-text))",
+        leaderboard: {
+          bg: "hsl(var(--leaderboard-bg))",
+          text: "hsl(var(--leaderboard-text))",
+          glass: "hsl(var(--leaderboard-glass))",
+          glassBorder: "hsl(var(--leaderboard-glass-border))",
+          gradientStart: "hsl(var(--leaderboard-gradient-start))",
+          gradientEnd: "hsl(var(--leaderboard-gradient-end))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
