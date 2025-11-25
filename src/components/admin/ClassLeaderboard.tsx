@@ -154,16 +154,35 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
   const restOfList = leaderboard?.slice(3, 10) || [];
 
   return (
-    <div className="bg-leaderboard-pink rounded-3xl p-8 shadow-2xl">
+    <div className="relative bg-leaderboard-bg rounded-3xl p-8 shadow-2xl overflow-hidden min-h-[600px]">
+      {/* Animated Starfield Background */}
+      <div className="starfield">
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div
+            key={i}
+            className="star"
+            style={{
+              width: `${Math.random() * 3 + 1}px`,
+              height: `${Math.random() * 3 + 1}px`,
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              opacity: Math.random() * 0.7 + 0.3,
+              animationDelay: `${Math.random() * 4}s`,
+              animationDuration: `${Math.random() * 3 + 3}s`,
+            }}
+          />
+        ))}
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="relative z-10 flex items-center justify-between mb-8">
         <h1 className="text-5xl font-black text-leaderboard-text drop-shadow-lg tracking-tight">
           CLASS RANK
         </h1>
         <div className="flex items-center gap-3">
           {showAddPoints && <ManualPointsDialog classId={classId} isAdmin={true} />}
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px] bg-white/95 border-none shadow-lg">
+            <SelectTrigger className="w-[180px] glass-panel border-leaderboard-glassBorder shadow-lg text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -183,29 +202,29 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
       </div>
 
       {leaderboard?.length === 0 ? (
-        <p className="text-leaderboard-text text-center py-12 text-xl">No scores yet for this month</p>
+        <p className="relative z-10 text-leaderboard-text text-center py-12 text-xl">No scores yet for this month</p>
       ) : (
         <>
           {/* Top 3 Podium */}
-          <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="relative z-10 grid grid-cols-3 gap-6 mb-8">
             {topThree.map((entry: any) => (
               <div
                 key={entry.id}
-                className="flex flex-col items-center cursor-pointer transform transition-transform hover:scale-105"
+                className="flex flex-col items-center cursor-pointer floating-element"
                 onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
                 <div className="relative mb-4">
-                  <Avatar className="h-32 w-32 border-8 border-white shadow-2xl">
+                  <Avatar className="h-32 w-32 border-8 border-transparent shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-1">
                     <AvatarImage 
                       src={getAvatarUrl(entry.students?.avatar_url) || undefined} 
                       alt={entry.students?.full_name} 
-                      className="object-cover" 
+                      className="object-cover rounded-full" 
                     />
-                    <AvatarFallback className="text-3xl font-black bg-gradient-to-br from-primary to-primary/70 text-white">
+                    <AvatarFallback className="text-3xl font-black bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd text-white rounded-full">
                       {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white rounded-full h-12 w-12 flex items-center justify-center shadow-xl border-4 border-leaderboard-pink">
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-12 w-12 flex items-center justify-center shadow-xl border-2 border-leaderboard-glassBorder floating-element">
                     {getRankIcon(entry.rank)}
                   </div>
                 </div>
@@ -221,33 +240,33 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
 
           {/* Ranks 4-10 List */}
           {restOfList.length > 0 && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden">
-              <div className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 bg-gray-50 border-b-2 border-gray-200 font-bold text-sm text-gray-700">
+            <div className="relative z-10 glass-panel rounded-2xl shadow-xl overflow-hidden">
+              <div className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-sm text-leaderboard-text">
                 <div>RANK</div>
                 <div>NAME</div>
                 <div className="text-right">SCORE</div>
               </div>
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-leaderboard-glassBorder/20">
                 {restOfList.map((entry: any) => (
                   <div
                     key={entry.id}
-                    className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 cursor-pointer transition-all hover:bg-gray-50"
+                    className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 cursor-pointer transition-all hover:bg-white/10"
                     onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
                   >
                     <div className="flex items-center">
-                      <span className="text-gray-700 font-bold text-lg">#{entry.rank}</span>
+                      <span className="text-leaderboard-text font-bold text-lg">#{entry.rank}</span>
                     </div>
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-gray-200">
-                        <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover" />
-                        <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/10">
+                      <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-transparent bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5">
+                        <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover rounded-full" />
+                        <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd text-white rounded-full">
                           {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-semibold text-gray-800 truncate">{entry.students?.full_name}</span>
+                      <span className="font-semibold text-leaderboard-text truncate">{entry.students?.full_name}</span>
                     </div>
                     <div className="flex items-center justify-end">
-                      <span className="text-lg font-bold text-gray-900">{entry.total_points}</span>
+                      <span className="text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
                     </div>
                   </div>
                 ))}

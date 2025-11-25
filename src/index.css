@@ -109,8 +109,50 @@ All colors MUST be HSL.
     --gradient-accent: 195 100% 60%;
     
     /* Leaderboard vibrant pink theme */
-    --leaderboard-pink: 310 93% 50%;
-    --leaderboard-text: 0 0% 100%;
+  --leaderboard-bg: 220 40% 15%;
+  --leaderboard-text: 0 0% 100%;
+  --leaderboard-glass: 0 0% 100%;
+  --leaderboard-glass-border: 0 0% 80%;
+  --leaderboard-gradient-start: 45 100% 51%;
+  --leaderboard-gradient-end: 28 100% 63%;
+  
+  /* Space theme animations */
+  @keyframes float-gentle {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    25% { transform: translateY(-10px) translateX(5px); }
+    50% { transform: translateY(-5px) translateX(-5px); }
+    75% { transform: translateY(-15px) translateX(3px); }
+  }
+  
+  @keyframes float-star {
+    0%, 100% { transform: translateY(0px); opacity: 0.3; }
+    50% { transform: translateY(-20px); opacity: 1; }
+  }
+  
+  .floating-element {
+    animation: float-gentle 6s ease-in-out infinite;
+  }
+  
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+  
+  .starfield {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: float-star 4s ease-in-out infinite;
+  }
   }
 
   .dark {
