@@ -1,495 +1,354 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Trophy, Medal, Award, Flag, Rocket, Star } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { PointHistoryDialog } from "@/components/admin/PointHistoryDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
-/* Rich text editor styling */
-.ql-container {
-  font-family: inherit;
-  font-size: inherit;
+interface ClassLeaderboardSharedProps {
+  classId: string;
+  currentStudentId?: string;
 }
 
-.ql-editor {
-  min-height: 150px;
-  max-height: 400px;
-  overflow-y: auto;
-}
+export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeaderboardSharedProps) {
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const previousLeaderboardRef = useRef<any[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-.quill {
-  background: hsl(var(--background));
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
-}
+  // --- 1. Starfield Animation Logic ---
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-.ql-toolbar {
-  border-top-left-radius: 0.5rem;
-  border-top-right-radius: 0.5rem;
-  background: hsl(var(--muted));
-  border-bottom: 1px solid hsl(var(--border)) !important;
-}
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-.ql-container {
-  border-bottom-left-radius: 0.5rem;
-  border-bottom-right-radius: 0.5rem;
-}
+    let width = canvas.parentElement?.clientWidth || window.innerWidth;
+    let height = canvas.parentElement?.clientHeight || 600;
+    let stars: any[] = [];
+    let animationFrameId: number;
 
-@layer base {
-  :root {
-    /* Apple-style liquid glass base colors - ultra light and airy */
-    --background: 220 30% 98%;
-    --foreground: 215 25% 15%;
+    const resize = () => {
+      if (canvas.parentElement) {
+        width = canvas.parentElement.clientWidth;
+        height = canvas.parentElement.clientHeight;
+        canvas.width = width;
+        canvas.height = height;
+        initStars();
+      }
+    };
 
-    /* Ultra-translucent glass surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
-    --card-glass: 0 0% 100% / 0.5;
+    class StarObj {
+      x: number;
+      y: number;
+      size: number;
+      speedX: number;
+      speedY: number;
+      opacity: number;
+      fadeDir: number;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
-    --popover-glass: 0 0% 100% / 0.6;
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.size = Math.random() * 2;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.opacity = Math.random();
+        this.fadeDir = 1;
+      }
 
-    /* Apple blue - soft and sophisticated */
-    --primary: 211 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glass: 211 100% 50% / 0.08;
-    
-    --secondary: 215 25% 97%;
-    --secondary-foreground: 215 25% 20%;
-    --secondary-glass: 215 25% 97% / 0.4;
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) this.y = height;
+        if (this.y > height) this.y = 0;
+        this.opacity += 0.01 * this.fadeDir;
+        if (this.opacity >= 1 || this.opacity <= 0.2) this.fadeDir *= -1;
+      }
 
-    --muted: 215 20% 95%;
-    --muted-foreground: 215 15% 50%;
-    --muted-glass: 215 20% 95% / 0.3;
-
-    --accent: 211 100% 50%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glass: 211 100% 50% / 0.06;
-
-    --destructive: 0 100% 67%;
-    --destructive-foreground: 0 0% 100%;
-    --destructive-glass: 0 100% 67% / 0.08;
-    
-    --success: 150 80% 45%;
-    --success-foreground: 0 0% 100%;
-    --success-glass: 150 80% 45% / 0.08;
-    
-    --warning: 35 100% 55%;
-    --warning-foreground: 0 0% 100%;
-    --warning-glass: 35 100% 55% / 0.08;
-
-    --border: 215 20% 90% / 0.3;
-    --border-glass: 0 0% 100% / 0.12;
-    --input: 215 20% 93%;
-    --ring: 211 100% 50%;
-
-    --radius: 1rem;
-
-    /* Soft, diffused glass shadows */
-    --shadow-glass: 0 10px 40px 0 rgba(0, 0, 0, 0.08);
-    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.04);
-    --shadow-glass-lg: 0 20px 60px 0 rgba(0, 0, 0, 0.12);
-
-    --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 215 20% 25%;
-    --sidebar-primary: 211 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 96%;
-    --sidebar-accent-foreground: 215 25% 20%;
-    --sidebar-border: 215 20% 92%;
-    --sidebar-ring: 211 100% 50%;
-    --sidebar-glass: 0 0% 99% / 0.5;
-    
-    /* Liquid gradient colors - soft and flowing */
-    --gradient-start: 211 100% 65%;
-    --gradient-middle: 240 100% 70%;
-    --gradient-end: 280 80% 65%;
-    --gradient-accent: 195 100% 60%;
-    
-    /* Leaderboard vibrant pink theme */
-  --leaderboard-bg: 220 40% 15%;
-  --leaderboard-text: 0 0% 100%;
-  --leaderboard-glass: 0 0% 100%;
-  --leaderboard-glass-border: 0 0% 80%;
-  --leaderboard-gradient-start: 45 100% 51%;
-  --leaderboard-gradient-end: 28 100% 63%;
-  
-  /* Space theme animations */
-  @keyframes float-gentle {
-    0%, 100% { transform: translateY(0px) translateX(0px); }
-    25% { transform: translateY(-10px) translateX(5px); }
-    50% { transform: translateY(-5px) translateX(-5px); }
-    75% { transform: translateY(-15px) translateX(3px); }
-  }
-  
-  @keyframes float-star {
-    0%, 100% { 
-      transform: translateY(0px) scale(1); 
-      opacity: 0.4; 
+      draw() {
+        if (!ctx) return;
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-    25% { 
-      transform: translateY(-15px) scale(1.1); 
-      opacity: 0.8; 
+
+    function initStars() {
+      stars = [];
+      const starCount = Math.floor((width * height) / 6000);
+      for (let i = 0; i < starCount; i++) {
+        stars.push(new StarObj());
+      }
     }
-    50% { 
-      transform: translateY(-25px) scale(1.2); 
-      opacity: 1; 
+
+    function animateStars() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach(star => {
+        star.update();
+        star.draw();
+      });
+      animationFrameId = requestAnimationFrame(animateStars);
     }
-    75% { 
-      transform: translateY(-15px) scale(1.1); 
-      opacity: 0.8; 
+
+    // Initialize
+    resize();
+    animateStars();
+    window.addEventListener('resize', resize);
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  // --- 2. Data Fetching & Realtime (Preserved) ---
+  useEffect(() => {
+    const channel = supabase
+      .channel('student-points-changes-shared')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_points',
+          filter: `class_id=eq.${classId}`
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["class-leaderboard", classId] });
+          queryClient.invalidateQueries({ queryKey: ["monthly-leader", classId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [classId, queryClient]);
+
+  const { data: leaderboard, isLoading } = useQuery({
+    queryKey: ["class-leaderboard", classId, selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("student_points")
+        .select(`*, students (id, full_name, avatar_url)`)
+        .eq("class_id", classId)
+        .eq("month", selectedMonth)
+        .order("total_points", { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        let currentRank = 1;
+        let previousPoints = data[0].total_points;
+        return data.map((entry, index) => {
+          if (entry.total_points !== previousPoints) {
+            currentRank = index + 1;
+            previousPoints = entry.total_points;
+          }
+          return { ...entry, rank: currentRank };
+        });
+      }
+      return data;
+    },
+  });
+
+  // --- 3. Render Logic ---
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1: return <Rocket className="h-6 w-6 text-yellow-900" />; // Changed to Rocket for theme
+      case 2: return <Medal className="h-6 w-6 text-gray-600" />;
+      case 3: return <Award className="h-6 w-6 text-amber-800" />;
+      default: return <span className="text-white/80 font-bold">#{rank}</span>;
     }
-  }
-  
-  .floating-element {
-    animation: float-gentle 6s ease-in-out infinite;
-  }
-  
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  }
-  
-  .starfield {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-  }
-  
-  .star {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    animation: float-star 4s ease-in-out infinite;
-  }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-96 text-white">Scanning Deep Space...</div>;
   }
 
-  .dark {
-    /* Apple dark mode - deep and rich */
-    --background: 215 30% 6%;
-    --foreground: 215 20% 95%;
+  const topThree = leaderboard?.slice(0, 3) || [];
+  const restOfList = leaderboard?.slice(3, 10) || [];
 
-    --card: 215 30% 8%;
-    --card-foreground: 215 20% 95%;
-    --card-glass: 215 30% 8% / 0.5;
+  return (
+    <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl min-h-[700px] border-2 border-white/10">
+      {/* Deep Space Background */}
+      <div className="absolute inset-0 bg-[#0f172a] z-0"></div>
+      
+      {/* Canvas for Stars */}
+      <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full" />
 
-    --popover: 215 30% 8%;
-    --popover-foreground: 215 20% 95%;
-    --popover-glass: 215 30% 8% / 0.6;
+      {/* Content Container (Glassmorphism) */}
+      <div className="relative z-10 p-8 h-full flex flex-col">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF9F43] flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <Star className="text-white w-6 h-6 fill-current" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-lg">
+                Venus <span className="text-[#FFD700]">Rankings</span>
+              </h1>
+              <p className="text-blue-200 text-sm font-medium">Elite Space Crew</p>
+            </div>
+          </div>
 
-    --primary: 211 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glass: 211 100% 50% / 0.12;
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[200px] bg-white/10 border-white/20 text-white backdrop-blur-md rounded-xl h-12 font-bold focus:ring-[#FFD700]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[#0f172a] border-white/20 text-white">
+              {Array.from({ length: 6 }, (_, i) => {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const month = date.toISOString().slice(0, 7);
+                return (
+                  <SelectItem key={month} value={month} className="focus:bg-white/10 focus:text-[#FFD700]">
+                    {date.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
 
-    --secondary: 215 25% 12%;
-    --secondary-foreground: 215 20% 90%;
-    --secondary-glass: 215 25% 12% / 0.4;
+        {leaderboard?.length === 0 ? (
+          <div className="flex-grow flex flex-col items-center justify-center text-white/50">
+            <Rocket className="w-16 h-16 mb-4 opacity-20" />
+            <p className="text-xl font-bold">No data found in this sector.</p>
+          </div>
+        ) : (
+          <>
+            {/* Top 3 Podium - Venus Style */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 items-end justify-center max-w-4xl mx-auto w-full">
+              {/* Reorder for visual podium: 2nd, 1st, 3rd */}
+              {[topThree[1], topThree[0], topThree[2]].filter(Boolean).map((entry: any, i) => {
+                const isCurrentStudent = currentStudentId && entry.student_id === currentStudentId;
+                // Adjust ranking display order logic
+                const actualRank = entry.rank; 
+                const isFirst = actualRank === 1;
+                
+                return (
+                  <div
+                    key={entry.id}
+                    className={`flex flex-col items-center cursor-pointer transition-transform hover:scale-105 duration-300 ${isFirst ? '-mt-12 order-2 md:order-none' : ''}`}
+                    onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                  >
+                    <div className="relative mb-4 group">
+                      {/* Avatar Ring */}
+                      <div className={`
+                        rounded-full p-1 bg-gradient-to-br 
+                        ${isFirst ? 'from-[#FFD700] via-[#FF9F43] to-[#d35400] p-1.5 shadow-[0_0_30px_rgba(255,215,0,0.4)]' : 'from-blue-400 to-purple-500 shadow-lg'}
+                        ${isCurrentStudent ? 'ring-4 ring-white ring-opacity-50' : ''}
+                      `}>
+                        <Avatar className={`${isFirst ? 'h-32 w-32' : 'h-24 w-24'} border-4 border-[#0f172a]`}>
+                          <AvatarImage 
+                            src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} 
+                            className="object-cover" 
+                          />
+                          <AvatarFallback className="bg-[#1e293b] text-white font-bold">
+                            {entry.students?.full_name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                      
+                      {/* Rank Badge */}
+                      <div className={`
+                        absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full w-8 h-8 flex items-center justify-center shadow-lg border-2 border-[#0f172a]
+                        ${isFirst ? 'bg-[#FFD700] text-yellow-900 scale-125' : 'bg-gray-200 text-gray-700'}
+                      `}>
+                        {isFirst ? <Rocket size={14} /> : <span className="font-bold text-sm">{actualRank}</span>}
+                      </div>
+                    </div>
 
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 15% 60%;
-    --muted-glass: 215 25% 12% / 0.3;
+                    <div className="text-center">
+                      <p className={`font-bold text-white truncate max-w-[140px] ${isFirst ? 'text-xl' : 'text-lg'}`}>
+                        {entry.students?.full_name}
+                      </p>
+                      <div className="flex items-center justify-center gap-1 text-[#FFD700] mt-1">
+                        <span className="text-2xl font-black">{entry.total_points}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest opacity-80">XP</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-    --accent: 211 100% 50%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glass: 211 100% 50% / 0.1;
+            {/* Ranks 4-10 List - Glassmorphism */}
+            {restOfList.length > 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md overflow-hidden max-w-4xl mx-auto w-full">
+                <div className="grid grid-cols-[60px_1fr_100px] gap-4 px-6 py-3 bg-black/20 border-b border-white/10 text-xs font-bold text-blue-200 uppercase tracking-widest">
+                  <div>Rank</div>
+                  <div>Cadet</div>
+                  <div className="text-right">Mission XP</div>
+                </div>
+                
+                <div className="divide-y divide-white/5">
+                  {restOfList.map((entry: any) => {
+                    const isCurrentStudent = currentStudentId && entry.student_id === currentStudentId;
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`
+                          grid grid-cols-[60px_1fr_100px] gap-4 px-6 py-4 items-center cursor-pointer transition-colors
+                          hover:bg-white/10
+                          ${isCurrentStudent ? 'bg-[#FFD700]/10 border-l-4 border-[#FFD700]' : ''}
+                        `}
+                        onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                      >
+                        <div className="font-black text-white/50 text-lg">#{entry.rank}</div>
+                        
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border border-white/20">
+                            <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} />
+                            <AvatarFallback className="bg-white/10 text-white text-xs">
+                              {entry.students?.full_name?.substring(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className={`font-bold ${isCurrentStudent ? 'text-[#FFD700]' : 'text-white'}`}>
+                              {entry.students?.full_name}
+                            </span>
+                            {isCurrentStudent && <span className="text-[10px] text-[#FFD700] uppercase font-bold">You</span>}
+                          </div>
+                        </div>
 
-    --destructive: 0 100% 67%;
-    --destructive-foreground: 0 0% 100%;
-    --destructive-glass: 0 100% 67% / 0.12;
-    
-    --success: 150 80% 45%;
-    --success-foreground: 0 0% 100%;
-    --success-glass: 150 80% 45% / 0.12;
-    
-    --warning: 35 100% 55%;
-    --warning-foreground: 0 0% 100%;
-    --warning-glass: 35 100% 55% / 0.12;
+                        <div className="text-right font-mono font-bold text-lg text-blue-200">
+                          {entry.total_points}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-    --border: 215 20% 20% / 0.3;
-    --border-glass: 0 0% 100% / 0.08;
-    --input: 215 25% 12%;
-    --ring: 211 100% 50%;
-
-    --shadow-glass: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
-    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
-    --shadow-glass-lg: 0 20px 60px 0 rgba(0, 0, 0, 0.6);
-
-    --sidebar-background: 215 30% 8%;
-    --sidebar-foreground: 215 20% 90%;
-    --sidebar-primary: 211 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 12%;
-    --sidebar-accent-foreground: 215 20% 90%;
-    --sidebar-border: 215 20% 15%;
-    --sidebar-ring: 211 100% 50%;
-    --sidebar-glass: 215 30% 8% / 0.5;
-    
-    /* Liquid gradient colors - vibrant in dark mode */
-    --gradient-start: 211 100% 65%;
-    --gradient-middle: 240 100% 70%;
-    --gradient-end: 280 80% 65%;
-    --gradient-accent: 195 100% 60%;
-    
-    /* Leaderboard vibrant pink theme */
-    --leaderboard-pink: 310 93% 50%;
-    --leaderboard-text: 0 0% 100%;
-  }
+        {selectedStudent && (
+          <PointHistoryDialog
+            studentId={selectedStudent.id}
+            classId={classId}
+            month={selectedMonth}
+            studentName={selectedStudent.name}
+            open={!!selectedStudent}
+            onOpenChange={(open) => !open && setSelectedStudent(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
 }
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    background-image: 
-      radial-gradient(ellipse at 10% 20%, hsla(var(--gradient-start), 0.03) 0%, transparent 50%),
-      radial-gradient(ellipse at 90% 80%, hsla(var(--gradient-accent), 0.03) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, hsla(var(--gradient-middle), 0.02) 0%, transparent 60%);
-    background-attachment: fixed;
-    position: relative;
-    overflow-x: hidden;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: 
-      radial-gradient(ellipse at 20% 30%, hsla(var(--primary), 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 70%, hsla(var(--gradient-accent), 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, hsla(var(--gradient-middle), 0.03) 0%, transparent 60%);
-    animation: liquid-float 25s ease-in-out infinite;
-    z-index: -1;
-    pointer-events: none;
-    filter: blur(60px);
-  }
-
-  @keyframes liquid-float {
-    0%, 100% {
-      transform: translate(0, 0) scale(1) rotate(0deg);
-    }
-    25% {
-      transform: translate(40px, -60px) scale(1.1) rotate(90deg);
-    }
-    50% {
-      transform: translate(-30px, 40px) scale(0.9) rotate(180deg);
-    }
-    75% {
-      transform: translate(50px, 30px) scale(1.05) rotate(270deg);
-    }
-  }
-}
-
-/* Apple-style liquid glass utilities */
-@layer utilities {
-  .glass {
-    background: hsla(var(--card-glass));
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
-    border: 1px solid hsla(var(--border-glass));
-    box-shadow: var(--shadow-glass), 0 1px 0 0 rgba(255, 255, 255, 0.5) inset;
-  }
-
-  .glass-sm {
-    background: hsla(var(--card-glass));
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid hsla(var(--border-glass));
-    box-shadow: var(--shadow-glass-sm), 0 1px 0 0 rgba(255, 255, 255, 0.3) inset;
-  }
-
-  .glass-primary {
-    background: hsla(var(--primary-glass));
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
-    border: 1px solid hsla(var(--border-glass));
-    box-shadow: var(--shadow-glass), 0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
-  }
-
-  .glass-muted {
-    background: hsla(var(--muted-glass));
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
-    border: 1px solid hsla(var(--border-glass));
-    box-shadow: var(--shadow-glass-sm), 0 1px 0 0 rgba(255, 255, 255, 0.15) inset;
-  }
-
-  .glass-lg {
-    background: hsla(var(--card-glass));
-    backdrop-filter: blur(60px) saturate(220%);
-    -webkit-backdrop-filter: blur(60px) saturate(220%);
-    border: 1px solid hsla(var(--border-glass));
-    box-shadow: var(--shadow-glass-lg), 0 1px 0 0 rgba(255, 255, 255, 0.6) inset;
-  }
-  
-  /* Liquid animated background */
-  @keyframes gradient-flow {
-    0%, 100% {
-      background-position: 0% 50%;
-      filter: hue-rotate(0deg);
-    }
-    50% {
-      background-position: 100% 50%;
-      filter: hue-rotate(5deg);
-    }
-  }
-
-  .premium-bg {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gradient-start)),
-      hsl(var(--gradient-middle)),
-      hsl(var(--gradient-accent)),
-      hsl(var(--gradient-end)),
-      hsl(var(--gradient-start))
-    );
-    background-size: 400% 400%;
-    animation: gradient-flow 20s ease infinite;
-  }
-
-  .liquid-gradient {
-    background: radial-gradient(
-      ellipse at top left,
-      hsla(var(--gradient-start), 0.2),
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at bottom right,
-      hsla(var(--gradient-accent), 0.15),
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at center,
-      hsla(var(--gradient-middle), 0.1),
-      transparent 60%
-    );
-  }
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Smooth animations */
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-/* Liquid gradient backgrounds */
-.gradient-primary {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--gradient-middle)) 100%);
-}
-
-.gradient-card {
-  background: linear-gradient(135deg, hsla(var(--card-glass)) 0%, hsla(var(--muted-glass)) 100%);
-}
-
-.gradient-mesh {
-  background: 
-    radial-gradient(at 40% 20%, hsla(var(--gradient-start), 0.15) 0%, transparent 50%),
-    radial-gradient(at 80% 0%, hsla(var(--gradient-accent), 0.1) 0%, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(var(--gradient-middle), 0.12) 0%, transparent 50%),
-    radial-gradient(at 80% 100%, hsla(var(--gradient-end), 0.1) 0%, transparent 50%),
-    radial-gradient(at 0% 100%, hsla(var(--gradient-start), 0.08) 0%, transparent 50%);
-}
-
-/* Apple-style interaction classes */
-@layer utilities {
-  .premium-hover {
-    @apply transition-all duration-500 ease-out hover:scale-[1.01] hover:shadow-2xl hover:-translate-y-1;
-  }
-
-  .premium-click {
-    @apply active:scale-[0.97] transition-transform duration-200 ease-out;
-  }
-
-  .glass-premium {
-    @apply glass-lg backdrop-blur-3xl shadow-2xl;
-  }
-
-  .premium-focus {
-    @apply focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-300;
-  }
-
-  .premium-glow {
-    @apply shadow-[0_0_30px_rgba(var(--primary),0.2)] hover:shadow-[0_0_50px_rgba(var(--primary),0.4)] transition-shadow duration-500;
-  }
-
-  .liquid-hover {
-    @apply transition-all duration-700 ease-out hover:scale-[1.015] hover:rotate-[0.5deg] hover:shadow-2xl;
-  }
-}
-
-/* Shimmer effect for loading states */
-@layer utilities {
-  .shimmer-effect {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsla(var(--primary), 0.1) 50%,
-      transparent 100%
-    );
-    background-size: 2000px 100%;
-    animation: shimmer 2s linear infinite;
-  }
-}
-
-/* Touch-friendly interactive elements */
-@media (hover: none) {
-  button:not(.no-touch-target), 
-  a:not(.no-touch-target) {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* Smooth transitions for theme changes */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 200ms;
-  transition-timing-function: ease-out;
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  
-  .premium-hover {
-    @apply hover:scale-100 hover:translate-y-0;
-  }
-}
-
