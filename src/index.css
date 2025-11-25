@@ -55,7 +55,7 @@ All colors MUST be HSL.
     --primary: 211 100% 50%;
     --primary-foreground: 0 0% 100%;
     --primary-glass: 211 100% 50% / 0.08;
-
+    
     --secondary: 215 25% 97%;
     --secondary-foreground: 215 25% 20%;
     --secondary-glass: 215 25% 97% / 0.4;
@@ -71,11 +71,11 @@ All colors MUST be HSL.
     --destructive: 0 100% 67%;
     --destructive-foreground: 0 0% 100%;
     --destructive-glass: 0 100% 67% / 0.08;
-
+    
     --success: 150 80% 45%;
     --success-foreground: 0 0% 100%;
     --success-glass: 150 80% 45% / 0.08;
-
+    
     --warning: 35 100% 55%;
     --warning-foreground: 0 0% 100%;
     --warning-glass: 35 100% 55% / 0.08;
@@ -101,82 +101,72 @@ All colors MUST be HSL.
     --sidebar-border: 215 20% 92%;
     --sidebar-ring: 211 100% 50%;
     --sidebar-glass: 0 0% 99% / 0.5;
-
+    
     /* Liquid gradient colors - soft and flowing */
     --gradient-start: 211 100% 65%;
     --gradient-middle: 240 100% 70%;
     --gradient-end: 280 80% 65%;
     --gradient-accent: 195 100% 60%;
-
+    
     /* Leaderboard vibrant pink theme */
-    --leaderboard-bg: 220 40% 15%;
-    --leaderboard-text: 0 0% 100%;
-    --leaderboard-glass: 0 0% 100%;
-    --leaderboard-glass-border: 0 0% 80%;
-    --leaderboard-gradient-start: 45 100% 51%;
-    --leaderboard-gradient-end: 28 100% 63%;
-
-    /* Space theme animations */
-    @keyframes float-gentle {
-      0%,
-      100% {
-        transform: translateY(0px) translateX(0px);
-      }
-      25% {
-        transform: translateY(-10px) translateX(5px);
-      }
-      50% {
-        transform: translateY(-5px) translateX(-5px);
-      }
-      75% {
-        transform: translateY(-15px) translateX(3px);
-      }
+  --leaderboard-bg: 220 40% 15%;
+  --leaderboard-text: 0 0% 100%;
+  --leaderboard-glass: 0 0% 100%;
+  --leaderboard-glass-border: 0 0% 80%;
+  --leaderboard-gradient-start: 45 100% 51%;
+  --leaderboard-gradient-end: 28 100% 63%;
+  
+  /* Space theme animations */
+  @keyframes float-gentle {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    25% { transform: translateY(-10px) translateX(5px); }
+    50% { transform: translateY(-5px) translateX(-5px); }
+    75% { transform: translateY(-15px) translateX(3px); }
+  }
+  
+  @keyframes float-star {
+    0%, 100% { 
+      transform: translateY(0px) scale(1); 
+      opacity: 0.4; 
     }
-
-    @keyframes float-star {
-      0%,
-      100% {
-        transform: translateY(0px) scale(1);
-        opacity: 0.4;
-      }
-      25% {
-        transform: translateY(-15px) scale(1.1);
-        opacity: 0.8;
-      }
-      50% {
-        transform: translateY(-25px) scale(1.2);
-        opacity: 1;
-      }
-      75% {
-        transform: translateY(-15px) scale(1.1);
-        opacity: 0.8;
-      }
+    25% { 
+      transform: translateY(-15px) scale(1.1); 
+      opacity: 0.8; 
     }
-
-    .floating-element {
-      animation: float-gentle 6s ease-in-out infinite;
+    50% { 
+      transform: translateY(-25px) scale(1.2); 
+      opacity: 1; 
     }
-
-    .glass-panel {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    75% { 
+      transform: translateY(-15px) scale(1.1); 
+      opacity: 0.8; 
     }
-
-    .starfield {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-    }
-
-    .star {
-      position: absolute;
-      background: white;
-      border-radius: 50%;
-      animation: float-star 4s ease-in-out infinite;
-    }
+  }
+  
+  .floating-element {
+    animation: float-gentle 6s ease-in-out infinite;
+  }
+  
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+  
+  .starfield {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: float-star 4s ease-in-out infinite;
+  }
   }
 
   .dark {
@@ -211,11 +201,11 @@ All colors MUST be HSL.
     --destructive: 0 100% 67%;
     --destructive-foreground: 0 0% 100%;
     --destructive-glass: 0 100% 67% / 0.12;
-
+    
     --success: 150 80% 45%;
     --success-foreground: 0 0% 100%;
     --success-glass: 150 80% 45% / 0.12;
-
+    
     --warning: 35 100% 55%;
     --warning-foreground: 0 0% 100%;
     --warning-glass: 35 100% 55% / 0.12;
@@ -238,13 +228,13 @@ All colors MUST be HSL.
     --sidebar-border: 215 20% 15%;
     --sidebar-ring: 211 100% 50%;
     --sidebar-glass: 215 30% 8% / 0.5;
-
+    
     /* Liquid gradient colors - vibrant in dark mode */
     --gradient-start: 211 100% 65%;
     --gradient-middle: 240 100% 70%;
     --gradient-end: 280 80% 65%;
     --gradient-accent: 195 100% 60%;
-
+    
     /* Leaderboard vibrant pink theme */
     --leaderboard-pink: 310 93% 50%;
     --leaderboard-text: 0 0% 100%;
@@ -258,7 +248,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-image:
+    background-image: 
       radial-gradient(ellipse at 10% 20%, hsla(var(--gradient-start), 0.03) 0%, transparent 50%),
       radial-gradient(ellipse at 90% 80%, hsla(var(--gradient-accent), 0.03) 0%, transparent 50%),
       radial-gradient(ellipse at 50% 50%, hsla(var(--gradient-middle), 0.02) 0%, transparent 60%);
@@ -268,13 +258,13 @@ All colors MUST be HSL.
   }
 
   body::before {
-    content: "";
+    content: '';
     position: fixed;
     top: -50%;
     left: -50%;
     width: 200%;
     height: 200%;
-    background:
+    background: 
       radial-gradient(ellipse at 20% 30%, hsla(var(--primary), 0.04) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 70%, hsla(var(--gradient-accent), 0.04) 0%, transparent 50%),
       radial-gradient(ellipse at 50% 50%, hsla(var(--gradient-middle), 0.03) 0%, transparent 60%);
@@ -285,8 +275,7 @@ All colors MUST be HSL.
   }
 
   @keyframes liquid-float {
-    0%,
-    100% {
+    0%, 100% {
       transform: translate(0, 0) scale(1) rotate(0deg);
     }
     25% {
@@ -308,9 +297,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(40px) saturate(200%);
     -webkit-backdrop-filter: blur(40px) saturate(200%);
     border: 1px solid hsla(var(--border-glass));
-    box-shadow:
-      var(--shadow-glass),
-      0 1px 0 0 rgba(255, 255, 255, 0.5) inset;
+    box-shadow: var(--shadow-glass), 0 1px 0 0 rgba(255, 255, 255, 0.5) inset;
   }
 
   .glass-sm {
@@ -318,9 +305,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid hsla(var(--border-glass));
-    box-shadow:
-      var(--shadow-glass-sm),
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset;
+    box-shadow: var(--shadow-glass-sm), 0 1px 0 0 rgba(255, 255, 255, 0.3) inset;
   }
 
   .glass-primary {
@@ -328,9 +313,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(40px) saturate(200%);
     -webkit-backdrop-filter: blur(40px) saturate(200%);
     border: 1px solid hsla(var(--border-glass));
-    box-shadow:
-      var(--shadow-glass),
-      0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
+    box-shadow: var(--shadow-glass), 0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
   }
 
   .glass-muted {
@@ -338,9 +321,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: 1px solid hsla(var(--border-glass));
-    box-shadow:
-      var(--shadow-glass-sm),
-      0 1px 0 0 rgba(255, 255, 255, 0.15) inset;
+    box-shadow: var(--shadow-glass-sm), 0 1px 0 0 rgba(255, 255, 255, 0.15) inset;
   }
 
   .glass-lg {
@@ -348,15 +329,12 @@ All colors MUST be HSL.
     backdrop-filter: blur(60px) saturate(220%);
     -webkit-backdrop-filter: blur(60px) saturate(220%);
     border: 1px solid hsla(var(--border-glass));
-    box-shadow:
-      var(--shadow-glass-lg),
-      0 1px 0 0 rgba(255, 255, 255, 0.6) inset;
+    box-shadow: var(--shadow-glass-lg), 0 1px 0 0 rgba(255, 255, 255, 0.6) inset;
   }
-
+  
   /* Liquid animated background */
   @keyframes gradient-flow {
-    0%,
-    100% {
+    0%, 100% {
       background-position: 0% 50%;
       filter: hue-rotate(0deg);
     }
@@ -380,10 +358,21 @@ All colors MUST be HSL.
   }
 
   .liquid-gradient {
-    background:
-      radial-gradient(ellipse at top left, hsla(var(--gradient-start), 0.2), transparent 50%),
-      radial-gradient(ellipse at bottom right, hsla(var(--gradient-accent), 0.15), transparent 50%),
-      radial-gradient(ellipse at center, hsla(var(--gradient-middle), 0.1), transparent 60%);
+    background: radial-gradient(
+      ellipse at top left,
+      hsla(var(--gradient-start), 0.2),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at bottom right,
+      hsla(var(--gradient-accent), 0.15),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at center,
+      hsla(var(--gradient-middle), 0.1),
+      transparent 60%
+    );
   }
 }
 
@@ -394,8 +383,8 @@ All colors MUST be HSL.
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 /* Smooth animations */
@@ -424,7 +413,7 @@ All colors MUST be HSL.
 }
 
 .gradient-mesh {
-  background:
+  background: 
     radial-gradient(at 40% 20%, hsla(var(--gradient-start), 0.15) 0%, transparent 50%),
     radial-gradient(at 80% 0%, hsla(var(--gradient-accent), 0.1) 0%, transparent 50%),
     radial-gradient(at 0% 50%, hsla(var(--gradient-middle), 0.12) 0%, transparent 50%),
@@ -462,7 +451,12 @@ All colors MUST be HSL.
 /* Shimmer effect for loading states */
 @layer utilities {
   .shimmer-effect {
-    background: linear-gradient(90deg, transparent 0%, hsla(var(--primary), 0.1) 50%, transparent 100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsla(var(--primary), 0.1) 50%,
+      transparent 100%
+    );
     background-size: 2000px 100%;
     animation: shimmer 2s linear infinite;
   }
@@ -470,7 +464,7 @@ All colors MUST be HSL.
 
 /* Touch-friendly interactive elements */
 @media (hover: none) {
-  button:not(.no-touch-target),
+  button:not(.no-touch-target), 
   a:not(.no-touch-target) {
     min-height: 44px;
     min-width: 44px;
@@ -493,8 +487,9 @@ All colors MUST be HSL.
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
+  
   .premium-hover {
     @apply hover:scale-100 hover:translate-y-0;
   }
 }
+
