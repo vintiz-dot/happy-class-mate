@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { PointHistoryDialog } from "@/components/admin/PointHistoryDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarUrl } from "@/lib/avatars";
+import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
@@ -216,12 +216,12 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                   <div className="relative mb-4">
                     <Avatar className={`h-32 w-32 border-8 ${isCurrentStudent ? 'border-yellow-300' : 'border-transparent'} shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-1`}>
                       <AvatarImage 
-                        src={getAvatarUrl(entry.students?.avatar_url) || undefined} 
+                        src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} 
                         alt={entry.students?.full_name} 
                         className="object-cover rounded-full" 
                       />
-                      <AvatarFallback className="text-3xl font-black bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd text-white rounded-full">
-                        {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                      <AvatarFallback className="text-3xl font-black rounded-full">
+                        <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-12 w-12 flex items-center justify-center shadow-xl border-2 border-leaderboard-glassBorder floating-element">
@@ -268,9 +268,9 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                       </div>
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className={`h-10 w-10 flex-shrink-0 border-2 ${isCurrentStudent ? 'border-yellow-300' : 'border-transparent'} bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5`}>
-                          <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || undefined} alt={entry.students?.full_name} className="object-cover rounded-full" />
-                          <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd text-white rounded-full">
-                            {entry.students?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                          <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} alt={entry.students?.full_name} className="object-cover rounded-full" />
+                          <AvatarFallback className="text-xs font-semibold rounded-full">
+                            <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex items-center gap-2 min-w-0 flex-1">
