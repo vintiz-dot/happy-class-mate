@@ -177,11 +177,28 @@ export default function StudentDashboard() {
 
   return (
     <Layout title={`Dashboard - ${studentProfile.full_name}`}>
-      {/* Premium animated background orbs - different color scheme from auth */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-40 left-40 w-96 h-96 bg-secondary/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-40 right-40 w-[28rem] h-[28rem] bg-muted/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-        <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
+      {/* Premium Immersive Starfield Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-gradient-to-br from-background via-primary/5 to-accent/5">
+        <div className="starfield">
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={i}
+              className="star"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 3 + 1}px`,
+                height: `${Math.random() * 3 + 1}px`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${Math.random() * 3 + 2}s`,
+              }}
+            />
+          ))}
+        </div>
+        {/* Premium gradient nebula effects */}
+        <div className="absolute top-20 left-20 w-[40rem] h-[40rem] bg-primary/10 rounded-full blur-[120px] animate-float-gentle"></div>
+        <div className="absolute bottom-20 right-20 w-[35rem] h-[35rem] bg-accent/10 rounded-full blur-[120px] animate-float-gentle" style={{ animationDelay: '2s', animationDuration: '8s' }}></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-secondary/10 rounded-full blur-[100px] animate-float-gentle" style={{ animationDelay: '4s', animationDuration: '10s' }}></div>
       </div>
 
       <div className="space-y-8 relative z-10">
