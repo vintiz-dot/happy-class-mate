@@ -204,6 +204,9 @@ export default function StudentDashboard() {
       <div className="space-y-8 relative z-10">
         {/* Premium Profile Header */}
         <div className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden animate-fade-in backdrop-blur-xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.01]">
+          {/* Premium glossy overlay effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 via-transparent to-muted/10 pointer-events-none"></div>
+          
           <div className="p-8 relative">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-6">
@@ -273,6 +276,7 @@ export default function StudentDashboard() {
         {/* Premium Stats Cards */}
         <div className="grid gap-6 md:grid-cols-3">
           <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden group animate-fade-in">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-secondary/30 to-muted/30 group-hover:scale-110 transition-transform duration-300">
@@ -288,6 +292,7 @@ export default function StudentDashboard() {
           </div>
 
           <div className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden group animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-accent/30 to-secondary/30 group-hover:scale-110 transition-transform duration-300">
@@ -306,6 +311,7 @@ export default function StudentDashboard() {
             onClick={() => navigate('/tuition')} 
             className="glass-lg border-0 shadow-xl rounded-2xl p-6 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer relative overflow-hidden group animate-fade-in" style={{ animationDelay: '0.2s' }}
           >
+            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-muted/30 to-accent/30 group-hover:scale-110 transition-transform duration-300">
@@ -327,6 +333,7 @@ export default function StudentDashboard() {
         {/* Premium Content Cards */}
         <div className="grid gap-6 md:grid-cols-2">
           <div className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
             <div className="p-6 relative">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
@@ -365,6 +372,7 @@ export default function StudentDashboard() {
           </div>
 
           <div className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
             <div className="p-6 relative">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10">
