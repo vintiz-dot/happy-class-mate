@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { monthKey, dayjs } from "@/lib/date";
 import CalendarMonth from "@/components/calendar/CalendarMonth";
@@ -15,6 +15,30 @@ import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
   const [month, setMonth] = useState(monthKey());
+  const queryClient = useQueryClient();
+
+  // Real-time subscription for enrollment changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`teacher-class-enrollments-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'enrollments',
+          filter: `class_id=eq.${id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["teacher-class-roster", id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
 
   const { data: classData, isLoading: classLoading } = useQuery({
     queryKey: ["teacher-class", id],

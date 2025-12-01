@@ -1,13 +1,35 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ClassForm } from "@/components/admin/ClassForm";
-import { useQueryClient } from "@tanstack/react-query";
 import { Users, Clock } from "lucide-react";
 
 const ClassesTab = () => {
   const queryClient = useQueryClient();
+
+  // Real-time subscription for enrollment changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('classes-enrollments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'enrollments',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["classes"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: classes, isLoading } = useQuery({
     queryKey: ["classes"],
