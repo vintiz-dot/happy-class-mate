@@ -130,9 +130,13 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
       // Build tuition data for ALL active students
       return allStudents.map((student) => {
         const invoice = invoiceMap.get(student.id);
-        const priorBalance = priorBalanceMap.get(student.id) || 0;
         const currentCharges = invoice?.total_amount || 0;
-        const finalPayable = currentCharges + priorBalance;
+        
+        // Use invoice carry values if available, else calculate from prior invoices
+        const carryInCredit = invoice?.carry_in_credit || 0;
+        const carryInDebt = invoice?.carry_in_debt || 0;
+        const priorBalance = priorBalanceMap.get(student.id) || 0;
+        const finalPayable = currentCharges + carryInDebt - carryInCredit;
 
         return {
           id: invoice?.id || `placeholder-${student.id}`,

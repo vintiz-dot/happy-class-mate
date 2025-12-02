@@ -23,6 +23,7 @@ interface EnrollmentRow {
   discount_type: "percent" | "amount" | null;
   discount_value: number | null;
   discount_cadence: "monthly" | "yearly" | "once" | null;
+  rate_override_vnd: number | null;
 }
 
 function monthRange(month: string) {
@@ -150,11 +151,11 @@ Deno.serve(async (req) => {
         // Calculate expected using default rate
         expectedClassTuition += defaultRate;
         
-        // Use actual rate for billing
-        baseAmount += actualRate;
-        // Track per-enrollment base amount
+        // ALWAYS use default rate for base amount (not override)
+        baseAmount += defaultRate;
+        // Track per-enrollment base amount using default rate
         const currentAmount = enrollmentBaseAmounts.get(s.class_id) || 0;
-        enrollmentBaseAmounts.set(s.class_id, currentAmount + actualRate);
+        enrollmentBaseAmounts.set(s.class_id, currentAmount + defaultRate);
         
         // Track rate savings if override is lower than default
         if (overrideRate && overrideRate < defaultRate) {
@@ -163,7 +164,13 @@ Deno.serve(async (req) => {
           rateAdjustmentSavings.set(s.class_id, currentSavings + savings);
         }
         
-        sessionDetails.push({ date: s.date, rate: actualRate, status: (att ?? "Present") as any, class_id: s.class_id, class_name: className });
+        sessionDetails.push({ 
+          date: s.date, 
+          rate: actualRate, // Show actual rate paid
+          status: (att ?? "Present") as any, 
+          class_id: s.class_id, 
+          class_name: className 
+        });
       } else {
         // still return session detail for UI if needed
         if (att) sessionDetails.push({ date: s.date, rate: actualRate, status: att, class_id: s.class_id, class_name: className });
@@ -184,13 +191,23 @@ Deno.serve(async (req) => {
     for (const [classId, savings] of rateAdjustmentSavings.entries()) {
       if (savings > 0) {
         const className = classNameMap.get(classId) || 'Unknown';
+        // Get enrollment to show override rate details
+        const enrollment = (enrollments as EnrollmentRow[] | null | undefined)?.find(e => e.class_id === classId);
+        const overrideRate = enrollment?.rate_override_vnd || 0;
+        const defaultRate = sessions?.find(s => s.class_id === classId)?.classes?.[0]?.session_rate_vnd || 0;
+        const savingsPerSession = defaultRate - overrideRate;
+        
         discounts.push({
-          name: `Rate Adjustment (${className})`,
+          name: `Rate Adjustment`,
           type: "amount",
           value: savings,
           amount: savings,
           class_id: classId,
-          isRateAdjustment: true
+          appliedToClass: className,
+          isRateAdjustment: true,
+          overrideRate: overrideRate,
+          defaultRate: defaultRate,
+          savingsPerSession: savingsPerSession,
         });
         totalDiscount += savings;
       }

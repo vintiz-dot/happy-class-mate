@@ -299,9 +299,14 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
                 {tuitionData.discounts.map((d: any, i) => (
                   <p key={i} className="text-xs text-muted-foreground">
                     {d.name}: -{formatVND(d.amount)}
-                    {d.isRateAdjustment && (
+                    {d.appliedToClass && (
+                      <span className="text-[10px] text-muted-foreground ml-1">
+                        ({d.appliedToClass})
+                      </span>
+                    )}
+                    {d.isRateAdjustment && d.overrideRate && d.defaultRate && (
                       <span className="text-[10px] block text-blue-600">
-                        Custom session rate
+                        Custom: {formatVND(d.overrideRate)}/session (saves {formatVND(d.savingsPerSession || 0)}/session from {formatVND(d.defaultRate)})
                       </span>
                     )}
                     {d.isSiblingWinner && d.appliedToClass && (
