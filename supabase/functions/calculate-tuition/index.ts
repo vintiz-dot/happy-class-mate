@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
       discount_amount: totalDiscount,
       total_amount: totalAmount,
       paid_amount: cumulativePaidAmount,
-      recorded_payment: cumulativePaidAmount,
+      recorded_payment: monthPayments,
       carry_in_credit: carryInCredit,
       carry_in_debt: carryInDebt,
       carry_out_credit: carryOutCredit,
