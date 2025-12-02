@@ -97,22 +97,20 @@ export function TuitionReviewQueue() {
   const stats = useMemo(() => {
     const totalNeedsReview = needsReview.length;
     const totalVND = needsReview.reduce((sum, i) => sum + (i.total_amount || 0), 0);
-    const totalAutoApproved = autoApproved.length;
-    
-    // Calculate total difference amount (expected - actual)
-    const totalDifference = needsReview.reduce((sum, i) => {
-      const flags = i.review_flags as any[] || [];
-      const adjustmentFlag = flags.find((f) => f.type === "tuition_adjustment");
-      return sum + Math.abs(adjustmentFlag?.details?.difference || 0);
-    }, 0);
     
     return {
       needsReview: totalNeedsReview,
-      autoApproved: totalAutoApproved,
+      withSpecialDiscounts: reviewData?.filter((i) => {
+        const flags = i.review_flags as any[] || [];
+        return flags.some((f) => f.type === "has_special_discount");
+      }).length || 0,
+      withLowTuition: reviewData?.filter((i) => {
+        const flags = i.review_flags as any[] || [];
+        return flags.some((f) => f.type === "low_tuition");
+      }).length || 0,
       totalVND,
-      totalDifference,
     };
-  }, [reviewData, needsReview, autoApproved]);
+  }, [reviewData, needsReview]);
 
   const handleConfirmSelected = () => {
     if (selectedStudents.size === 0) {
@@ -142,7 +140,12 @@ export function TuitionReviewQueue() {
 
   const getFlagLabel = (flagType: string) => {
     const labels: Record<string, string> = {
-      tuition_adjustment: "Tuition Adjustments",
+      has_special_discount: "Special Discounts",
+      has_referral_bonus: "Referral Bonuses",
+      sibling_discount_winner: "Sibling Discounts",
+      rate_override: "Custom Rates",
+      low_tuition: "Low Tuition (< 50%)",
+      enrollment_discount: "Enrollment Discounts",
       other: "Other Issues",
     };
     return labels[flagType] || flagType;
@@ -178,25 +181,22 @@ export function TuitionReviewQueue() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.needsReview}</div>
-              <p className="text-xs text-muted-foreground mt-1">Students flagged</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Auto-Approved</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Special Discounts</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.autoApproved}</div>
-              <p className="text-xs text-muted-foreground mt-1">Matches expected</p>
+              <div className="text-2xl font-bold">{stats.withSpecialDiscounts}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Difference</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Low Tuition</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{formatVND(stats.totalDifference)}</div>
-              <p className="text-xs text-muted-foreground mt-1">Expected vs Actual</p>
+              <div className="text-2xl font-bold">{stats.withLowTuition}</div>
             </CardContent>
           </Card>
           <Card>
@@ -205,7 +205,6 @@ export function TuitionReviewQueue() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatVND(stats.totalVND)}</div>
-              <p className="text-xs text-muted-foreground mt-1">Needs review total</p>
             </CardContent>
           </Card>
         </div>

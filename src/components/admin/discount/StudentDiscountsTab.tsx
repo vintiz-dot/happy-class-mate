@@ -184,7 +184,6 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
                 <TableRow>
                   <TableHead>Class</TableHead>
                   <TableHead>Enrollment Period</TableHead>
-                  <TableHead>Rate Override</TableHead>
                   <TableHead>Discount Type</TableHead>
                   <TableHead>Discount Value</TableHead>
                   <TableHead>Cadence</TableHead>
@@ -192,76 +191,56 @@ export function StudentDiscountsTab({ studentId }: StudentDiscountsTabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {enrollments.map((enrollment: any) => {
-                  // Get class default rate to show savings
-                  const classData = enrollment.classes;
-                  const hasRateOverride = enrollment.rate_override_vnd;
-                  
-                  return (
-                    <TableRow key={enrollment.id}>
-                      <TableCell className="font-medium">{enrollment.classes.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Calendar className="h-3 w-3" />
-                          {enrollment.start_date}
-                          {enrollment.end_date && ` to ${enrollment.end_date}`}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {hasRateOverride ? (
-                          <div className="space-y-1">
-                            <Badge variant="default" className="bg-blue-600">
-                              {enrollment.rate_override_vnd.toLocaleString('vi-VN')} ₫
-                            </Badge>
-                            <p className="text-xs text-muted-foreground">
-                              Custom rate
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Default rate</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {enrollment.discount_type ? (
-                          <Badge variant="secondary">
-                            {enrollment.discount_type === "percent" ? "Percentage" : "Fixed Amount"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {enrollment.discount_value ? (
-                          <span>
-                            {enrollment.discount_value}
-                            {enrollment.discount_type === "percent" ? "%" : " VND"}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {enrollment.discount_cadence ? (
-                          <Badge variant="outline">
-                            {enrollment.discount_cadence === "once" ? "Per Session" : "Monthly"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingEnrollment(enrollment)}
-                          title="Edit enrollment discount"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {enrollments.map((enrollment: any) => (
+                  <TableRow key={enrollment.id}>
+                    <TableCell className="font-medium">{enrollment.classes.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3" />
+                        {enrollment.start_date}
+                        {enrollment.end_date && ` to ${enrollment.end_date}`}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_type ? (
+                        <Badge variant="secondary">
+                          {enrollment.discount_type === "percent" ? "Percentage" : "Fixed Amount"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_value ? (
+                        <span>
+                          {enrollment.discount_value}
+                          {enrollment.discount_type === "percent" ? "%" : " VND"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.discount_cadence ? (
+                        <Badge variant="outline">
+                          {enrollment.discount_cadence === "once" ? "Per Session" : "Monthly"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingEnrollment(enrollment)}
+                        title="Edit enrollment discount"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
