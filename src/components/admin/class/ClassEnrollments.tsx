@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,31 +108,6 @@ const ClassEnrollments = ({ classId }: { classId: string }) => {
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [enrolling, setEnrolling] = useState(false);
   const [modifyingEnrollment, setModifyingEnrollment] = useState<any>(null);
-  const queryClient = useQueryClient();
-
-  // Real-time subscription for enrollment changes
-  useEffect(() => {
-    const channel = supabase
-      .channel(`class-enrollments-admin-${classId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'enrollments',
-          filter: `class_id=eq.${classId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["class-enrollments", classId] });
-          queryClient.invalidateQueries({ queryKey: ["available-students", classId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [classId, queryClient]);
 
   const { data: enrollments, refetch: refetchEnrollments } = useQuery({
     queryKey: ["class-enrollments", classId],

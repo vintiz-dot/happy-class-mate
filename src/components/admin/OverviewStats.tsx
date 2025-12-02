@@ -1,49 +1,9 @@
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCog, BookOpen, Calendar } from "lucide-react";
 
 export function OverviewStats() {
-  const queryClient = useQueryClient();
-
-  // Real-time subscriptions for live stats updates
-  useEffect(() => {
-    const studentsChannel = supabase
-      .channel('overview-students-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'students',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["overview-stats"] });
-        }
-      )
-      .subscribe();
-
-    const enrollmentsChannel = supabase
-      .channel('overview-enrollments-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'enrollments',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["overview-stats"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(studentsChannel);
-      supabase.removeChannel(enrollmentsChannel);
-    };
-  }, [queryClient]);
   const { data: stats, isLoading } = useQuery({
     queryKey: ["overview-stats"],
     queryFn: async () => {

@@ -711,10 +711,6 @@ export type Database = {
       invoices: {
         Row: {
           base_amount: number
-          carry_in_credit: number | null
-          carry_in_debt: number | null
-          carry_out_credit: number | null
-          carry_out_debt: number | null
           confirmation_notes: string | null
           confirmation_status: string | null
           confirmed_at: string | null
@@ -737,10 +733,6 @@ export type Database = {
         }
         Insert: {
           base_amount?: number
-          carry_in_credit?: number | null
-          carry_in_debt?: number | null
-          carry_out_credit?: number | null
-          carry_out_debt?: number | null
           confirmation_notes?: string | null
           confirmation_status?: string | null
           confirmed_at?: string | null
@@ -763,10 +755,6 @@ export type Database = {
         }
         Update: {
           base_amount?: number
-          carry_in_credit?: number | null
-          carry_in_debt?: number | null
-          carry_out_credit?: number | null
-          carry_out_debt?: number | null
           confirmation_notes?: string | null
           confirmation_status?: string | null
           confirmed_at?: string | null

@@ -296,14 +296,9 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
             </p>
             {tuitionData.discounts && tuitionData.discounts.length > 0 && (
               <div className="mt-2 space-y-1">
-                {tuitionData.discounts.map((d: any, i) => (
+                {tuitionData.discounts.map((d, i) => (
                   <p key={i} className="text-xs text-muted-foreground">
                     {d.name}: -{formatVND(d.amount)}
-                    {d.isRateAdjustment && (
-                      <span className="text-[10px] block text-blue-600">
-                        Custom session rate
-                      </span>
-                    )}
                     {d.isSiblingWinner && d.appliedToClass && (
                       <span className="text-[10px] block text-primary">
                         Applied to one class only
@@ -332,7 +327,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           </CardContent>
         </Card>
 
-        <Card className={tuitionData.carryInDebt > 0 ? 'bg-red-50 dark:bg-red-950/20' : tuitionData.carryInCredit > 0 ? 'bg-green-50 dark:bg-green-950/20' : ''}>
+        <Card className={tuitionData.carryInDebt > 0 ? 'bg-destructive/5' : tuitionData.carryInCredit > 0 ? 'bg-success/5' : ''}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Prior Balance
@@ -340,8 +335,8 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           </CardHeader>
           <CardContent>
             <p className={`text-2xl font-bold ${
-              tuitionData.carryInDebt > 0 ? 'text-red-600 dark:text-red-400' : 
-              tuitionData.carryInCredit > 0 ? 'text-green-600 dark:text-green-400' : ''
+              tuitionData.carryInDebt > 0 ? 'text-destructive' : 
+              tuitionData.carryInCredit > 0 ? 'text-success' : ''
             }`}>
               {tuitionData.carryInCredit > 0 
                 ? `+${formatVND(tuitionData.carryInCredit)}`
@@ -351,8 +346,8 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
               }
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {tuitionData.carryInCredit > 0 ? '✓ Credit (Family overpaid)' : 
-               tuitionData.carryInDebt > 0 ? '⚠ Debt (Family owes)' : 'No carry-over'}
+              {tuitionData.carryInCredit > 0 ? 'Credit from prior months' : 
+               tuitionData.carryInDebt > 0 ? 'Debt from prior months' : 'No carry-over'}
             </p>
           </CardContent>
         </Card>
