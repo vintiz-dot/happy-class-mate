@@ -111,10 +111,14 @@ Deno.serve(async (req) => {
       for (const a of atts ?? []) attendanceMap.set(a.session_id, a.status);
     }
 
+    // Calculate expected tuition using CLASS DEFAULT rates (for review comparison)
+    let expectedClassTuition = 0;
+    
     // Base charges: bill Present or Absent; Excused not billable
     // Track base amounts per enrollment for accurate discount calculation
     let baseAmount = 0;
     const enrollmentBaseAmounts = new Map<string, number>(); // class_id -> base amount
+    const rateAdjustmentSavings = new Map<string, number>(); // class_id -> savings
     const sessionDetails: Array<{ date: string; rate: number; status: AttendanceStatus | "Scheduled"; class_id: string; class_name: string }> = [];
 
     // Fetch class names once for efficiency
@@ -136,21 +140,33 @@ Deno.serve(async (req) => {
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
       const defaultRate = Number(classData?.session_rate_vnd ?? 0);
-      // Use rate_override_vnd from enrollment if set
-      const rate = enrollment?.rate_override_vnd ?? defaultRate;
+      const overrideRate = enrollment?.rate_override_vnd;
+      const actualRate = overrideRate ?? defaultRate;
       const className = classNameMap.get(s.class_id) || 'Unknown';
       // Only bill sessions with explicit Present or Absent attendance
       const billable = att === "Present" || att === "Absent";
 
-      if (billable && rate > 0) {
-        baseAmount += rate;
+      if (billable && actualRate > 0) {
+        // Calculate expected using default rate
+        expectedClassTuition += defaultRate;
+        
+        // Use actual rate for billing
+        baseAmount += actualRate;
         // Track per-enrollment base amount
         const currentAmount = enrollmentBaseAmounts.get(s.class_id) || 0;
-        enrollmentBaseAmounts.set(s.class_id, currentAmount + rate);
-        sessionDetails.push({ date: s.date, rate, status: (att ?? "Present") as any, class_id: s.class_id, class_name: className });
+        enrollmentBaseAmounts.set(s.class_id, currentAmount + actualRate);
+        
+        // Track rate savings if override is lower than default
+        if (overrideRate && overrideRate < defaultRate) {
+          const savings = defaultRate - overrideRate;
+          const currentSavings = rateAdjustmentSavings.get(s.class_id) || 0;
+          rateAdjustmentSavings.set(s.class_id, currentSavings + savings);
+        }
+        
+        sessionDetails.push({ date: s.date, rate: actualRate, status: (att ?? "Present") as any, class_id: s.class_id, class_name: className });
       } else {
         // still return session detail for UI if needed
-        if (att) sessionDetails.push({ date: s.date, rate, status: att, class_id: s.class_id, class_name: className });
+        if (att) sessionDetails.push({ date: s.date, rate: actualRate, status: att, class_id: s.class_id, class_name: className });
       }
     }
 
@@ -163,6 +179,22 @@ Deno.serve(async (req) => {
       [k: string]: any;
     }> = [];
     let totalDiscount = 0;
+
+    // Add rate adjustment discounts first
+    for (const [classId, savings] of rateAdjustmentSavings.entries()) {
+      if (savings > 0) {
+        const className = classNameMap.get(classId) || 'Unknown';
+        discounts.push({
+          name: `Rate Adjustment (${className})`,
+          type: "amount",
+          value: savings,
+          amount: savings,
+          class_id: classId,
+          isRateAdjustment: true
+        });
+        totalDiscount += savings;
+      }
+    }
 
     // Enrollment-level discounts (monthly/once)
     // Calculate discount based on the specific enrollment's base amount only
@@ -359,85 +391,26 @@ Deno.serve(async (req) => {
     const cumulativePaidAmount = priorPayments + monthPayments;
     
     // Try with extended fields first; fallback to minimal if schema lacks them.
-    // Generate review flags for anomaly detection
+    // Generate review flags - SIMPLIFIED: Only flag if final payable differs from expected
     const reviewFlags: any[] = [];
-    const hasDiscounts = totalDiscount > 0;
-
-    // Flag: Has special discounts
-    if (discountAssignments && discountAssignments.length > 0) {
+    
+    // Only flag if there's a difference between expected and final
+    if (totalAmount !== expectedClassTuition) {
+      const discountReasons = discounts.map(d => d.name).filter((v, i, a) => a.indexOf(v) === i);
       reviewFlags.push({
-        type: 'has_special_discount',
-        label: 'Special Discount Applied',
-        details: { count: discountAssignments.length, amount: totalDiscount }
-      });
-    }
-
-    // Flag: Has referral bonuses
-    if (referralBonuses && referralBonuses.length > 0) {
-      reviewFlags.push({
-        type: 'has_referral_bonus',
-        label: 'Referral Bonus Applied',
-        details: { count: referralBonuses.length }
-      });
-    }
-
-    // Flag: Sibling discount winner
-    if (siblingState?.isWinner) {
-      reviewFlags.push({
-        type: 'sibling_discount_winner',
-        label: 'Sibling Discount Winner',
-        details: { percent: siblingState.percent }
-      });
-    }
-
-    // Flag: Has rate overrides
-    const hasRateOverride = enrollments?.some(e => e.rate_override_vnd);
-    if (hasRateOverride) {
-      reviewFlags.push({
-        type: 'rate_override',
-        label: 'Custom Session Rate',
-        details: { enrollments: enrollments?.filter(e => e.rate_override_vnd).length }
-      });
-    }
-
-    // Flag: Tuition less than base (possible missed sessions or errors)
-    if (totalAmount < baseAmount * 0.5 && totalAmount > 0) {
-      reviewFlags.push({
-        type: 'low_tuition',
-        label: 'Tuition < 50% of Base',
-        details: { 
-          baseAmount, 
-          totalAmount,
-          possibleReasons: [
-            'Student has multiple high-value discounts',
-            'Student missed many sessions (absences)',
-            'Enrollment started/ended mid-month',
-            'Rate override is significantly lower than class rate'
-          ]
+        type: 'tuition_adjustment',
+        label: 'Tuition differs from class rate',
+        details: {
+          expectedClassTuition,
+          actualPayable: totalAmount,
+          difference: expectedClassTuition - totalAmount,
+          reasons: discountReasons
         }
       });
     }
-
-    // Flag: Enrollment discounts
-    const hasEnrollmentDiscount = enrollments?.some(e => e.discount_type);
-    if (hasEnrollmentDiscount) {
-      reviewFlags.push({
-        type: 'enrollment_discount',
-        label: 'Enrollment-Level Discount',
-        details: { count: enrollments?.filter(e => e.discount_type).length }
-      });
-    }
-
-    // Determine confirmation status
-    let confirmationStatus = 'auto_approved';
-    if (reviewFlags.length > 0) {
-      confirmationStatus = 'needs_review';
-    }
-
-    // Auto-approve simple cases (no discounts, normal tuition)
-    if (totalDiscount === 0 && !hasRateOverride && totalAmount >= baseAmount * 0.8) {
-      confirmationStatus = 'auto_approved';
-    }
+    
+    // Determine confirmation status - simple logic
+    const confirmationStatus = reviewFlags.length === 0 ? 'auto_approved' : 'needs_review';
 
     const invoicePayloadExtended: any = {
       student_id: studentId,
