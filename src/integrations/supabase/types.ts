@@ -381,6 +381,7 @@ export type Database = {
       }
       enrollments: {
         Row: {
+          allowed_days: number[] | null
           class_id: string
           created_at: string
           created_by: string | null
@@ -398,6 +399,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          allowed_days?: number[] | null
           class_id: string
           created_at?: string
           created_by?: string | null
@@ -415,6 +417,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          allowed_days?: number[] | null
           class_id?: string
           created_at?: string
           created_by?: string | null
