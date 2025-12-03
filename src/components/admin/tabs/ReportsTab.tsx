@@ -89,18 +89,23 @@ const ReportsTab = () => {
           const sessionCount = sessions?.length || 0;
           const studentCount = enrollments?.length || 0;
 
-          // Get actual tuition from invoices (total_amount after discounts)
+          // Get actual tuition from invoices using class_breakdown for accurate per-class amounts
           let tuition = 0;
           if (enrollments && enrollments.length > 0) {
             const studentIds = enrollments.map(e => e.student_id);
             const { data: invoices, error: invoicesError } = await supabase
               .from("invoices")
-              .select("total_amount, student_id")
+              .select("class_breakdown, student_id")
               .in("student_id", studentIds)
               .eq("month", selectedMonth);
 
             if (!invoicesError && invoices) {
-              tuition = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+              // Sum only the amount for THIS specific class from each invoice's class_breakdown
+              tuition = invoices.reduce((sum, inv) => {
+                const breakdown = inv.class_breakdown as Array<{ class_id: string; amount_vnd: number }> | null;
+                const classEntry = breakdown?.find(c => c.class_id === cls.id);
+                return sum + (classEntry?.amount_vnd || 0);
+              }, 0);
             }
           }
 
