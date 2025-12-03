@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Users, X } from "lucide-react";
+import { Users, X, Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Student {
   id: string;
@@ -18,6 +19,9 @@ interface Student {
 interface Class {
   id: string;
   name: string;
+  schedule_template: {
+    weeklySlots?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+  } | null;
 }
 
 interface Enrollment {
@@ -29,9 +33,12 @@ interface Enrollment {
   discount_type: string | null;
   discount_value: number | null;
   discount_cadence: string | null;
+  allowed_days: number[] | null;
   students: { full_name: string };
   classes: { name: string };
 }
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function EnrollmentManager() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -43,18 +50,29 @@ export function EnrollmentManager() {
   const [discountType, setDiscountType] = useState<"" | "percent" | "amount">("");
   const [discountValue, setDiscountValue] = useState("");
   const [discountCadence, setDiscountCadence] = useState<"" | "once" | "monthly">("");
+  const [allowedDays, setAllowedDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Get class schedule days
+  const selectedClassData = classes.find(c => c.id === selectedClass);
+  const classScheduleDays = selectedClassData?.schedule_template?.weeklySlots?.map(s => s.dayOfWeek) ?? [];
+  const uniqueClassDays = [...new Set(classScheduleDays)].sort();
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Reset allowed days when class changes
+  useEffect(() => {
+    setAllowedDays([]);
+  }, [selectedClass]);
+
   const loadData = async () => {
     try {
       const [studentsRes, classesRes, enrollmentsRes] = await Promise.all([
         supabase.from("students").select("id, full_name, family_id").eq("is_active", true),
-        supabase.from("classes").select("id, name").eq("is_active", true),
+        supabase.from("classes").select("id, name, schedule_template").eq("is_active", true),
         supabase
           .from("enrollments" as any)
           .select("*, students(full_name), classes(name)")
@@ -63,7 +81,7 @@ export function EnrollmentManager() {
       ]);
 
       if (studentsRes.data) setStudents(studentsRes.data);
-      if (classesRes.data) setClasses(classesRes.data);
+      if (classesRes.data) setClasses(classesRes.data as Class[]);
       if (enrollmentsRes.data) setEnrollments(enrollmentsRes.data as any);
     } catch (error: any) {
       toast({
@@ -72,6 +90,14 @@ export function EnrollmentManager() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDayToggle = (day: number) => {
+    setAllowedDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day].sort()
+    );
   };
 
   const handleEnroll = async () => {
@@ -117,13 +143,20 @@ export function EnrollmentManager() {
         enrollmentData.discount_cadence = discountCadence;
       }
 
+      // Add allowed_days if specific days are selected
+      if (allowedDays.length > 0 && allowedDays.length < uniqueClassDays.length) {
+        enrollmentData.allowed_days = allowedDays;
+      }
+
       const { error } = await supabase.from("enrollments" as any).insert(enrollmentData);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Student enrolled successfully",
+        description: allowedDays.length > 0 && allowedDays.length < uniqueClassDays.length
+          ? `Student enrolled for ${allowedDays.map(d => DAY_NAMES[d]).join(", ")} only`
+          : "Student enrolled successfully",
       });
 
       // Reset form
@@ -133,6 +166,7 @@ export function EnrollmentManager() {
       setDiscountType("");
       setDiscountValue("");
       setDiscountCadence("");
+      setAllowedDays([]);
       loadData();
     } catch (error: any) {
       toast({
@@ -178,7 +212,7 @@ export function EnrollmentManager() {
             <Users className="h-5 w-5" />
             Enroll Student
           </CardTitle>
-          <CardDescription>Add a student to a class with optional enrollment discount</CardDescription>
+          <CardDescription>Add a student to a class with optional enrollment discount and day restrictions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
@@ -218,6 +252,45 @@ export function EnrollmentManager() {
               <Label>Start Date</Label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
+
+            {/* Allowed Days Picker */}
+            {selectedClass && uniqueClassDays.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Days Attending
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {uniqueClassDays.map((day) => (
+                    <div key={day} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`day-${day}`}
+                        checked={allowedDays.length === 0 || allowedDays.includes(day)}
+                        onCheckedChange={() => {
+                          if (allowedDays.length === 0) {
+                            // First click: select only this day
+                            setAllowedDays([day]);
+                          } else {
+                            handleDayToggle(day);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`day-${day}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {DAY_NAMES[day]}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {allowedDays.length === 0 
+                    ? "All class days selected (default)" 
+                    : `Only ${allowedDays.map(d => DAY_NAMES[d]).join(", ")} - student won't be billed for other days`}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Discount Type</Label>
@@ -281,12 +354,19 @@ export function EnrollmentManager() {
                   <div className="space-y-1">
                     <p className="font-medium">{enrollment.students.full_name}</p>
                     <p className="text-sm text-muted-foreground">{enrollment.classes.name}</p>
-                    {enrollment.discount_type && (
-                      <Badge variant="secondary" className="text-xs">
-                        {enrollment.discount_cadence} discount: {enrollment.discount_value}
-                        {enrollment.discount_type === "percent" ? "%" : " VND"}
-                      </Badge>
-                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {enrollment.allowed_days && enrollment.allowed_days.length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {enrollment.allowed_days.map(d => DAY_NAMES[d]).join(", ")} only
+                        </Badge>
+                      )}
+                      {enrollment.discount_type && (
+                        <Badge variant="secondary" className="text-xs">
+                          {enrollment.discount_cadence} discount: {enrollment.discount_value}
+                          {enrollment.discount_type === "percent" ? "%" : " VND"}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

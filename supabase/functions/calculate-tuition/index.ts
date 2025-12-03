@@ -24,6 +24,13 @@ interface EnrollmentRow {
   discount_value: number | null;
   discount_cadence: "monthly" | "yearly" | "once" | null;
   rate_override_vnd: number | null;
+  allowed_days: number[] | null; // Array of weekday numbers (0=Sun, 1=Mon, etc.)
+}
+
+// Helper to get day of week from date string (in Bangkok timezone)
+function getDayOfWeek(dateStr: string): number {
+  const date = new Date(`${dateStr}T12:00:00+07:00`);
+  return date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
 }
 
 function monthRange(month: string) {
@@ -78,10 +85,10 @@ Deno.serve(async (req) => {
     // Extract family data if it's an array, handle null families
     const family = student?.families ? (Array.isArray(student.families) ? student.families[0] : student.families) : null;
 
-    // Active enrollments (include rate_override_vnd)
+    // Active enrollments (include rate_override_vnd and allowed_days)
     const { data: enrollments, error: enrollErr } = await supabase
       .from("enrollments")
-      .select("class_id, discount_type, discount_value, discount_cadence, start_date, end_date, rate_override_vnd")
+      .select("class_id, discount_type, discount_value, discount_cadence, start_date, end_date, rate_override_vnd, allowed_days")
       .eq("student_id", studentId);
     if (enrollErr) throw enrollErr;
 
@@ -137,6 +144,12 @@ Deno.serve(async (req) => {
       );
       
       if (!enrollment) continue; // Skip sessions outside enrollment period
+      
+      // Check if session day is in student's allowed_days (null means all days allowed)
+      const sessionDayOfWeek = getDayOfWeek(s.date);
+      if (enrollment.allowed_days && !enrollment.allowed_days.includes(sessionDayOfWeek)) {
+        continue; // Skip sessions on days the student doesn't attend
+      }
       
       const att = attendanceMap.get(s.id);
       const classData = s.classes ? (Array.isArray(s.classes) ? s.classes[0] : s.classes) : null;
