@@ -718,6 +718,7 @@ export type Database = {
           carry_in_debt: number | null
           carry_out_credit: number | null
           carry_out_debt: number | null
+          class_breakdown: Json | null
           confirmation_notes: string | null
           confirmation_status: string | null
           confirmed_at: string | null
@@ -744,6 +745,7 @@ export type Database = {
           carry_in_debt?: number | null
           carry_out_credit?: number | null
           carry_out_debt?: number | null
+          class_breakdown?: Json | null
           confirmation_notes?: string | null
           confirmation_status?: string | null
           confirmed_at?: string | null
@@ -770,6 +772,7 @@ export type Database = {
           carry_in_debt?: number | null
           carry_out_credit?: number | null
           carry_out_debt?: number | null
+          class_breakdown?: Json | null
           confirmation_notes?: string | null
           confirmation_status?: string | null
           confirmed_at?: string | null

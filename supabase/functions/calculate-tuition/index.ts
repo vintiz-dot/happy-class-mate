@@ -456,6 +456,7 @@ Deno.serve(async (req) => {
       carry_out_debt: carryOutDebt,
       confirmation_status: confirmationStatus,
       review_flags: reviewFlags,
+      class_breakdown: classBreakdown, // Per-class tuition breakdown
       status: "issued",
       updated_at: new Date().toISOString(),
     };
