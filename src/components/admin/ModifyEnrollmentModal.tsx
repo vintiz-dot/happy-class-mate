@@ -106,7 +106,7 @@ export function ModifyEnrollmentModal({
 
   // Parse schedule template to get class days
   const classDays: number[] = classSchedule?.schedule_template
-    ? (classSchedule.schedule_template as any[]).map((s: any) => s.day)
+    ? ((classSchedule.schedule_template as any)?.weeklySlots || []).map((s: any) => s.dayOfWeek)
     : [];
 
   // Initialize settings state when data loads
