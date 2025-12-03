@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -22,8 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowRightLeft, Pause, StopCircle } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Pause, StopCircle, Settings } from "lucide-react";
 import { format } from "date-fns";
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface ModifyEnrollmentModalProps {
   open: boolean;
@@ -64,7 +67,55 @@ export function ModifyEnrollmentModal({
   
   // End state
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  
+
+  // Settings state
+  const [allowedDays, setAllowedDays] = useState<number[]>([]);
+  const [rateOverride, setRateOverride] = useState<string>("");
+
+  // Fetch current enrollment details
+  const { data: enrollmentDetails } = useQuery({
+    queryKey: ["enrollment-details", enrollment.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("allowed_days, rate_override_vnd")
+        .eq("id", enrollment.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  // Fetch class schedule to get available days
+  const { data: classSchedule } = useQuery({
+    queryKey: ["class-schedule", enrollment.class_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("classes")
+        .select("schedule_template, session_rate_vnd")
+        .eq("id", enrollment.class_id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  // Parse schedule template to get class days
+  const classDays: number[] = classSchedule?.schedule_template
+    ? (classSchedule.schedule_template as any[]).map((s: any) => s.day)
+    : [];
+
+  // Initialize settings state when data loads
+  useEffect(() => {
+    if (enrollmentDetails) {
+      setAllowedDays(enrollmentDetails.allowed_days || classDays);
+      setRateOverride(enrollmentDetails.rate_override_vnd?.toString() || "");
+    }
+  }, [enrollmentDetails, classDays.join(",")]);
 
   // Fetch available classes for transfer
   const { data: availableClasses } = useQuery({
@@ -201,17 +252,69 @@ export function ModifyEnrollmentModal({
     },
   });
 
+  // Settings mutation
+  const settingsMutation = useMutation({
+    mutationFn: async () => {
+      // Determine if allowed_days should be null (all days) or specific days
+      const sortedAllowed = [...allowedDays].sort((a, b) => a - b);
+      const sortedClassDays = [...classDays].sort((a, b) => a - b);
+      const isAllDays = sortedAllowed.length === sortedClassDays.length &&
+        sortedAllowed.every((d, i) => d === sortedClassDays[i]);
+
+      const { error } = await supabase
+        .from("enrollments")
+        .update({
+          allowed_days: isAllDays ? null : allowedDays,
+          rate_override_vnd: rateOverride ? parseInt(rateOverride) : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", enrollment.id);
+
+      if (error) throw error;
+
+      // Trigger tuition recalculation for current month
+      const currentMonth = format(new Date(), "yyyy-MM");
+      await supabase.functions.invoke("calculate-tuition", {
+        body: {
+          studentId: enrollment.student_id,
+          month: currentMonth,
+        },
+      });
+
+      return { isAllDays };
+    },
+    onSuccess: () => {
+      toast.success("Enrollment settings updated");
+      queryClient.invalidateQueries({ queryKey: ["student-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["enrollment-details"] });
+      queryClient.invalidateQueries({ queryKey: ["student-tuition"] });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update settings");
+    },
+  });
+
   const handleConfirm = () => {
     if (activeTab === "transfer") {
       transferMutation.mutate();
     } else if (activeTab === "pause") {
       pauseMutation.mutate();
-    } else {
+    } else if (activeTab === "end") {
       endMutation.mutate();
+    } else if (activeTab === "settings") {
+      settingsMutation.mutate();
     }
   };
 
-  const isPending = transferMutation.isPending || pauseMutation.isPending || endMutation.isPending;
+  const handleDayToggle = (day: number) => {
+    setAllowedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
+  const isPending = transferMutation.isPending || pauseMutation.isPending || 
+    endMutation.isPending || settingsMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -232,7 +335,7 @@ export function ModifyEnrollmentModal({
         </Alert>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="transfer">
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Transfer
@@ -244,6 +347,10 @@ export function ModifyEnrollmentModal({
             <TabsTrigger value="end">
               <StopCircle className="h-4 w-4 mr-2" />
               End
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -347,6 +454,59 @@ export function ModifyEnrollmentModal({
               className="w-full"
             >
               {isPending ? "Processing..." : "Confirm End Enrollment"}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <div className="space-y-2">
+              <Label>Days Attending</Label>
+              <p className="text-sm text-muted-foreground">
+                Select which days the student attends. Only selected days will be billed.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-2">
+                {classDays.length > 0 ? (
+                  classDays.map((day) => (
+                    <label
+                      key={day}
+                      className="flex items-center space-x-2 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={allowedDays.includes(day)}
+                        onCheckedChange={() => handleDayToggle(day)}
+                      />
+                      <span>{DAY_NAMES[day]}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No schedule found for this class
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Custom Session Rate (VND)</Label>
+              <Input
+                type="number"
+                value={rateOverride}
+                onChange={(e) => setRateOverride(e.target.value)}
+                placeholder={classSchedule?.session_rate_vnd?.toLocaleString() || "Default rate"}
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave empty to use class default rate
+                {classSchedule?.session_rate_vnd && 
+                  ` (${classSchedule.session_rate_vnd.toLocaleString()} VND)`
+                }
+              </p>
+            </div>
+
+            <Button
+              onClick={handleConfirm}
+              disabled={allowedDays.length === 0 || isPending}
+              className="w-full"
+            >
+              {isPending ? "Saving..." : "Save Settings"}
             </Button>
           </TabsContent>
         </Tabs>
