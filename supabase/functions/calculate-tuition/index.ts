@@ -392,6 +392,30 @@ Deno.serve(async (req) => {
           : "Tháng này đã thanh toán đầy đủ.";
 
     // Build per-class breakdown for multi-enrollment students
+    // Calculate per-class discounts for net_amount_vnd
+    const classDiscounts = new Map<string, number>(); // class_id -> total discounts for that class
+    
+    // Add rate adjustment savings
+    for (const [classId, savings] of rateAdjustmentSavings.entries()) {
+      classDiscounts.set(classId, (classDiscounts.get(classId) || 0) + savings);
+    }
+    
+    // Add enrollment-level discounts
+    for (const e of (enrollments as EnrollmentRow[] | null | undefined) ?? []) {
+      if (!e.discount_type || !e.discount_value) continue;
+      const cadence = e.discount_cadence;
+      if (cadence === "monthly" || cadence === "once") {
+        const enrollmentBase = enrollmentBaseAmounts.get(e.class_id) || 0;
+        if (enrollmentBase === 0) continue;
+        const amt = e.discount_type === "percent"
+          ? Math.round(enrollmentBase * (e.discount_value / 100))
+          : Math.round(e.discount_value);
+        if (amt > 0) {
+          classDiscounts.set(e.class_id, (classDiscounts.get(e.class_id) || 0) + amt);
+        }
+      }
+    }
+    
     const classBreakdown = [];
     for (const [classId, baseAmount] of enrollmentBaseAmounts.entries()) {
       // Get class details from sessions
@@ -407,10 +431,15 @@ Deno.serve(async (req) => {
         sd.class_id === classId && (sd.status === 'Present' || sd.status === 'Absent')
       ).length;
       
+      // net_amount_vnd = base - class-specific discounts (enrollment + rate adjustments)
+      const classSpecificDiscounts = classDiscounts.get(classId) || 0;
+      const netAmount = Math.max(0, baseAmount - classSpecificDiscounts);
+      
       classBreakdown.push({
         class_id: classId,
         class_name: className,
         amount_vnd: baseAmount,
+        net_amount_vnd: netAmount, // After class-specific discounts, before sibling/student discounts
         sessions_count: sessionsCount,
         session_rate_vnd: sessionRate
       });
