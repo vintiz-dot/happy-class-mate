@@ -4,6 +4,7 @@ export interface InvoiceClassBreakdown {
   class_name: string;
   sessions_count: number;
   amount_vnd: number;
+  net_amount_vnd?: number; // After class-specific discounts
 }
 
 export interface InvoiceDiscount {

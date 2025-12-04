@@ -80,21 +80,32 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
             <thead>
               <tr className="border-b-2 border-gray-300">
                 <th className="text-left py-2 px-2 font-semibold">Class</th>
-                <th className="text-center py-2 px-2 font-semibold w-24">Sessions</th>
-                <th className="text-right py-2 px-2 font-semibold w-32">Amount</th>
+                <th className="text-center py-2 px-2 font-semibold w-20">Sessions</th>
+                <th className="text-right py-2 px-2 font-semibold w-28">Gross</th>
+                <th className="text-right py-2 px-2 font-semibold w-28">Net</th>
               </tr>
             </thead>
             <tbody>
-              {invoice.classes.map((cls, idx) => (
-                <tr key={idx} className="border-b border-gray-200">
-                  <td className="py-2 px-2">{cls.class_name}</td>
-                  <td className="text-center py-2 px-2">{cls.sessions_count}</td>
-                  <td className="text-right py-2 px-2">{formatVND(cls.amount_vnd)} ₫</td>
-                </tr>
-              ))}
-              <tr className="border-b border-gray-300">
+              {invoice.classes.map((cls, idx) => {
+                const netAmount = cls.net_amount_vnd ?? cls.amount_vnd;
+                const hasDiscount = netAmount < cls.amount_vnd;
+                return (
+                  <tr key={idx} className="border-b border-gray-200">
+                    <td className="py-2 px-2">{cls.class_name}</td>
+                    <td className="text-center py-2 px-2">{cls.sessions_count}</td>
+                    <td className="text-right py-2 px-2 text-gray-500">{formatVND(cls.amount_vnd)} ₫</td>
+                    <td className={`text-right py-2 px-2 ${hasDiscount ? 'text-green-700 font-medium' : ''}`}>
+                      {formatVND(netAmount)} ₫
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="border-b border-gray-300 bg-gray-50">
                 <td colSpan={2} className="py-2 px-2 font-semibold">Subtotal</td>
-                <td className="text-right py-2 px-2 font-semibold">{formatVND(invoice.subtotal_vnd)} ₫</td>
+                <td className="text-right py-2 px-2 text-gray-500">{formatVND(invoice.subtotal_vnd)} ₫</td>
+                <td className="text-right py-2 px-2 font-semibold">
+                  {formatVND(invoice.classes.reduce((sum, c) => sum + (c.net_amount_vnd ?? c.amount_vnd), 0))} ₫
+                </td>
               </tr>
               {invoice.discounts.map((disc, idx) => (
                 <tr key={idx} className="border-b border-gray-200">
