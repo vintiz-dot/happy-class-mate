@@ -41,6 +41,7 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
       class_name: nv(c.class_name, 'Class'),
       sessions_count: nv(c.sessions_count, 0),
       amount_vnd: nv(c.amount_vnd, 0),
+      net_amount_vnd: c.net_amount_vnd, // After class-specific discounts
     })),
     
     discounts: (upstream.discounts ?? []).map((d: any) => ({
