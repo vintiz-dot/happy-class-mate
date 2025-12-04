@@ -76,14 +76,16 @@ async function getHighestClassPerStudent(supabase: any, familyId: string, month:
       continue;
     }
     
-    // Find the highest-tuition class
+    // Find the highest-tuition class using NET amount (after class-specific discounts)
     let highestClass = null;
     let highestAmount = 0;
     
     for (const classInfo of tuitionData.classes) {
-      if (classInfo.amount_vnd > highestAmount) {
-        highestAmount = classInfo.amount_vnd;
-        highestClass = classInfo;
+      // Use net_amount_vnd if available (after class discounts), fallback to amount_vnd
+      const effectiveAmount = classInfo.net_amount_vnd ?? classInfo.amount_vnd;
+      if (effectiveAmount > highestAmount) {
+        highestAmount = effectiveAmount;
+        highestClass = { ...classInfo, effective_amount: effectiveAmount };
       }
     }
     
@@ -91,12 +93,13 @@ async function getHighestClassPerStudent(supabase: any, familyId: string, month:
       result.push({
         student_id: student.id,
         student_name: student.full_name,
-        projected_base: highestClass.amount_vnd,
+        projected_base: highestClass.effective_amount, // Use net amount for comparison
+        base_amount: highestClass.amount_vnd, // Keep original for reference
         projected_sessions: highestClass.sessions_count,
         class_name: highestClass.class_name,
         class_id: highestClass.class_id || null,
         enrollment_count: tuitionData.enrollments?.length || 0,
-        reason: highestClass.amount_vnd > 0 ? 'has tuition' : 'no billable sessions'
+        reason: highestClass.effective_amount > 0 ? 'has tuition' : 'no billable sessions'
       });
     }
   }

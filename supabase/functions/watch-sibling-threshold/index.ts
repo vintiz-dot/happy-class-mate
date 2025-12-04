@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
       console.log(`Checking family ${state.family_id}`)
       
       const highestPerStudent = await getHighestClassPerStudent(supabase, state.family_id, month)
+      // Use projected_base which now contains net_amount_vnd (after class discounts)
       const positives = highestPerStudent.filter((r: any) => r.projected_base > 0)
 
       console.log(`Family ${state.family_id} has ${positives.length} students with positive tuition`)
@@ -46,9 +47,10 @@ Deno.serve(async (req) => {
       }
 
       // Threshold now met! Pick winner with deterministic tie-break
+      // Winner = student with LOWEST highest-class tuition (net amount)
       positives.sort((a: any, b: any) => {
         if (a.projected_base !== b.projected_base) {
-          return a.projected_base - b.projected_base
+          return a.projected_base - b.projected_base // Sort ASCENDING - lowest first
         }
         const hashA = tieHash(state.family_id + month) ^ tieHash(String(a.student_id))
         const hashB = tieHash(state.family_id + month) ^ tieHash(String(b.student_id))
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
       const winner = positives[0]
       const percent = state.sibling_percent ?? 5
 
-      console.log(`Assigning sibling discount to ${winner.student_id} class ${winner.class_id} with ${percent}% on base ${winner.projected_base}`)
+      console.log(`Assigning sibling discount to ${winner.student_id} class ${winner.class_id} with ${percent}% on net amount ${winner.projected_base}`)
 
       // Update state to assigned with snapshot
       await supabase.from('sibling_discount_state').upsert({
