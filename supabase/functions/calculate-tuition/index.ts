@@ -377,8 +377,9 @@ Deno.serve(async (req) => {
     const carryInCredit = carryInBalance > 0 ? carryInBalance : 0;
     const carryInDebt = carryInBalance < 0 ? Math.abs(carryInBalance) : 0;
 
-    // Closing balance for this month: previous balance + current charges - current payments
-    const closingBalance = carryInBalance + totalAmount - monthPayments;
+    // Closing balance for this month: current charges - carry-in credit + carry-in debt - current payments
+    // carryInBalance > 0 means credit (reduces what's owed), < 0 means debt (increases what's owed)
+    const closingBalance = totalAmount - carryInBalance - monthPayments;
     const carryOutCredit = closingBalance < 0 ? Math.abs(closingBalance) : 0;
     const carryOutDebt = closingBalance > 0 ? closingBalance : 0;
 
