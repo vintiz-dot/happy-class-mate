@@ -53,6 +53,7 @@ export async function fetchInvoiceData(
       class_name: c.class_name || 'Unknown',
       sessions_count: c.sessions_count || 0,
       amount_vnd: c.amount_vnd || 0,
+      net_amount_vnd: c.net_amount_vnd,
     }));
   } else {
     // Fallback: Group sessions by class
@@ -71,6 +72,7 @@ export async function fetchInvoiceData(
       class_name: name,
       sessions_count: data.sessions.length,
       amount_vnd: data.total,
+      net_amount_vnd: data.total, // No discount info in fallback, net equals gross
     }));
   }
 
