@@ -60,20 +60,33 @@ Deno.serve(async (req) => {
       .from('students')
       .select('id, avatar_url, full_name')
       .eq('linked_user_id', user.id)
-      .single();
+      .maybeSingle();
     
     if (directStudent) {
       student = directStudent;
+      console.log('Found directly linked student:', student.full_name);
     } else {
-      // Check if user is a family primary user - get their first student
-      const { data: familyStudents } = await serviceClient
-        .from('students')
-        .select('id, avatar_url, full_name, families!inner(primary_user_id)')
-        .eq('families.primary_user_id', user.id)
-        .limit(1);
+      // Check if user is a family primary user
+      const { data: family } = await serviceClient
+        .from('families')
+        .select('id')
+        .eq('primary_user_id', user.id)
+        .maybeSingle();
       
-      if (familyStudents && familyStudents.length > 0) {
-        student = familyStudents[0];
+      if (family) {
+        console.log('Found family for user:', family.id);
+        
+        // Get first student in the family
+        const { data: familyStudents } = await serviceClient
+          .from('students')
+          .select('id, avatar_url, full_name')
+          .eq('family_id', family.id)
+          .limit(1);
+        
+        if (familyStudents && familyStudents.length > 0) {
+          student = familyStudents[0];
+          console.log('Found family student:', student.full_name);
+        }
       }
     }
 
