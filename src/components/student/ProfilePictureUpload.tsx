@@ -8,13 +8,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAvatarUrl } from "@/lib/avatars";
 
 interface ProfilePictureUploadProps {
-  studentId: string;
   currentAvatarUrl?: string | null;
   studentName: string;
 }
 
 export function ProfilePictureUpload({ 
-  studentId, 
   currentAvatarUrl,
   studentName 
 }: ProfilePictureUploadProps) {
@@ -23,7 +21,7 @@ export function ProfilePictureUpload({
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      // Validate file
+      // Client-side validation
       if (!file.type.startsWith("image/")) {
         throw new Error("Please upload an image file");
       }
@@ -32,48 +30,44 @@ export function ProfilePictureUpload({
         throw new Error("Image must be less than 5MB");
       }
 
-      // Delete old avatar if exists
-      if (currentAvatarUrl) {
-        const oldPath = currentAvatarUrl.split("/").pop();
-        if (oldPath) {
-          await supabase.storage
-            .from("student-avatars")
-            .remove([`${studentId}/${oldPath}`]);
-        }
+      // Get current session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to upload a profile picture");
       }
 
-      // Upload new avatar
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${studentId}/${fileName}`;
+      // Create form data with the file
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const { error: uploadError } = await supabase.storage
-        .from("student-avatars")
-        .upload(filePath, file);
+      // Call the edge function
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-student-avatar`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: formData,
+        }
+      );
 
-      if (uploadError) throw uploadError;
+      const result = await response.json();
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("student-avatars")
-        .getPublicUrl(filePath);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload profile picture');
+      }
 
-      // Update student record
-      const { error: updateError } = await supabase
-        .from("students")
-        .update({ avatar_url: publicUrl })
-        .eq("id", studentId);
-
-      if (updateError) throw updateError;
-
-      return publicUrl;
+      return result;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["student", studentId] });
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["student-profile"] });
+      if (data.studentId) {
+        queryClient.invalidateQueries({ queryKey: ["student", data.studentId] });
+      }
       toast.success("Profile picture updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || "Failed to upload profile picture");
     },
   });

@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.update-enrollment-rate]
 verify_jwt = true
+
+[functions.update-student-avatar]
+verify_jwt = true
