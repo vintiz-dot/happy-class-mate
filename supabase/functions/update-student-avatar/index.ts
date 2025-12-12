@@ -52,16 +52,34 @@ Deno.serve(async (req) => {
     // Create service role client to bypass RLS
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find the student linked to this user
-    const { data: student, error: studentError } = await serviceClient
+    // Find the student linked to this user (direct link or via family)
+    let student = null;
+    
+    // First try direct link
+    const { data: directStudent } = await serviceClient
       .from('students')
       .select('id, avatar_url, full_name')
       .eq('linked_user_id', user.id)
       .single();
+    
+    if (directStudent) {
+      student = directStudent;
+    } else {
+      // Check if user is a family primary user - get their first student
+      const { data: familyStudents } = await serviceClient
+        .from('students')
+        .select('id, avatar_url, full_name, families!inner(primary_user_id)')
+        .eq('families.primary_user_id', user.id)
+        .limit(1);
+      
+      if (familyStudents && familyStudents.length > 0) {
+        student = familyStudents[0];
+      }
+    }
 
-    if (studentError || !student) {
-      console.error('Student lookup error:', studentError);
-      return new Response(JSON.stringify({ error: 'No student profile linked to this account' }), {
+    if (!student) {
+      console.error('No student found for user:', user.id);
+      return new Response(JSON.stringify({ error: 'No student profile linked to this account. Please contact an administrator to link your account.' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
