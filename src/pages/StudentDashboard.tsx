@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatars";
+import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
 
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
@@ -124,28 +125,8 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
-  const { data: tuitionData } = useQuery({
-    queryKey: ["student-tuition-summary", studentId, currentMonth],
-    queryFn: async () => {
-      if (!studentId) return null;
-
-      // Fetch invoice from database (same as admin)
-      const { data: invoice, error } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("month", currentMonth)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      return {
-        totalAmount: invoice?.total_amount || 0,
-        balance: invoice ? invoice.total_amount - invoice.paid_amount : 0,
-      };
-    },
-    enabled: !!studentId,
-  });
+  // Use same hook as Tuition tab for accurate balance calculation
+  const { data: tuitionData } = useStudentMonthFinance(studentId, currentMonth);
 
   const { data: enrolledClasses } = useQuery({
     queryKey: ["student-enrolled-classes", studentId],
@@ -319,8 +300,12 @@ export default function StudentDashboard() {
                 </div>
                 <CardDescription className="text-base font-medium">Current Balance</CardDescription>
               </div>
-              <CardTitle className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
-                {tuitionData?.balance?.toLocaleString() || 0} ₫
+              <CardTitle className={`text-4xl font-bold mb-2 ${tuitionData?.carryOutDebt ? 'text-destructive' : tuitionData?.carryOutCredit ? 'text-success' : 'bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent'}`}>
+                {tuitionData?.carryOutDebt 
+                  ? formatVND(tuitionData.carryOutDebt)
+                  : tuitionData?.carryOutCredit
+                    ? `-${formatVND(tuitionData.carryOutCredit)}`
+                    : formatVND(0)}
               </CardTitle>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 {dayjs().format("MMMM YYYY")} 
