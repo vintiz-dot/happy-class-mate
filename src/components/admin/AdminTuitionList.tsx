@@ -10,9 +10,10 @@ import { useNavigate } from "react-router-dom";
 import { dayjs } from "@/lib/date";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { z } from "zod";
+import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
+
 
 const PaymentSchema = z.object({
   amount: z.number().min(0, "Amount must be positive").max(100000000, "Amount too large"),
@@ -139,6 +140,11 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
         const priorBalance = priorBalanceMap.get(student.id) || 0;
         const finalPayable = currentCharges + carryInDebt - carryInCredit;
 
+        // Calculate carry_out values for status determination
+        const recordedPayment = invoice?.recorded_payment || 0;
+        const carryOutCredit = Math.max(0, recordedPayment - finalPayable);
+        const carryOutDebt = Math.max(0, finalPayable - recordedPayment);
+
         return {
           id: invoice?.id || `placeholder-${student.id}`,
           student_id: student.id,
@@ -147,42 +153,43 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
           discount_amount: invoice?.discount_amount || 0,
           total_amount: currentCharges,
           paid_amount: invoice?.paid_amount || 0,
-          recorded_payment: invoice?.recorded_payment || 0,
+          recorded_payment: recordedPayment,
           status: invoice?.status || "open",
           students: student,
           hasDiscount: studentDiscounts.has(student.id),
           hasSiblings: siblingStudents.has(student.id),
-          priorBalance: priorBalance, // Prior payments - prior charges
-          finalPayable: finalPayable, // Current charges + prior balance
-          balance: finalPayable - (invoice?.recorded_payment || 0), // Outstanding after current payment
+          priorBalance: priorBalance,
+          finalPayable: finalPayable,
+          balance: finalPayable - recordedPayment,
           classes: studentClasses.get(student.id) || [],
+          // Add carry_out values for status calculation
+          carry_out_credit: invoice?.carry_out_credit ?? carryOutCredit,
+          carry_out_debt: invoice?.carry_out_debt ?? carryOutDebt,
         };
       });
     },
   });
 
-  // Generate filter chips with counts
+  // Generate filter chips with counts - using shared getPaymentStatus
   const filterChips = useMemo(() => {
     if (!tuitionData) return [];
     
     const withDiscount = tuitionData.filter((i: any) => i.hasDiscount).length;
     const withSiblings = tuitionData.filter((i: any) => i.hasSiblings).length;
-    const paid = tuitionData.filter((i: any) => {
-      const recorded = i.recorded_payment ?? i.paid_amount;
-      return recorded >= i.total_amount && i.total_amount > 0;
-    }).length;
-    const overpaid = tuitionData.filter((i: any) => {
-      const recorded = i.recorded_payment ?? i.paid_amount;
-      return recorded > i.total_amount;
-    }).length;
-    const underpaid = tuitionData.filter((i: any) => {
-      const recorded = i.recorded_payment ?? i.paid_amount;
-      return recorded > 0 && recorded < i.total_amount;
-    }).length;
-    const settled = tuitionData.filter((i: any) => {
-      const recorded = i.recorded_payment ?? i.paid_amount;
-      return recorded === i.total_amount && i.total_amount > 0;
-    }).length;
+    
+    // Use shared status logic based on carry_out values
+    const getStatus = (item: any) => getPaymentStatus({
+      carryOutDebt: item.carry_out_debt ?? 0,
+      carryOutCredit: item.carry_out_credit ?? 0,
+      totalAmount: item.total_amount ?? 0,
+      monthPayments: item.recorded_payment ?? 0,
+    });
+    
+    const overpaid = tuitionData.filter((i: any) => getStatus(i) === 'overpaid').length;
+    const settled = tuitionData.filter((i: any) => getStatus(i) === 'settled').length;
+    const underpaid = tuitionData.filter((i: any) => getStatus(i) === 'underpaid').length;
+    const unpaid = tuitionData.filter((i: any) => getStatus(i) === 'unpaid').length;
+    const paid = settled + overpaid; // Paid = Settled or Overpaid
 
     return [
       { key: "all", label: "All", count: tuitionData.length },
@@ -199,19 +206,27 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const filteredAndSortedData = useMemo(() => {
     if (!tuitionData) return [];
 
+    // Use shared status logic
+    const getStatus = (item: any) => getPaymentStatus({
+      carryOutDebt: item.carry_out_debt ?? 0,
+      carryOutCredit: item.carry_out_credit ?? 0,
+      totalAmount: item.total_amount ?? 0,
+      monthPayments: item.recorded_payment ?? 0,
+    });
+
     // Apply status filter
     let filtered = tuitionData;
     if (activeFilter !== "all") {
       filtered = tuitionData.filter((item: any) => {
-        const recorded = item.recorded_payment ?? item.paid_amount;
+        const status = getStatus(item);
         switch (activeFilter) {
           case "discount": return item.hasDiscount;
           case "no-discount": return !item.hasDiscount;
           case "siblings": return item.hasSiblings;
-          case "paid": return recorded >= item.total_amount && item.total_amount > 0;
-          case "overpaid": return recorded > item.total_amount;
-          case "underpaid": return recorded > 0 && recorded < item.total_amount;
-          case "settled": return recorded === item.total_amount && item.total_amount > 0;
+          case "paid": return status === 'settled' || status === 'overpaid';
+          case "overpaid": return status === 'overpaid';
+          case "underpaid": return status === 'underpaid';
+          case "settled": return status === 'settled';
           default: return true;
         }
       });
@@ -337,25 +352,15 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     }
   };
 
+  // Use shared status badge function
   const getStatusBadge = (item: any) => {
-    const recordedPayment = item.recorded_payment ?? item.paid_amount;
-    if (recordedPayment > item.total_amount) {
-      return <Badge className="bg-blue-500">Overpaid</Badge>;
-    }
-    if (recordedPayment === item.total_amount && item.total_amount > 0) {
-      return <Badge className="bg-green-500">Settled</Badge>;
-    }
-    if (recordedPayment < item.total_amount && recordedPayment > 0) {
-      return (
-        <Badge variant="outline" className="border-amber-500 text-amber-700">
-          Underpaid
-        </Badge>
-      );
-    }
-    if (recordedPayment >= item.total_amount && item.total_amount > 0) {
-      return <Badge className="bg-green-500">Paid</Badge>;
-    }
-    return <Badge variant="secondary">Unpaid</Badge>;
+    const status = getPaymentStatus({
+      carryOutDebt: item.carry_out_debt ?? 0,
+      carryOutCredit: item.carry_out_credit ?? 0,
+      totalAmount: item.total_amount ?? 0,
+      monthPayments: item.recorded_payment ?? 0,
+    });
+    return getTuitionStatusBadge(status);
   };
 
   if (isLoading) {

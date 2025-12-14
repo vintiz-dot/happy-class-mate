@@ -1,17 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { Award, DollarSign, CheckCircle2 } from "lucide-react";
 import { useStudentMonthFinance, formatVND, getMonthOptions } from "@/hooks/useStudentMonthFinance";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { checkStudentFinanceParity } from "@/lib/dev/parityCheck";
 import { SettleBillModal } from "@/components/admin/SettleBillModal";
 import { useAuth } from "@/hooks/useAuth";
+import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -111,28 +111,13 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
   }, [tuitionData, studentId, selectedMonth]);
 
 
-  // Status badge - match Admin Finance exactly
-  const getStatusBadge = () => {
-    if (!tuitionData) return null;
-    
-    // Use carry-out balance to determine status
-    const carryOutDebt = tuitionData.carryOutDebt;
-    const carryOutCredit = tuitionData.carryOutCredit;
-    
-    if (carryOutCredit > 0) {
-      return <Badge className="bg-blue-500">Overpaid</Badge>;
-    }
-    if (carryOutDebt === 0 && carryOutCredit === 0 && tuitionData.totalAmount > 0) {
-      return <Badge className="bg-green-500">Settled</Badge>;
-    }
-    if (tuitionData.monthPayments > 0 && carryOutDebt > 0) {
-      return <Badge variant="outline">Underpaid</Badge>;
-    }
-    if (carryOutDebt > 0) {
-      return <Badge variant="destructive">Unpaid</Badge>;
-    }
-    return <Badge variant="secondary">Open</Badge>;
-  };
+  // Status badge - using shared utility
+  const statusBadge = tuitionData ? getTuitionStatusBadge(getPaymentStatus({
+    carryOutDebt: tuitionData.carryOutDebt,
+    carryOutCredit: tuitionData.carryOutCredit,
+    totalAmount: tuitionData.totalAmount,
+    monthPayments: tuitionData.monthPayments,
+  })) : null;
 
   if (isLoading) {
     return (
@@ -185,7 +170,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
       {/* Status and Invoice - Match Admin Finance */}
       <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
         <div className="flex items-center gap-2">
-          {getStatusBadge()}
+          {statusBadge}
           {tuitionData.totalDiscount > 0 && (
             <Badge variant="outline">Discount Applied</Badge>
           )}
@@ -457,7 +442,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              {getStatusBadge()}
+              {statusBadge}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               {tuitionData.balanceStatus === 'settled' ? 'All paid up' : tuitionData.balanceStatus === 'credit' ? 'Overpaid for this month' : 'Outstanding balance'}
