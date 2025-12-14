@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { Award, DollarSign, CheckCircle2 } from "lucide-react";
 import { useStudentMonthFinance, formatVND, getMonthOptions } from "@/hooks/useStudentMonthFinance";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
-import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { checkStudentFinanceParity } from "@/lib/dev/parityCheck";
 import { SettleBillModal } from "@/components/admin/SettleBillModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +18,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [activeFilter, setActiveFilter] = useState("all");
+  
   const [settleBillOpen, setSettleBillOpen] = useState(false);
   const [studentName, setStudentName] = useState("");
 
@@ -111,28 +110,6 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
     }
   }, [tuitionData, studentId, selectedMonth]);
 
-  // Generate filter chips with counts - match Admin Finance
-  const filterChips = useMemo(() => {
-    if (!tuitionData) return [];
-    
-    const hasDiscount = (tuitionData.totalDiscount ?? 0) > 0;
-    const hasSibling = tuitionData.siblingState?.status === 'assigned' && tuitionData.siblingState?.isWinner;
-    const isPaid = tuitionData.cumulativePaidAmount >= tuitionData.totalAmount && tuitionData.totalAmount > 0;
-    const isOverpaid = tuitionData.cumulativePaidAmount > tuitionData.totalAmount;
-    const isUnderpaid = tuitionData.cumulativePaidAmount < tuitionData.totalAmount && tuitionData.cumulativePaidAmount > 0;
-    const isSettled = tuitionData.balanceStatus === 'settled' && tuitionData.totalAmount > 0;
-
-    return [
-      { key: "all", label: "All", count: 1 },
-      { key: "discount", label: "Discount", count: hasDiscount ? 1 : 0 },
-      { key: "no-discount", label: "No Discount", count: !hasDiscount ? 1 : 0 },
-      { key: "siblings", label: "Siblings", count: hasSibling ? 1 : 0 },
-      { key: "paid", label: "Paid", count: isPaid ? 1 : 0 },
-      { key: "overpaid", label: "Overpaid", count: isOverpaid ? 1 : 0 },
-      { key: "underpaid", label: "Underpaid", count: isUnderpaid ? 1 : 0 },
-      { key: "settled", label: "Settled", count: isSettled ? 1 : 0 },
-    ];
-  }, [tuitionData]);
 
   // Status badge - match Admin Finance exactly
   const getStatusBadge = () => {
@@ -203,12 +180,6 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           </Select>
         </div>
 
-        {/* Filter Chips - Match Admin Finance */}
-        <TuitionPageFilters
-          filters={filterChips}
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-        />
       </div>
 
       {/* Status and Invoice - Match Admin Finance */}
