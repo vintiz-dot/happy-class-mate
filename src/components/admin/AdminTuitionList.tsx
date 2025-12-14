@@ -28,6 +28,7 @@ interface AdminTuitionListProps {
 
 export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
   const [sortBy, setSortBy] = useState<"name" | "balance" | "total" | "class">("name");
+  const [activeFilter, setActiveFilter] = useState("all");
   const [confirmationFilter, setConfirmationFilter] = useState<string>("all");
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -160,13 +161,65 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     },
   });
 
+  // Generate filter chips with counts
+  const filterChips = useMemo(() => {
+    if (!tuitionData) return [];
+    
+    const withDiscount = tuitionData.filter((i: any) => i.hasDiscount).length;
+    const withSiblings = tuitionData.filter((i: any) => i.hasSiblings).length;
+    const paid = tuitionData.filter((i: any) => {
+      const recorded = i.recorded_payment ?? i.paid_amount;
+      return recorded >= i.total_amount && i.total_amount > 0;
+    }).length;
+    const overpaid = tuitionData.filter((i: any) => {
+      const recorded = i.recorded_payment ?? i.paid_amount;
+      return recorded > i.total_amount;
+    }).length;
+    const underpaid = tuitionData.filter((i: any) => {
+      const recorded = i.recorded_payment ?? i.paid_amount;
+      return recorded > 0 && recorded < i.total_amount;
+    }).length;
+    const settled = tuitionData.filter((i: any) => {
+      const recorded = i.recorded_payment ?? i.paid_amount;
+      return recorded === i.total_amount && i.total_amount > 0;
+    }).length;
+
+    return [
+      { key: "all", label: "All", count: tuitionData.length },
+      { key: "discount", label: "Discount", count: withDiscount },
+      { key: "no-discount", label: "No Discount", count: tuitionData.length - withDiscount },
+      { key: "siblings", label: "Siblings", count: withSiblings },
+      { key: "paid", label: "Paid", count: paid },
+      { key: "overpaid", label: "Overpaid", count: overpaid },
+      { key: "underpaid", label: "Underpaid", count: underpaid },
+      { key: "settled", label: "Settled", count: settled },
+    ];
+  }, [tuitionData]);
+
   const filteredAndSortedData = useMemo(() => {
     if (!tuitionData) return [];
 
-    // Apply confirmation filter
+    // Apply status filter
     let filtered = tuitionData;
+    if (activeFilter !== "all") {
+      filtered = tuitionData.filter((item: any) => {
+        const recorded = item.recorded_payment ?? item.paid_amount;
+        switch (activeFilter) {
+          case "discount": return item.hasDiscount;
+          case "no-discount": return !item.hasDiscount;
+          case "siblings": return item.hasSiblings;
+          case "paid": return recorded >= item.total_amount && item.total_amount > 0;
+          case "overpaid": return recorded > item.total_amount;
+          case "underpaid": return recorded > 0 && recorded < item.total_amount;
+          case "settled": return recorded === item.total_amount && item.total_amount > 0;
+          default: return true;
+        }
+      });
+    }
+
+    // Apply confirmation filter
     if (confirmationFilter !== "all") {
-      filtered = tuitionData.filter((item: any) => 
+      filtered = filtered.filter((item: any) => 
         item.confirmation_status === confirmationFilter
       );
     }
@@ -190,7 +243,7 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     });
 
     return sorted;
-  }, [tuitionData, sortBy, confirmationFilter]);
+  }, [tuitionData, sortBy, activeFilter, confirmationFilter]);
 
   const handleStartEdit = (invoice: any) => {
     setEditingInvoiceId(invoice.id);
@@ -347,6 +400,13 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Filter Chips */}
+        <TuitionPageFilters
+          filters={filterChips}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+        />
 
         <div className="space-y-3">
           <div className="flex items-center gap-2">
