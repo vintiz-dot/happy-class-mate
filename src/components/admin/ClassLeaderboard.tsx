@@ -154,7 +154,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
   const restOfList = leaderboard?.slice(3, 10) || [];
 
   return (
-    <div className="relative bg-leaderboard-bg rounded-3xl p-8 shadow-2xl overflow-hidden min-h-[600px]">
+    <div className="relative bg-leaderboard-bg rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden min-h-[400px] md:min-h-[600px]">
       {/* Animated Starfield Background */}
       <div className="starfield">
         {Array.from({ length: 50 }).map((_, i) => (
@@ -175,14 +175,14 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between mb-8">
-        <h1 className="text-5xl font-black text-leaderboard-text drop-shadow-lg tracking-tight">
+      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-5xl font-black text-leaderboard-text drop-shadow-lg tracking-tight">
           CLASS RANK
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
           {showAddPoints && <ManualPointsDialog classId={classId} isAdmin={true} />}
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px] glass-panel border-leaderboard-glassBorder shadow-lg text-white">
+            <SelectTrigger className="w-full md:w-[180px] glass-panel border-leaderboard-glassBorder shadow-lg text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -206,32 +206,32 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
       ) : (
         <>
           {/* Top 3 Podium */}
-          <div className="relative z-10 grid grid-cols-3 gap-6 mb-8">
+          <div className="relative z-10 grid grid-cols-3 gap-2 md:gap-6 mb-6 md:mb-8">
             {topThree.map((entry: any) => (
               <div
                 key={entry.id}
                 className="flex flex-col items-center cursor-pointer floating-element"
                 onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
               >
-                <div className="relative mb-4">
-                  <Avatar className="h-32 w-32 border-8 border-transparent shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-1">
+                <div className="relative mb-2 md:mb-4">
+                  <Avatar className="h-16 w-16 md:h-32 md:w-32 border-4 md:border-8 border-transparent shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5 md:p-1">
                     <AvatarImage 
                       src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} 
                       alt={entry.students?.full_name} 
                       className="object-cover rounded-full" 
                     />
-                    <AvatarFallback className="text-3xl font-black rounded-full">
+                    <AvatarFallback className="text-lg md:text-3xl font-black rounded-full">
                       <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-12 w-12 flex items-center justify-center shadow-xl border-2 border-leaderboard-glassBorder floating-element">
-                    {getRankIcon(entry.rank)}
+                  <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-6 w-6 md:h-12 md:w-12 flex items-center justify-center shadow-xl border md:border-2 border-leaderboard-glassBorder floating-element">
+                    <span className="scale-75 md:scale-100">{getRankIcon(entry.rank)}</span>
                   </div>
                 </div>
-                <p className="text-leaderboard-text font-bold text-lg mb-1 drop-shadow-md text-center">
+                <p className="text-leaderboard-text font-bold text-xs md:text-lg mb-0.5 md:mb-1 drop-shadow-md text-center line-clamp-2 px-1">
                   {entry.students?.full_name}
                 </p>
-                <p className="text-leaderboard-text text-4xl font-black drop-shadow-lg">
+                <p className="text-leaderboard-text text-xl md:text-4xl font-black drop-shadow-lg">
                   {entry.total_points}
                 </p>
               </div>
@@ -240,8 +240,8 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
 
           {/* Ranks 4-10 List */}
           {restOfList.length > 0 && (
-            <div className="relative z-10 glass-panel rounded-2xl shadow-xl overflow-hidden">
-              <div className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-sm text-leaderboard-text">
+            <div className="relative z-10 glass-panel rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
+              <div className="grid grid-cols-[40px_1fr_50px] md:grid-cols-[80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
                 <div>RANK</div>
                 <div>NAME</div>
                 <div className="text-right">SCORE</div>
@@ -250,23 +250,23 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                 {restOfList.map((entry: any) => (
                   <div
                     key={entry.id}
-                    className="grid grid-cols-[80px_1fr_100px] gap-4 px-6 py-4 cursor-pointer transition-all hover:bg-white/10"
+                    className="grid grid-cols-[40px_1fr_50px] md:grid-cols-[80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 cursor-pointer transition-all hover:bg-white/10"
                     onClick={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
                   >
                     <div className="flex items-center">
-                      <span className="text-leaderboard-text font-bold text-lg">#{entry.rank}</span>
+                      <span className="text-leaderboard-text font-bold text-sm md:text-lg">#{entry.rank}</span>
                     </div>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-transparent bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                      <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 border-2 border-transparent bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5">
                         <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} alt={entry.students?.full_name} className="object-cover rounded-full" />
                         <AvatarFallback className="text-xs font-semibold rounded-full">
                           <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-semibold text-leaderboard-text truncate">{entry.students?.full_name}</span>
+                      <span className="font-semibold text-leaderboard-text truncate text-sm md:text-base">{entry.students?.full_name}</span>
                     </div>
                     <div className="flex items-center justify-end">
-                      <span className="text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
+                      <span className="text-sm md:text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
                     </div>
                   </div>
                 ))}
