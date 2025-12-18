@@ -150,7 +150,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
   }
 
   const topThree = leaderboard?.slice(0, 3) || [];
-  const restOfList = leaderboard?.slice(3, 10) || [];
+  const restOfList = leaderboard?.slice(3) || [];
 
   return (
     <div className="relative bg-leaderboard-bg rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden min-h-[400px] md:min-h-[600px]">
