@@ -31,6 +31,7 @@ import TeacherAttendance from "./pages/TeacherAttendance";
 import TeacherAssignments from "./pages/TeacherAssignments";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherLeaderboards from "./pages/TeacherLeaderboards";
 import StudentAssignments from "./pages/StudentAssignments";
 import Tuition from "./pages/Tuition";
 import TeacherProfile from "./pages/TeacherProfile";
@@ -88,6 +89,7 @@ function AppContent() {
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/assignments" element={<TeacherAssignments />} />
             <Route path="/teacher/journal" element={<TeacherJournal />} />
+            <Route path="/teacher/leaderboards" element={<TeacherLeaderboards />} />
             
             {/* Student routes */}
             <Route path="/student/dashboard" element={<StudentDashboard />} />
