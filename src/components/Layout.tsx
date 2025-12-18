@@ -16,6 +16,7 @@ import {
   FileText,
   ClipboardList,
   BookMarked,
+  Trophy,
 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
@@ -96,6 +97,7 @@ const Layout = ({ children, title }: LayoutProps) => {
         return [
           { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: Trophy, label: "Leaderboard", path: "/teacher/leaderboards" },
           { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
           { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
           { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
