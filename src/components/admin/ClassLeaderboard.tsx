@@ -284,6 +284,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           studentName={selectedStudent.name}
           open={!!selectedStudent}
           onOpenChange={(open) => !open && setSelectedStudent(null)}
+          canDelete={true}
         />
       )}
     </div>

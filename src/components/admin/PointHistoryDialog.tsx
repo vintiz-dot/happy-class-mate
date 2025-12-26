@@ -1,10 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, BookOpen, Users, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, BookOpen, Users, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "@/hooks/use-toast";
 
 interface PointHistoryDialogProps {
   studentId: string;
@@ -13,6 +17,7 @@ interface PointHistoryDialogProps {
   studentName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canDelete?: boolean;
 }
 
 export function PointHistoryDialog({
@@ -22,7 +27,11 @@ export function PointHistoryDialog({
   studentName,
   open,
   onOpenChange,
+  canDelete = false,
 }: PointHistoryDialogProps) {
+  const [transactionToDelete, setTransactionToDelete] = useState<{ id: string; points: number } | null>(null);
+  const queryClient = useQueryClient();
+
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["point-transactions", studentId, classId, month],
     queryFn: async () => {
@@ -73,6 +82,26 @@ export function PointHistoryDialog({
   };
 
   const totalPoints = transactions?.reduce((sum, t) => sum + t.points, 0) || 0;
+
+  const deleteMutation = useMutation({
+    mutationFn: async (transactionId: string) => {
+      const { error } = await supabase
+        .from("point_transactions")
+        .delete()
+        .eq("id", transactionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["point-transactions", studentId, classId, month] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["student-points"] });
+      toast({ title: "Point entry deleted", description: "The leaderboard has been updated." });
+      setTransactionToDelete(null);
+    },
+    onError: (error) => {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,20 +172,35 @@ export function PointHistoryDialog({
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1">
-                      {transaction.points > 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-600" />
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        {transaction.points > 0 ? (
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-600" />
+                        )}
+                        <span
+                          className={`text-lg font-bold ${
+                            transaction.points > 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {transaction.points > 0 ? "+" : ""}
+                          {transaction.points}
+                        </span>
+                      </div>
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTransactionToDelete({ id: transaction.id, points: transaction.points });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
-                      <span
-                        className={`text-lg font-bold ${
-                          transaction.points > 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {transaction.points > 0 ? "+" : ""}
-                        {transaction.points}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -165,6 +209,26 @@ export function PointHistoryDialog({
           )}
         </ScrollArea>
       </DialogContent>
+
+      <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Point Entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove {transactionToDelete?.points} point{Math.abs(transactionToDelete?.points || 0) !== 1 ? 's' : ''} from {studentName}'s total. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => transactionToDelete && deleteMutation.mutate(transactionToDelete.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
