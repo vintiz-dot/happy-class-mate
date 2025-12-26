@@ -300,6 +300,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
           studentName={selectedStudent.name}
           open={!!selectedStudent}
           onOpenChange={(open) => !open && setSelectedStudent(null)}
+          canDelete={true}
         />
       )}
     </div>
