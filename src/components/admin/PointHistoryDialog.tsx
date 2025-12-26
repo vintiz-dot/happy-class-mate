@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar, BookOpen, Users, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -30,12 +31,13 @@ export function PointHistoryDialog({
   canDelete = false,
 }: PointHistoryDialogProps) {
   const [transactionToDelete, setTransactionToDelete] = useState<{ id: string; points: number } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["point-transactions", studentId, classId, month],
     queryFn: async () => {
-      // Calculate first day of next month for proper date range
       const [year, monthNum] = month.split('-').map(Number);
       const nextMonth = monthNum === 12 ? `${year + 1}-01-01` : `${year}-${String(monthNum + 1).padStart(2, '0')}-01`;
       
@@ -82,6 +84,14 @@ export function PointHistoryDialog({
   };
 
   const totalPoints = transactions?.reduce((sum, t) => sum + t.points, 0) || 0;
+  const selectedPoints = transactions?.filter(t => selectedIds.has(t.id)).reduce((sum, t) => sum + t.points, 0) || 0;
+
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["point-transactions", studentId, classId, month] });
+    queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    queryClient.invalidateQueries({ queryKey: ["student-points"] });
+    queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (transactionId: string) => {
@@ -92,9 +102,7 @@ export function PointHistoryDialog({
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["point-transactions", studentId, classId, month] });
-      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
-      queryClient.invalidateQueries({ queryKey: ["student-points"] });
+      invalidateQueries();
       toast({ title: "Point entry deleted", description: "The leaderboard has been updated." });
       setTransactionToDelete(null);
     },
@@ -103,8 +111,56 @@ export function PointHistoryDialog({
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("point_transactions")
+        .delete()
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateQueries();
+      toast({ 
+        title: `${selectedIds.size} point entries deleted`, 
+        description: "The leaderboard has been updated." 
+      });
+      setSelectedIds(new Set());
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: (error) => {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (!transactions) return;
+    if (selectedIds.size === transactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map(t => t.id)));
+    }
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedIds(new Set());
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -116,6 +172,32 @@ export function PointHistoryDialog({
           </p>
         </DialogHeader>
 
+        {canDelete && transactions && transactions.length > 0 && (
+          <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={selectedIds.size === transactions.length && transactions.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              <label htmlFor="select-all" className="text-sm cursor-pointer">
+                Select all ({transactions.length})
+              </label>
+            </div>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                disabled={bulkDeleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete {selectedIds.size} selected ({selectedPoints > 0 ? '+' : ''}{selectedPoints} pts)
+              </Button>
+            )}
+          </div>
+        )}
+
         <ScrollArea className="max-h-[500px] pr-4">
           {isLoading ? (
             <p className="text-center text-muted-foreground py-8">Loading history...</p>
@@ -126,10 +208,19 @@ export function PointHistoryDialog({
               {transactions?.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                  className={`border rounded-lg p-4 hover:bg-muted/50 transition-colors ${
+                    selectedIds.has(transaction.id) ? 'bg-muted/30 border-primary/50' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
+                      {canDelete && (
+                        <Checkbox
+                          checked={selectedIds.has(transaction.id)}
+                          onCheckedChange={() => toggleSelect(transaction.id)}
+                          className="mt-1"
+                        />
+                      )}
                       <div className={`p-2 rounded-lg ${getTypeColor(transaction.type)}`}>
                         {getTypeIcon(transaction.type)}
                       </div>
@@ -210,6 +301,7 @@ export function PointHistoryDialog({
         </ScrollArea>
       </DialogContent>
 
+      {/* Single delete confirmation */}
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <AlertDialogContent className="z-[100]">
           <AlertDialogHeader>
@@ -225,6 +317,28 @@ export function PointHistoryDialog({
               onClick={() => transactionToDelete && deleteMutation.mutate(transactionToDelete.id)}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent className="z-[100]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Point Entries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove {selectedPoints} point{Math.abs(selectedPoints) !== 1 ? 's' : ''} from {studentName}'s total. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${selectedIds.size} entries`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
