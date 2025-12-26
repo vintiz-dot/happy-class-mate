@@ -211,7 +211,7 @@ export function PointHistoryDialog({
       </DialogContent>
 
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[100]">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Point Entry?</AlertDialogTitle>
             <AlertDialogDescription>
