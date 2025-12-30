@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, eachDayOfInterval } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Book, Pencil, Headphones, Sword, Users, Shield } from "lucide-react";
+import { Book, Pencil, Headphones, Sword, Users, Shield, Loader2 } from "lucide-react";
 
 interface PerformanceHeatmapTabProps {
   studentId: string;
@@ -45,7 +45,30 @@ function getScoreLabel(score: number | null): string {
 export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmapTabProps) {
   const today = new Date();
   const thirtyDaysAgo = subDays(today, 29);
-  const dateRange = eachDayOfInterval({ start: thirtyDaysAgo, end: today });
+
+  // Fetch session dates for this class
+  const { data: sessionDates, isLoading: sessionsLoading } = useQuery({
+    queryKey: ["class-session-dates", classId],
+    queryFn: async () => {
+      const startDate = format(thirtyDaysAgo, "yyyy-MM-dd");
+      const endDate = format(today, "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("sessions")
+        .select("date")
+        .eq("class_id", classId)
+        .in("status", ["Scheduled", "Held"])
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+
+      // Return unique dates as Date objects
+      const uniqueDates = [...new Set(data?.map((s) => s.date) || [])];
+      return uniqueDates.map((d) => new Date(d + "T00:00:00"));
+    },
+  });
 
   const { data: assessments } = useQuery({
     queryKey: ["student-heatmap", studentId, classId],
@@ -63,7 +86,6 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
 
       if (error) throw error;
 
-      // Create a lookup map: date-skill -> { score, comment }
       const lookup: Record<string, { score: number; comment: string | null }> = {};
       data?.forEach((entry) => {
         const key = `${entry.date}-${entry.skill}`;
@@ -75,6 +97,25 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
   });
 
   const hasData = assessments && Object.keys(assessments).length > 0;
+  const hasSessions = sessionDates && sessionDates.length > 0;
+
+  if (sessionsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!hasSessions) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
+        <p className="font-medium">No classes scheduled in the last 30 days</p>
+        <p className="text-sm">Performance data will appear after class sessions</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -100,16 +141,16 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
 
       {/* Heatmap Grid */}
       <div className="overflow-x-auto pb-4">
-        <div className="min-w-[800px]">
+        <div className="min-w-fit">
           {/* Date Headers */}
-          <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `100px repeat(${dateRange.length}, minmax(20px, 1fr))` }}>
+          <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `100px repeat(${sessionDates.length}, minmax(40px, 1fr))` }}>
             <div className="text-xs text-muted-foreground font-medium">Skill</div>
-            {dateRange.map((date, i) => (
+            {sessionDates.map((date, i) => (
               <div
                 key={i}
                 className="text-center text-[10px] text-muted-foreground font-medium"
               >
-                {i % 5 === 0 ? format(date, "d") : ""}
+                {format(date, "MMM d")}
               </div>
             ))}
           </div>
@@ -119,7 +160,7 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
             <div
               key={skill}
               className="grid gap-1 mb-1"
-              style={{ gridTemplateColumns: `100px repeat(${dateRange.length}, minmax(20px, 1fr))` }}
+              style={{ gridTemplateColumns: `100px repeat(${sessionDates.length}, minmax(40px, 1fr))` }}
             >
               {/* Skill Label */}
               <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -128,7 +169,7 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
               </div>
 
               {/* Day Cells */}
-              {dateRange.map((date) => {
+              {sessionDates.map((date) => {
                 const dateStr = format(date, "yyyy-MM-dd");
                 const key = `${dateStr}-${skill}`;
                 const entry = assessments?.[key];
@@ -174,16 +215,14 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
 
       {/* No Data Message */}
       {!hasData && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No assessment data in the last 30 days</p>
-          <p className="text-sm">Check back after your teacher adds skill assessments</p>
+        <div className="text-center py-4 text-muted-foreground">
+          <p className="text-sm">No skill assessments recorded yet for these sessions</p>
         </div>
       )}
 
-      {/* Month Label */}
+      {/* Session Count Label */}
       <div className="text-center text-xs text-muted-foreground">
-        Last 30 days: {format(thirtyDaysAgo, "MMM d")} - {format(today, "MMM d, yyyy")}
+        {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in the last 30 days
       </div>
     </div>
   );
