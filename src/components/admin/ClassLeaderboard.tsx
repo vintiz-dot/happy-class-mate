@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Trophy, Medal, Award, Users, X, CheckSquare } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PointHistoryDialog } from "./PointHistoryDialog";
@@ -12,6 +13,7 @@ import { BulkPointsDialog } from "@/components/shared/BulkPointsDialog";
 import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { StudentAnalyticsModal } from "@/components/student/StudentAnalyticsModal";
 
 interface ClassLeaderboardProps {
   classId: string;
@@ -29,6 +31,13 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Map<string, SelectedStudent>>(new Map());
   const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [analyticsStudent, setAnalyticsStudent] = useState<{
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    totalPoints: number;
+    rank: number;
+  } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const previousLeaderboardRef = useRef<any[]>([]);
@@ -262,18 +271,35 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                 avatarUrl: entry.students?.avatar_url,
               };
 
+              const handleOpenAnalytics = () => {
+                setAnalyticsStudent({
+                  id: entry.student_id,
+                  name: entry.students?.full_name,
+                  avatarUrl: entry.students?.avatar_url,
+                  totalPoints: entry.total_points,
+                  rank: entry.rank,
+                });
+              };
+
               return (
-                <div
+                <motion.div
                   key={entry.id}
-                  className={`flex flex-col items-center floating-element relative ${
+                  className={`flex flex-col items-center floating-element relative cursor-pointer ${
                     isSelected ? 'ring-2 md:ring-4 ring-primary rounded-xl md:rounded-2xl p-2 md:p-4 bg-primary/20' : ''
-                  }`}
+                  } ${entry.rank === 1 ? 'podium-glow-gold' : entry.rank === 2 ? 'podium-glow-silver' : 'podium-glow-bronze'}`}
+                  onClick={handleOpenAnalytics}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
                   {/* Checkbox for selection */}
                   {showAddPoints && (
                     <div
                       className="absolute top-0 right-0 md:top-2 md:right-2 z-20"
-                      onClick={(e) => toggleStudentSelection(student, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStudentSelection(student, e);
+                      }}
                     >
                       <Checkbox
                         checked={isSelected}
@@ -282,38 +308,32 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                     </div>
                   )}
 
-                  <StudentActionPopover
-                    studentId={entry.student_id}
-                    studentName={entry.students?.full_name}
-                    classId={classId}
-                    onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
-                    canManagePoints={showAddPoints}
-                  >
-                    <div className="cursor-pointer">
-                      <div className="relative mb-2 md:mb-4">
-                        <Avatar className="h-16 w-16 md:h-32 md:w-32 border-4 md:border-8 border-transparent shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5 md:p-1">
-                          <AvatarImage 
-                            src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} 
-                            alt={entry.students?.full_name} 
-                            className="object-cover rounded-full" 
-                          />
-                          <AvatarFallback className="text-lg md:text-3xl font-black rounded-full">
-                            <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-6 w-6 md:h-12 md:w-12 flex items-center justify-center shadow-xl border md:border-2 border-leaderboard-glassBorder floating-element">
-                          <span className="scale-75 md:scale-100">{getRankIcon(entry.rank)}</span>
-                        </div>
+                  <div>
+                    <div className="relative mb-2 md:mb-4">
+                      <Avatar className={`h-16 w-16 md:h-32 md:w-32 border-4 md:border-8 shadow-2xl bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5 md:p-1 ${
+                        entry.rank === 1 ? 'border-yellow-400' : entry.rank === 2 ? 'border-gray-300' : 'border-amber-600'
+                      }`}>
+                        <AvatarImage 
+                          src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} 
+                          alt={entry.students?.full_name} 
+                          className="object-cover rounded-full" 
+                        />
+                        <AvatarFallback className="text-lg md:text-3xl font-black rounded-full">
+                          <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 glass-panel rounded-full h-6 w-6 md:h-12 md:w-12 flex items-center justify-center shadow-xl border md:border-2 border-leaderboard-glassBorder floating-element">
+                        <span className="scale-75 md:scale-100">{getRankIcon(entry.rank)}</span>
                       </div>
-                      <p className="text-leaderboard-text font-bold text-xs md:text-lg mb-0.5 md:mb-1 drop-shadow-md text-center line-clamp-2 px-1">
-                        {entry.students?.full_name}
-                      </p>
-                      <p className="text-leaderboard-text text-xl md:text-4xl font-black drop-shadow-lg">
-                        {entry.total_points}
-                      </p>
                     </div>
-                  </StudentActionPopover>
-                </div>
+                    <p className="text-leaderboard-text font-bold text-xs md:text-lg mb-0.5 md:mb-1 drop-shadow-md text-center line-clamp-2 px-1">
+                      {entry.students?.full_name}
+                    </p>
+                    <p className="text-leaderboard-text text-xl md:text-4xl font-black drop-shadow-lg">
+                      {entry.total_points}
+                    </p>
+                  </div>
+                </motion.div>
               );
             })}
           </div>
@@ -336,14 +356,26 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                     avatarUrl: entry.students?.avatar_url,
                   };
 
+                  const handleOpenAnalytics = () => {
+                    setAnalyticsStudent({
+                      id: entry.student_id,
+                      name: entry.students?.full_name,
+                      avatarUrl: entry.students?.avatar_url,
+                      totalPoints: entry.total_points,
+                      rank: entry.rank,
+                    });
+                  };
+
                   return (
-                    <div
+                    <motion.div
                       key={entry.id}
-                      className={`grid grid-cols-[30px_40px_1fr_50px] md:grid-cols-[40px_80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 ${
+                      className={`grid grid-cols-[30px_40px_1fr_50px] md:grid-cols-[40px_80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
                         isSelected ? 'bg-primary/20' : ''
                       }`}
+                      onClick={handleOpenAnalytics}
+                      whileHover={{ backgroundColor: "rgba(255,255,255,0.15)" }}
                     >
-                      <div className="flex items-center" onClick={(e) => showAddPoints && toggleStudentSelection(student, e)}>
+                      <div className="flex items-center" onClick={(e) => { e.stopPropagation(); showAddPoints && toggleStudentSelection(student, e); }}>
                         {showAddPoints && (
                           <Checkbox
                             checked={isSelected}
@@ -354,27 +386,19 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                       <div className="flex items-center">
                         <span className="text-leaderboard-text font-bold text-sm md:text-lg">#{entry.rank}</span>
                       </div>
-                      <StudentActionPopover
-                        studentId={entry.student_id}
-                        studentName={entry.students?.full_name}
-                        classId={classId}
-                        canManagePoints={showAddPoints}
-                        onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
-                      >
-                        <div className="flex items-center gap-2 md:gap-3 min-w-0 cursor-pointer">
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 border-2 border-transparent bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5">
-                            <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} alt={entry.students?.full_name} className="object-cover rounded-full" />
-                            <AvatarFallback className="text-xs font-semibold rounded-full">
-                              <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-semibold text-leaderboard-text truncate text-sm md:text-base">{entry.students?.full_name}</span>
-                        </div>
-                      </StudentActionPopover>
+                      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 border-2 border-transparent bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5">
+                          <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} alt={entry.students?.full_name} className="object-cover rounded-full" />
+                          <AvatarFallback className="text-xs font-semibold rounded-full">
+                            <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-semibold text-leaderboard-text truncate text-sm md:text-base">{entry.students?.full_name}</span>
+                      </div>
                       <div className="flex items-center justify-end">
                         <span className="text-sm md:text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
