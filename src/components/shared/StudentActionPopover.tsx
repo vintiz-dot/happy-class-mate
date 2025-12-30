@@ -22,6 +22,7 @@ interface StudentActionPopoverProps {
   classId: string;
   children: React.ReactNode;
   onViewHistory: () => void;
+  canManagePoints?: boolean;
 }
 
 export function StudentActionPopover({
@@ -30,6 +31,7 @@ export function StudentActionPopover({
   classId,
   children,
   onViewHistory,
+  canManagePoints = false,
 }: StudentActionPopoverProps) {
   const [open, setOpen] = useState(false);
   const [showAddPoints, setShowAddPoints] = useState(false);
@@ -163,14 +165,16 @@ export function StudentActionPopover({
         {!showAddPoints ? (
           <div className="p-2 space-y-1">
             <p className="text-sm font-medium text-center py-2 border-b mb-2">{studentName}</p>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={() => setShowAddPoints(true)}
-            >
-              <Trophy className="h-4 w-4 text-amber-500" />
-              Add Points
-            </Button>
+            {canManagePoints && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => setShowAddPoints(true)}
+              >
+                <Trophy className="h-4 w-4 text-amber-500" />
+                Add Points
+              </Button>
+            )}
             <Button
               variant="ghost"
               className="w-full justify-start gap-2"
