@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface ClassLeaderboardSharedProps {
   classId: string;
   currentStudentId?: string;
+  canManagePoints?: boolean;
 }
 
 interface SelectedStudent {
@@ -23,7 +24,7 @@ interface SelectedStudent {
   avatarUrl?: string | null;
 }
 
-export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeaderboardSharedProps) {
+export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoints = true }: ClassLeaderboardSharedProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Map<string, SelectedStudent>>(new Map());
@@ -215,7 +216,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
           CLASS RANK
         </h1>
         <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto flex-wrap">
-          {leaderboard && leaderboard.length > 0 && (
+          {canManagePoints && leaderboard && leaderboard.length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -269,21 +270,24 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                   } ${isSelected && !isCurrentStudent ? 'ring-2 md:ring-4 ring-primary rounded-xl md:rounded-2xl p-2 md:p-4 bg-primary/20' : ''}`}
                 >
                   {/* Checkbox for selection */}
-                  <div
-                    className="absolute top-0 right-0 md:top-2 md:right-2 z-20"
-                    onClick={(e) => toggleStudentSelection(student, e)}
-                  >
-                    <Checkbox
-                      checked={isSelected}
-                      className="h-5 w-5 md:h-6 md:w-6 border-2 border-white bg-white/20 data-[state=checked]:bg-primary"
-                    />
-                  </div>
+                  {canManagePoints && (
+                    <div
+                      className="absolute top-0 right-0 md:top-2 md:right-2 z-20"
+                      onClick={(e) => toggleStudentSelection(student, e)}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        className="h-5 w-5 md:h-6 md:w-6 border-2 border-white bg-white/20 data-[state=checked]:bg-primary"
+                      />
+                    </div>
+                  )}
 
                   <StudentActionPopover
                     studentId={entry.student_id}
                     studentName={entry.students?.full_name}
                     classId={classId}
                     onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                    canManagePoints={canManagePoints}
                   >
                     <div className="cursor-pointer">
                       <div className="relative mb-2 md:mb-4">
@@ -345,11 +349,13 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                         isCurrentStudent ? 'bg-yellow-300/20 ring-2 ring-yellow-300' : ''
                       } ${isSelected && !isCurrentStudent ? 'bg-primary/20' : ''}`}
                     >
-                      <div className="flex items-center" onClick={(e) => toggleStudentSelection(student, e)}>
-                        <Checkbox
-                          checked={isSelected}
-                          className="h-4 w-4 md:h-5 md:w-5 border-2 border-white/50 bg-white/20 data-[state=checked]:bg-primary cursor-pointer"
-                        />
+                      <div className="flex items-center" onClick={(e) => canManagePoints && toggleStudentSelection(student, e)}>
+                        {canManagePoints && (
+                          <Checkbox
+                            checked={isSelected}
+                            className="h-4 w-4 md:h-5 md:w-5 border-2 border-white/50 bg-white/20 data-[state=checked]:bg-primary cursor-pointer"
+                          />
+                        )}
                       </div>
                       <div className="flex items-center">
                         <span className="text-leaderboard-text font-bold text-sm md:text-lg">#{entry.rank}</span>
@@ -359,6 +365,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
                         studentName={entry.students?.full_name}
                         classId={classId}
                         onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                        canManagePoints={canManagePoints}
                       >
                         <div className="flex items-center gap-2 md:gap-3 min-w-0 cursor-pointer">
                           <Avatar className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 border-2 ${isCurrentStudent ? 'border-yellow-300' : 'border-transparent'} bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5`}>
@@ -388,7 +395,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
       )}
 
       {/* Floating Action Bar for Bulk Actions */}
-      {hasSelection && (
+      {canManagePoints && hasSelection && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 glass-panel border border-leaderboard-glassBorder rounded-full px-4 py-3 flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-4">
           <div className="flex items-center gap-2 text-white">
             <Users className="h-4 w-4" />
@@ -422,17 +429,19 @@ export function ClassLeaderboardShared({ classId, currentStudentId }: ClassLeade
           studentName={selectedStudent.name}
           open={!!selectedStudent}
           onOpenChange={(open) => !open && setSelectedStudent(null)}
-          canDelete={true}
+          canDelete={canManagePoints}
         />
       )}
 
-      <BulkPointsDialog
-        classId={classId}
-        selectedStudents={Array.from(selectedStudents.values())}
-        open={showBulkDialog}
-        onOpenChange={setShowBulkDialog}
-        onSuccess={handleBulkSuccess}
-      />
+      {canManagePoints && (
+        <BulkPointsDialog
+          classId={classId}
+          selectedStudents={Array.from(selectedStudents.values())}
+          open={showBulkDialog}
+          onOpenChange={setShowBulkDialog}
+          onSuccess={handleBulkSuccess}
+        />
+      )}
     </div>
   );
 }

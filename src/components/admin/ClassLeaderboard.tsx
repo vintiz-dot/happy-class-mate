@@ -216,7 +216,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           CLASS RANK
         </h1>
         <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto flex-wrap">
-          {leaderboard && leaderboard.length > 0 && (
+          {showAddPoints && leaderboard && leaderboard.length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -270,21 +270,24 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                   }`}
                 >
                   {/* Checkbox for selection */}
-                  <div
-                    className="absolute top-0 right-0 md:top-2 md:right-2 z-20"
-                    onClick={(e) => toggleStudentSelection(student, e)}
-                  >
-                    <Checkbox
-                      checked={isSelected}
-                      className="h-5 w-5 md:h-6 md:w-6 border-2 border-white bg-white/20 data-[state=checked]:bg-primary"
-                    />
-                  </div>
+                  {showAddPoints && (
+                    <div
+                      className="absolute top-0 right-0 md:top-2 md:right-2 z-20"
+                      onClick={(e) => toggleStudentSelection(student, e)}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        className="h-5 w-5 md:h-6 md:w-6 border-2 border-white bg-white/20 data-[state=checked]:bg-primary"
+                      />
+                    </div>
+                  )}
 
                   <StudentActionPopover
                     studentId={entry.student_id}
                     studentName={entry.students?.full_name}
                     classId={classId}
                     onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
+                    canManagePoints={showAddPoints}
                   >
                     <div className="cursor-pointer">
                       <div className="relative mb-2 md:mb-4">
@@ -340,11 +343,13 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                         isSelected ? 'bg-primary/20' : ''
                       }`}
                     >
-                      <div className="flex items-center" onClick={(e) => toggleStudentSelection(student, e)}>
-                        <Checkbox
-                          checked={isSelected}
-                          className="h-4 w-4 md:h-5 md:w-5 border-2 border-white/50 bg-white/20 data-[state=checked]:bg-primary cursor-pointer"
-                        />
+                      <div className="flex items-center" onClick={(e) => showAddPoints && toggleStudentSelection(student, e)}>
+                        {showAddPoints && (
+                          <Checkbox
+                            checked={isSelected}
+                            className="h-4 w-4 md:h-5 md:w-5 border-2 border-white/50 bg-white/20 data-[state=checked]:bg-primary cursor-pointer"
+                          />
+                        )}
                       </div>
                       <div className="flex items-center">
                         <span className="text-leaderboard-text font-bold text-sm md:text-lg">#{entry.rank}</span>
@@ -353,6 +358,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                         studentId={entry.student_id}
                         studentName={entry.students?.full_name}
                         classId={classId}
+                        canManagePoints={showAddPoints}
                         onViewHistory={() => setSelectedStudent({ id: entry.student_id, name: entry.students?.full_name })}
                       >
                         <div className="flex items-center gap-2 md:gap-3 min-w-0 cursor-pointer">
@@ -378,7 +384,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
       )}
 
       {/* Floating Action Bar for Bulk Actions */}
-      {hasSelection && (
+      {showAddPoints && hasSelection && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 glass-panel border border-leaderboard-glassBorder rounded-full px-4 py-3 flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-4">
           <div className="flex items-center gap-2 text-white">
             <Users className="h-4 w-4" />
@@ -412,17 +418,19 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           studentName={selectedStudent.name}
           open={!!selectedStudent}
           onOpenChange={(open) => !open && setSelectedStudent(null)}
-          canDelete={true}
+          canDelete={showAddPoints}
         />
       )}
 
-      <BulkPointsDialog
-        classId={classId}
-        selectedStudents={Array.from(selectedStudents.values())}
-        open={showBulkDialog}
-        onOpenChange={setShowBulkDialog}
-        onSuccess={handleBulkSuccess}
-      />
+      {showAddPoints && (
+        <BulkPointsDialog
+          classId={classId}
+          selectedStudents={Array.from(selectedStudents.values())}
+          open={showBulkDialog}
+          onOpenChange={setShowBulkDialog}
+          onSuccess={handleBulkSuccess}
+        />
+      )}
     </div>
   );
 }
