@@ -493,3 +493,45 @@ All colors MUST be HSL.
   }
 }
 
+/* Podium glow animations for leaderboard */
+@keyframes podium-glow-gold {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(250, 204, 21, 0.4), 0 0 30px rgba(250, 204, 21, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(250, 204, 21, 0.6), 0 0 50px rgba(250, 204, 21, 0.3);
+  }
+}
+
+@keyframes podium-glow-silver {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(156, 163, 175, 0.4), 0 0 30px rgba(156, 163, 175, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(156, 163, 175, 0.6), 0 0 50px rgba(156, 163, 175, 0.3);
+  }
+}
+
+@keyframes podium-glow-bronze {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(217, 119, 6, 0.4), 0 0 30px rgba(217, 119, 6, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(217, 119, 6, 0.6), 0 0 50px rgba(217, 119, 6, 0.3);
+  }
+}
+
+.podium-glow-gold {
+  animation: podium-glow-gold 2s ease-in-out infinite;
+  border-radius: 1rem;
+}
+
+.podium-glow-silver {
+  animation: podium-glow-silver 2s ease-in-out infinite;
+  border-radius: 1rem;
+}
+
+.podium-glow-bronze {
+  animation: podium-glow-bronze 2s ease-in-out infinite;
+  border-radius: 1rem;
+}

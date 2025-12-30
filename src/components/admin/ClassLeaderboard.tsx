@@ -455,6 +455,13 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           onSuccess={handleBulkSuccess}
         />
       )}
+
+      <StudentAnalyticsModal
+        open={!!analyticsStudent}
+        onOpenChange={(open) => !open && setAnalyticsStudent(null)}
+        student={analyticsStudent}
+        classId={classId}
+      />
     </div>
   );
 }
