@@ -1,22 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  Legend,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
-import { Book, Pencil, Headphones, Sword, Users, Shield, TrendingUp } from "lucide-react";
-import { format, parseISO, startOfMonth, subMonths } from "date-fns";
+import { motion } from "framer-motion";
+import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Trophy, Crown, Star } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const SKILL_COLORS: Record<string, string> = {
   reading: "hsl(210, 100%, 60%)",
@@ -24,7 +10,7 @@ const SKILL_COLORS: Record<string, string> = {
   listening: "hsl(45, 90%, 55%)",
   speaking: "hsl(0, 80%, 60%)",
   teamwork: "hsl(280, 70%, 60%)",
-  personal: "hsl(180, 60%, 50%)",
+  focus: "hsl(180, 60%, 50%)",
 };
 
 interface RadarChartTabProps {
@@ -33,29 +19,29 @@ interface RadarChartTabProps {
   selectedMonth?: string;
 }
 
-const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "personal"] as const;
+const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "focus"] as const;
 const SKILL_LABELS: Record<string, string> = {
   reading: "Reading",
   writing: "Writing",
   listening: "Listening",
   speaking: "Speaking",
   teamwork: "Teamwork",
-  personal: "Personal",
+  focus: "Focus",
 };
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
-  reading: <Book className="h-4 w-4" />,
-  writing: <Pencil className="h-4 w-4" />,
-  listening: <Headphones className="h-4 w-4" />,
-  speaking: <Sword className="h-4 w-4" />,
-  teamwork: <Users className="h-4 w-4" />,
-  personal: <Shield className="h-4 w-4" />,
+  reading: <Book className="h-5 w-5" />,
+  writing: <Pencil className="h-5 w-5" />,
+  listening: <Headphones className="h-5 w-5" />,
+  speaking: <MessageSquare className="h-5 w-5" />,
+  teamwork: <Users className="h-5 w-5" />,
+  focus: <Shield className="h-5 w-5" />,
 };
 
-export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartTabProps) {
-  // Fetch student's skill averages
+export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
+  // Fetch student's total skill points (no averaging, just sum)
   const { data: studentSkills } = useQuery({
-    queryKey: ["student-skills", studentId, classId],
+    queryKey: ["student-skills-total", studentId, classId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("skill_assessments")
@@ -65,265 +51,184 @@ export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartT
 
       if (error) throw error;
       
-      // Calculate averages per skill
-      const skillTotals: Record<string, { sum: number; count: number }> = {};
+      // Calculate total per skill (no cap)
+      const skillTotals: Record<string, number> = {};
       SKILLS.forEach(skill => {
-        skillTotals[skill] = { sum: 0, count: 0 };
+        skillTotals[skill] = 0;
       });
       
       data?.forEach((entry) => {
-        if (skillTotals[entry.skill]) {
-          skillTotals[entry.skill].sum += entry.score;
-          skillTotals[entry.skill].count += 1;
+        if (skillTotals[entry.skill] !== undefined) {
+          skillTotals[entry.skill] += entry.score;
         }
       });
       
-      return SKILLS.reduce((acc, skill) => {
-        const { sum, count } = skillTotals[skill];
-        acc[skill] = count > 0 ? Math.round(sum / count) : 0;
-        return acc;
-      }, {} as Record<string, number>);
+      return skillTotals;
     },
   });
 
-  // Fetch class average for comparison
-  const { data: classAverage } = useQuery({
-    queryKey: ["class-skill-average", classId],
+  // Fetch class highest for each skill (compare vs the best, not average)
+  const { data: classHighest } = useQuery({
+    queryKey: ["class-skill-highest", classId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("skill_assessments")
-        .select("skill, score")
+        .select("skill, score, student_id")
         .eq("class_id", classId);
 
       if (error) throw error;
       
-      const skillTotals: Record<string, { sum: number; count: number }> = {};
+      // Group by student_id and skill, then find the highest total per skill
+      const studentSkillTotals: Record<string, Record<string, number>> = {};
+      
+      data?.forEach((entry) => {
+        if (!studentSkillTotals[entry.student_id]) {
+          studentSkillTotals[entry.student_id] = {};
+          SKILLS.forEach(skill => {
+            studentSkillTotals[entry.student_id][skill] = 0;
+          });
+        }
+        if (studentSkillTotals[entry.student_id][entry.skill] !== undefined) {
+          studentSkillTotals[entry.student_id][entry.skill] += entry.score;
+        }
+      });
+      
+      // Find max per skill across all students
+      const maxPerSkill: Record<string, number> = {};
       SKILLS.forEach(skill => {
-        skillTotals[skill] = { sum: 0, count: 0 };
-      });
-      
-      data?.forEach((entry) => {
-        if (skillTotals[entry.skill]) {
-          skillTotals[entry.skill].sum += entry.score;
-          skillTotals[entry.skill].count += 1;
-        }
-      });
-      
-      return SKILLS.reduce((acc, skill) => {
-        const { sum, count } = skillTotals[skill];
-        acc[skill] = count > 0 ? Math.round(sum / count) : 50;
-        return acc;
-      }, {} as Record<string, number>);
-    },
-  });
-
-  // Fetch skill trend data (last 6 months)
-  const { data: skillTrend } = useQuery({
-    queryKey: ["student-skill-trend", studentId, classId],
-    queryFn: async () => {
-      const sixMonthsAgo = format(subMonths(new Date(), 6), "yyyy-MM-dd");
-      
-      const { data, error } = await supabase
-        .from("skill_assessments")
-        .select("skill, score, date")
-        .eq("student_id", studentId)
-        .eq("class_id", classId)
-        .gte("date", sixMonthsAgo)
-        .order("date", { ascending: true });
-
-      if (error) throw error;
-      
-      // Group by month and calculate averages per skill
-      const monthlyData: Record<string, Record<string, { sum: number; count: number }>> = {};
-      
-      data?.forEach((entry) => {
-        const month = format(parseISO(entry.date), "yyyy-MM");
-        if (!monthlyData[month]) {
-          monthlyData[month] = {};
-          SKILLS.forEach(skill => {
-            monthlyData[month][skill] = { sum: 0, count: 0 };
-          });
-        }
-        if (monthlyData[month][entry.skill]) {
-          monthlyData[month][entry.skill].sum += entry.score;
-          monthlyData[month][entry.skill].count += 1;
-        }
-      });
-      
-      // Convert to chart format
-      return Object.entries(monthlyData)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, skills]) => {
-          const row: Record<string, string | number> = {
-            month: format(parseISO(`${month}-01`), "MMM yy"),
-          };
-          SKILLS.forEach(skill => {
-            const { sum, count } = skills[skill];
-            row[skill] = count > 0 ? Math.round(sum / count) : 0;
-          });
-          return row;
+        maxPerSkill[skill] = 0;
+        Object.values(studentSkillTotals).forEach(studentSkills => {
+          if (studentSkills[skill] > maxPerSkill[skill]) {
+            maxPerSkill[skill] = studentSkills[skill];
+          }
         });
+      });
+      
+      return maxPerSkill;
     },
   });
-
-  // Prepare chart data
-  const chartData = SKILLS.map((skill) => ({
-    skill: SKILL_LABELS[skill],
-    student: studentSkills?.[skill] ?? 0,
-    classAvg: classAverage?.[skill] ?? 50,
-    fullMark: 100,
-  }));
 
   const hasData = studentSkills && Object.values(studentSkills).some(v => v > 0);
-  const hasTrendData = skillTrend && skillTrend.length > 1;
+
+  // Calculate total points
+  const studentTotal = studentSkills ? Object.values(studentSkills).reduce((a, b) => a + b, 0) : 0;
+  const classHighestTotal = classHighest ? Object.values(classHighest).reduce((a, b) => a + b, 0) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Skill Icons Legend */}
-      <div className="flex flex-wrap justify-center gap-4 mb-4">
-        {SKILLS.map((skill) => (
-          <div
-            key={skill}
-            className="flex items-center gap-2 glass-panel px-3 py-2 rounded-lg"
-          >
-            <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
-            <span className="text-sm font-medium text-foreground">{SKILL_LABELS[skill]}</span>
+    <div className="space-y-4">
+      {hasData ? (
+        <>
+          {/* Skills vs Class Best Header */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              <span className="text-sm font-semibold text-foreground">Skills vs Class Best</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Total: <span className="font-bold text-foreground">{studentTotal}</span>
+              <span className="mx-1">/</span>
+              <span className="text-yellow-500">{classHighestTotal}</span>
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Radar Chart */}
-      <div className="h-[350px] w-full">
-        {hasData ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-              <PolarGrid stroke="hsl(var(--border))" />
-              <PolarAngleAxis
-                dataKey="skill"
-                tick={{ fill: "hsl(var(--foreground))", fontSize: 12, fontWeight: 600 }}
-              />
-              <PolarRadiusAxis
-                angle={30}
-                domain={[0, 100]}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-              />
-              <Radar
-                name="Class Average"
-                dataKey="classAvg"
-                stroke="hsl(var(--muted-foreground))"
-                fill="hsl(var(--muted))"
-                fillOpacity={0.3}
-                strokeDasharray="5 5"
-              />
-              <Radar
-                name="Your Score"
-                dataKey="student"
-                stroke="hsl(var(--primary))"
-                fill="url(#studentGradient)"
-                fillOpacity={0.6}
-                strokeWidth={2}
-              />
-              <Legend
-                wrapperStyle={{ paddingTop: "20px" }}
-                formatter={(value) => (
-                  <span className="text-foreground font-medium">{value}</span>
-                )}
-              />
-              <defs>
-                <linearGradient id="studentGradient" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" />
-                  <stop offset="100%" stopColor="hsl(280, 100%, 70%)" />
-                </linearGradient>
-              </defs>
-            </RadarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <Shield className="h-16 w-16 mb-4 opacity-30" />
-            <p className="text-lg font-medium">No skill data yet</p>
-            <p className="text-sm">Assessments will appear here as your teacher adds them</p>
-          </div>
-        )}
-      </div>
+          {/* Skill Cards */}
+          <div className="space-y-3">
+            {SKILLS.map((skill, index) => {
+              const score = studentSkills?.[skill] ?? 0;
+              const highest = classHighest?.[skill] ?? 1;
+              const percentage = highest > 0 ? Math.round((score / highest) * 100) : 0;
+              const isLeader = score >= highest && score > 0;
+              
+              return (
+                <motion.div
+                  key={skill}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`relative p-4 rounded-xl border transition-all ${
+                    isLeader 
+                      ? "bg-gradient-to-r from-yellow-500/10 to-amber-500/5 border-yellow-500/30" 
+                      : "bg-card/50 border-border/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Skill Icon */}
+                    <div 
+                      className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${SKILL_COLORS[skill]}20` }}
+                    >
+                      <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
+                    </div>
 
-      {/* Skill Progress Trend Line Chart */}
-      {hasTrendData && (
-        <div className="glass-panel p-4 rounded-xl border border-border/50">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Skill Progress Over Time</h3>
+                    {/* Skill Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">{SKILL_LABELS[skill]}</span>
+                          {isLeader && (
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-black text-foreground">{score}</span>
+                          <span className="text-xs text-muted-foreground">/ {highest}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="relative h-2 rounded-full overflow-hidden bg-muted/50">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(percentage, 100)}%` }}
+                          transition={{ delay: index * 0.05 + 0.2, duration: 0.5, ease: "easeOut" }}
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ 
+                            background: isLeader 
+                              ? `linear-gradient(90deg, ${SKILL_COLORS[skill]}, hsl(45, 100%, 60%))` 
+                              : SKILL_COLORS[skill] 
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Percentage */}
+                      <div className="flex justify-between mt-1">
+                        <span className={`text-xs font-medium ${
+                          percentage >= 80 ? 'text-green-500' : 
+                          percentage >= 50 ? 'text-yellow-500' : 
+                          'text-muted-foreground'
+                        }`}>
+                          {percentage}% of top
+                        </span>
+                        {percentage >= 80 && !isLeader && (
+                          <span className="text-xs text-yellow-500 flex items-center gap-1">
+                            <Star className="h-3 w-3" /> Almost there!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={skillTrend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                />
-                {SKILLS.map((skill) => (
-                  <Line
-                    key={skill}
-                    type="monotone"
-                    dataKey={skill}
-                    name={SKILL_LABELS[skill]}
-                    stroke={SKILL_COLORS[skill]}
-                    strokeWidth={2}
-                    dot={{ fill: SKILL_COLORS[skill], strokeWidth: 0, r: 4 }}
-                    activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Monthly average scores over the last 6 months
-          </p>
-        </div>
-      )}
 
-      {/* Skill Breakdown Cards */}
-      {hasData && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {SKILLS.map((skill) => {
-            const score = studentSkills?.[skill] ?? 0;
-            const avg = classAverage?.[skill] ?? 50;
-            const diff = score - avg;
-            
-            return (
-              <div
-                key={skill}
-                className="glass-panel p-4 rounded-xl border border-border/50"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
-                  <span className="font-semibold text-foreground">{SKILL_LABELS[skill]}</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-foreground">{score}</span>
-                  <span className="text-xs text-muted-foreground">/ 100</span>
-                </div>
-                <div className={`text-xs mt-1 ${diff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {diff >= 0 ? '↑' : '↓'} {Math.abs(diff)} vs class avg
-                </div>
-              </div>
-            );
-          })}
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Crown className="h-3 w-3 text-yellow-500" />
+              <span>= Class Leader</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-2 rounded-full bg-primary" />
+              <span>= Your Score</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Shield className="h-16 w-16 mb-4 opacity-30" />
+          <p className="text-lg font-medium">No skill data yet</p>
+          <p className="text-sm">Assessments will appear here as your teacher adds them</p>
         </div>
       )}
     </div>
