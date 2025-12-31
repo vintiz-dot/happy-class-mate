@@ -6,18 +6,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, Minus } from "lucide-react";
-import { monthKey } from "@/lib/date";
+import { awardPoints } from "@/lib/pointsHelper";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG } from "@/lib/skillConfig";
+import { soundManager } from "@/lib/soundManager";
+
+type CategoryType = "skill" | "behavior" | "correction" | "adjustment";
 
 export function ManualPointAdjustment() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
+  const [category, setCategory] = useState<CategoryType>("skill");
+  const [selectedSkill, setSelectedSkill] = useState("");
+  const [selectedSubTag, setSelectedSubTag] = useState("");
+  const [selectedCorrection, setSelectedCorrection] = useState("");
   const [points, setPoints] = useState("");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch active students
   const { data: students, isLoading: studentsLoading } = useQuery({
@@ -49,11 +58,34 @@ export function ManualPointAdjustment() {
     },
   });
 
+  // Get current skill/behavior config
+  const skillConfig = selectedSkill ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) : null;
+
   const handleSubmit = async () => {
-    if (!selectedStudent || !selectedClass || !points || !reason) {
+    if (!selectedStudent || !selectedClass || !points) {
       toast({
         title: "Missing information",
-        description: "Please fill in all required fields",
+        description: "Please fill in student, class, and points",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (category === "skill" || category === "behavior") {
+      if (!selectedSkill) {
+        toast({
+          title: "Missing skill",
+          description: "Please select a skill or behavior",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (category === "correction" && !selectedCorrection) {
+      toast({
+        title: "Missing reason",
+        description: "Please select a correction reason",
         variant: "destructive",
       });
       return;
@@ -71,20 +103,35 @@ export function ManualPointAdjustment() {
 
     setIsSubmitting(true);
     try {
-      const currentMonth = monthKey();
+      // Determine skill key
+      let skill: string;
+      let subTag: string | undefined;
 
-      // Insert point transaction
-      const { error: transactionError } = await supabase.from("point_transactions").insert({
-        student_id: selectedStudent,
-        class_id: selectedClass,
-        month: currentMonth,
-        type: "adjustment",
+      if (category === "skill" || category === "behavior") {
+        skill = selectedSkill;
+        subTag = selectedSubTag || undefined;
+      } else if (category === "correction") {
+        skill = "correction";
+        subTag = selectedCorrection;
+      } else {
+        skill = "adjustment";
+      }
+
+      await awardPoints({
+        studentIds: [selectedStudent],
+        classId: selectedClass,
+        skill,
         points: pointsValue,
-        notes: reason,
-        date: new Date().toISOString().slice(0, 10),
+        subTag,
+        notes: reason || undefined,
       });
 
-      if (transactionError) throw transactionError;
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["student-points"] });
+      queryClient.invalidateQueries({ queryKey: ["point-history"] });
+
+      soundManager.play(pointsValue > 0 ? "success" : "error");
 
       toast({
         title: "Success",
@@ -94,6 +141,10 @@ export function ManualPointAdjustment() {
       // Reset form
       setSelectedStudent("");
       setSelectedClass("");
+      setCategory("skill");
+      setSelectedSkill("");
+      setSelectedSubTag("");
+      setSelectedCorrection("");
       setPoints("");
       setReason("");
     } catch (error: any) {
@@ -111,11 +162,23 @@ export function ManualPointAdjustment() {
     setPoints(value.toString());
   };
 
+  const handleCategoryChange = (newCategory: CategoryType) => {
+    setCategory(newCategory);
+    setSelectedSkill("");
+    setSelectedSubTag("");
+    setSelectedCorrection("");
+    if (newCategory === "correction") {
+      setPoints("-1");
+    } else if (points === "-1") {
+      setPoints("");
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Manual Point Adjustment</CardTitle>
-        <CardDescription>Add or subtract points from students with audit trail</CardDescription>
+        <CardDescription>Add or subtract points with skill tracking and audit trail</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -162,6 +225,100 @@ export function ManualPointAdjustment() {
           </Select>
         </div>
 
+        {/* Category Selection */}
+        <div className="space-y-2">
+          <Label>Category *</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: "skill", label: "Skill" },
+              { key: "behavior", label: "Behavior" },
+              { key: "correction", label: "Correction" },
+              { key: "adjustment", label: "Adjustment" },
+            ].map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => handleCategoryChange(cat.key as CategoryType)}
+                className={`p-2 rounded-lg border text-sm transition-all ${
+                  category === cat.key
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:bg-accent/50"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Skill/Behavior Selection */}
+        {(category === "skill" || category === "behavior") && (
+          <div className="space-y-2">
+            <Label>{category === "skill" ? "Skill" : "Behavior"} *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(category === "skill" ? SKILL_CONFIG : BEHAVIOR_CONFIG).map(([key, config]) => {
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSkill(key);
+                      setSelectedSubTag("");
+                    }}
+                    className={`flex items-center gap-2 p-2 rounded-lg border text-sm transition-all ${
+                      selectedSkill === key
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-accent/50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {config.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Sub-tag Selection */}
+        {skillConfig && skillConfig.subTags.length > 0 && (
+          <div className="space-y-2">
+            <Label>Reason (optional)</Label>
+            <Select value={selectedSubTag} onValueChange={setSelectedSubTag}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select specific reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {skillConfig.subTags.map((tag) => (
+                  <SelectItem key={tag.value} value={tag.value}>
+                    {tag.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Correction Reason */}
+        {category === "correction" && (
+          <div className="space-y-2">
+            <Label>Correction Reason *</Label>
+            <Select value={selectedCorrection} onValueChange={setSelectedCorrection}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {CORRECTION_CONFIG.subTags.map((tag) => (
+                  <SelectItem key={tag.value} value={tag.value}>
+                    {tag.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="points">Points (-100 to 100) *</Label>
           <div className="flex gap-2">
@@ -179,21 +336,21 @@ export function ManualPointAdjustment() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setPointsQuick(-5)}
+              onClick={() => setPointsQuick(-1)}
               className="flex-1"
             >
               <Minus className="h-4 w-4 mr-1" />
-              -5
+              -1
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setPointsQuick(5)}
+              onClick={() => setPointsQuick(1)}
               className="flex-1"
             >
               <Plus className="h-4 w-4 mr-1" />
-              +5
+              +1
             </Button>
             <Button
               type="button"
@@ -218,12 +375,12 @@ export function ManualPointAdjustment() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="reason">Reason *</Label>
+          <Label htmlFor="reason">Additional Notes</Label>
           <Textarea
             id="reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why are you adjusting points? (This will be recorded in the audit trail)"
+            placeholder="Optional: Add extra context (recorded in audit trail)"
             rows={3}
           />
         </div>
