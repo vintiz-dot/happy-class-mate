@@ -205,12 +205,12 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                       <span>XP: {student.totalPoints}</span>
                       <span>Next: {levelInfo.currentXp}/{levelInfo.nextLevelXp}</span>
                     </div>
-                    <div className="relative">
+                    <div className="relative overflow-hidden rounded-full">
                       <Progress value={levelInfo.progress} className="h-3 bg-muted/50" />
                       <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                        animate={{ x: ["-100%", "100%"] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                       />
                     </div>
                   </motion.div>
