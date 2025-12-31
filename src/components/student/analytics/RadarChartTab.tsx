@@ -179,34 +179,35 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                     axisLine={false}
                   />
                   
-                  {/* Class Best - gold outline */}
+                  {/* Class Best - bright orange */}
                   <Radar
                     name="Class Best"
                     dataKey="classBest"
-                    stroke="hsl(45, 100%, 50%)"
-                    fill="hsl(45, 100%, 50%)"
-                    fillOpacity={0.1}
-                    strokeWidth={2}
+                    stroke="#FF9500"
+                    fill="#FF9500"
+                    fillOpacity={0.15}
+                    strokeWidth={2.5}
                   />
                   
-                  {/* Class Average - gray dashed */}
+                  {/* Class Average - vibrant purple dashed */}
                   <Radar
                     name="Class Avg"
                     dataKey="classAvg"
-                    stroke="hsl(var(--muted-foreground))"
-                    fill="transparent"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 4"
+                    stroke="#A855F7"
+                    fill="#A855F7"
+                    fillOpacity={0.1}
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
                   />
                   
-                  {/* Student Score - primary color filled */}
+                  {/* Student Score - emerald green filled */}
                   <Radar
                     name="Your Score"
                     dataKey="student"
-                    stroke="hsl(210, 100%, 60%)"
-                    fill="hsl(210, 100%, 60%)"
-                    fillOpacity={0.35}
-                    strokeWidth={2}
+                    stroke="#10B981"
+                    fill="#10B981"
+                    fillOpacity={0.45}
+                    strokeWidth={2.5}
                   />
                   
                   <Tooltip
