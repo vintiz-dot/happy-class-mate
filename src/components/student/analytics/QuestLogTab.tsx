@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isPast } from "date-fns";
+import { format, isPast, parse, startOfMonth, endOfMonth } from "date-fns";
 import { CheckCircle, Clock, AlertTriangle, BookOpen, Calendar, Target, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,7 @@ import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 interface QuestLogTabProps {
   studentId: string;
   classId: string;
+  selectedMonth: string; // YYYY-MM format
   viewerStudentId?: string; // The logged-in student (for read-only mode when viewing classmates)
 }
 
@@ -71,22 +72,30 @@ function getStatusBadge(status: MissionStatus) {
   }
 }
 
-export function QuestLogTab({ studentId, classId, viewerStudentId }: QuestLogTabProps) {
+export function QuestLogTab({ studentId, classId, selectedMonth, viewerStudentId }: QuestLogTabProps) {
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
+  
+  // Calculate month date range
+  const monthStart = startOfMonth(parse(selectedMonth, "yyyy-MM", new Date()));
+  const monthEnd = endOfMonth(monthStart);
+  const monthStartStr = format(monthStart, "yyyy-MM-dd");
+  const monthEndStr = format(monthEnd, "yyyy-MM-dd");
   
   // Determine if viewing own profile or a classmate's
   const isViewingOwn = !viewerStudentId || viewerStudentId === studentId;
 
-  // Fetch homework assignments with submission status and class info
+  // Fetch homework assignments with submission status and class info (filtered by month)
   const { data: missions } = useQuery({
-    queryKey: ["student-quests", studentId, classId],
+    queryKey: ["student-quests", studentId, classId, selectedMonth],
     queryFn: async () => {
-      // Get all homework for this class with class info for the dialog
+      // Get homework for this class that has due_date in the selected month
       const { data: homeworks, error: hwError } = await supabase
         .from("homeworks")
         .select("id, title, body, due_date, created_at, classes!inner(id, name), homework_files(id, file_name, storage_key)")
         .eq("class_id", classId)
-        .order("created_at", { ascending: false });
+        .gte("due_date", monthStartStr)
+        .lte("due_date", monthEndStr)
+        .order("due_date", { ascending: false });
 
       if (hwError) throw hwError;
 
@@ -112,18 +121,20 @@ export function QuestLogTab({ studentId, classId, viewerStudentId }: QuestLogTab
     },
   });
 
-  // Fetch attendance summary
+  // Fetch attendance summary (filtered by month)
   const { data: attendance } = useQuery({
-    queryKey: ["student-attendance-summary", studentId, classId],
+    queryKey: ["student-attendance-summary", studentId, classId, selectedMonth],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("attendance")
         .select(`
           status,
-          sessions!inner(class_id)
+          sessions!inner(class_id, date)
         `)
         .eq("student_id", studentId)
-        .eq("sessions.class_id", classId);
+        .eq("sessions.class_id", classId)
+        .gte("sessions.date", monthStartStr)
+        .lte("sessions.date", monthEndStr);
 
       if (error) throw error;
 

@@ -37,6 +37,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
     avatarUrl?: string | null;
     totalPoints: number;
     rank: number;
+    selectedMonth: string;
   } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -271,15 +272,16 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                 avatarUrl: entry.students?.avatar_url,
               };
 
-              const handleOpenAnalytics = () => {
-                setAnalyticsStudent({
-                  id: entry.student_id,
-                  name: entry.students?.full_name,
-                  avatarUrl: entry.students?.avatar_url,
-                  totalPoints: entry.total_points,
-                  rank: entry.rank,
-                });
-              };
+                  const handleOpenAnalytics = () => {
+                    setAnalyticsStudent({
+                      id: entry.student_id,
+                      name: entry.students?.full_name,
+                      avatarUrl: entry.students?.avatar_url,
+                      totalPoints: entry.total_points,
+                      rank: entry.rank,
+                      selectedMonth,
+                    });
+                  };
 
               return (
                 <motion.div
@@ -371,6 +373,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       avatarUrl: entry.students?.avatar_url,
                       totalPoints: entry.total_points,
                       rank: entry.rank,
+                      selectedMonth,
                     });
                   };
 
@@ -474,6 +477,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
         onOpenChange={(open) => !open && setAnalyticsStudent(null)}
         student={analyticsStudent}
         classId={classId}
+        selectedMonth={analyticsStudent?.selectedMonth || selectedMonth}
       />
     </div>
   );
