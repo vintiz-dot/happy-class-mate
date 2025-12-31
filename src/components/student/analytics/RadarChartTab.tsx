@@ -1,8 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Trophy, Crown, Star } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Trophy, Crown, Star, BarChart3 } from "lucide-react";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 const SKILL_COLORS: Record<string, string> = {
   reading: "hsl(210, 100%, 60%)",
@@ -104,25 +113,126 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
         });
       });
       
-      return maxPerSkill;
+      return { maxPerSkill, studentSkillTotals };
     },
   });
+
+  // Calculate class average from the same data
+  const classAverage = classHighest?.studentSkillTotals
+    ? (() => {
+        const studentCount = Object.keys(classHighest.studentSkillTotals).length || 1;
+        const avgPerSkill: Record<string, number> = {};
+        SKILLS.forEach(skill => {
+          const total = Object.values(classHighest.studentSkillTotals).reduce(
+            (sum, studentSkills) => sum + studentSkills[skill],
+            0
+          );
+          avgPerSkill[skill] = Math.round(total / studentCount);
+        });
+        return avgPerSkill;
+      })()
+    : null;
 
   const hasData = studentSkills && Object.values(studentSkills).some(v => v > 0);
 
   // Calculate total points
   const studentTotal = studentSkills ? Object.values(studentSkills).reduce((a, b) => a + b, 0) : 0;
-  const classHighestTotal = classHighest ? Object.values(classHighest).reduce((a, b) => a + b, 0) : 0;
+  const classHighestTotal = classHighest?.maxPerSkill ? Object.values(classHighest.maxPerSkill).reduce((a, b) => a + b, 0) : 0;
+
+  // Prepare chart data for radar
+  const chartData = SKILLS.map(skill => ({
+    skill: SKILL_LABELS[skill],
+    student: studentSkills?.[skill] ?? 0,
+    classAvg: classAverage?.[skill] ?? 0,
+    classBest: classHighest?.maxPerSkill?.[skill] ?? 0,
+  }));
 
   return (
     <div className="space-y-4">
       {hasData ? (
         <>
+          {/* Radar Chart Visualization */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card/50 rounded-xl border border-border/50 p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Skill Comparison</span>
+            </div>
+            
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="75%">
+                  <PolarGrid stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <PolarAngleAxis
+                    dataKey="skill"
+                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 11, fontWeight: 500 }}
+                    tickLine={false}
+                  />
+                  <PolarRadiusAxis
+                    angle={30}
+                    domain={[0, 'auto']}
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    tickCount={4}
+                    axisLine={false}
+                  />
+                  
+                  {/* Class Best - gold outline */}
+                  <Radar
+                    name="Class Best"
+                    dataKey="classBest"
+                    stroke="hsl(45, 100%, 50%)"
+                    fill="hsl(45, 100%, 50%)"
+                    fillOpacity={0.1}
+                    strokeWidth={2}
+                  />
+                  
+                  {/* Class Average - gray dashed */}
+                  <Radar
+                    name="Class Avg"
+                    dataKey="classAvg"
+                    stroke="hsl(var(--muted-foreground))"
+                    fill="transparent"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                  />
+                  
+                  {/* Student Score - primary color filled */}
+                  <Radar
+                    name="Your Score"
+                    dataKey="student"
+                    stroke="hsl(210, 100%, 60%)"
+                    fill="hsl(210, 100%, 60%)"
+                    fillOpacity={0.35}
+                    strokeWidth={2}
+                  />
+                  
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+
           {/* Skills vs Class Best Header */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-yellow-500" />
-              <span className="text-sm font-semibold text-foreground">Skills vs Class Best</span>
+              <span className="text-sm font-semibold text-foreground">Skills Breakdown</span>
             </div>
             <div className="text-xs text-muted-foreground">
               Total: <span className="font-bold text-foreground">{studentTotal}</span>
@@ -135,9 +245,11 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
           <div className="space-y-3">
             {SKILLS.map((skill, index) => {
               const score = studentSkills?.[skill] ?? 0;
-              const highest = classHighest?.[skill] ?? 1;
+              const highest = classHighest?.maxPerSkill?.[skill] ?? 1;
+              const avg = classAverage?.[skill] ?? 0;
               const percentage = highest > 0 ? Math.round((score / highest) * 100) : 0;
               const isLeader = score >= highest && score > 0;
+              const aboveAvg = score > avg;
               
               return (
                 <motion.div
@@ -175,7 +287,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                         </div>
                       </div>
                       
-                      {/* Progress Bar */}
+                      {/* Progress Bar with Average marker */}
                       <div className="relative h-2 rounded-full overflow-hidden bg-muted/50">
                         <motion.div
                           initial={{ width: 0 }}
@@ -188,22 +300,28 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                               : SKILL_COLORS[skill] 
                           }}
                         />
+                        {/* Average marker */}
+                        {highest > 0 && avg > 0 && (
+                          <div 
+                            className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/60"
+                            style={{ left: `${Math.min((avg / highest) * 100, 100)}%` }}
+                            title={`Class avg: ${avg}`}
+                          />
+                        )}
                       </div>
                       
-                      {/* Percentage */}
+                      {/* Stats row */}
                       <div className="flex justify-between mt-1">
                         <span className={`text-xs font-medium ${
                           percentage >= 80 ? 'text-green-500' : 
                           percentage >= 50 ? 'text-yellow-500' : 
                           'text-muted-foreground'
                         }`}>
-                          {percentage}% of top
+                          {percentage}% of best
                         </span>
-                        {percentage >= 80 && !isLeader && (
-                          <span className="text-xs text-yellow-500 flex items-center gap-1">
-                            <Star className="h-3 w-3" /> Almost there!
-                          </span>
-                        )}
+                        <span className="text-xs text-muted-foreground">
+                          Avg: {avg} {aboveAvg && score > 0 && <span className="text-green-500">↑</span>}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -219,8 +337,8 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
               <span>= Class Leader</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-2 rounded-full bg-primary" />
-              <span>= Your Score</span>
+              <div className="w-3 h-0.5 bg-muted-foreground/60" />
+              <span>= Class Avg</span>
             </div>
           </div>
         </>
