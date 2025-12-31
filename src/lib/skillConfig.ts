@@ -126,6 +126,11 @@ export function isCorrectionType(skill: string): boolean {
   return skill === "correction";
 }
 
+// Helper to check if skill should be tracked in skill_assessments (skills + behaviors)
+export function shouldTrackInSkillAssessments(skill: string): boolean {
+  return isSkillType(skill) || isBehaviorType(skill);
+}
+
 // Get all skill/behavior options for dropdowns
 export function getAllCategories() {
   return [

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { monthKey } from "@/lib/date";
-import { isSkillType, formatSkillLabel } from "@/lib/skillConfig";
+import { shouldTrackInSkillAssessments, formatSkillLabel } from "@/lib/skillConfig";
 
 export interface AwardPointsParams {
   studentIds: string[];
@@ -35,7 +35,7 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
   const currentMonth = monthKey();
   
   // Determine transaction type
-  const isSkill = isSkillType(skill);
+  const shouldTrackSkill = shouldTrackInSkillAssessments(skill);
   const isHomework = skill === "homework";
   const isCorrection = skill === "correction";
   const isAdjustment = skill === "adjustment";
@@ -55,8 +55,8 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
   // Build notes/description
   const displayNotes = notes || formatSkillLabel(skill, subTag);
 
-  // Prepare skill_assessments records (only for actual skills)
-  const skillAssessments = isSkill ? studentIds.map(studentId => ({
+  // Prepare skill_assessments records (for skills AND behaviors like focus/teamwork)
+  const skillAssessments = shouldTrackSkill ? studentIds.map(studentId => ({
     student_id: studentId,
     class_id: classId,
     session_id: sessionId || null,
