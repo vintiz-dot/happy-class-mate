@@ -11,7 +11,9 @@ import { PointFeedbackAnimation } from "./PointFeedbackAnimation";
 import { CheckSquare, Square, Users } from "lucide-react";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
-import { LucideIcon, MessageSquare, Ear, BookOpen, PenTool, Focus, Users as UsersIcon, AlertTriangle } from "lucide-react";
+import { awardPoints, getTodaySession } from "@/lib/pointsHelper";
+import { SKILL_ICONS } from "@/lib/skillConfig";
+import { LucideIcon, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LiveAssessmentGridProps {
@@ -34,16 +36,6 @@ interface FeedbackItem {
   studentId: string;
 }
 
-const SKILL_ICONS: Record<string, LucideIcon> = {
-  speaking: MessageSquare,
-  listening: Ear,
-  reading: BookOpen,
-  writing: PenTool,
-  focus: Focus,
-  teamwork: UsersIcon,
-  correction: AlertTriangle,
-};
-
 export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
   const queryClient = useQueryClient();
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
@@ -52,7 +44,6 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
   const [feedbacks, setFeedbacks] = useState<Record<string, FeedbackItem[]>>({});
 
   const today = dayjs().format("YYYY-MM-DD");
-  const currentMonth = dayjs().format("YYYY-MM");
 
   // Fetch enrolled students
   const { data: students = [], isLoading } = useQuery({
@@ -101,7 +92,7 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
     },
   });
 
-  // Mutation for awarding skills
+  // Mutation for awarding skills using shared helper
   const awardSkillMutation = useMutation({
     mutationFn: async ({ 
       studentIds, 
@@ -114,62 +105,17 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
       points: number; 
       subTag?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Determine if this is a skill or behavior
-      const isSkill = ["speaking", "listening", "reading", "writing"].includes(skill);
-      const isBehavior = ["focus", "teamwork"].includes(skill);
-      const isCorrection = skill === "correction";
-
-      // Get active session for today if exists
-      const { data: activeSession } = await supabase
-        .from("sessions")
-        .select("id")
-        .eq("class_id", classId)
-        .eq("date", today)
-        .eq("status", "Scheduled")
-        .maybeSingle();
-
-      // Prepare batch inserts
-      const skillAssessments = isSkill ? studentIds.map(studentId => ({
-        student_id: studentId,
-        class_id: classId,
-        session_id: activeSession?.id || null,
-        skill: skill,
-        score: points,
-        date: today,
-        created_by: user.id,
-        teacher_comment: subTag || null,
-      })) : [];
-
-      const pointTransactions = studentIds.map(studentId => ({
-        student_id: studentId,
-        class_id: classId,
-        session_id: activeSession?.id || null,
-        type: isCorrection ? "correction" : "participation",
-        points: points,
-        date: today,
-        month: currentMonth,
-        notes: subTag 
-          ? `${skill.charAt(0).toUpperCase() + skill.slice(1)}: ${subTag.replace(/_/g, " ")}`
-          : skill.charAt(0).toUpperCase() + skill.slice(1),
-        created_by: user.id,
-      }));
-
-      // Insert skill assessments if applicable
-      if (skillAssessments.length > 0) {
-        const { error: skillError } = await supabase
-          .from("skill_assessments")
-          .insert(skillAssessments);
-        if (skillError) throw skillError;
-      }
-
-      // Insert point transactions
-      const { error: pointError } = await supabase
-        .from("point_transactions")
-        .insert(pointTransactions);
-      if (pointError) throw pointError;
+      // Get active session if exists
+      const sessionId = await getTodaySession(classId);
+      
+      await awardPoints({
+        studentIds,
+        classId,
+        skill,
+        points,
+        subTag,
+        sessionId: sessionId || undefined,
+      });
 
       return { studentIds, skill, points };
     },

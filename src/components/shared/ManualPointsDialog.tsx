@@ -14,10 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Minus, Sparkles, Trophy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { monthKey } from "@/lib/date";
+import { awardPoints } from "@/lib/pointsHelper";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, SKILL_ICONS } from "@/lib/skillConfig";
+import { soundManager } from "@/lib/soundManager";
 
 interface ManualPointsDialogProps {
   classId: string;
@@ -25,11 +26,16 @@ interface ManualPointsDialogProps {
   isAdmin?: boolean;
 }
 
+type CategoryType = "skill" | "behavior" | "homework" | "correction";
+
 export function ManualPointsDialog({ classId, trigger, isAdmin = false }: ManualPointsDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
-  const [pointType, setPointType] = useState<"homework" | "participation">("participation");
+  const [category, setCategory] = useState<CategoryType>("skill");
+  const [selectedSkill, setSelectedSkill] = useState("");
+  const [selectedSubTag, setSelectedSubTag] = useState("");
   const [selectedHomework, setSelectedHomework] = useState("");
+  const [selectedCorrection, setSelectedCorrection] = useState("");
   const [points, setPoints] = useState("");
   const [notes, setNotes] = useState("");
   const queryClient = useQueryClient();
@@ -61,7 +67,7 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
     enabled: open,
   });
 
-  // Fetch active homework for the class (only if homework type is selected)
+  // Fetch active homework for the class
   const { data: homeworks, isLoading: homeworksLoading } = useQuery({
     queryKey: ["class-homeworks", classId],
     queryFn: async () => {
@@ -75,68 +81,64 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
       if (error) throw error;
       return data;
     },
-    enabled: open && pointType === "homework",
+    enabled: open && category === "homework",
   });
 
-  const playSound = (isPositive: boolean) => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    if (isPositive) {
-      // Happy ascending tone for positive points
-      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
-      oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.4);
-    } else {
-      // Descending tone for negative points
-      oscillator.frequency.setValueAtTime(392, audioContext.currentTime); // G4
-      oscillator.frequency.setValueAtTime(329.63, audioContext.currentTime + 0.1); // E4
-      oscillator.frequency.setValueAtTime(261.63, audioContext.currentTime + 0.2); // C4
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.4);
-    }
-  };
+  // Get current skill/behavior config
+  const skillConfig = selectedSkill ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) : null;
 
   const addPointsMutation = useMutation({
     mutationFn: async () => {
       const pointsValue = parseInt(points);
-      if (!selectedStudent || !points || !notes) {
-        throw new Error("Please fill in all required fields");
+      if (!selectedStudent || !points) {
+        throw new Error("Please select a student and enter points");
       }
 
       if (!Number.isFinite(pointsValue)) {
         throw new Error("Points must be a valid number");
       }
 
-      if (pointType === "homework" && !selectedHomework) {
+      if (category === "skill" || category === "behavior") {
+        if (!selectedSkill) throw new Error("Please select a skill or behavior");
+      }
+
+      if (category === "homework" && !selectedHomework) {
         throw new Error("Please select a homework assignment");
       }
 
-      const currentMonth = monthKey();
+      if (category === "correction" && !selectedCorrection) {
+        throw new Error("Please select a correction reason");
+      }
 
-      // Insert point transaction
-      const { error } = await supabase.from("point_transactions").insert({
-        student_id: selectedStudent,
-        class_id: classId,
-        month: currentMonth,
-        type: pointType,
+      // Determine skill key
+      let skill: string;
+      let subTag: string | undefined;
+      let homeworkId: string | undefined;
+      let homeworkTitle: string | undefined;
+
+      if (category === "skill" || category === "behavior") {
+        skill = selectedSkill;
+        subTag = selectedSubTag || undefined;
+      } else if (category === "homework") {
+        skill = "homework";
+        homeworkId = selectedHomework;
+        homeworkTitle = homeworks?.find(hw => hw.id === selectedHomework)?.title;
+      } else {
+        skill = "correction";
+        subTag = selectedCorrection;
+      }
+
+      await awardPoints({
+        studentIds: [selectedStudent],
+        classId,
+        skill,
         points: pointsValue,
-        notes: notes,
-        date: new Date().toISOString().slice(0, 10),
-        homework_id: pointType === "homework" ? selectedHomework : null,
+        subTag,
+        homeworkId,
+        homeworkTitle,
+        notes: notes || undefined,
       });
 
-      if (error) throw error;
       return pointsValue;
     },
     onSuccess: (pointsValue) => {
@@ -146,12 +148,13 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
       queryClient.invalidateQueries({ queryKey: ["point-history"] });
       queryClient.invalidateQueries({ queryKey: ["point-breakdown"] });
       queryClient.invalidateQueries({ queryKey: ["available-months"] });
+      queryClient.invalidateQueries({ queryKey: ["live-assessment-students"] });
       
-      // Play sound based on positive or negative
-      playSound(pointsValue > 0);
+      // Play sound
+      soundManager.play(pointsValue > 0 ? "success" : "error");
       
       toast.success(
-        `${pointsValue > 0 ? "Added" : "Deducted"} ${Math.abs(pointsValue)} ${pointType} points`,
+        `${pointsValue > 0 ? "Added" : "Deducted"} ${Math.abs(pointsValue)} points`,
         {
           description: "Leaderboard updated in real-time",
           icon: <Sparkles className="h-4 w-4" />,
@@ -159,10 +162,7 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
       );
       
       // Reset form
-      setSelectedStudent("");
-      setPoints("");
-      setNotes("");
-      setSelectedHomework("");
+      resetForm();
       setOpen(false);
     },
     onError: (error: any) => {
@@ -172,12 +172,38 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
     },
   });
 
+  const resetForm = () => {
+    setSelectedStudent("");
+    setCategory("skill");
+    setSelectedSkill("");
+    setSelectedSubTag("");
+    setSelectedHomework("");
+    setSelectedCorrection("");
+    setPoints("");
+    setNotes("");
+  };
+
   const handleSubmit = () => {
     addPointsMutation.mutate();
   };
 
   const setPointsQuick = (value: number) => {
     setPoints(value.toString());
+  };
+
+  // When category changes, reset related selections
+  const handleCategoryChange = (newCategory: CategoryType) => {
+    setCategory(newCategory);
+    setSelectedSkill("");
+    setSelectedSubTag("");
+    setSelectedHomework("");
+    setSelectedCorrection("");
+    // Set default points for correction
+    if (newCategory === "correction") {
+      setPoints("-1");
+    } else if (points === "-1") {
+      setPoints("");
+    }
   };
 
   return (
@@ -197,7 +223,7 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
             Manual Point Addition
           </DialogTitle>
           <DialogDescription>
-            Award or deduct points for students in this class. Changes are reflected immediately on the leaderboard.
+            Award or deduct points for students. Points are tracked for analytics and leaderboards.
           </DialogDescription>
         </DialogHeader>
 
@@ -227,29 +253,88 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
             </Select>
           </div>
 
-          {/* Point Type */}
+          {/* Category Selection */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Point Type *</Label>
-            <RadioGroup value={pointType} onValueChange={(value: any) => setPointType(value)}>
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                <RadioGroupItem value="participation" id="participation" />
-                <Label htmlFor="participation" className="flex-1 cursor-pointer font-normal">
-                  <div className="font-medium">Participation Points</div>
-                  <div className="text-sm text-muted-foreground">For class engagement and activities</div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                <RadioGroupItem value="homework" id="homework" />
-                <Label htmlFor="homework" className="flex-1 cursor-pointer font-normal">
-                  <div className="font-medium">Homework Points</div>
-                  <div className="text-sm text-muted-foreground">For homework assignments and submissions</div>
-                </Label>
-              </div>
-            </RadioGroup>
+            <Label className="text-base font-semibold">Category *</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { key: "skill", label: "Skill", desc: "Speaking, Listening, etc." },
+                { key: "behavior", label: "Behavior", desc: "Focus, Teamwork" },
+                { key: "homework", label: "Homework", desc: "Assignment points" },
+                { key: "correction", label: "Correction", desc: "Deduct points" },
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => handleCategoryChange(cat.key as CategoryType)}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    category === cat.key
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border hover:bg-accent/50"
+                  }`}
+                >
+                  <div className="font-medium text-sm">{cat.label}</div>
+                  <div className="text-xs text-muted-foreground">{cat.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Homework Selection (only if homework type is selected) */}
-          {pointType === "homework" && (
+          {/* Skill/Behavior Selection */}
+          {(category === "skill" || category === "behavior") && (
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                {category === "skill" ? "Skill" : "Behavior"} *
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {Object.entries(category === "skill" ? SKILL_CONFIG : BEHAVIOR_CONFIG).map(([key, config]) => {
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSkill(key);
+                        setSelectedSubTag("");
+                      }}
+                      className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
+                        selectedSkill === key
+                          ? "border-primary bg-primary/10 ring-1 ring-primary"
+                          : "border-border hover:bg-accent/50"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-sm font-medium">{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Sub-tag Selection */}
+          {skillConfig && skillConfig.subTags.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Reason (optional)
+              </Label>
+              <Select value={selectedSubTag} onValueChange={setSelectedSubTag}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Select specific reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {skillConfig.subTags.map((tag) => (
+                    <SelectItem key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Homework Selection */}
+          {category === "homework" && (
             <div className="space-y-2">
               <Label htmlFor="homework" className="text-base font-semibold">
                 Homework Assignment *
@@ -279,20 +364,31 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
             </div>
           )}
 
+          {/* Correction Reason */}
+          {category === "correction" && (
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Correction Reason *
+              </Label>
+              <Select value={selectedCorrection} onValueChange={setSelectedCorrection}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CORRECTION_CONFIG.subTags.map((tag) => (
+                    <SelectItem key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Points Amount */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Points Amount *</Label>
             <div className="grid grid-cols-4 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => setPointsQuick(-20)}
-                className="h-14 flex flex-col"
-              >
-                <Minus className="h-4 w-4 text-destructive" />
-                <span className="text-xs mt-1">-20</span>
-              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -307,21 +403,31 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
                 type="button"
                 variant="outline"
                 size="lg"
-                onClick={() => setPointsQuick(10)}
+                onClick={() => setPointsQuick(-1)}
                 className="h-14 flex flex-col"
               >
-                <Plus className="h-4 w-4 text-green-600" />
-                <span className="text-xs mt-1">+10</span>
+                <Minus className="h-4 w-4 text-destructive" />
+                <span className="text-xs mt-1">-1</span>
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                onClick={() => setPointsQuick(20)}
+                onClick={() => setPointsQuick(1)}
                 className="h-14 flex flex-col"
               >
                 <Plus className="h-4 w-4 text-green-600" />
-                <span className="text-xs mt-1">+20</span>
+                <span className="text-xs mt-1">+1</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => setPointsQuick(10)}
+                className="h-14 flex flex-col"
+              >
+                <Plus className="h-4 w-4 text-green-600" />
+                <span className="text-xs mt-1">+10</span>
               </Button>
             </div>
             <Input
@@ -331,22 +437,19 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
               placeholder="Or enter custom amount"
               className="h-12 text-center text-lg font-semibold"
             />
-            <p className="text-xs text-muted-foreground text-center">
-              Negative values will deduct points • No caps on point values
-            </p>
           </div>
 
           {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-base font-semibold">
-              Reason / Notes *
+              Additional Notes
             </Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Explain why you're adding/deducting these points (required for audit trail)"
-              rows={4}
+              placeholder="Optional: Add extra context for the points"
+              rows={3}
               className="resize-none"
             />
           </div>

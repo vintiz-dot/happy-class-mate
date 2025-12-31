@@ -1,4 +1,4 @@
-import { MessageSquare, Ear, BookOpen, PenTool, Focus, Users, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { SkillButton } from "./SkillButton";
 import {
   Popover,
@@ -7,74 +7,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-
-const SKILL_CONFIG = {
-  speaking: {
-    icon: MessageSquare,
-    label: "Speaking",
-    subTags: [
-      { label: "Good Pronunciation", value: "good_pronunciation" },
-      { label: "Loud & Clear", value: "loud_clear" },
-      { label: "Great Vocabulary", value: "great_vocabulary" },
-      { label: "Fluent Response", value: "fluent_response" },
-    ],
-  },
-  listening: {
-    icon: Ear,
-    label: "Listening",
-    subTags: [
-      { label: "Followed Instructions", value: "followed_instructions" },
-      { label: "Good Comprehension", value: "good_comprehension" },
-      { label: "Active Listening", value: "active_listening" },
-    ],
-  },
-  reading: {
-    icon: BookOpen,
-    label: "Reading",
-    subTags: [
-      { label: "Good Expression", value: "good_expression" },
-      { label: "Accurate Reading", value: "accurate_reading" },
-      { label: "Good Pace", value: "good_pace" },
-    ],
-  },
-  writing: {
-    icon: PenTool,
-    label: "Writing",
-    subTags: [
-      { label: "Neat Handwriting", value: "neat_handwriting" },
-      { label: "Good Grammar", value: "good_grammar" },
-      { label: "Creative Writing", value: "creative_writing" },
-    ],
-  },
-};
-
-const BEHAVIOR_CONFIG = {
-  focus: {
-    icon: Focus,
-    label: "Focus",
-    subTags: [
-      { label: "Stayed on Task", value: "stayed_on_task" },
-      { label: "No Distractions", value: "no_distractions" },
-    ],
-  },
-  teamwork: {
-    icon: Users,
-    label: "Teamwork",
-    subTags: [
-      { label: "Helped Others", value: "helped_others" },
-      { label: "Good Collaboration", value: "good_collaboration" },
-      { label: "Shared Materials", value: "shared_materials" },
-    ],
-  },
-};
-
-const CORRECTION_OPTIONS = [
-  { label: "Not Paying Attention", value: "not_paying_attention" },
-  { label: "Disrupting Class", value: "disrupting_class" },
-  { label: "Missing Homework", value: "missing_homework" },
-  { label: "Late to Class", value: "late_to_class" },
-  { label: "Other", value: "other" },
-];
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_OPTIONS } from "@/lib/skillConfig";
 
 interface RadialSkillMenuProps {
   onSkillTap: (skill: string, points: number, subTag?: string) => void;
