@@ -4,10 +4,16 @@ import {
   BookOpen, 
   PenTool, 
   Focus, 
-  Users, 
+  Users,
   AlertTriangle,
-  LucideIcon 
+  LucideIcon
 } from "lucide-react";
+
+// Point options for skills/behaviors
+export const POINT_OPTIONS = [1, 2, 3, 5, 10] as const;
+
+// Deduction options for corrections
+export const DEDUCTION_OPTIONS = [-1, -2, -3, -5] as const;
 
 export interface SubTag {
   label: string;

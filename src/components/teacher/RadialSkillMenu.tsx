@@ -1,13 +1,8 @@
 import { AlertTriangle } from "lucide-react";
 import { SkillButton } from "./SkillButton";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_OPTIONS } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_OPTIONS, DEDUCTION_OPTIONS } from "@/lib/skillConfig";
 
 interface RadialSkillMenuProps {
   onSkillTap: (skill: string, points: number, subTag?: string) => void;
@@ -15,24 +10,102 @@ interface RadialSkillMenuProps {
 }
 
 export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
-  const [showCorrections, setShowCorrections] = useState(false);
+  const [stage, setStage] = useState<"main" | "correction-reasons" | "correction-points">("main");
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
-  const handleSkillTap = (skill: string, subTag?: string) => {
-    onSkillTap(skill, 1, subTag);
+  const handleSkillTap = (skill: string, points: number, subTag?: string) => {
+    onSkillTap(skill, points, subTag);
     onClose();
   };
 
-  const handleBehaviorTap = (behavior: string, subTag?: string) => {
-    onSkillTap(behavior, 1, subTag);
+  const handleBehaviorTap = (behavior: string, points: number, subTag?: string) => {
+    onSkillTap(behavior, points, subTag);
     onClose();
   };
 
-  const handleCorrectionTap = (reason: string) => {
-    onSkillTap("correction", -1, reason);
-    setShowCorrections(false);
+  const handleCorrectionClick = () => {
+    setStage("correction-reasons");
+  };
+
+  const handleReasonSelect = (reason: string) => {
+    setSelectedReason(reason);
+    setStage("correction-points");
+  };
+
+  const handleDeductionSelect = (points: number) => {
+    if (selectedReason) {
+      onSkillTap("correction", points, selectedReason);
+    }
+    setStage("main");
+    setSelectedReason(null);
     onClose();
   };
 
+  const handleBack = () => {
+    if (stage === "correction-points") {
+      setStage("correction-reasons");
+      setSelectedReason(null);
+    } else {
+      setStage("main");
+    }
+  };
+
+  // Correction reasons stage
+  if (stage === "correction-reasons") {
+    return (
+      <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
+        <div className="flex items-center gap-2 mb-2">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 px-2">
+            ← Back
+          </Button>
+          <span className="text-sm font-medium text-muted-foreground">Select Reason</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {CORRECTION_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              variant="outline"
+              size="sm"
+              className="h-auto py-2 px-3 text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/30"
+              onClick={() => handleReasonSelect(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Correction points stage
+  if (stage === "correction-points") {
+    const reasonLabel = CORRECTION_OPTIONS.find(o => o.value === selectedReason)?.label || selectedReason;
+    return (
+      <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
+        <div className="flex items-center gap-2 mb-2">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 px-2">
+            ← Back
+          </Button>
+          <span className="text-sm font-medium text-muted-foreground truncate">{reasonLabel}</span>
+        </div>
+        <div className="flex gap-2 justify-center">
+          {DEDUCTION_OPTIONS.map((pts) => (
+            <Button
+              key={pts}
+              variant="outline"
+              size="sm"
+              className="w-12 h-12 p-0 text-lg font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500/30"
+              onClick={() => handleDeductionSelect(pts)}
+            >
+              {pts}
+            </Button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Main stage - skills and behaviors
   return (
     <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
       {/* Skills Row */}
@@ -65,33 +138,13 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
         ))}
         
         {/* Correction Button */}
-        <Popover open={showCorrections} onOpenChange={setShowCorrections}>
-          <PopoverTrigger asChild>
-            <button
-              className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400"
-              onClick={() => setShowCorrections(true)}
-            >
-              <AlertTriangle className="h-6 w-6" />
-              <span className="text-[10px] font-medium leading-tight">Correction</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-52 p-2" side="top" align="center">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground px-2 pb-1">Select Reason (-1 point)</p>
-              {CORRECTION_OPTIONS.map((option) => (
-                <Button
-                  key={option.value}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-sm h-9 text-red-600 dark:text-red-400 hover:bg-red-500/10"
-                  onClick={() => handleCorrectionTap(option.value)}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+        <button
+          className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400"
+          onClick={handleCorrectionClick}
+        >
+          <AlertTriangle className="h-6 w-6" />
+          <span className="text-[10px] font-medium leading-tight">Correction</span>
+        </button>
       </div>
     </div>
   );
