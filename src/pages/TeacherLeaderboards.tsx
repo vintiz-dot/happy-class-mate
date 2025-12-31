@@ -5,12 +5,15 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy } from "lucide-react";
+import { Trophy, Zap, BarChart3 } from "lucide-react";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
+import { LiveAssessmentGrid } from "@/components/teacher/LiveAssessmentGrid";
+import { Button } from "@/components/ui/button";
 
 export default function TeacherLeaderboards() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"standard" | "live">("standard");
 
   const { data: activeClasses, isLoading } = useQuery({
     queryKey: ["teacher-leaderboard-classes"],
@@ -65,23 +68,47 @@ export default function TeacherLeaderboards() {
             </div>
           </div>
 
-          {activeClasses && activeClasses.length > 1 && (
-            <Select
-              value={displayClassId || ""}
-              onValueChange={setSelectedClassId}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeClasses.map((cls: any) => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-3">
+            {activeClasses && activeClasses.length > 1 && (
+              <Select
+                value={displayClassId || ""}
+                onValueChange={setSelectedClassId}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeClasses.map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <Button
+                variant={viewMode === "standard" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("standard")}
+                className="rounded-none gap-1.5"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Standard</span>
+              </Button>
+              <Button
+                variant={viewMode === "live" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("live")}
+                className="rounded-none gap-1.5"
+              >
+                <Zap className="h-4 w-4" />
+                <span className="hidden sm:inline">Live</span>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
@@ -92,7 +119,7 @@ export default function TeacherLeaderboards() {
           </Card>
         ) : activeClasses && activeClasses.length > 0 ? (
           <div className="space-y-6">
-            {displayClassId && (
+            {displayClassId && viewMode === "standard" && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -105,6 +132,25 @@ export default function TeacherLeaderboards() {
                 </CardHeader>
                 <CardContent>
                   <ClassLeaderboardShared classId={displayClassId} />
+                </CardContent>
+              </Card>
+            )}
+
+            {displayClassId && viewMode === "live" && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-amber-500" />
+                      Live Assessment — {activeClasses.find((c: any) => c.id === displayClassId)?.name}
+                    </CardTitle>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Tap a student to quickly award skills. Long-press for sub-tags.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <LiveAssessmentGrid classId={displayClassId} />
                 </CardContent>
               </Card>
             )}
