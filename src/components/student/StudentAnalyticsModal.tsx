@@ -8,7 +8,8 @@ import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { RadarChartTab } from "./analytics/RadarChartTab";
 import { PerformanceHeatmapTab } from "./analytics/PerformanceHeatmapTab";
 import { QuestLogTab } from "./analytics/QuestLogTab";
-
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 interface StudentAnalyticsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,10 +74,27 @@ function getRankBadge(rank: number): React.ReactNode {
 }
 
 export function StudentAnalyticsModal({ open, onOpenChange, student, classId }: StudentAnalyticsModalProps) {
+  // Fetch the current viewer's student ID to determine if viewing own profile or classmate's
+  const { data: viewerStudentId } = useQuery({
+    queryKey: ["viewer-student-id"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from("students")
+        .select("id")
+        .eq("linked_user_id", user.id)
+        .maybeSingle();
+      
+      return data?.id || null;
+    },
+    enabled: open,
+  });
+
   if (!student) return null;
 
   const levelInfo = calculateLevel(student.totalPoints);
-
   return (
     <AnimatePresence>
       {open && (
@@ -217,7 +235,11 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId }: 
                   </TabsContent>
 
                   <TabsContent value="quests">
-                    <QuestLogTab studentId={student.id} classId={classId} />
+                    <QuestLogTab 
+                      studentId={student.id} 
+                      classId={classId} 
+                      viewerStudentId={viewerStudentId || undefined}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>
