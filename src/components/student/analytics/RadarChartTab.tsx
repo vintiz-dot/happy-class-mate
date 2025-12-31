@@ -11,6 +11,7 @@ const SKILL_COLORS: Record<string, string> = {
   speaking: "hsl(0, 80%, 60%)",
   teamwork: "hsl(280, 70%, 60%)",
   focus: "hsl(180, 60%, 50%)",
+  personal: "hsl(320, 70%, 60%)",
 };
 
 interface RadarChartTabProps {
@@ -19,7 +20,6 @@ interface RadarChartTabProps {
   selectedMonth?: string;
 }
 
-const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "focus"] as const;
 const SKILL_LABELS: Record<string, string> = {
   reading: "Reading",
   writing: "Writing",
@@ -27,6 +27,7 @@ const SKILL_LABELS: Record<string, string> = {
   speaking: "Speaking",
   teamwork: "Teamwork",
   focus: "Focus",
+  personal: "Personal",
 };
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
@@ -36,9 +37,31 @@ const SKILL_ICONS: Record<string, React.ReactNode> = {
   speaking: <MessageSquare className="h-5 w-5" />,
   teamwork: <Users className="h-5 w-5" />,
   focus: <Shield className="h-5 w-5" />,
+  personal: <Star className="h-5 w-5" />,
 };
 
+const getSkillColor = (skill: string) => SKILL_COLORS[skill] || "hsl(200, 60%, 50%)";
+const getSkillLabel = (skill: string) => SKILL_LABELS[skill] || skill.charAt(0).toUpperCase() + skill.slice(1);
+const getSkillIcon = (skill: string) => SKILL_ICONS[skill] || <Shield className="h-5 w-5" />;
+
 export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
+  // Fetch all skills that exist in this class
+  const { data: classSkillsList } = useQuery({
+    queryKey: ["class-skills-list", classId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skill_assessments")
+        .select("skill")
+        .eq("class_id", classId);
+
+      if (error) throw error;
+      
+      // Get unique skills
+      const uniqueSkills = [...new Set(data?.map(d => d.skill) || [])];
+      return uniqueSkills;
+    },
+  });
+
   // Fetch student's total skill points (no averaging, just sum)
   const { data: studentSkills } = useQuery({
     queryKey: ["student-skills-total", studentId, classId],
@@ -53,14 +76,12 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
       
       // Calculate total per skill (no cap)
       const skillTotals: Record<string, number> = {};
-      SKILLS.forEach(skill => {
-        skillTotals[skill] = 0;
-      });
       
       data?.forEach((entry) => {
-        if (skillTotals[entry.skill] !== undefined) {
-          skillTotals[entry.skill] += entry.score;
+        if (!skillTotals[entry.skill]) {
+          skillTotals[entry.skill] = 0;
         }
+        skillTotals[entry.skill] += entry.score;
       });
       
       return skillTotals;
@@ -84,22 +105,19 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
       data?.forEach((entry) => {
         if (!studentSkillTotals[entry.student_id]) {
           studentSkillTotals[entry.student_id] = {};
-          SKILLS.forEach(skill => {
-            studentSkillTotals[entry.student_id][skill] = 0;
-          });
         }
-        if (studentSkillTotals[entry.student_id][entry.skill] !== undefined) {
-          studentSkillTotals[entry.student_id][entry.skill] += entry.score;
+        if (!studentSkillTotals[entry.student_id][entry.skill]) {
+          studentSkillTotals[entry.student_id][entry.skill] = 0;
         }
+        studentSkillTotals[entry.student_id][entry.skill] += entry.score;
       });
       
       // Find max per skill across all students
       const maxPerSkill: Record<string, number> = {};
-      SKILLS.forEach(skill => {
-        maxPerSkill[skill] = 0;
-        Object.values(studentSkillTotals).forEach(studentSkills => {
-          if (studentSkills[skill] > maxPerSkill[skill]) {
-            maxPerSkill[skill] = studentSkills[skill];
+      Object.values(studentSkillTotals).forEach(studentSkills => {
+        Object.entries(studentSkills).forEach(([skill, total]) => {
+          if (!maxPerSkill[skill] || total > maxPerSkill[skill]) {
+            maxPerSkill[skill] = total;
           }
         });
       });
@@ -108,7 +126,9 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
     },
   });
 
-  const hasData = studentSkills && Object.values(studentSkills).some(v => v > 0);
+  // Use only skills that exist in the class
+  const activeSkills = classSkillsList || [];
+  const hasData = activeSkills.length > 0 && studentSkills && Object.values(studentSkills).some(v => v > 0);
 
   // Calculate total points
   const studentTotal = studentSkills ? Object.values(studentSkills).reduce((a, b) => a + b, 0) : 0;
@@ -133,7 +153,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
 
           {/* Skill Cards */}
           <div className="space-y-3">
-            {SKILLS.map((skill, index) => {
+            {activeSkills.map((skill, index) => {
               const score = studentSkills?.[skill] ?? 0;
               const highest = classHighest?.[skill] ?? 1;
               const percentage = highest > 0 ? Math.round((score / highest) * 100) : 0;
@@ -155,16 +175,16 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                     {/* Skill Icon */}
                     <div 
                       className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${SKILL_COLORS[skill]}20` }}
+                      style={{ backgroundColor: `${getSkillColor(skill)}20` }}
                     >
-                      <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
+                      <span style={{ color: getSkillColor(skill) }}>{getSkillIcon(skill)}</span>
                     </div>
 
                     {/* Skill Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">{SKILL_LABELS[skill]}</span>
+                          <span className="font-semibold text-foreground">{getSkillLabel(skill)}</span>
                           {isLeader && (
                             <Crown className="h-4 w-4 text-yellow-500" />
                           )}
@@ -184,8 +204,8 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                           className="absolute inset-y-0 left-0 rounded-full"
                           style={{ 
                             background: isLeader 
-                              ? `linear-gradient(90deg, ${SKILL_COLORS[skill]}, hsl(45, 100%, 60%))` 
-                              : SKILL_COLORS[skill] 
+                              ? `linear-gradient(90deg, ${getSkillColor(skill)}, hsl(45, 100%, 60%))` 
+                              : getSkillColor(skill) 
                           }}
                         />
                       </div>
