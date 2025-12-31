@@ -10,6 +10,7 @@ import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 interface QuestLogTabProps {
   studentId: string;
   classId: string;
+  viewerStudentId?: string; // The logged-in student (for read-only mode when viewing classmates)
 }
 
 type MissionStatus = "completed" | "pending" | "missing" | "active";
@@ -70,8 +71,11 @@ function getStatusBadge(status: MissionStatus) {
   }
 }
 
-export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
+export function QuestLogTab({ studentId, classId, viewerStudentId }: QuestLogTabProps) {
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
+  
+  // Determine if viewing own profile or a classmate's
+  const isViewingOwn = !viewerStudentId || viewerStudentId === studentId;
 
   // Fetch homework assignments with submission status and class info
   const { data: missions } = useQuery({
@@ -253,6 +257,7 @@ export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
         <HomeworkDetailDialog
           homework={selectedHomework}
           studentId={studentId}
+          isReadOnly={!isViewingOwn}
           onClose={() => setSelectedHomework(null)}
         />
       )}

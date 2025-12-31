@@ -12,10 +12,11 @@ import { sanitizeHtml } from "@/lib/sanitize";
 interface HomeworkDetailDialogProps {
   homework: any;
   studentId: string;
+  isReadOnly?: boolean; // True when viewing a classmate's homework
   onClose: () => void;
 }
 
-export default function HomeworkDetailDialog({ homework, studentId, onClose }: HomeworkDetailDialogProps) {
+export default function HomeworkDetailDialog({ homework, studentId, isReadOnly = false, onClose }: HomeworkDetailDialogProps) {
   const { data: submission } = useQuery({
     queryKey: ["homework-submission", homework.id, studentId],
     queryFn: async () => {
@@ -115,13 +116,43 @@ export default function HomeworkDetailDialog({ homework, studentId, onClose }: H
           )}
 
           <div>
-            <h3 className="font-semibold mb-2">Your Submission</h3>
-            <HomeworkSubmission
-              homeworkId={homework.id}
-              studentId={studentId}
-              existingSubmission={submission}
-              onSuccess={onClose}
-            />
+            <h3 className="font-semibold mb-2">
+              {isReadOnly ? "Classmate's Submission" : "Your Submission"}
+            </h3>
+            {isReadOnly ? (
+              <div className="p-4 border rounded-lg space-y-3">
+                {submission ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Status:</span>
+                      {submission.status === "graded" ? (
+                        <span className="text-sm font-medium text-green-600">Graded - {submission.grade}</span>
+                      ) : submission.status === "submitted" ? (
+                        <span className="text-sm font-medium text-blue-600">Submitted</span>
+                      ) : (
+                        <span className="text-sm font-medium text-muted-foreground">Pending</span>
+                      )}
+                    </div>
+                    {submission.submitted_at && (
+                      <p className="text-sm text-muted-foreground">
+                        Submitted: {format(new Date(submission.submitted_at), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    This classmate has not submitted yet.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <HomeworkSubmission
+                homeworkId={homework.id}
+                studentId={studentId}
+                existingSubmission={submission}
+                onSuccess={onClose}
+              />
+            )}
           </div>
         </div>
       </DialogContent>
