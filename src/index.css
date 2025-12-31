@@ -51,10 +51,10 @@ All colors MUST be HSL.
     --popover-foreground: 215 25% 15%;
     --popover-glass: 0 0% 100% / 0.6;
 
-    /* Apple blue - soft and sophisticated */
-    --primary: 211 100% 50%;
+    /* Hot red primary - vibrant and bold */
+    --primary: 0 90% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glass: 211 100% 50% / 0.08;
+    --primary-glass: 0 90% 55% / 0.08;
     
     --secondary: 215 25% 97%;
     --secondary-foreground: 215 25% 20%;
@@ -64,9 +64,9 @@ All colors MUST be HSL.
     --muted-foreground: 215 15% 50%;
     --muted-glass: 215 20% 95% / 0.3;
 
-    --accent: 211 100% 50%;
+    --accent: 0 90% 55%;
     --accent-foreground: 0 0% 100%;
-    --accent-glass: 211 100% 50% / 0.06;
+    --accent-glass: 0 90% 55% / 0.06;
 
     --destructive: 0 100% 67%;
     --destructive-foreground: 0 0% 100%;
@@ -83,7 +83,7 @@ All colors MUST be HSL.
     --border: 215 20% 90% / 0.3;
     --border-glass: 0 0% 100% / 0.12;
     --input: 215 20% 93%;
-    --ring: 211 100% 50%;
+    --ring: 0 90% 55%;
 
     --radius: 1rem;
 
@@ -94,19 +94,19 @@ All colors MUST be HSL.
 
     --sidebar-background: 0 0% 99%;
     --sidebar-foreground: 215 20% 25%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary: 0 90% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 25% 96%;
     --sidebar-accent-foreground: 215 25% 20%;
     --sidebar-border: 215 20% 92%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-ring: 0 90% 55%;
     --sidebar-glass: 0 0% 99% / 0.5;
     
-    /* Liquid gradient colors - soft and flowing */
-    --gradient-start: 211 100% 65%;
-    --gradient-middle: 240 100% 70%;
-    --gradient-end: 280 80% 65%;
-    --gradient-accent: 195 100% 60%;
+    /* Liquid gradient colors - hot red theme */
+    --gradient-start: 0 90% 55%;
+    --gradient-middle: 350 90% 50%;
+    --gradient-end: 15 95% 55%;
+    --gradient-accent: 330 85% 55%;
     
     /* Leaderboard vibrant pink theme */
   --leaderboard-bg: 220 40% 15%;
@@ -182,9 +182,9 @@ All colors MUST be HSL.
     --popover-foreground: 215 20% 95%;
     --popover-glass: 215 30% 8% / 0.6;
 
-    --primary: 211 100% 50%;
+    --primary: 0 90% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glass: 211 100% 50% / 0.12;
+    --primary-glass: 0 90% 55% / 0.12;
 
     --secondary: 215 25% 12%;
     --secondary-foreground: 215 20% 90%;
@@ -194,9 +194,9 @@ All colors MUST be HSL.
     --muted-foreground: 215 15% 60%;
     --muted-glass: 215 25% 12% / 0.3;
 
-    --accent: 211 100% 50%;
+    --accent: 0 90% 55%;
     --accent-foreground: 0 0% 100%;
-    --accent-glass: 211 100% 50% / 0.1;
+    --accent-glass: 0 90% 55% / 0.1;
 
     --destructive: 0 100% 67%;
     --destructive-foreground: 0 0% 100%;
@@ -213,7 +213,7 @@ All colors MUST be HSL.
     --border: 215 20% 20% / 0.3;
     --border-glass: 0 0% 100% / 0.08;
     --input: 215 25% 12%;
-    --ring: 211 100% 50%;
+    --ring: 0 90% 55%;
 
     --shadow-glass: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
     --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
@@ -221,19 +221,19 @@ All colors MUST be HSL.
 
     --sidebar-background: 215 30% 8%;
     --sidebar-foreground: 215 20% 90%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary: 0 90% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 25% 12%;
     --sidebar-accent-foreground: 215 20% 90%;
     --sidebar-border: 215 20% 15%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-ring: 0 90% 55%;
     --sidebar-glass: 215 30% 8% / 0.5;
     
-    /* Liquid gradient colors - vibrant in dark mode */
-    --gradient-start: 211 100% 65%;
-    --gradient-middle: 240 100% 70%;
-    --gradient-end: 280 80% 65%;
-    --gradient-accent: 195 100% 60%;
+    /* Liquid gradient colors - hot red theme */
+    --gradient-start: 0 90% 55%;
+    --gradient-middle: 350 90% 50%;
+    --gradient-end: 15 95% 55%;
+    --gradient-accent: 330 85% 55%;
     
     /* Leaderboard vibrant pink theme */
     --leaderboard-pink: 310 93% 50%;
