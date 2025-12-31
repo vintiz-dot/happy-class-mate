@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -139,10 +140,23 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
   const studentTotal = studentSkills ? Object.values(studentSkills).reduce((a, b) => a + b, 0) : 0;
   const classHighestTotal = classHighest?.maxPerSkill ? Object.values(classHighest.maxPerSkill).reduce((a, b) => a + b, 0) : 0;
 
-  // Prepare chart data for radar
+  // Animation state for student score growing from 0
+  const [animationProgress, setAnimationProgress] = useState(0);
+  
+  useEffect(() => {
+    if (hasData) {
+      setAnimationProgress(0);
+      const timeout = setTimeout(() => {
+        setAnimationProgress(1);
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [hasData, studentId, classId]);
+
+  // Prepare chart data for radar with animated student values
   const chartData = SKILLS.map(skill => ({
     skill: SKILL_LABELS[skill],
-    student: studentSkills?.[skill] ?? 0,
+    student: Math.round((studentSkills?.[skill] ?? 0) * animationProgress),
     classAvg: classAverage?.[skill] ?? 0,
     classBest: classHighest?.maxPerSkill?.[skill] ?? 0,
   }));
@@ -200,7 +214,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                     strokeDasharray="6 3"
                   />
                   
-                  {/* Student Score - emerald green filled */}
+                  {/* Student Score - emerald green filled with CSS transition */}
                   <Radar
                     name="Your Score"
                     dataKey="student"
@@ -208,6 +222,10 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                     fill="#10B981"
                     fillOpacity={0.45}
                     strokeWidth={2.5}
+                    isAnimationActive={true}
+                    animationBegin={0}
+                    animationDuration={800}
+                    animationEasing="ease-out"
                   />
                   
                   <Tooltip
