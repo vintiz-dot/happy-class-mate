@@ -27,15 +27,15 @@ export function PointFeedbackAnimation({ feedbacks, onComplete }: PointFeedbackA
         return (
           <motion.div
             key={feedback.id}
-            initial={{ opacity: 0, scale: 0.5, y: 0 }}
-            animate={{ opacity: 1, scale: 1, y: -20 }}
-            exit={{ opacity: 0, y: -60, scale: 0.8 }}
+            initial={{ opacity: 0, scale: 0.5, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: -30 }}
+            exit={{ opacity: 0, y: -80, scale: 0.8 }}
             transition={{ 
               duration: 0.8,
               ease: [0.22, 1, 0.36, 1]
             }}
             onAnimationComplete={() => onComplete(feedback.id)}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+            className="absolute -top-2 left-0 right-0 flex justify-center pointer-events-none z-50"
           >
             <div 
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-lg shadow-lg ${
