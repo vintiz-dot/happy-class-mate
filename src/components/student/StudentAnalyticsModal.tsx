@@ -197,8 +197,8 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                   {/* XP Progress Bar */}
                   <motion.div
                     className="w-full max-w-xs"
-                    initial={{ opacity: 0, scaleX: 0 }}
-                    animate={{ opacity: 1, scaleX: 1 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                   >
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
