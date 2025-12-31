@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isPast, isToday } from "date-fns";
-import { CheckCircle, Clock, AlertTriangle, BookOpen, Calendar, Target } from "lucide-react";
+import { format, isPast } from "date-fns";
+import { CheckCircle, Clock, AlertTriangle, BookOpen, Calendar, Target, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 
 interface QuestLogTabProps {
   studentId: string;
@@ -22,10 +24,16 @@ function getMissionStatus(
     return isPast(new Date(dueDate)) ? "missing" : "active";
   }
 
-  if (submission.graded_at) {
+  // Check actual status field from database
+  if (submission.status === 'graded') {
     return "completed";
   }
+  
+  if (submission.status === 'submitted') {
+    return "pending";
+  }
 
+  // Fallback for any other status
   return "pending";
 }
 
@@ -63,14 +71,16 @@ function getStatusBadge(status: MissionStatus) {
 }
 
 export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
-  // Fetch homework assignments with submission status
+  const [selectedHomework, setSelectedHomework] = useState<any>(null);
+
+  // Fetch homework assignments with submission status and class info
   const { data: missions } = useQuery({
     queryKey: ["student-quests", studentId, classId],
     queryFn: async () => {
-      // Get all homework for this class
+      // Get all homework for this class with class info for the dialog
       const { data: homeworks, error: hwError } = await supabase
         .from("homeworks")
-        .select("id, title, body, due_date, created_at")
+        .select("id, title, body, due_date, created_at, classes!inner(id, name), homework_files(id, file_name, storage_key)")
         .eq("class_id", classId)
         .order("created_at", { ascending: false });
 
@@ -116,10 +126,10 @@ export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
       const summary = { present: 0, absent: 0, excused: 0, total: 0 };
       data?.forEach((entry) => {
         summary.total++;
-        const status = entry.status?.toLowerCase();
-        if (status === "present") summary.present++;
-        else if (status === "absent") summary.absent++;
-        else if (status === "excused") summary.excused++;
+        const statusLower = (entry.status || '').toLowerCase();
+        if (statusLower === "present") summary.present++;
+        else if (statusLower === "absent") summary.absent++;
+        else if (statusLower === "excused") summary.excused++;
       });
 
       return summary;
@@ -191,7 +201,8 @@ export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
               return (
                 <div
                   key={mission.id}
-                  className={`glass-panel p-4 rounded-xl border transition-all hover:border-primary/50 ${
+                  onClick={() => setSelectedHomework(mission)}
+                  className={`glass-panel p-4 rounded-xl border transition-all cursor-pointer hover:border-primary/50 hover:scale-[1.01] ${
                     status === "missing" ? "border-red-500/30 bg-red-500/5" : "border-border/50"
                   }`}
                 >
@@ -219,8 +230,9 @@ export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
                         )}
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       {getStatusBadge(status)}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
                 </div>
@@ -235,6 +247,15 @@ export function QuestLogTab({ studentId, classId }: QuestLogTabProps) {
           </div>
         )}
       </div>
+
+      {/* Homework Detail Dialog */}
+      {selectedHomework && (
+        <HomeworkDetailDialog
+          homework={selectedHomework}
+          studentId={studentId}
+          onClose={() => setSelectedHomework(null)}
+        />
+      )}
     </div>
   );
 }
