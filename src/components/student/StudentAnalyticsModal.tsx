@@ -4,12 +4,15 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { RadarChartTab } from "./analytics/RadarChartTab";
 import { PerformanceHeatmapTab } from "./analytics/PerformanceHeatmapTab";
 import { QuestLogTab } from "./analytics/QuestLogTab";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format, parse } from "date-fns";
+
 interface StudentAnalyticsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -21,6 +24,7 @@ interface StudentAnalyticsModalProps {
     rank: number;
   } | null;
   classId: string;
+  selectedMonth: string; // YYYY-MM format
 }
 
 function calculateLevel(xp: number): { level: number; currentXp: number; nextLevelXp: number; progress: number } {
@@ -73,7 +77,8 @@ function getRankBadge(rank: number): React.ReactNode {
   }
 }
 
-export function StudentAnalyticsModal({ open, onOpenChange, student, classId }: StudentAnalyticsModalProps) {
+export function StudentAnalyticsModal({ open, onOpenChange, student, classId, selectedMonth }: StudentAnalyticsModalProps) {
+  const monthLabel = format(parse(selectedMonth, "yyyy-MM", new Date()), "MMMM yyyy");
   // Fetch the current viewer's student ID to determine if viewing own profile or classmate's
   const { data: viewerStudentId } = useQuery({
     queryKey: ["viewer-student-id"],
@@ -173,6 +178,10 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId }: 
                   >
                     {student.name}
                   </motion.h2>
+                  
+                  <Badge variant="outline" className="mb-2 text-xs">
+                    {monthLabel}
+                  </Badge>
 
                   <motion.div
                     className="flex items-center gap-2 mb-4"
@@ -231,13 +240,14 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId }: 
                   </TabsContent>
 
                   <TabsContent value="heatmap">
-                    <PerformanceHeatmapTab studentId={student.id} classId={classId} />
+                    <PerformanceHeatmapTab studentId={student.id} classId={classId} selectedMonth={selectedMonth} />
                   </TabsContent>
 
                   <TabsContent value="quests">
                     <QuestLogTab 
                       studentId={student.id} 
                       classId={classId} 
+                      selectedMonth={selectedMonth}
                       viewerStudentId={viewerStudentId || undefined}
                     />
                   </TabsContent>

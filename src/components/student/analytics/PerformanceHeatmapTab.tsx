@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays } from "date-fns";
+import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Book, Pencil, Headphones, Sword, Users, Shield, Loader2 } from "lucide-react";
 
 interface PerformanceHeatmapTabProps {
   studentId: string;
   classId: string;
+  selectedMonth: string; // YYYY-MM format
 }
 
 const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "personal"] as const;
@@ -42,24 +43,25 @@ function getScoreLabel(score: number | null): string {
   return "Needs Work";
 }
 
-export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmapTabProps) {
-  const today = new Date();
-  const thirtyDaysAgo = subDays(today, 29);
+export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: PerformanceHeatmapTabProps) {
+  // Calculate month date range
+  const monthStart = startOfMonth(parse(selectedMonth, "yyyy-MM", new Date()));
+  const monthEnd = endOfMonth(monthStart);
+  const monthStartStr = format(monthStart, "yyyy-MM-dd");
+  const monthEndStr = format(monthEnd, "yyyy-MM-dd");
+  const monthLabel = format(monthStart, "MMMM yyyy");
 
-  // Fetch session dates for this class
+  // Fetch session dates for this class in the selected month
   const { data: sessionDates, isLoading: sessionsLoading } = useQuery({
-    queryKey: ["class-session-dates", classId],
+    queryKey: ["class-session-dates", classId, selectedMonth],
     queryFn: async () => {
-      const startDate = format(thirtyDaysAgo, "yyyy-MM-dd");
-      const endDate = format(today, "yyyy-MM-dd");
-
       const { data, error } = await supabase
         .from("sessions")
         .select("date")
         .eq("class_id", classId)
         .in("status", ["Scheduled", "Held"])
-        .gte("date", startDate)
-        .lte("date", endDate)
+        .gte("date", monthStartStr)
+        .lte("date", monthEndStr)
         .order("date", { ascending: true });
 
       if (error) throw error;
@@ -71,18 +73,15 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
   });
 
   const { data: assessments } = useQuery({
-    queryKey: ["student-heatmap", studentId, classId],
+    queryKey: ["student-heatmap", studentId, classId, selectedMonth],
     queryFn: async () => {
-      const startDate = format(thirtyDaysAgo, "yyyy-MM-dd");
-      const endDate = format(today, "yyyy-MM-dd");
-
       const { data, error } = await supabase
         .from("skill_assessments")
         .select("skill, score, date, teacher_comment")
         .eq("student_id", studentId)
         .eq("class_id", classId)
-        .gte("date", startDate)
-        .lte("date", endDate);
+        .gte("date", monthStartStr)
+        .lte("date", monthEndStr);
 
       if (error) throw error;
 
@@ -111,7 +110,7 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">No classes scheduled in the last 30 days</p>
+        <p className="font-medium">No classes scheduled in {monthLabel}</p>
         <p className="text-sm">Performance data will appear after class sessions</p>
       </div>
     );
@@ -222,7 +221,7 @@ export function PerformanceHeatmapTab({ studentId, classId }: PerformanceHeatmap
 
       {/* Session Count Label */}
       <div className="text-center text-xs text-muted-foreground">
-        {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in the last 30 days
+        {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in {monthLabel}
       </div>
     </div>
   );

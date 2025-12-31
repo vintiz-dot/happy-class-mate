@@ -37,6 +37,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
     avatarUrl?: string | null;
     totalPoints: number;
     rank: number;
+    selectedMonth: string;
   } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -278,6 +279,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                   avatarUrl: entry.students?.avatar_url,
                   totalPoints: entry.total_points,
                   rank: entry.rank,
+                  selectedMonth,
                 });
               };
 
@@ -363,6 +365,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                       avatarUrl: entry.students?.avatar_url,
                       totalPoints: entry.total_points,
                       rank: entry.rank,
+                      selectedMonth,
                     });
                   };
 
@@ -461,6 +464,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
         onOpenChange={(open) => !open && setAnalyticsStudent(null)}
         student={analyticsStudent}
         classId={classId}
+        selectedMonth={analyticsStudent?.selectedMonth || selectedMonth}
       />
     </div>
   );
