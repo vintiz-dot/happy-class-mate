@@ -8,12 +8,29 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
   Legend,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
 } from "recharts";
-import { Book, Pencil, Headphones, Sword, Users, Shield } from "lucide-react";
+import { Book, Pencil, Headphones, Sword, Users, Shield, TrendingUp } from "lucide-react";
+import { format, parseISO, startOfMonth, subMonths } from "date-fns";
+
+const SKILL_COLORS: Record<string, string> = {
+  reading: "hsl(210, 100%, 60%)",
+  writing: "hsl(150, 70%, 50%)",
+  listening: "hsl(45, 90%, 55%)",
+  speaking: "hsl(0, 80%, 60%)",
+  teamwork: "hsl(280, 70%, 60%)",
+  personal: "hsl(180, 60%, 50%)",
+};
 
 interface RadarChartTabProps {
   studentId: string;
   classId: string;
+  selectedMonth?: string;
 }
 
 const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "personal"] as const;
@@ -35,7 +52,7 @@ const SKILL_ICONS: Record<string, React.ReactNode> = {
   personal: <Shield className="h-4 w-4" />,
 };
 
-export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
+export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartTabProps) {
   // Fetch student's skill averages
   const { data: studentSkills } = useQuery({
     queryKey: ["student-skills", studentId, classId],
@@ -94,9 +111,58 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
       
       return SKILLS.reduce((acc, skill) => {
         const { sum, count } = skillTotals[skill];
-        acc[skill] = count > 0 ? Math.round(sum / count) : 50; // Default to 50 if no data
+        acc[skill] = count > 0 ? Math.round(sum / count) : 50;
         return acc;
       }, {} as Record<string, number>);
+    },
+  });
+
+  // Fetch skill trend data (last 6 months)
+  const { data: skillTrend } = useQuery({
+    queryKey: ["student-skill-trend", studentId, classId],
+    queryFn: async () => {
+      const sixMonthsAgo = format(subMonths(new Date(), 6), "yyyy-MM-dd");
+      
+      const { data, error } = await supabase
+        .from("skill_assessments")
+        .select("skill, score, date")
+        .eq("student_id", studentId)
+        .eq("class_id", classId)
+        .gte("date", sixMonthsAgo)
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+      
+      // Group by month and calculate averages per skill
+      const monthlyData: Record<string, Record<string, { sum: number; count: number }>> = {};
+      
+      data?.forEach((entry) => {
+        const month = format(parseISO(entry.date), "yyyy-MM");
+        if (!monthlyData[month]) {
+          monthlyData[month] = {};
+          SKILLS.forEach(skill => {
+            monthlyData[month][skill] = { sum: 0, count: 0 };
+          });
+        }
+        if (monthlyData[month][entry.skill]) {
+          monthlyData[month][entry.skill].sum += entry.score;
+          monthlyData[month][entry.skill].count += 1;
+        }
+      });
+      
+      // Convert to chart format
+      return Object.entries(monthlyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, skills]) => {
+          const row: Record<string, string | number> = {
+            month: format(parseISO(`${month}-01`), "MMM yy"),
+          };
+          SKILLS.forEach(skill => {
+            const { sum, count } = skills[skill];
+            row[skill] = count > 0 ? Math.round(sum / count) : 0;
+          });
+          return row;
+        });
     },
   });
 
@@ -109,6 +175,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
   }));
 
   const hasData = studentSkills && Object.values(studentSkills).some(v => v > 0);
+  const hasTrendData = skillTrend && skillTrend.length > 1;
 
   return (
     <div className="space-y-6">
@@ -119,7 +186,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
             key={skill}
             className="flex items-center gap-2 glass-panel px-3 py-2 rounded-lg"
           >
-            <span className="text-primary">{SKILL_ICONS[skill]}</span>
+            <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
             <span className="text-sm font-medium text-foreground">{SKILL_LABELS[skill]}</span>
           </div>
         ))}
@@ -179,6 +246,57 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
         )}
       </div>
 
+      {/* Skill Progress Trend Line Chart */}
+      {hasTrendData && (
+        <div className="glass-panel p-4 rounded-xl border border-border/50">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-foreground">Skill Progress Over Time</h3>
+          </div>
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={skillTrend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <YAxis 
+                  domain={[0, 100]} 
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  }}
+                  labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                />
+                {SKILLS.map((skill) => (
+                  <Line
+                    key={skill}
+                    type="monotone"
+                    dataKey={skill}
+                    name={SKILL_LABELS[skill]}
+                    stroke={SKILL_COLORS[skill]}
+                    strokeWidth={2}
+                    dot={{ fill: SKILL_COLORS[skill], strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Monthly average scores over the last 6 months
+          </p>
+        </div>
+      )}
+
       {/* Skill Breakdown Cards */}
       {hasData && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -193,7 +311,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                 className="glass-panel p-4 rounded-xl border border-border/50"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-primary">{SKILL_ICONS[skill]}</span>
+                  <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
                   <span className="font-semibold text-foreground">{SKILL_LABELS[skill]}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
