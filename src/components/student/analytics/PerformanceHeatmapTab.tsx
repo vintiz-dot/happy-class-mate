@@ -1,8 +1,22 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Book, Pencil, Headphones, Sword, Users, Shield, Loader2 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 interface PerformanceHeatmapTabProps {
   studentId: string;
@@ -11,6 +25,7 @@ interface PerformanceHeatmapTabProps {
 }
 
 const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "personal"] as const;
+
 const SKILL_LABELS: Record<string, string> = {
   reading: "Reading",
   writing: "Writing",
@@ -20,28 +35,23 @@ const SKILL_LABELS: Record<string, string> = {
   personal: "Personal",
 };
 
-const SKILL_ICONS: Record<string, React.ReactNode> = {
-  reading: <Book className="h-3 w-3" />,
-  writing: <Pencil className="h-3 w-3" />,
-  listening: <Headphones className="h-3 w-3" />,
-  speaking: <Sword className="h-3 w-3" />,
-  teamwork: <Users className="h-3 w-3" />,
-  personal: <Shield className="h-3 w-3" />,
+const SKILL_COLORS: Record<string, string> = {
+  reading: "#8B5CF6",    // Purple
+  writing: "#F59E0B",    // Amber
+  listening: "#10B981",  // Green
+  speaking: "#EF4444",   // Red
+  teamwork: "#3B82F6",   // Blue
+  personal: "#EC4899",   // Pink
 };
 
-function getScoreColor(score: number | null): string {
-  if (score === null) return "bg-muted/30";
-  if (score >= 80) return "bg-green-500";
-  if (score >= 50) return "bg-yellow-500";
-  return "bg-red-500";
-}
-
-function getScoreLabel(score: number | null): string {
-  if (score === null) return "No data";
-  if (score >= 80) return "Excellent";
-  if (score >= 50) return "Average";
-  return "Needs Work";
-}
+const SKILL_ICONS: Record<string, React.ReactNode> = {
+  reading: <Book className="h-3.5 w-3.5" />,
+  writing: <Pencil className="h-3.5 w-3.5" />,
+  listening: <Headphones className="h-3.5 w-3.5" />,
+  speaking: <Sword className="h-3.5 w-3.5" />,
+  teamwork: <Users className="h-3.5 w-3.5" />,
+  personal: <Shield className="h-3.5 w-3.5" />,
+};
 
 export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: PerformanceHeatmapTabProps) {
   // Calculate month date range
@@ -95,6 +105,38 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
     },
   });
 
+  // Transform data for chart
+  const chartData = useMemo(() => {
+    if (!sessionDates || !assessments) return [];
+
+    return sessionDates.map((date) => {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const dataPoint: Record<string, string | number | null> = {
+        date: format(date, "MMM d"),
+        fullDate: dateStr,
+      };
+
+      SKILLS.forEach((skill) => {
+        const key = `${dateStr}-${skill}`;
+        dataPoint[skill] = assessments[key]?.score ?? null;
+      });
+
+      return dataPoint;
+    });
+  }, [sessionDates, assessments]);
+
+  // Chart configuration
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label: string; color: string }> = {};
+    SKILLS.forEach((skill) => {
+      config[skill] = {
+        label: SKILL_LABELS[skill],
+        color: SKILL_COLORS[skill],
+      };
+    });
+    return config;
+  }, []);
+
   const hasData = assessments && Object.keys(assessments).length > 0;
   const hasSessions = sessionDates && sessionDates.length > 0;
 
@@ -118,97 +160,126 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
 
   return (
     <div className="space-y-4">
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-500" />
-          <span className="text-xs text-muted-foreground">Excellent (80+)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-yellow-500" />
-          <span className="text-xs text-muted-foreground">Average (50-79)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-500" />
-          <span className="text-xs text-muted-foreground">Needs Work (&lt;50)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-muted/30" />
-          <span className="text-xs text-muted-foreground">No Data</span>
-        </div>
+      {/* Skill Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        {SKILLS.map((skill) => (
+          <div
+            key={skill}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/50 border border-border"
+          >
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: SKILL_COLORS[skill] }}
+            />
+            <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
+            <span className="text-xs text-foreground font-medium">{SKILL_LABELS[skill]}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Heatmap Grid */}
-      <div className="overflow-x-auto pb-4">
-        <div className="min-w-fit">
-          {/* Date Headers */}
-          <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `100px repeat(${sessionDates.length}, minmax(40px, 1fr))` }}>
-            <div className="text-xs text-muted-foreground font-medium">Skill</div>
-            {sessionDates.map((date, i) => (
-              <div
-                key={i}
-                className="text-center text-[10px] text-muted-foreground font-medium"
-              >
-                {format(date, "MMM d")}
-              </div>
-            ))}
-          </div>
-
-          {/* Skill Rows */}
-          {SKILLS.map((skill) => (
-            <div
-              key={skill}
-              className="grid gap-1 mb-1"
-              style={{ gridTemplateColumns: `100px repeat(${sessionDates.length}, minmax(40px, 1fr))` }}
+      {/* Trend Line Chart */}
+      <div className="h-[320px] w-full">
+        <ChartContainer config={chartConfig}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
-              {/* Skill Label */}
-              <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                <span className="text-primary">{SKILL_ICONS[skill]}</span>
-                <span className="truncate">{SKILL_LABELS[skill]}</span>
-              </div>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="hsl(var(--border))"
+                strokeOpacity={0.5}
+              />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
+                tickLine={{ stroke: "hsl(var(--muted-foreground))" }}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+                axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
+                tickLine={{ stroke: "hsl(var(--muted-foreground))" }}
+                label={{
+                  value: "Score",
+                  angle: -90,
+                  position: "insideLeft",
+                  fill: "hsl(var(--foreground))",
+                  fontSize: 12,
+                }}
+              />
 
-              {/* Day Cells */}
-              {sessionDates.map((date) => {
-                const dateStr = format(date, "yyyy-MM-dd");
-                const key = `${dateStr}-${skill}`;
-                const entry = assessments?.[key];
-                const score = entry?.score ?? null;
-                const comment = entry?.comment;
+              {/* Reference lines for score thresholds */}
+              <ReferenceLine
+                y={80}
+                stroke="#22C55E"
+                strokeDasharray="5 5"
+                strokeOpacity={0.6}
+              />
+              <ReferenceLine
+                y={50}
+                stroke="#EAB308"
+                strokeDasharray="5 5"
+                strokeOpacity={0.6}
+              />
 
-                return (
-                  <Tooltip key={key}>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={`aspect-square rounded-sm cursor-pointer transition-all hover:scale-110 hover:ring-2 hover:ring-primary ${getScoreColor(score)}`}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[200px]">
-                      <div className="space-y-1">
-                        <div className="font-semibold">
-                          {format(date, "MMM d, yyyy")}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-primary">{SKILL_ICONS[skill]}</span>
-                          <span>{SKILL_LABELS[skill]}</span>
-                        </div>
-                        <div className="text-sm">
-                          Score: <span className="font-bold">{score ?? "N/A"}</span>
-                          <span className="text-muted-foreground ml-1">
-                            ({getScoreLabel(score)})
-                          </span>
-                        </div>
-                        {comment && (
-                          <div className="text-xs text-muted-foreground italic border-t border-border pt-1 mt-1">
-                            "{comment}"
-                          </div>
-                        )}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          ))}
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(label) => `Session: ${label}`}
+                  />
+                }
+              />
+
+              {/* Skill trend lines */}
+              {SKILLS.map((skill) => (
+                <Line
+                  key={skill}
+                  type="monotone"
+                  dataKey={skill}
+                  name={SKILL_LABELS[skill]}
+                  stroke={SKILL_COLORS[skill]}
+                  strokeWidth={2.5}
+                  dot={{
+                    fill: SKILL_COLORS[skill],
+                    strokeWidth: 0,
+                    r: 4,
+                  }}
+                  activeDot={{
+                    r: 6,
+                    stroke: "hsl(var(--background))",
+                    strokeWidth: 2,
+                  }}
+                  connectNulls={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </div>
+
+      {/* Threshold Legend */}
+      <div className="flex items-center justify-center gap-6 text-sm">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-6 h-0.5"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(90deg, #22C55E, #22C55E 4px, transparent 4px, transparent 8px)",
+            }}
+          />
+          <span className="text-foreground font-medium">Excellent (80+)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-6 h-0.5"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(90deg, #EAB308, #EAB308 4px, transparent 4px, transparent 8px)",
+            }}
+          />
+          <span className="text-foreground font-medium">Average (50)</span>
         </div>
       </div>
 
