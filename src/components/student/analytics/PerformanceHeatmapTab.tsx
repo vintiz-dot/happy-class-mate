@@ -1,265 +1,399 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
-import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { Loader2, Trophy, Users, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { SKILL_ICONS } from "@/lib/skillConfig";
 
 interface PerformanceHeatmapTabProps {
   studentId: string;
   classId: string;
-  selectedMonth: string; // YYYY-MM format
+  selectedMonth: string;
 }
 
-const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "focus"] as const;
+const SKILLS = ["speaking", "listening", "reading", "writing", "focus", "teamwork"];
 
 const SKILL_LABELS: Record<string, string> = {
+  speaking: "Speaking",
+  listening: "Listening",
   reading: "Reading",
   writing: "Writing",
-  listening: "Listening",
-  speaking: "Speaking",
-  teamwork: "Teamwork",
   focus: "Focus",
+  teamwork: "Teamwork",
 };
 
 const SKILL_COLORS: Record<string, string> = {
-  reading: "#8B5CF6",
-  writing: "#F59E0B",
-  listening: "#10B981",
-  speaking: "#EF4444",
-  teamwork: "#3B82F6",
-  focus: "#EC4899",
+  speaking: "hsl(var(--chart-1))",
+  listening: "hsl(var(--chart-2))",
+  reading: "hsl(var(--chart-3))",
+  writing: "hsl(var(--chart-4))",
+  focus: "hsl(var(--chart-5))",
+  teamwork: "hsl(var(--primary))",
 };
 
-const SKILL_ICONS: Record<string, React.ReactNode> = {
-  reading: <Book className="h-5 w-5" />,
-  writing: <Pencil className="h-5 w-5" />,
-  listening: <Headphones className="h-5 w-5" />,
-  speaking: <MessageSquare className="h-5 w-5" />,
-  teamwork: <Users className="h-5 w-5" />,
-  focus: <Shield className="h-5 w-5" />,
-};
+export function PerformanceHeatmapTab({
+  studentId,
+  classId,
+  selectedMonth,
+}: PerformanceHeatmapTabProps) {
+  const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
 
-const getScoreEmoji = (score: number) => {
-  if (score >= 90) return "🌟";
-  if (score >= 80) return "⭐";
-  if (score >= 70) return "✨";
-  if (score >= 50) return "💪";
-  if (score > 0) return "🎯";
-  return "";
-};
-
-export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: PerformanceHeatmapTabProps) {
   const monthStart = startOfMonth(parse(selectedMonth, "yyyy-MM", new Date()));
   const monthEnd = endOfMonth(monthStart);
   const monthStartStr = format(monthStart, "yyyy-MM-dd");
   const monthEndStr = format(monthEnd, "yyyy-MM-dd");
-  const monthLabel = format(monthStart, "MMMM yyyy");
 
-  const { data: sessionDates, isLoading: sessionsLoading } = useQuery({
-    queryKey: ["class-session-dates", classId, selectedMonth],
+  // Fetch session dates for the class this month
+  const { data: sessionDates, isLoading: loadingSessions } = useQuery({
+    queryKey: ["session-dates", classId, selectedMonth],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sessions")
-        .select("date")
+        .select("id, date")
         .eq("class_id", classId)
-        .in("status", ["Scheduled", "Held"])
         .gte("date", monthStartStr)
         .lte("date", monthEndStr)
+        .in("status", ["Held", "Scheduled"])
         .order("date", { ascending: true });
 
       if (error) throw error;
-
-      const uniqueDates = [...new Set(data?.map((s) => s.date) || [])];
-      return uniqueDates.map((d) => new Date(d + "T00:00:00"));
+      return data || [];
     },
   });
 
-  const { data: assessments } = useQuery({
-    queryKey: ["student-heatmap", studentId, classId, selectedMonth],
+  // Fetch ALL class students' skill assessments to find leaders
+  const { data: classSkillTotals, isLoading: loadingClassTotals } = useQuery({
+    queryKey: ["class-skill-totals", classId, selectedMonth],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("skill_assessments")
-        .select("skill, score, date, teacher_comment")
-        .eq("student_id", studentId)
+        .select("student_id, skill, score, students!inner(full_name)")
         .eq("class_id", classId)
         .gte("date", monthStartStr)
         .lte("date", monthEndStr);
 
       if (error) throw error;
 
-      const lookup: Record<string, { score: number; comment: string | null }> = {};
-      data?.forEach((entry) => {
-        const key = `${entry.date}-${entry.skill}`;
-        lookup[key] = { score: entry.score, comment: entry.teacher_comment };
+      // Aggregate by skill and student
+      const totals: Record<string, Record<string, { total: number; studentName: string }>> = {};
+      data?.forEach((entry: any) => {
+        const skill = entry.skill;
+        const sid = entry.student_id;
+        const studentName = entry.students?.full_name || "Unknown";
+
+        if (!totals[skill]) totals[skill] = {};
+        if (!totals[skill][sid]) {
+          totals[skill][sid] = { total: 0, studentName };
+        }
+        totals[skill][sid].total += entry.score;
       });
 
-      return lookup;
+      return totals;
     },
   });
 
-  // Calculate best scores for each skill
-  const bestScoresData = useMemo(() => {
-    if (!assessments) return [];
+  // Fetch student's skill assessments
+  const { data: studentAssessments, isLoading: loadingAssessments } = useQuery({
+    queryKey: ["student-skill-assessments", studentId, classId, selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skill_assessments")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("class_id", classId)
+        .gte("date", monthStartStr)
+        .lte("date", monthEndStr)
+        .order("date", { ascending: false });
 
-    const bestScores: Record<string, number> = {};
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-    Object.entries(assessments).forEach(([key, value]) => {
-      const skill = key.split("-").pop() || "";
-      if (SKILLS.includes(skill as typeof SKILLS[number])) {
-        if (!bestScores[skill] || value.score > bestScores[skill]) {
-          bestScores[skill] = value.score;
-        }
+  // Fetch student's attendance
+  const { data: attendanceRecords, isLoading: loadingAttendance } = useQuery({
+    queryKey: ["student-attendance-performance", studentId, classId, selectedMonth],
+    queryFn: async () => {
+      const sessionIds = sessionDates?.map((s) => s.id) || [];
+      if (sessionIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("session_id, status")
+        .eq("student_id", studentId)
+        .in("session_id", sessionIds);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!sessionDates && sessionDates.length > 0,
+  });
+
+  // Calculate skill stats with class comparison
+  const skillStats = useMemo(() => {
+    if (!classSkillTotals) return [];
+
+    return SKILLS.map((skill) => {
+      // Get all students' totals for this skill
+      const skillData = classSkillTotals[skill] || {};
+      const allTotals = Object.entries(skillData).map(([id, data]) => ({
+        studentId: id,
+        studentName: data.studentName,
+        total: data.total,
+      }));
+
+      // Find class leader
+      const sortedByTotal = [...allTotals].sort((a, b) => b.total - a.total);
+      const classLeader = sortedByTotal[0] || null;
+      const classBest = classLeader?.total || 1;
+
+      // Calculate class average
+      const classAverage =
+        allTotals.length > 0
+          ? Math.round(allTotals.reduce((sum, s) => sum + s.total, 0) / allTotals.length)
+          : 0;
+
+      // Get student's total
+      const studentTotal =
+        studentAssessments?.filter((a) => a.skill === skill).reduce((sum, a) => sum + a.score, 0) || 0;
+
+      // Calculate percentage vs class best
+      const percentOfBest = classBest > 0 ? Math.round((studentTotal / classBest) * 100) : 0;
+      const isLeader = classLeader?.studentId === studentId;
+
+      const IconComponent = SKILL_ICONS[skill];
+
+      return {
+        skill,
+        label: SKILL_LABELS[skill],
+        color: SKILL_COLORS[skill],
+        Icon: IconComponent,
+        studentTotal,
+        classBest,
+        classLeader,
+        classAverage,
+        percentOfBest: Math.min(percentOfBest, 100),
+        isLeader,
+      };
+    });
+  }, [classSkillTotals, studentAssessments, studentId]);
+
+  // Get session details for a skill
+  const getSkillSessionDetails = (skill: string) => {
+    const details: Array<{
+      date: string;
+      sessionId: string;
+      points: number;
+      comment: string | null;
+      isAbsent: boolean;
+    }> = [];
+
+    // Get assessments for this skill
+    const skillAssessments = studentAssessments?.filter((a) => a.skill === skill) || [];
+
+    // Map session dates with assessment data and attendance
+    sessionDates?.forEach((session) => {
+      const dateStr = format(new Date(session.date), "yyyy-MM-dd");
+      const attendance = attendanceRecords?.find((a) => a.session_id === session.id);
+      const assessment = skillAssessments.find(
+        (a) => format(new Date(a.date), "yyyy-MM-dd") === dateStr
+      );
+
+      if (attendance?.status === "Absent") {
+        details.push({
+          date: dateStr,
+          sessionId: session.id,
+          points: 0,
+          comment: null,
+          isAbsent: true,
+        });
+      } else if (assessment) {
+        details.push({
+          date: dateStr,
+          sessionId: session.id,
+          points: assessment.score,
+          comment: assessment.teacher_comment,
+          isAbsent: false,
+        });
       }
     });
 
-    return SKILLS.map((skill) => ({
-      skill,
-      label: SKILL_LABELS[skill],
-      score: bestScores[skill] || 0,
-      color: SKILL_COLORS[skill],
-      icon: SKILL_ICONS[skill],
-    }));
-  }, [assessments]);
+    return details.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
 
-  const hasData = assessments && Object.keys(assessments).length > 0;
-  const hasSessions = sessionDates && sessionDates.length > 0;
+  const isLoading = loadingSessions || loadingClassTotals || loadingAssessments || loadingAttendance;
 
-  if (sessionsLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!hasSessions) {
+  if (!sessionDates || sessionDates.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">No classes scheduled in {monthLabel}</p>
-        <p className="text-sm">Performance data will appear after class sessions</p>
+        No classes scheduled for {format(monthStart, "MMMM yyyy")}.
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="text-center">
-        <h3 className="text-lg font-black text-foreground flex items-center justify-center gap-2">
-          <span className="text-2xl">🏆</span>
-          Best Scores This Month
-          <span className="text-2xl">🏆</span>
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-bold text-foreground flex items-center justify-center gap-2">
+          <Trophy className="h-5 w-5 text-yellow-500" />
+          Skills vs Class Best
+          <Trophy className="h-5 w-5 text-yellow-500" />
         </h3>
-        <p className="text-sm text-muted-foreground">Your highest score for each skill!</p>
+        <p className="text-sm text-muted-foreground">
+          Tap a skill to see your session history
+        </p>
       </div>
 
-      {/* Animated Skill Bars */}
-      <div className="space-y-3 px-2">
-        {bestScoresData.map((skill, index) => (
-          <motion.div
+      {/* Skill Cards */}
+      <div className="space-y-3">
+        {skillStats.map((skill, index) => (
+          <Collapsible
             key={skill.skill}
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.08, type: "spring", bounce: 0.4 }}
-            className="flex items-center gap-3"
+            open={expandedSkill === skill.skill}
+            onOpenChange={(open) => setExpandedSkill(open ? skill.skill : null)}
           >
-            {/* Skill Icon Badge */}
             <motion.div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md shrink-0"
-              style={{
-                backgroundColor: skill.color + "20",
-                border: `2px solid ${skill.color}`,
-              }}
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              className="bg-card rounded-xl border border-border/50 overflow-hidden shadow-sm"
             >
-              <span style={{ color: skill.color }}>{skill.icon}</span>
+              <CollapsibleTrigger className="w-full p-4 hover:bg-muted/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  {/* Skill Icon */}
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md shrink-0"
+                    style={{
+                      backgroundColor: `${skill.color}20`,
+                      border: `2px solid ${skill.color}`,
+                    }}
+                  >
+                    {skill.Icon && <skill.Icon className="h-5 w-5" style={{ color: skill.color }} />}
+                  </div>
+
+                  {/* Skill Info */}
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-foreground">{skill.label}</span>
+                      {skill.isLeader && (
+                        <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/50 text-xs px-1.5 py-0">
+                          <Trophy className="h-3 w-3 mr-0.5" /> Leader
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-2.5 bg-muted/50 rounded-full mt-2 overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: skill.color }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${skill.percentOfBest}%` }}
+                        transition={{ delay: index * 0.08 + 0.2, duration: 0.6 }}
+                      />
+                    </div>
+
+                    {/* Stats Row */}
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
+                      <span>
+                        You:{" "}
+                        <span className="font-bold text-foreground">{skill.studentTotal}pts</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Trophy className="h-3 w-3 text-yellow-500" />
+                        Best: {skill.classBest}pts
+                        {skill.classLeader && !skill.isLeader && (
+                          <span className="text-muted-foreground/70">
+                            ({skill.classLeader.studentName.split(" ")[0]})
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        Avg: {skill.classAverage}pts
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expand Arrow */}
+                  <div className="text-muted-foreground shrink-0">
+                    {expandedSkill === skill.skill ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                </div>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <div className="px-4 pb-4 pt-2 border-t border-border/50">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Session History</h4>
+                  <div className="space-y-2">
+                    {getSkillSessionDetails(skill.skill).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No {skill.label.toLowerCase()} activity yet this month
+                      </p>
+                    ) : (
+                      getSkillSessionDetails(skill.skill).map((detail, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-3 p-2.5 rounded-lg ${
+                            detail.isAbsent
+                              ? "bg-destructive/10 border border-destructive/30"
+                              : "bg-muted/30"
+                          }`}
+                        >
+                          <span className="text-xs text-muted-foreground w-16 shrink-0">
+                            {format(new Date(detail.date), "MMM d")}
+                          </span>
+                          {detail.isAbsent ? (
+                            <span className="flex items-center gap-1.5 text-destructive text-sm font-medium">
+                              <AlertCircle className="h-4 w-4" />
+                              Absent
+                            </span>
+                          ) : (
+                            <div className="flex-1 min-w-0">
+                              <span
+                                className="font-bold text-sm"
+                                style={{ color: skill.color }}
+                              >
+                                +{detail.points}pts
+                              </span>
+                              {detail.comment && (
+                                <span className="text-sm text-muted-foreground ml-2 truncate">
+                                  {detail.comment}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CollapsibleContent>
             </motion.div>
-
-            {/* Skill Name */}
-            <div className="w-20 shrink-0">
-              <span className="text-sm font-bold text-foreground">{skill.label}</span>
-            </div>
-
-            {/* Animated Progress Bar */}
-            <div className="flex-1 h-9 bg-muted/30 rounded-full overflow-hidden relative border border-border/50">
-              <motion.div
-                className="h-full rounded-full relative overflow-hidden"
-                style={{ backgroundColor: skill.color }}
-                initial={{ width: 0 }}
-                animate={{ width: `${skill.score}%` }}
-                transition={{
-                  delay: index * 0.08 + 0.2,
-                  duration: 0.8,
-                  type: "spring",
-                  bounce: 0.3,
-                }}
-              >
-                {/* Shine effect */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
-                  animate={{ x: ["-100%", "200%"] }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    delay: index * 0.15 + 1,
-                    ease: "easeInOut",
-                  }}
-                />
-              </motion.div>
-
-              {/* Score badge */}
-              <motion.div
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm"
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.08 + 0.5, type: "spring" }}
-              >
-                <span className="text-sm font-black text-foreground">{skill.score}</span>
-                <span className="text-base">{getScoreEmoji(skill.score)}</span>
-              </motion.div>
-            </div>
-          </motion.div>
+          </Collapsible>
         ))}
       </div>
 
-      {/* Score Level Legend */}
-      <motion.div
-        className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-border/50"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-      >
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-lg">🌟</span>
-          <span className="font-medium text-foreground">Super Star (90+)</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-lg">⭐</span>
-          <span className="font-medium text-foreground">Excellent (80+)</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-lg">✨</span>
-          <span className="font-medium text-foreground">Great (70+)</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-lg">💪</span>
-          <span className="font-medium text-foreground">Good (50+)</span>
-        </div>
-      </motion.div>
-
-      {/* No Data Message */}
-      {!hasData && (
-        <div className="text-center py-4 text-muted-foreground">
-          <p className="text-sm">No skill assessments recorded yet for these sessions</p>
-        </div>
-      )}
-
-      {/* Session Count */}
-      <div className="text-center text-xs text-muted-foreground">
-        {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in {monthLabel}
+      {/* Footer */}
+      <div className="text-center text-xs text-muted-foreground pt-2">
+        {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in{" "}
+        {format(monthStart, "MMMM")}
       </div>
     </div>
   );
