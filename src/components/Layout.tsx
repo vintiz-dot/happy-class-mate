@@ -172,7 +172,7 @@ const Layout = ({ children, title }: LayoutProps) => {
               <Button
                 key={item.path}
                 variant="ghost"
-                className="flex-col gap-1 whitespace-nowrap min-w-[60px] h-auto py-2 px-3 rounded-xl"
+                className="flex-col gap-1 whitespace-nowrap min-w-[60px] h-auto py-2 px-3 rounded-xl nav-hover-red"
                 onClick={() => navigate(item.path)}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
