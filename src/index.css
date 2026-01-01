@@ -538,3 +538,17 @@ All colors MUST be HSL.
   animation: podium-glow-bronze 2s ease-in-out infinite;
   border-radius: 1rem;
 }
+
+/* Hot red hover for navbar items */
+.nav-hover-red {
+  @apply transition-all duration-200;
+}
+
+.nav-hover-red:hover {
+  background-color: hsla(0, 90%, 55%, 0.15) !important;
+  color: hsl(0, 90%, 55%) !important;
+}
+
+.nav-hover-red:hover svg {
+  color: hsl(0, 90%, 55%) !important;
+}
