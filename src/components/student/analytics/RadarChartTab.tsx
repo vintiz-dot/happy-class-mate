@@ -367,9 +367,15 @@ export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartT
                     labelStyle={{ fontWeight: 600, marginBottom: 4, color: '#F8FAFC' }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '12px', color: '#E2E8F0' }}
+                    wrapperStyle={{ 
+                      fontSize: '12px', 
+                      paddingTop: '16px'
+                    }}
                     iconType="circle"
                     iconSize={10}
+                    formatter={(value) => (
+                      <span style={{ color: '#F8FAFC', fontWeight: 500 }}>{value}</span>
+                    )}
                   />
                 </RadarChart>
               </ResponsiveContainer>
@@ -385,10 +391,10 @@ export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartT
                 <motion.div
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/40"
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-yellow-500/50 to-amber-500/40 border-2 border-yellow-400 shadow-lg shadow-yellow-500/30"
                 >
-                  <Crown className="h-4 w-4 text-yellow-500" />
-                  <span className="text-xs font-semibold text-yellow-500">
+                  <Crown className="h-4 w-4 text-yellow-300" />
+                  <span className="text-sm font-bold text-yellow-200">
                     Leading in {leaderSkills.length} skill{leaderSkills.length > 1 ? 's' : ''}!
                   </span>
                 </motion.div>
@@ -528,22 +534,22 @@ export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartT
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Crown className="h-3 w-3 text-yellow-500" />
-              <span>= Class Leader</span>
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-3 text-sm">
+            <div className="flex items-center gap-1.5">
+              <Crown className="h-4 w-4 text-yellow-400" />
+              <span className="text-foreground font-medium">= Class Leader</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-0.5 bg-muted-foreground/60" />
-              <span>= Class Avg</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-0.5 bg-purple-400" />
+              <span className="text-foreground font-medium">= Class Avg</span>
             </div>
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span>= Improving</span>
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              <span className="text-foreground font-medium">= Improving</span>
             </div>
-            <div className="flex items-center gap-1">
-              <TrendingDown className="h-3 w-3 text-red-500" />
-              <span>= Declining</span>
+            <div className="flex items-center gap-1.5">
+              <TrendingDown className="h-4 w-4 text-red-500" />
+              <span className="text-foreground font-medium">= Declining</span>
             </div>
           </div>
         </>
