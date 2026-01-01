@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Trophy, Crown, Star, BarChart3 } from "lucide-react";
+import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Trophy, Crown, Star, BarChart3, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import {
   RadarChart,
   PolarGrid,
@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { dayjs } from "@/lib/date";
 
 const SKILL_COLORS: Record<string, string> = {
   reading: "hsl(210, 100%, 60%)",
@@ -48,7 +49,17 @@ const SKILL_ICONS: Record<string, React.ReactNode> = {
   focus: <Shield className="h-5 w-5" />,
 };
 
-export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
+export function RadarChartTab({ studentId, classId, selectedMonth }: RadarChartTabProps) {
+  // Determine current and previous month boundaries
+  const currentMonthStart = selectedMonth 
+    ? dayjs(selectedMonth).startOf('month').format('YYYY-MM-DD')
+    : dayjs().startOf('month').format('YYYY-MM-DD');
+  const currentMonthEnd = selectedMonth
+    ? dayjs(selectedMonth).endOf('month').format('YYYY-MM-DD')
+    : dayjs().endOf('month').format('YYYY-MM-DD');
+  const lastMonthStart = dayjs(currentMonthStart).subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+  const lastMonthEnd = dayjs(currentMonthStart).subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+
   // Fetch student's total skill points (no averaging, just sum)
   const { data: studentSkills } = useQuery({
     queryKey: ["student-skills-total", studentId, classId],
@@ -76,6 +87,75 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
       return skillTotals;
     },
   });
+
+  // Fetch current month's skill scores for trend comparison
+  const { data: currentMonthSkills } = useQuery({
+    queryKey: ["student-skills-current-month", studentId, classId, currentMonthStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skill_assessments")
+        .select("skill, score")
+        .eq("student_id", studentId)
+        .eq("class_id", classId)
+        .gte("date", currentMonthStart)
+        .lte("date", currentMonthEnd);
+
+      if (error) throw error;
+      
+      const skillTotals: Record<string, number> = {};
+      SKILLS.forEach(skill => { skillTotals[skill] = 0; });
+      data?.forEach((entry) => {
+        if (skillTotals[entry.skill] !== undefined) {
+          skillTotals[entry.skill] += entry.score;
+        }
+      });
+      return skillTotals;
+    },
+  });
+
+  // Fetch last month's skill scores for trend comparison
+  const { data: lastMonthSkills } = useQuery({
+    queryKey: ["student-skills-last-month", studentId, classId, lastMonthStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skill_assessments")
+        .select("skill, score")
+        .eq("student_id", studentId)
+        .eq("class_id", classId)
+        .gte("date", lastMonthStart)
+        .lte("date", lastMonthEnd);
+
+      if (error) throw error;
+      
+      const skillTotals: Record<string, number> = {};
+      SKILLS.forEach(skill => { skillTotals[skill] = 0; });
+      data?.forEach((entry) => {
+        if (skillTotals[entry.skill] !== undefined) {
+          skillTotals[entry.skill] += entry.score;
+        }
+      });
+      return skillTotals;
+    },
+  });
+
+  // Calculate trend for each skill
+  const getSkillTrend = (skill: string): 'up' | 'down' | 'stable' => {
+    const current = currentMonthSkills?.[skill] ?? 0;
+    const last = lastMonthSkills?.[skill] ?? 0;
+    
+    // If no data last month and have data this month = improving
+    if (last === 0 && current > 0) return 'up';
+    // If no data either month = stable
+    if (last === 0 && current === 0) return 'stable';
+    
+    const diff = current - last;
+    const percentChange = (diff / last) * 100;
+    
+    // Consider >10% change as significant
+    if (percentChange > 10) return 'up';
+    if (percentChange < -10) return 'down';
+    return 'stable';
+  };
 
   // Fetch class highest for each skill (compare vs the best, not average)
   const { data: classHighest } = useQuery({
@@ -368,6 +448,35 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                           {isLeader && (
                             <Crown className="h-4 w-4 text-yellow-500" />
                           )}
+                          {/* Trend indicator */}
+                          {(() => {
+                            const trend = getSkillTrend(skill);
+                            if (trend === 'up') return (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-500/20"
+                              >
+                                <TrendingUp className="h-3 w-3 text-green-500" />
+                                <span className="text-[10px] font-bold text-green-500">↑</span>
+                              </motion.div>
+                            );
+                            if (trend === 'down') return (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/20"
+                              >
+                                <TrendingDown className="h-3 w-3 text-red-500" />
+                                <span className="text-[10px] font-bold text-red-500">↓</span>
+                              </motion.div>
+                            );
+                            return (
+                              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted/50">
+                                <Minus className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-black text-foreground">{score}</span>
@@ -419,7 +528,7 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
           </div>
 
           {/* Legend */}
-          <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <Crown className="h-3 w-3 text-yellow-500" />
               <span>= Class Leader</span>
@@ -427,6 +536,14 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
             <div className="flex items-center gap-1">
               <div className="w-3 h-0.5 bg-muted-foreground/60" />
               <span>= Class Avg</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-green-500" />
+              <span>= Improving</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <TrendingDown className="h-3 w-3 text-red-500" />
+              <span>= Declining</span>
             </div>
           </div>
         </>
