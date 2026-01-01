@@ -140,6 +140,22 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
   const studentTotal = studentSkills ? Object.values(studentSkills).reduce((a, b) => a + b, 0) : 0;
   const classHighestTotal = classHighest?.maxPerSkill ? Object.values(classHighest.maxPerSkill).reduce((a, b) => a + b, 0) : 0;
 
+  // Find skills where student is the leader
+  const leaderSkills = SKILLS.filter(skill => {
+    const score = studentSkills?.[skill] ?? 0;
+    const highest = classHighest?.maxPerSkill?.[skill] ?? 0;
+    return score >= highest && score > 0;
+  });
+
+  // Find strongest skill (highest score)
+  const strongestSkill = studentSkills 
+    ? SKILLS.reduce((best, skill) => 
+        (studentSkills[skill] ?? 0) > (studentSkills[best] ?? 0) ? skill : best
+      , SKILLS[0])
+    : null;
+
+  const hasLeaderSkills = leaderSkills.length > 0;
+
   // Animation state for student score growing from 0
   const [animationProgress, setAnimationProgress] = useState(0);
   
@@ -176,7 +192,33 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
               <span className="text-sm font-semibold text-foreground">Skill Comparison</span>
             </div>
             
-            <div className="h-64 bg-gradient-to-br from-slate-900/80 to-purple-950/60 rounded-lg p-2">
+            <div className={`relative h-64 bg-gradient-to-br from-slate-900/80 to-purple-950/60 rounded-lg p-2 overflow-hidden ${hasLeaderSkills ? 'ring-2 ring-yellow-500/50' : ''}`}>
+              {/* Animated glow overlay when student leads */}
+              {hasLeaderSkills && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  style={{
+                    background: `radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.15) 0%, transparent 70%)`,
+                  }}
+                />
+              )}
+              
+              {/* Pulsing highlight on strongest skill direction */}
+              {strongestSkill && hasData && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.2, 0.5, 0.2] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                  style={{
+                    background: `conic-gradient(from ${SKILLS.indexOf(strongestSkill) * 60}deg at 50% 50%, rgba(16, 185, 129, 0.2) 0deg, transparent 60deg, transparent 360deg)`,
+                  }}
+                />
+              )}
+              
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="75%">
                   <PolarGrid 
@@ -252,6 +294,26 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                 </RadarChart>
               </ResponsiveContainer>
             </div>
+            
+            {/* Leader badge overlay */}
+            {hasLeaderSkills && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-center gap-2 mt-2"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/40"
+                >
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                  <span className="text-xs font-semibold text-yellow-500">
+                    Leading in {leaderSkills.length} skill{leaderSkills.length > 1 ? 's' : ''}!
+                  </span>
+                </motion.div>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Skills vs Class Best Header */}
