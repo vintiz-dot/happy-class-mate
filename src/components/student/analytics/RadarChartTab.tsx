@@ -176,21 +176,27 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
               <span className="text-sm font-semibold text-foreground">Skill Comparison</span>
             </div>
             
-            <div className="h-64">
+            <div className="h-64 bg-gradient-to-br from-slate-900/80 to-purple-950/60 rounded-lg p-2">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="75%">
-                  <PolarGrid stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <PolarGrid 
+                    stroke="#8B5CF6" 
+                    strokeOpacity={0.6} 
+                    gridType="polygon"
+                  />
                   <PolarAngleAxis
                     dataKey="skill"
-                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 11, fontWeight: 500 }}
-                    tickLine={false}
+                    tick={{ fill: '#F8FAFC', fontSize: 12, fontWeight: 600 }}
+                    tickLine={{ stroke: '#8B5CF6', strokeWidth: 2 }}
+                    axisLine={{ stroke: '#8B5CF6', strokeWidth: 2 }}
                   />
                   <PolarRadiusAxis
                     angle={30}
                     domain={[0, 'auto']}
-                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 10, fill: '#A78BFA', fontWeight: 500 }}
                     tickCount={4}
-                    axisLine={false}
+                    axisLine={{ stroke: '#A78BFA', strokeWidth: 1.5 }}
+                    stroke="#A78BFA"
                   />
                   
                   {/* Class Best - bright orange */}
@@ -230,17 +236,18 @@ export function RadarChartTab({ studentId, classId }: RadarChartTabProps) {
                   
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: 'hsl(222, 47%, 11%)',
+                      border: '1px solid #8B5CF6',
                       borderRadius: '8px',
                       fontSize: '12px',
+                      color: '#F8FAFC',
                     }}
-                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4, color: '#F8FAFC' }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '12px', color: '#E2E8F0' }}
                     iconType="circle"
-                    iconSize={8}
+                    iconSize={10}
                   />
                 </RadarChart>
               </ResponsiveContainer>
