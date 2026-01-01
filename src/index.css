@@ -38,83 +38,86 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Apple-style liquid glass base colors - ultra light and airy */
-    --background: 220 30% 98%;
-    --foreground: 215 25% 15%;
+    /* Premium Kids EduTech - Bright, friendly, and sophisticated */
+    --background: 250 30% 98%;
+    --foreground: 250 25% 15%;
 
-    /* Ultra-translucent glass surfaces */
+    /* Clean glass surfaces with playful warmth */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
-    --card-glass: 0 0% 100% / 0.5;
+    --card-foreground: 250 25% 15%;
+    --card-glass: 0 0% 100% / 0.6;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
-    --popover-glass: 0 0% 100% / 0.6;
+    --popover-foreground: 250 25% 15%;
+    --popover-glass: 0 0% 100% / 0.7;
 
-    /* Hot red primary - vibrant and bold */
-    --primary: 0 90% 55%;
+    /* Vibrant violet primary - playful yet premium */
+    --primary: 265 85% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glass: 0 90% 55% / 0.08;
+    --primary-glass: 265 85% 60% / 0.1;
     
-    --secondary: 215 25% 97%;
-    --secondary-foreground: 215 25% 20%;
-    --secondary-glass: 215 25% 97% / 0.4;
+    --secondary: 180 60% 95%;
+    --secondary-foreground: 180 50% 25%;
+    --secondary-glass: 180 60% 95% / 0.5;
 
-    --muted: 215 20% 95%;
-    --muted-foreground: 215 15% 50%;
-    --muted-glass: 215 20% 95% / 0.3;
+    --muted: 250 20% 95%;
+    --muted-foreground: 250 15% 45%;
+    --muted-glass: 250 20% 95% / 0.4;
 
-    --accent: 0 90% 55%;
+    /* Energetic teal accent */
+    --accent: 175 75% 45%;
     --accent-foreground: 0 0% 100%;
-    --accent-glass: 0 90% 55% / 0.06;
+    --accent-glass: 175 75% 45% / 0.08;
 
-    --destructive: 0 100% 67%;
+    --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-glass: 0 100% 67% / 0.08;
+    --destructive-glass: 0 85% 60% / 0.1;
     
-    --success: 150 80% 45%;
+    /* Fresh green success */
+    --success: 155 75% 45%;
     --success-foreground: 0 0% 100%;
-    --success-glass: 150 80% 45% / 0.08;
+    --success-glass: 155 75% 45% / 0.1;
     
-    --warning: 35 100% 55%;
+    /* Sunny orange warning */
+    --warning: 38 95% 55%;
     --warning-foreground: 0 0% 100%;
-    --warning-glass: 35 100% 55% / 0.08;
+    --warning-glass: 38 95% 55% / 0.1;
 
-    --border: 215 20% 90% / 0.3;
-    --border-glass: 0 0% 100% / 0.12;
-    --input: 215 20% 93%;
-    --ring: 0 90% 55%;
+    --border: 250 25% 88%;
+    --border-glass: 0 0% 100% / 0.15;
+    --input: 250 20% 94%;
+    --ring: 265 85% 60%;
 
-    --radius: 1rem;
+    --radius: 1.25rem;
 
-    /* Soft, diffused glass shadows */
-    --shadow-glass: 0 10px 40px 0 rgba(0, 0, 0, 0.08);
-    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.04);
-    --shadow-glass-lg: 0 20px 60px 0 rgba(0, 0, 0, 0.12);
+    /* Soft, friendly shadows */
+    --shadow-glass: 0 12px 40px 0 rgba(120, 80, 200, 0.08);
+    --shadow-glass-sm: 0 4px 20px 0 rgba(120, 80, 200, 0.05);
+    --shadow-glass-lg: 0 24px 60px 0 rgba(120, 80, 200, 0.12);
 
-    --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 215 20% 25%;
-    --sidebar-primary: 0 90% 55%;
+    --sidebar-background: 250 25% 99%;
+    --sidebar-foreground: 250 20% 25%;
+    --sidebar-primary: 265 85% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 96%;
-    --sidebar-accent-foreground: 215 25% 20%;
-    --sidebar-border: 215 20% 92%;
-    --sidebar-ring: 0 90% 55%;
-    --sidebar-glass: 0 0% 99% / 0.5;
+    --sidebar-accent: 180 50% 96%;
+    --sidebar-accent-foreground: 180 45% 25%;
+    --sidebar-border: 250 20% 90%;
+    --sidebar-ring: 265 85% 60%;
+    --sidebar-glass: 250 25% 99% / 0.6;
     
-    /* Liquid gradient colors - hot red theme */
-    --gradient-start: 0 90% 55%;
-    --gradient-middle: 350 90% 50%;
-    --gradient-end: 15 95% 55%;
-    --gradient-accent: 330 85% 55%;
+    /* Playful gradient colors - violet to teal spectrum */
+    --gradient-start: 265 85% 60%;
+    --gradient-middle: 220 85% 60%;
+    --gradient-end: 175 75% 50%;
+    --gradient-accent: 38 95% 55%;
     
-    /* Leaderboard vibrant pink theme */
-  --leaderboard-bg: 220 40% 15%;
-  --leaderboard-text: 0 0% 100%;
-  --leaderboard-glass: 0 0% 100%;
-  --leaderboard-glass-border: 0 0% 80%;
-  --leaderboard-gradient-start: 45 100% 51%;
-  --leaderboard-gradient-end: 28 100% 63%;
+    /* Leaderboard fun theme */
+    --leaderboard-bg: 265 45% 20%;
+    --leaderboard-text: 0 0% 100%;
+    --leaderboard-glass: 0 0% 100%;
+    --leaderboard-glass-border: 0 0% 85%;
+    --leaderboard-gradient-start: 45 100% 55%;
+    --leaderboard-gradient-end: 38 100% 60%;
   
   /* Space theme animations */
   @keyframes float-gentle {
@@ -170,73 +173,73 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Apple dark mode - deep and rich */
-    --background: 215 30% 6%;
-    --foreground: 215 20% 95%;
+    /* Premium Kids EduTech - Dark mode with playful depth */
+    --background: 260 35% 8%;
+    --foreground: 250 20% 95%;
 
-    --card: 215 30% 8%;
-    --card-foreground: 215 20% 95%;
-    --card-glass: 215 30% 8% / 0.5;
+    --card: 260 30% 12%;
+    --card-foreground: 250 20% 95%;
+    --card-glass: 260 30% 12% / 0.6;
 
-    --popover: 215 30% 8%;
-    --popover-foreground: 215 20% 95%;
-    --popover-glass: 215 30% 8% / 0.6;
+    --popover: 260 30% 12%;
+    --popover-foreground: 250 20% 95%;
+    --popover-glass: 260 30% 12% / 0.7;
 
-    --primary: 0 90% 55%;
+    --primary: 265 85% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-glass: 0 90% 55% / 0.12;
+    --primary-glass: 265 85% 65% / 0.15;
 
-    --secondary: 215 25% 12%;
-    --secondary-foreground: 215 20% 90%;
-    --secondary-glass: 215 25% 12% / 0.4;
+    --secondary: 180 40% 15%;
+    --secondary-foreground: 180 50% 90%;
+    --secondary-glass: 180 40% 15% / 0.5;
 
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 15% 60%;
-    --muted-glass: 215 25% 12% / 0.3;
+    --muted: 260 25% 15%;
+    --muted-foreground: 250 15% 60%;
+    --muted-glass: 260 25% 15% / 0.4;
 
-    --accent: 0 90% 55%;
+    --accent: 175 70% 50%;
     --accent-foreground: 0 0% 100%;
-    --accent-glass: 0 90% 55% / 0.1;
+    --accent-glass: 175 70% 50% / 0.12;
 
-    --destructive: 0 100% 67%;
+    --destructive: 0 80% 60%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-glass: 0 100% 67% / 0.12;
+    --destructive-glass: 0 80% 60% / 0.15;
     
-    --success: 150 80% 45%;
+    --success: 155 70% 50%;
     --success-foreground: 0 0% 100%;
-    --success-glass: 150 80% 45% / 0.12;
+    --success-glass: 155 70% 50% / 0.15;
     
-    --warning: 35 100% 55%;
+    --warning: 38 90% 55%;
     --warning-foreground: 0 0% 100%;
-    --warning-glass: 35 100% 55% / 0.12;
+    --warning-glass: 38 90% 55% / 0.15;
 
-    --border: 215 20% 20% / 0.3;
-    --border-glass: 0 0% 100% / 0.08;
-    --input: 215 25% 12%;
-    --ring: 0 90% 55%;
+    --border: 260 25% 22%;
+    --border-glass: 0 0% 100% / 0.1;
+    --input: 260 25% 15%;
+    --ring: 265 85% 65%;
 
-    --shadow-glass: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
-    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
-    --shadow-glass-lg: 0 20px 60px 0 rgba(0, 0, 0, 0.6);
+    --shadow-glass: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.35);
+    --shadow-glass-lg: 0 24px 60px 0 rgba(0, 0, 0, 0.6);
 
-    --sidebar-background: 215 30% 8%;
-    --sidebar-foreground: 215 20% 90%;
-    --sidebar-primary: 0 90% 55%;
+    --sidebar-background: 260 30% 10%;
+    --sidebar-foreground: 250 20% 90%;
+    --sidebar-primary: 265 85% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 12%;
-    --sidebar-accent-foreground: 215 20% 90%;
-    --sidebar-border: 215 20% 15%;
-    --sidebar-ring: 0 90% 55%;
-    --sidebar-glass: 215 30% 8% / 0.5;
+    --sidebar-accent: 180 35% 15%;
+    --sidebar-accent-foreground: 180 45% 90%;
+    --sidebar-border: 260 25% 18%;
+    --sidebar-ring: 265 85% 65%;
+    --sidebar-glass: 260 30% 10% / 0.6;
     
-    /* Liquid gradient colors - hot red theme */
-    --gradient-start: 0 90% 55%;
-    --gradient-middle: 350 90% 50%;
-    --gradient-end: 15 95% 55%;
-    --gradient-accent: 330 85% 55%;
+    /* Playful gradient colors - dark mode spectrum */
+    --gradient-start: 265 85% 65%;
+    --gradient-middle: 220 80% 60%;
+    --gradient-end: 175 70% 55%;
+    --gradient-accent: 38 90% 55%;
     
-    /* Leaderboard vibrant pink theme */
-    --leaderboard-pink: 310 93% 50%;
+    /* Leaderboard fun theme - dark */
+    --leaderboard-pink: 265 85% 55%;
     --leaderboard-text: 0 0% 100%;
   }
 }
