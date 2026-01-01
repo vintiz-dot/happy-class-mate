@@ -2,21 +2,8 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
-import { Book, Pencil, Headphones, Sword, Users, Shield, Loader2 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ReferenceLine,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { Book, Pencil, Headphones, MessageSquare, Users, Shield, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface PerformanceHeatmapTabProps {
   studentId: string;
@@ -24,7 +11,7 @@ interface PerformanceHeatmapTabProps {
   selectedMonth: string; // YYYY-MM format
 }
 
-const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "personal"] as const;
+const SKILLS = ["reading", "writing", "listening", "speaking", "teamwork", "focus"] as const;
 
 const SKILL_LABELS: Record<string, string> = {
   reading: "Reading",
@@ -32,36 +19,43 @@ const SKILL_LABELS: Record<string, string> = {
   listening: "Listening",
   speaking: "Speaking",
   teamwork: "Teamwork",
-  personal: "Personal",
+  focus: "Focus",
 };
 
 const SKILL_COLORS: Record<string, string> = {
-  reading: "#8B5CF6",    // Purple
-  writing: "#F59E0B",    // Amber
-  listening: "#10B981",  // Green
-  speaking: "#EF4444",   // Red
-  teamwork: "#3B82F6",   // Blue
-  personal: "#EC4899",   // Pink
+  reading: "#8B5CF6",
+  writing: "#F59E0B",
+  listening: "#10B981",
+  speaking: "#EF4444",
+  teamwork: "#3B82F6",
+  focus: "#EC4899",
 };
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
-  reading: <Book className="h-3.5 w-3.5" />,
-  writing: <Pencil className="h-3.5 w-3.5" />,
-  listening: <Headphones className="h-3.5 w-3.5" />,
-  speaking: <Sword className="h-3.5 w-3.5" />,
-  teamwork: <Users className="h-3.5 w-3.5" />,
-  personal: <Shield className="h-3.5 w-3.5" />,
+  reading: <Book className="h-5 w-5" />,
+  writing: <Pencil className="h-5 w-5" />,
+  listening: <Headphones className="h-5 w-5" />,
+  speaking: <MessageSquare className="h-5 w-5" />,
+  teamwork: <Users className="h-5 w-5" />,
+  focus: <Shield className="h-5 w-5" />,
+};
+
+const getScoreEmoji = (score: number) => {
+  if (score >= 90) return "🌟";
+  if (score >= 80) return "⭐";
+  if (score >= 70) return "✨";
+  if (score >= 50) return "💪";
+  if (score > 0) return "🎯";
+  return "";
 };
 
 export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: PerformanceHeatmapTabProps) {
-  // Calculate month date range
   const monthStart = startOfMonth(parse(selectedMonth, "yyyy-MM", new Date()));
   const monthEnd = endOfMonth(monthStart);
   const monthStartStr = format(monthStart, "yyyy-MM-dd");
   const monthEndStr = format(monthEnd, "yyyy-MM-dd");
   const monthLabel = format(monthStart, "MMMM yyyy");
 
-  // Fetch session dates for this class in the selected month
   const { data: sessionDates, isLoading: sessionsLoading } = useQuery({
     queryKey: ["class-session-dates", classId, selectedMonth],
     queryFn: async () => {
@@ -76,7 +70,6 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
 
       if (error) throw error;
 
-      // Return unique dates as Date objects
       const uniqueDates = [...new Set(data?.map((s) => s.date) || [])];
       return uniqueDates.map((d) => new Date(d + "T00:00:00"));
     },
@@ -105,37 +98,29 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
     },
   });
 
-  // Transform data for chart
-  const chartData = useMemo(() => {
-    if (!sessionDates || !assessments) return [];
+  // Calculate best scores for each skill
+  const bestScoresData = useMemo(() => {
+    if (!assessments) return [];
 
-    return sessionDates.map((date) => {
-      const dateStr = format(date, "yyyy-MM-dd");
-      const dataPoint: Record<string, string | number | null> = {
-        date: format(date, "MMM d"),
-        fullDate: dateStr,
-      };
+    const bestScores: Record<string, number> = {};
 
-      SKILLS.forEach((skill) => {
-        const key = `${dateStr}-${skill}`;
-        dataPoint[skill] = assessments[key]?.score ?? null;
-      });
-
-      return dataPoint;
+    Object.entries(assessments).forEach(([key, value]) => {
+      const skill = key.split("-").pop() || "";
+      if (SKILLS.includes(skill as typeof SKILLS[number])) {
+        if (!bestScores[skill] || value.score > bestScores[skill]) {
+          bestScores[skill] = value.score;
+        }
+      }
     });
-  }, [sessionDates, assessments]);
 
-  // Chart configuration
-  const chartConfig = useMemo(() => {
-    const config: Record<string, { label: string; color: string }> = {};
-    SKILLS.forEach((skill) => {
-      config[skill] = {
-        label: SKILL_LABELS[skill],
-        color: SKILL_COLORS[skill],
-      };
-    });
-    return config;
-  }, []);
+    return SKILLS.map((skill) => ({
+      skill,
+      label: SKILL_LABELS[skill],
+      score: bestScores[skill] || 0,
+      color: SKILL_COLORS[skill],
+      icon: SKILL_ICONS[skill],
+    }));
+  }, [assessments]);
 
   const hasData = assessments && Object.keys(assessments).length > 0;
   const hasSessions = sessionDates && sessionDates.length > 0;
@@ -159,129 +144,111 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
   }
 
   return (
-    <div className="space-y-4">
-      {/* Skill Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        {SKILLS.map((skill) => (
-          <div
-            key={skill}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/50 border border-border"
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="text-center">
+        <h3 className="text-lg font-black text-foreground flex items-center justify-center gap-2">
+          <span className="text-2xl">🏆</span>
+          Best Scores This Month
+          <span className="text-2xl">🏆</span>
+        </h3>
+        <p className="text-sm text-muted-foreground">Your highest score for each skill!</p>
+      </div>
+
+      {/* Animated Skill Bars */}
+      <div className="space-y-3 px-2">
+        {bestScoresData.map((skill, index) => (
+          <motion.div
+            key={skill.skill}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.08, type: "spring", bounce: 0.4 }}
+            className="flex items-center gap-3"
           >
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: SKILL_COLORS[skill] }}
-            />
-            <span style={{ color: SKILL_COLORS[skill] }}>{SKILL_ICONS[skill]}</span>
-            <span className="text-xs text-foreground font-medium">{SKILL_LABELS[skill]}</span>
-          </div>
+            {/* Skill Icon Badge */}
+            <motion.div
+              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md shrink-0"
+              style={{
+                backgroundColor: skill.color + "20",
+                border: `2px solid ${skill.color}`,
+              }}
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              <span style={{ color: skill.color }}>{skill.icon}</span>
+            </motion.div>
+
+            {/* Skill Name */}
+            <div className="w-20 shrink-0">
+              <span className="text-sm font-bold text-foreground">{skill.label}</span>
+            </div>
+
+            {/* Animated Progress Bar */}
+            <div className="flex-1 h-9 bg-muted/30 rounded-full overflow-hidden relative border border-border/50">
+              <motion.div
+                className="h-full rounded-full relative overflow-hidden"
+                style={{ backgroundColor: skill.color }}
+                initial={{ width: 0 }}
+                animate={{ width: `${skill.score}%` }}
+                transition={{
+                  delay: index * 0.08 + 0.2,
+                  duration: 0.8,
+                  type: "spring",
+                  bounce: 0.3,
+                }}
+              >
+                {/* Shine effect */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                  animate={{ x: ["-100%", "200%"] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: index * 0.15 + 1,
+                    ease: "easeInOut",
+                  }}
+                />
+              </motion.div>
+
+              {/* Score badge */}
+              <motion.div
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.08 + 0.5, type: "spring" }}
+              >
+                <span className="text-sm font-black text-foreground">{skill.score}</span>
+                <span className="text-base">{getScoreEmoji(skill.score)}</span>
+              </motion.div>
+            </div>
+          </motion.div>
         ))}
       </div>
 
-      {/* Trend Line Chart */}
-      <div className="h-[320px] w-full">
-        <ChartContainer config={chartConfig}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="hsl(var(--border))"
-                strokeOpacity={0.5}
-              />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
-                axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
-                tickLine={{ stroke: "hsl(var(--muted-foreground))" }}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
-                axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
-                tickLine={{ stroke: "hsl(var(--muted-foreground))" }}
-                label={{
-                  value: "Score",
-                  angle: -90,
-                  position: "insideLeft",
-                  fill: "hsl(var(--foreground))",
-                  fontSize: 12,
-                }}
-              />
-
-              {/* Reference lines for score thresholds */}
-              <ReferenceLine
-                y={80}
-                stroke="#22C55E"
-                strokeDasharray="5 5"
-                strokeOpacity={0.6}
-              />
-              <ReferenceLine
-                y={50}
-                stroke="#EAB308"
-                strokeDasharray="5 5"
-                strokeOpacity={0.6}
-              />
-
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(label) => `Session: ${label}`}
-                  />
-                }
-              />
-
-              {/* Skill trend lines */}
-              {SKILLS.map((skill) => (
-                <Line
-                  key={skill}
-                  type="monotone"
-                  dataKey={skill}
-                  name={SKILL_LABELS[skill]}
-                  stroke={SKILL_COLORS[skill]}
-                  strokeWidth={2.5}
-                  dot={{
-                    fill: SKILL_COLORS[skill],
-                    strokeWidth: 0,
-                    r: 4,
-                  }}
-                  activeDot={{
-                    r: 6,
-                    stroke: "hsl(var(--background))",
-                    strokeWidth: 2,
-                  }}
-                  connectNulls={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </div>
-
-      {/* Threshold Legend */}
-      <div className="flex items-center justify-center gap-6 text-sm">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-6 h-0.5"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(90deg, #22C55E, #22C55E 4px, transparent 4px, transparent 8px)",
-            }}
-          />
-          <span className="text-foreground font-medium">Excellent (80+)</span>
+      {/* Score Level Legend */}
+      <motion.div
+        className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-border/50"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="text-lg">🌟</span>
+          <span className="font-medium text-foreground">Super Star (90+)</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-6 h-0.5"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(90deg, #EAB308, #EAB308 4px, transparent 4px, transparent 8px)",
-            }}
-          />
-          <span className="text-foreground font-medium">Average (50)</span>
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="text-lg">⭐</span>
+          <span className="font-medium text-foreground">Excellent (80+)</span>
         </div>
-      </div>
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="text-lg">✨</span>
+          <span className="font-medium text-foreground">Great (70+)</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="text-lg">💪</span>
+          <span className="font-medium text-foreground">Good (50+)</span>
+        </div>
+      </motion.div>
 
       {/* No Data Message */}
       {!hasData && (
@@ -290,7 +257,7 @@ export function PerformanceHeatmapTab({ studentId, classId, selectedMonth }: Per
         </div>
       )}
 
-      {/* Session Count Label */}
+      {/* Session Count */}
       <div className="text-center text-xs text-muted-foreground">
         {sessionDates.length} class session{sessionDates.length !== 1 ? "s" : ""} in {monthLabel}
       </div>
