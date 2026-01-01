@@ -322,12 +322,12 @@ export function PerformanceHeatmapTab({
         transition={{ delay: 0.1 }}
       >
         <span className="text-sm text-muted-foreground">Compare with:</span>
-        <Select value={compareStudentId || ""} onValueChange={(v) => setCompareStudentId(v || null)}>
+        <Select value={compareStudentId || "_none"} onValueChange={(v) => setCompareStudentId(v === "_none" ? null : v)}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select classmate" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">None</SelectItem>
+            <SelectItem value="_none">None</SelectItem>
             {classStudents?.filter((s) => s.id !== studentId).map((s) => (
               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
