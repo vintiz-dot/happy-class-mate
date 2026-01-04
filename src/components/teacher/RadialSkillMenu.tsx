@@ -13,13 +13,13 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
   const [stage, setStage] = useState<"main" | "correction-reasons" | "correction-points">("main");
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
-  const handleSkillTap = (skill: string, points: number, subTag?: string) => {
-    onSkillTap(skill, points, subTag);
+  const handleSkillTap = (skill: string, points: number) => {
+    onSkillTap(skill, points);
     onClose();
   };
 
-  const handleBehaviorTap = (behavior: string, points: number, subTag?: string) => {
-    onSkillTap(behavior, points, subTag);
+  const handleBehaviorTap = (behavior: string, points: number) => {
+    onSkillTap(behavior, points);
     onClose();
   };
 
@@ -116,7 +116,6 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
             icon={config.icon}
             label={config.label}
             skill={key}
-            subTags={config.subTags}
             variant="positive"
             onTap={handleSkillTap}
           />
@@ -131,7 +130,6 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
             icon={config.icon}
             label={config.label}
             skill={key}
-            subTags={config.subTags}
             variant="positive"
             onTap={handleBehaviorTap}
           />
