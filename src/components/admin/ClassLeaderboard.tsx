@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Medal, Award, Users, X, CheckSquare } from "lucide-react";
+import { Trophy, Medal, Award, Users, X, CheckSquare, BookOpen, Zap } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,8 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
     name: string;
     avatarUrl?: string | null;
     totalPoints: number;
+    homeworkPoints: number;
+    participationPoints: number;
     rank: number;
     selectedMonth: string;
   } | null>(null);
@@ -278,6 +280,8 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                   name: entry.students?.full_name,
                   avatarUrl: entry.students?.avatar_url,
                   totalPoints: entry.total_points,
+                  homeworkPoints: entry.homework_points || 0,
+                  participationPoints: entry.participation_points || 0,
                   rank: entry.rank,
                   selectedMonth,
                 });
@@ -334,6 +338,14 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                     <p className="text-leaderboard-text text-xl md:text-4xl font-black drop-shadow-lg">
                       {entry.total_points}
                     </p>
+                    <div className="flex items-center gap-2 text-[10px] md:text-xs text-leaderboard-text/70 mt-1">
+                      <span className="flex items-center gap-0.5" title="Homework">
+                        <BookOpen className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.homework_points || 0}
+                      </span>
+                      <span className="flex items-center gap-0.5" title="Participation">
+                        <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.participation_points || 0}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
               );
@@ -343,11 +355,12 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
           {/* Ranks 4+ List */}
           {restOfList.length > 0 && (
             <div className="relative z-10 glass-panel rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
-              <div className="grid grid-cols-[30px_40px_1fr_50px] md:grid-cols-[40px_80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
+              <div className="grid grid-cols-[30px_40px_1fr_60px_50px] md:grid-cols-[40px_80px_1fr_100px_80px] gap-1 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
                 <div></div>
                 <div>RANK</div>
                 <div>NAME</div>
-                <div className="text-right">SCORE</div>
+                <div className="text-center">BREAKDOWN</div>
+                <div className="text-right">TOTAL</div>
               </div>
               <div className="divide-y divide-leaderboard-glassBorder/20">
                 {restOfList.map((entry: any) => {
@@ -364,6 +377,8 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                       name: entry.students?.full_name,
                       avatarUrl: entry.students?.avatar_url,
                       totalPoints: entry.total_points,
+                      homeworkPoints: entry.homework_points || 0,
+                      participationPoints: entry.participation_points || 0,
                       rank: entry.rank,
                       selectedMonth,
                     });
@@ -372,7 +387,7 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                   return (
                     <motion.div
                       key={entry.id}
-                      className={`grid grid-cols-[30px_40px_1fr_50px] md:grid-cols-[40px_80px_1fr_100px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
+                      className={`grid grid-cols-[30px_40px_1fr_60px_50px] md:grid-cols-[40px_80px_1fr_100px_80px] gap-1 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
                         isSelected ? 'bg-primary/20' : ''
                       }`}
                       onClick={handleOpenAnalytics}
@@ -397,6 +412,15 @@ export function ClassLeaderboard({ classId, showAddPoints = true }: ClassLeaderb
                           </AvatarFallback>
                         </Avatar>
                         <span className="font-semibold text-leaderboard-text truncate text-sm md:text-base">{entry.students?.full_name}</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs text-leaderboard-text/70">
+                        <span className="flex items-center gap-0.5" title="Homework">
+                          <BookOpen className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.homework_points || 0}
+                        </span>
+                        <span>/</span>
+                        <span className="flex items-center gap-0.5" title="Participation">
+                          <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.participation_points || 0}
+                        </span>
                       </div>
                       <div className="flex items-center justify-end">
                         <span className="text-sm md:text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
