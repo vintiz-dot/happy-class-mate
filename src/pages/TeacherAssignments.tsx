@@ -34,8 +34,11 @@ export default function TeacherAssignments() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="create" className="space-y-4 md:space-y-6 mt-4">
-            <AssignmentUpload />
+<TabsContent value="create" className="space-y-4 md:space-y-6 mt-4">
+            <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border p-4">
+              <ClassSelector value={selectedClassId} onChange={setSelectedClassId} />
+            </div>
+            <AssignmentUpload classFilter={selectedClassId} />
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
@@ -48,53 +51,57 @@ export default function TeacherAssignments() {
             <AssignmentCalendar role="teacher" classId={selectedClassId} />
           </TabsContent>
 
-          <TabsContent value="grade" className="space-y-4 md:space-y-6 mt-4">
-            {/* Status Filter */}
-            <div className="flex flex-col gap-3 p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                <p className="text-sm font-semibold">Filter by status</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                  className="flex-1 sm:flex-none min-h-[44px] rounded-full"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={statusFilter === "not_submitted" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("not_submitted")}
-                  className="flex-1 sm:flex-none min-h-[44px] rounded-full"
-                >
-                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 mr-2" />
-                  Not Submitted
-                </Button>
-                <Button
-                  variant={statusFilter === "submitted" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("submitted")}
-                  className="flex-1 sm:flex-none min-h-[44px] rounded-full"
-                >
-                  <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2" />
-                  Submitted
-                </Button>
-                <Button
-                  variant={statusFilter === "graded" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("graded")}
-                  className="flex-1 sm:flex-none min-h-[44px] rounded-full"
-                >
-                  <div className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-                  Graded
-                </Button>
+<TabsContent value="grade" className="space-y-4 md:space-y-6 mt-4">
+            {/* Filters */}
+            <div className="flex flex-col gap-4 p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl border">
+              <ClassSelector value={selectedClassId} onChange={setSelectedClassId} />
+              
+              <div className="pt-3 border-t">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="h-4 w-4" />
+                  <p className="text-sm font-semibold">Filter by status</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={statusFilter === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("all")}
+                    className="flex-1 sm:flex-none min-h-[44px] rounded-full"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={statusFilter === "not_submitted" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("not_submitted")}
+                    className="flex-1 sm:flex-none min-h-[44px] rounded-full"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 mr-2" />
+                    Not Submitted
+                  </Button>
+                  <Button
+                    variant={statusFilter === "submitted" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("submitted")}
+                    className="flex-1 sm:flex-none min-h-[44px] rounded-full"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2" />
+                    Submitted
+                  </Button>
+                  <Button
+                    variant={statusFilter === "graded" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("graded")}
+                    className="flex-1 sm:flex-none min-h-[44px] rounded-full"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+                    Graded
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <HomeworkGradingList statusFilter={statusFilter} />
+            <HomeworkGradingList statusFilter={statusFilter} classFilter={selectedClassId} />
           </TabsContent>
         </Tabs>
       </div>

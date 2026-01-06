@@ -15,9 +15,10 @@ import { sanitizeHtml } from "@/lib/sanitize";
 
 interface HomeworkGradingListProps {
   statusFilter?: string;
+  classFilter?: string;
 }
 
-export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingListProps) {
+export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" }: HomeworkGradingListProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [grade, setGrade] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -162,6 +163,11 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Loading submissions...</div>;
 
   const filteredSubmissions = submissions.filter((submission: any) => {
+    // Class filter
+    if (classFilter && classFilter !== "all") {
+      if (submission.homeworks?.class_id !== classFilter) return false;
+    }
+    // Status filter
     if (statusFilter === "all") return true;
     if (statusFilter === "not_submitted") return !submission.submitted_at;
     if (statusFilter === "submitted") return submission.submitted_at && !submission.grade;
