@@ -36,6 +36,8 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
     name: string;
     avatarUrl?: string | null;
     totalPoints: number;
+    homeworkPoints: number;
+    participationPoints: number;
     rank: number;
     selectedMonth: string;
   } | null>(null);
@@ -278,6 +280,8 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       name: entry.students?.full_name,
                       avatarUrl: entry.students?.avatar_url,
                       totalPoints: entry.total_points,
+                      homeworkPoints: entry.homework_points || 0,
+                      participationPoints: entry.participation_points || 0,
                       rank: entry.rank,
                       selectedMonth,
                     });
@@ -381,6 +385,8 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       name: entry.students?.full_name,
                       avatarUrl: entry.students?.avatar_url,
                       totalPoints: entry.total_points,
+                      homeworkPoints: entry.homework_points || 0,
+                      participationPoints: entry.participation_points || 0,
                       rank: entry.rank,
                       selectedMonth,
                     });

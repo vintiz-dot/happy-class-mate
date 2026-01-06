@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sword, BookOpen, TrendingUp, Sparkles } from "lucide-react";
+import { X, Sword, BookOpen, TrendingUp, Sparkles, Zap } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,6 +21,8 @@ interface StudentAnalyticsModalProps {
     name: string;
     avatarUrl?: string | null;
     totalPoints: number;
+    homeworkPoints?: number;
+    participationPoints?: number;
     rank: number;
   } | null;
   classId: string;
@@ -212,6 +214,25 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                         animate={{ opacity: [0.3, 0.6, 0.3] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                       />
+                    </div>
+                  </motion.div>
+
+                  {/* Points Breakdown */}
+                  <motion.div
+                    className="flex justify-center gap-4 mt-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <div className="flex items-center gap-1.5 bg-primary/10 rounded-full px-3 py-1.5">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-sm">{student.homeworkPoints || 0}</span>
+                      <span className="text-muted-foreground text-xs">Homework</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-amber-500/10 rounded-full px-3 py-1.5">
+                      <Zap className="h-4 w-4 text-amber-500" />
+                      <span className="font-semibold text-sm">{student.participationPoints || 0}</span>
+                      <span className="text-muted-foreground text-xs">Participation</span>
                     </div>
                   </motion.div>
                 </div>
