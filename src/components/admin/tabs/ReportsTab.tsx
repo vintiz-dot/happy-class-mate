@@ -24,24 +24,60 @@ const ReportsTab = () => {
     return options;
   };
 
-  // Fetch cancelled sessions count
-  const { data: cancelledSessions } = useQuery({
-    queryKey: ["cancelled-sessions", selectedMonth],
+  // Fetch cancelled sessions count and lost profit calculation
+  const { data: lostRevenue } = useQuery({
+    queryKey: ["lost-revenue", selectedMonth],
     queryFn: async () => {
       const monthStart = `${selectedMonth}-01`;
       const nextMonth = new Date(monthStart);
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      const { data, error } = await supabase
+      // Get cancelled sessions with class and teacher info
+      const { data: cancelledSessions, error } = await supabase
         .from("sessions")
-        .select("id, class_id, classes(name)")
+        .select(`
+          id, date, start_time, end_time,
+          classes (id, name, session_rate_vnd),
+          teachers (id, hourly_rate_vnd)
+        `)
         .eq("status", "Canceled")
         .gte("date", monthStart)
         .lt("date", monthEnd);
 
       if (error) throw error;
-      return data || [];
+
+      let totalLostTuition = 0;
+      let totalLostPayroll = 0;
+
+      for (const session of cancelledSessions || []) {
+        // Calculate session duration in hours
+        const [startHr, startMin] = session.start_time.split(':').map(Number);
+        const [endHr, endMin] = session.end_time.split(':').map(Number);
+        const hours = ((endHr * 60 + endMin) - (startHr * 60 + startMin)) / 60;
+
+        // Get enrolled student count for this class at time of session
+        const { count } = await supabase
+          .from("enrollments")
+          .select("*", { count: "exact", head: true })
+          .eq("class_id", session.classes?.id)
+          .lte("start_date", session.date)
+          .or(`end_date.is.null,end_date.gte.${session.date}`);
+
+        const studentCount = count || 0;
+        const sessionRate = session.classes?.session_rate_vnd || 0;
+        const teacherHourlyRate = session.teachers?.hourly_rate_vnd || 0;
+
+        totalLostTuition += sessionRate * studentCount;
+        totalLostPayroll += teacherHourlyRate * hours;
+      }
+
+      return {
+        lostProfit: totalLostTuition - totalLostPayroll,
+        lostTuition: totalLostTuition,
+        savedPayroll: totalLostPayroll,
+        sessionCount: cancelledSessions?.length || 0
+      };
     },
   });
 
@@ -138,7 +174,6 @@ const ReportsTab = () => {
     },
   });
 
-  const totalCancelled = cancelledSessions?.length || 0;
   const totalTuition = classFinance?.reduce((sum, c) => sum + c.tuition, 0) || 0;
   const totalPayroll = classFinance?.reduce((sum, c) => sum + c.payroll, 0) || 0;
   const totalNet = classFinance?.reduce((sum, c) => sum + c.net, 0) || 0;
@@ -162,21 +197,44 @@ const ReportsTab = () => {
         </Select>
       </div>
 
-      {/* Cancelled Classes Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-destructive" />
-            Cancelled Sessions
-          </CardTitle>
-          <CardDescription>
-            Total sessions cancelled in {getMonthOptions().find(o => o.value === selectedMonth)?.label}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-4xl font-bold text-destructive">{totalCancelled}</div>
-        </CardContent>
-      </Card>
+      {/* Cancelled Sessions & Lost Profit Summary */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              Cancelled Sessions
+            </CardTitle>
+            <CardDescription>
+              Total sessions cancelled in {getMonthOptions().find(o => o.value === selectedMonth)?.label}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-destructive">{lostRevenue?.sessionCount || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-orange-500/30 bg-orange-50 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-orange-600" />
+              Lost Profit
+            </CardTitle>
+            <CardDescription>
+              Potential profit lost from cancelled sessions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-orange-600">
+              {formatVND(lostRevenue?.lostProfit || 0)}
+            </div>
+            <div className="text-sm text-muted-foreground mt-2 space-y-1">
+              <p>Lost Tuition: {formatVND(lostRevenue?.lostTuition || 0)}</p>
+              <p>Saved Payroll: {formatVND(lostRevenue?.savedPayroll || 0)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Payment Details Section */}
       <Card>

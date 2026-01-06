@@ -6,7 +6,7 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, TrendingDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -52,6 +52,41 @@ export default function TeacherPayroll() {
         payrollResult: teacherPayroll,
         hourlyRate: teacher.hourly_rate_vnd,
         teacherId: teacher.id,
+      };
+    },
+  });
+
+  // Fetch lost income from cancelled sessions
+  const { data: lostIncome } = useQuery({
+    queryKey: ["teacher-lost-income", month, payrollData?.teacherId],
+    enabled: !!payrollData?.teacherId,
+    queryFn: async () => {
+      const monthStart = `${month}-01`;
+      const nextMonth = dayjs(month).add(1, "month").format("YYYY-MM");
+      const monthEnd = `${nextMonth}-01`;
+
+      const { data: cancelledSessions, error } = await supabase
+        .from("sessions")
+        .select("id, date, start_time, end_time, classes(name)")
+        .eq("teacher_id", payrollData!.teacherId)
+        .eq("status", "Canceled")
+        .gte("date", monthStart)
+        .lt("date", monthEnd);
+
+      if (error) throw error;
+
+      let totalLostMinutes = 0;
+      for (const session of cancelledSessions || []) {
+        const [startHr, startMin] = session.start_time.split(':').map(Number);
+        const [endHr, endMin] = session.end_time.split(':').map(Number);
+        totalLostMinutes += (endHr * 60 + endMin) - (startHr * 60 + startMin);
+      }
+
+      const hourlyRate = payrollData?.hourlyRate || 0;
+      return {
+        totalLostHours: totalLostMinutes / 60,
+        totalLostAmount: (totalLostMinutes / 60) * hourlyRate,
+        sessionCount: cancelledSessions?.length || 0
       };
     },
   });
@@ -190,7 +225,7 @@ export default function TeacherPayroll() {
           </Card>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Held Sessions</CardDescription>
@@ -218,6 +253,20 @@ export default function TeacherPayroll() {
                 </CardHeader>
                 <CardContent className="text-xs text-muted-foreground">
                   +{projectedEarnings.toLocaleString()} ₫ from {scheduledSessionsCount} scheduled
+                </CardContent>
+              </Card>
+              <Card className="border-orange-500/30 bg-orange-50 dark:bg-orange-950/20">
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1 text-orange-600">
+                    <TrendingDown className="h-3 w-3" />
+                    Lost Income
+                  </CardDescription>
+                  <CardTitle className="text-3xl text-orange-600">
+                    {(lostIncome?.totalLostAmount || 0).toLocaleString()} ₫
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs text-muted-foreground">
+                  {lostIncome?.sessionCount || 0} cancelled ({(lostIncome?.totalLostHours || 0).toFixed(1)} hrs)
                 </CardContent>
               </Card>
             </div>
