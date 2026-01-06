@@ -10,6 +10,7 @@ export interface AwardPointsParams {
   subTag?: string;
   homeworkId?: string;
   homeworkTitle?: string;
+  homeworkDueDate?: string;
   notes?: string;
   sessionId?: string;
 }
@@ -26,7 +27,7 @@ export interface AwardPointsResult {
  * Handles dual-insert: skill_assessments (for skills) + point_transactions (always).
  */
 export async function awardPoints(params: AwardPointsParams): Promise<AwardPointsResult> {
-  const { studentIds, classId, skill, points, subTag, homeworkId, homeworkTitle, notes, sessionId } = params;
+  const { studentIds, classId, skill, points, subTag, homeworkId, homeworkTitle, homeworkDueDate, notes, sessionId } = params;
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -34,9 +35,13 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
   const today = new Date().toISOString().slice(0, 10);
   const currentMonth = monthKey();
   
+  // For homework, use the due date for month attribution if provided
+  const isHomework = skill === "homework";
+  const effectiveDate = (isHomework && homeworkDueDate) ? homeworkDueDate : today;
+  const effectiveMonth = effectiveDate.slice(0, 7);
+  
   // Determine transaction type
   const shouldTrackSkill = shouldTrackInSkillAssessments(skill);
-  const isHomework = skill === "homework";
   const isCorrection = skill === "correction";
   const isAdjustment = skill === "adjustment";
   
@@ -68,14 +73,15 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
   })) : [];
 
   // Prepare point_transactions records (always)
+  // Use effectiveDate/Month for homework, today/currentMonth for others
   const pointTransactions = studentIds.map(studentId => ({
     student_id: studentId,
     class_id: classId,
     session_id: sessionId || null,
     type: transactionType,
     points: points,
-    date: today,
-    month: currentMonth,
+    date: effectiveDate,
+    month: effectiveMonth,
     notes: displayNotes,
     created_by: user.id,
     homework_id: isHomework && homeworkId ? homeworkId : null,
