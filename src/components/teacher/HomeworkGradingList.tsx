@@ -96,17 +96,19 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
 
       // Create point transaction for homework (trigger will update student_points automatically)
       if (points !== undefined && points !== null) {
-        const today = new Date().toISOString().split('T')[0];
-        const month = new Date().toISOString().slice(0, 7);
         const pointsValue = parseInt(points);
         
         const { data: homework } = await supabase
           .from("homeworks")
-          .select("class_id, title")
+          .select("class_id, title, due_date")
           .eq("id", submission.homework_id)
           .single();
 
         if (homework) {
+          // Use homework due_date for month attribution, fallback to today if no due_date
+          const effectiveDate = homework.due_date || new Date().toISOString().split('T')[0];
+          const month = effectiveDate.slice(0, 7);
+          
           const { error: pointsError } = await supabase.from("point_transactions").insert({
             student_id: submission.student_id,
             class_id: homework.class_id,
@@ -114,7 +116,7 @@ export function HomeworkGradingList({ statusFilter = "all" }: HomeworkGradingLis
             homework_title: homework.title,
             points: pointsValue,
             type: 'homework',
-            date: today,
+            date: effectiveDate,
             month,
             notes: `Homework graded: ${grade}`,
           });
