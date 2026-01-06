@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sword, BookOpen, TrendingUp, Sparkles, Zap } from "lucide-react";
+import { X, Sword, BookOpen, TrendingUp, Sparkles, Zap, History } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { RadarChartTab } from "./analytics/RadarChartTab";
 import { PerformanceHeatmapTab } from "./analytics/PerformanceHeatmapTab";
 import { QuestLogTab } from "./analytics/QuestLogTab";
+import { PointHistoryTab } from "./analytics/PointHistoryTab";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parse } from "date-fns";
@@ -241,7 +242,7 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
               {/* Tabs Section */}
               <div className="p-6">
                 <Tabs defaultValue="attributes" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsList className="grid w-full grid-cols-4 mb-6">
                     <TabsTrigger value="attributes" className="flex items-center gap-2">
                       <Sword className="h-4 w-4" />
                       <span className="hidden sm:inline">Attributes</span>
@@ -253,6 +254,10 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                     <TabsTrigger value="quests" className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
                       <span className="hidden sm:inline">Quest Log</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="history" className="flex items-center gap-2">
+                      <History className="h-4 w-4" />
+                      <span className="hidden sm:inline">History</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -270,6 +275,14 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                       classId={classId} 
                       selectedMonth={selectedMonth}
                       viewerStudentId={viewerStudentId || undefined}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="history">
+                    <PointHistoryTab 
+                      studentId={student.id} 
+                      classId={classId} 
+                      selectedMonth={selectedMonth}
                     />
                   </TabsContent>
                 </Tabs>
