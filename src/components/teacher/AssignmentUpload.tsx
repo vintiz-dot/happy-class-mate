@@ -27,11 +27,16 @@ interface Homework {
   body: string | null;
   due_date: string | null;
   created_at: string;
+  class_id: string;
   classes: { name: string };
   homework_files: Array<{ file_name: string; storage_key: string }>;
 }
 
-export function AssignmentUpload() {
+interface AssignmentUploadProps {
+  classFilter?: string;
+}
+
+export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
   const [classes, setClasses] = useState<Class[]>([]);
   const [teacherId, setTeacherId] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -113,7 +118,7 @@ export function AssignmentUpload() {
       // Load homeworks for those classes
       const { data, error } = await supabase
         .from("homeworks")
-        .select("id, title, body, due_date, created_at, classes(name), homework_files(file_name, storage_key)")
+        .select("id, title, body, due_date, created_at, class_id, classes(name), homework_files(file_name, storage_key)")
         .in("class_id", classIds)
         .order("created_at", { ascending: false });
 
@@ -347,13 +352,20 @@ export function AssignmentUpload() {
           <CardDescription>View all assignments you've created</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <p className="text-center text-muted-foreground py-8">Loading assignments...</p>
-          ) : homeworks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No assignments yet. Create one above!</p>
-          ) : (
-            <div className="space-y-4">
-              {homeworks.map((hw) => (
+          {(() => {
+            const filteredHomeworks = classFilter && classFilter !== "all"
+              ? homeworks.filter(hw => hw.class_id === classFilter)
+              : homeworks;
+
+            if (loading) {
+              return <p className="text-center text-muted-foreground py-8">Loading assignments...</p>;
+            }
+            if (filteredHomeworks.length === 0) {
+              return <p className="text-center text-muted-foreground py-8">No assignments yet. Create one above!</p>;
+            }
+            return (
+              <div className="space-y-4">
+                {filteredHomeworks.map((hw) => (
                 <Card key={hw.id} className="p-4 hover:shadow-md transition-shadow">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
@@ -423,9 +435,10 @@ export function AssignmentUpload() {
                     </div>
                   </div>
                 </Card>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 
