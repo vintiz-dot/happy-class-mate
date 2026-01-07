@@ -236,7 +236,7 @@ export function ReadingTheoryScoreEntry({
           </div>
 
           {/* Students List */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="grid grid-cols-[1fr,80px,100px,60px] gap-2 px-2 py-2 bg-muted/50 rounded-t-lg text-sm font-medium text-muted-foreground">
               <span>Student</span>
               <span className="text-center">Current</span>
@@ -244,7 +244,7 @@ export function ReadingTheoryScoreEntry({
               <span className="text-center">Diff</span>
             </div>
 
-            <ScrollArea className="h-[400px] border rounded-b-lg">
+            <ScrollArea className="flex-1 border rounded-b-lg">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
