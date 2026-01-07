@@ -123,3 +123,30 @@ export async function getTodaySession(classId: string): Promise<string | null> {
   
   return data?.id || null;
 }
+
+export interface ActiveSession {
+  id: string;
+  start_time: string;
+  end_time: string;
+  class_id: string;
+}
+
+/**
+ * Get the currently active session for a class (one that is running right now)
+ */
+export async function getCurrentSession(classId: string): Promise<ActiveSession | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toTimeString().slice(0, 8); // HH:MM:SS
+  
+  const { data } = await supabase
+    .from("sessions")
+    .select("id, start_time, end_time, class_id")
+    .eq("class_id", classId)
+    .eq("date", today)
+    .in("status", ["Scheduled", "Held"])
+    .lte("start_time", now)
+    .gte("end_time", now)
+    .maybeSingle();
+  
+  return data;
+}
