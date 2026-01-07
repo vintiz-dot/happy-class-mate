@@ -10,10 +10,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus, Minus } from "lucide-react";
 import { awardPoints } from "@/lib/pointsHelper";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, READING_THEORY_CONFIG } from "@/lib/skillConfig";
 import { soundManager } from "@/lib/soundManager";
 
-type CategoryType = "skill" | "behavior" | "correction" | "adjustment";
+type CategoryType = "skill" | "behavior" | "correction" | "adjustment" | "reading_theory";
 
 export function ManualPointAdjustment() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
@@ -58,8 +58,10 @@ export function ManualPointAdjustment() {
     },
   });
 
-  // Get current skill/behavior config
-  const skillConfig = selectedSkill ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) : null;
+  // Get current skill/behavior config (includes reading_theory)
+  const skillConfig = selectedSkill 
+    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill] || (selectedSkill === "reading_theory" ? READING_THEORY_CONFIG : null)) 
+    : null;
 
   const handleSubmit = async () => {
     if (!selectedStudent || !selectedClass || !points) {
@@ -71,11 +73,11 @@ export function ManualPointAdjustment() {
       return;
     }
 
-    if (category === "skill" || category === "behavior") {
+    if (category === "skill" || category === "behavior" || category === "reading_theory") {
       if (!selectedSkill) {
         toast({
           title: "Missing skill",
-          description: "Please select a skill or behavior",
+          description: "Please select a skill, behavior, or reading theory reason",
           variant: "destructive",
         });
         return;
@@ -107,7 +109,7 @@ export function ManualPointAdjustment() {
       let skill: string;
       let subTag: string | undefined;
 
-      if (category === "skill" || category === "behavior") {
+      if (category === "skill" || category === "behavior" || category === "reading_theory") {
         skill = selectedSkill;
         subTag = selectedSubTag || undefined;
       } else if (category === "correction") {
@@ -232,6 +234,7 @@ export function ManualPointAdjustment() {
             {[
               { key: "skill", label: "Skill" },
               { key: "behavior", label: "Behavior" },
+              { key: "reading_theory", label: "Reading Theory" },
               { key: "correction", label: "Correction" },
               { key: "adjustment", label: "Adjustment" },
             ].map((cat) => (
@@ -278,6 +281,31 @@ export function ManualPointAdjustment() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Reading Theory Selection */}
+        {category === "reading_theory" && (
+          <div className="space-y-2">
+            <Label>Reading Theory Reason *</Label>
+            <Select 
+              value={selectedSubTag} 
+              onValueChange={(val) => {
+                setSelectedSkill("reading_theory");
+                setSelectedSubTag(val);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {READING_THEORY_CONFIG.subTags.map((tag) => (
+                  <SelectItem key={tag.value} value={tag.value}>
+                    {tag.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 

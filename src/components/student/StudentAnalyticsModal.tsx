@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sword, BookOpen, TrendingUp, Sparkles, Zap, History } from "lucide-react";
+import { X, Sword, BookOpen, TrendingUp, Sparkles, Zap, History, GraduationCap } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +24,7 @@ interface StudentAnalyticsModalProps {
     totalPoints: number;
     homeworkPoints?: number;
     participationPoints?: number;
+    readingTheoryPoints?: number;
     rank: number;
   } | null;
   classId: string;
@@ -228,12 +229,17 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                     <div className="flex items-center gap-1.5 bg-primary/10 rounded-full px-3 py-1.5">
                       <BookOpen className="h-4 w-4 text-primary" />
                       <span className="font-semibold text-sm">{student.homeworkPoints || 0}</span>
-                      <span className="text-muted-foreground text-xs">Homework</span>
+                      <span className="text-muted-foreground text-xs">HW</span>
                     </div>
                     <div className="flex items-center gap-1.5 bg-amber-500/10 rounded-full px-3 py-1.5">
                       <Zap className="h-4 w-4 text-amber-500" />
                       <span className="font-semibold text-sm">{student.participationPoints || 0}</span>
-                      <span className="text-muted-foreground text-xs">Participation</span>
+                      <span className="text-muted-foreground text-xs">Part</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-teal-500/10 rounded-full px-3 py-1.5">
+                      <GraduationCap className="h-4 w-4 text-teal-500" />
+                      <span className="font-semibold text-sm">{student.readingTheoryPoints || 0}</span>
+                      <span className="text-muted-foreground text-xs">RT</span>
                     </div>
                   </motion.div>
                 </div>

@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Minus, Sparkles, Trophy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { awardPoints } from "@/lib/pointsHelper";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, SKILL_ICONS } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, READING_THEORY_CONFIG } from "@/lib/skillConfig";
 import { soundManager } from "@/lib/soundManager";
 
 interface ManualPointsDialogProps {
@@ -26,7 +26,7 @@ interface ManualPointsDialogProps {
   isAdmin?: boolean;
 }
 
-type CategoryType = "skill" | "behavior" | "homework" | "correction";
+type CategoryType = "skill" | "behavior" | "homework" | "correction" | "reading_theory";
 
 export function ManualPointsDialog({ classId, trigger, isAdmin = false }: ManualPointsDialogProps) {
   const [open, setOpen] = useState(false);
@@ -84,8 +84,10 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
     enabled: open && category === "homework",
   });
 
-  // Get current skill/behavior config
-  const skillConfig = selectedSkill ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) : null;
+  // Get current skill/behavior config (includes reading_theory)
+  const skillConfig = selectedSkill 
+    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill] || (selectedSkill === "reading_theory" ? READING_THEORY_CONFIG : null)) 
+    : null;
 
   const addPointsMutation = useMutation({
     mutationFn: async () => {
@@ -98,8 +100,8 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
         throw new Error("Points must be a valid number");
       }
 
-      if (category === "skill" || category === "behavior") {
-        if (!selectedSkill) throw new Error("Please select a skill or behavior");
+      if (category === "skill" || category === "behavior" || category === "reading_theory") {
+        if (!selectedSkill) throw new Error("Please select a skill, behavior, or reading theory option");
       }
 
       if (category === "homework" && !selectedHomework) {
@@ -116,7 +118,7 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
       let homeworkId: string | undefined;
       let homeworkTitle: string | undefined;
 
-      if (category === "skill" || category === "behavior") {
+      if (category === "skill" || category === "behavior" || category === "reading_theory") {
         skill = selectedSkill;
         subTag = selectedSubTag || undefined;
       } else if (category === "homework") {
@@ -256,10 +258,11 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
           {/* Category Selection */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Category *</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
                 { key: "skill", label: "Skill", desc: "Speaking, Listening, etc." },
                 { key: "behavior", label: "Behavior", desc: "Focus, Teamwork" },
+                { key: "reading_theory", label: "Reading Theory", desc: "Vocabulary, Grammar" },
                 { key: "homework", label: "Homework", desc: "Assignment points" },
                 { key: "correction", label: "Correction", desc: "Deduct points" },
               ].map((cat) => (
@@ -309,6 +312,31 @@ export function ManualPointsDialog({ classId, trigger, isAdmin = false }: Manual
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Reading Theory Selection - auto-select reading_theory as skill */}
+          {category === "reading_theory" && (
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Reading Theory Reason *</Label>
+              <Select 
+                value={selectedSubTag} 
+                onValueChange={(val) => {
+                  setSelectedSkill("reading_theory");
+                  setSelectedSubTag(val);
+                }}
+              >
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {READING_THEORY_CONFIG.subTags.map((tag) => (
+                    <SelectItem key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

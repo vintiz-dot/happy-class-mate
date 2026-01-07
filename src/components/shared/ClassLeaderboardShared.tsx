@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Medal, Award, Flag, Users, X, CheckSquare, BookOpen, Zap } from "lucide-react";
+import { Trophy, Medal, Award, Flag, Users, X, CheckSquare, BookOpen, Zap, GraduationCap } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -351,6 +351,9 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       </span>
                       <span className="flex items-center gap-0.5" title="Participation">
                         <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.participation_points || 0}
+                      </span>
+                      <span className="flex items-center gap-0.5" title="Reading Theory">
+                        <GraduationCap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.reading_theory_points || 0}
                       </span>
                     </div>
                   </div>
