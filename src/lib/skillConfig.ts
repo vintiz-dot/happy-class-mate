@@ -6,6 +6,7 @@ import {
   Focus, 
   Users,
   AlertTriangle,
+  GraduationCap,
   LucideIcon
 } from "lucide-react";
 
@@ -86,6 +87,18 @@ export const BEHAVIOR_CONFIG: Record<string, SkillConfig> = {
   },
 };
 
+export const READING_THEORY_CONFIG: SkillConfig = {
+  icon: GraduationCap,
+  label: "Reading Theory",
+  subTags: [
+    { label: "Vocabulary Quiz", value: "vocabulary_quiz" },
+    { label: "Grammar Exercise", value: "grammar_exercise" },
+    { label: "Pronunciation Practice", value: "pronunciation_practice" },
+    { label: "Comprehension Check", value: "comprehension_check" },
+    { label: "Phonics Practice", value: "phonics_practice" },
+  ],
+};
+
 export const CORRECTION_OPTIONS: SubTag[] = [
   { label: "Not Paying Attention", value: "not_paying_attention" },
   { label: "Disrupting Class", value: "disrupting_class" },
@@ -109,6 +122,7 @@ export const SKILL_ICONS: Record<string, LucideIcon> = {
   focus: Focus,
   teamwork: Users,
   correction: AlertTriangle,
+  reading_theory: GraduationCap,
 };
 
 // Helper to check if a skill is a "skill" type (affects analytics)
@@ -126,6 +140,11 @@ export function isCorrectionType(skill: string): boolean {
   return skill === "correction";
 }
 
+// Helper to check if it's reading theory
+export function isReadingTheoryType(skill: string): boolean {
+  return skill === "reading_theory";
+}
+
 // Helper to check if skill should be tracked in skill_assessments (skills + behaviors)
 export function shouldTrackInSkillAssessments(skill: string): boolean {
   return isSkillType(skill) || isBehaviorType(skill);
@@ -136,13 +155,14 @@ export function getAllCategories() {
   return [
     { key: "skills", label: "Skills", items: Object.entries(SKILL_CONFIG) },
     { key: "behaviors", label: "Behaviors", items: Object.entries(BEHAVIOR_CONFIG) },
+    { key: "reading_theory", label: "Reading Theory", items: [["reading_theory", READING_THEORY_CONFIG] as const] },
     { key: "correction", label: "Correction", items: [["correction", CORRECTION_CONFIG] as const] },
   ];
 }
 
 // Format skill key to display label
 export function formatSkillLabel(skill: string, subTag?: string): string {
-  const config = SKILL_CONFIG[skill] || BEHAVIOR_CONFIG[skill] || (skill === "correction" ? CORRECTION_CONFIG : null);
+  const config = SKILL_CONFIG[skill] || BEHAVIOR_CONFIG[skill] || (skill === "correction" ? CORRECTION_CONFIG : null) || (skill === "reading_theory" ? READING_THEORY_CONFIG : null);
   if (!config) return skill;
   
   const base = config.label;

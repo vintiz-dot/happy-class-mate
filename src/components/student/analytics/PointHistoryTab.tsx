@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
-import { BookOpen, Zap, Star, Clock, Award } from "lucide-react";
+import { BookOpen, Zap, Star, Clock, Award, GraduationCap } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ interface PointHistoryTabProps {
 const typeConfig: Record<string, { icon: typeof BookOpen; label: string; color: string }> = {
   homework: { icon: BookOpen, label: "Homework", color: "text-blue-500" },
   participation: { icon: Zap, label: "Participation", color: "text-amber-500" },
+  reading_theory: { icon: GraduationCap, label: "Reading Theory", color: "text-teal-500" },
   bonus: { icon: Star, label: "Bonus", color: "text-purple-500" },
   attendance: { icon: Clock, label: "Attendance", color: "text-green-500" },
   manual: { icon: Award, label: "Manual", color: "text-primary" },

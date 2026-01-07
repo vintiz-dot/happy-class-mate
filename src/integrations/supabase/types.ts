@@ -1850,6 +1850,7 @@ export type Database = {
           id: string
           month: string
           participation_points: number
+          reading_theory_points: number
           student_id: string
           total_points: number | null
           updated_at: string
@@ -1861,6 +1862,7 @@ export type Database = {
           id?: string
           month: string
           participation_points?: number
+          reading_theory_points?: number
           student_id: string
           total_points?: number | null
           updated_at?: string
@@ -1872,6 +1874,7 @@ export type Database = {
           id?: string
           month?: string
           participation_points?: number
+          reading_theory_points?: number
           student_id?: string
           total_points?: number | null
           updated_at?: string

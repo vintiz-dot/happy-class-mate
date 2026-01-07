@@ -37,6 +37,7 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
   
   // For homework, use the due date for month attribution if provided
   const isHomework = skill === "homework";
+  const isReadingTheory = skill === "reading_theory";
   const effectiveDate = (isHomework && homeworkDueDate) ? homeworkDueDate : today;
   const effectiveMonth = effectiveDate.slice(0, 7);
   
@@ -53,6 +54,8 @@ export async function awardPoints(params: AwardPointsParams): Promise<AwardPoint
     transactionType = "correction";
   } else if (isAdjustment) {
     transactionType = "adjustment";
+  } else if (isReadingTheory) {
+    transactionType = "reading_theory";
   } else {
     transactionType = "participation";
   }
