@@ -38,6 +38,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
     totalPoints: number;
     homeworkPoints: number;
     participationPoints: number;
+    readingTheoryPoints: number;
     rank: number;
     selectedMonth: string;
   } | null>(null);
@@ -282,6 +283,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       totalPoints: entry.total_points,
                       homeworkPoints: entry.homework_points || 0,
                       participationPoints: entry.participation_points || 0,
+                      readingTheoryPoints: entry.reading_theory_points || 0,
                       rank: entry.rank,
                       selectedMonth,
                     });
@@ -390,6 +392,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       totalPoints: entry.total_points,
                       homeworkPoints: entry.homework_points || 0,
                       participationPoints: entry.participation_points || 0,
+                      readingTheoryPoints: entry.reading_theory_points || 0,
                       rank: entry.rank,
                       selectedMonth,
                     });
