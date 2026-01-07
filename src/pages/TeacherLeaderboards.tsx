@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,10 +10,12 @@ import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShar
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 import { LiveAssessmentGrid } from "@/components/teacher/LiveAssessmentGrid";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function TeacherLeaderboards() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"standard" | "live">("standard");
+  const today = dayjs().format("YYYY-MM-DD");
 
   const { data: activeClasses, isLoading } = useQuery({
     queryKey: ["teacher-leaderboard-classes"],
@@ -51,8 +53,33 @@ export default function TeacherLeaderboards() {
     },
   });
 
+  // Query for active sessions (currently running)
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["active-sessions-today", today],
+    queryFn: async () => {
+      const now = new Date().toTimeString().slice(0, 8);
+      const { data } = await supabase
+        .from("sessions")
+        .select("id, class_id, start_time, end_time")
+        .eq("date", today)
+        .in("status", ["Scheduled", "Held"])
+        .lte("start_time", now)
+        .gte("end_time", now);
+      return data || [];
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   // Auto-select first class when loaded
   const displayClassId = selectedClassId || activeClasses?.[0]?.id;
+  
+  // Check if selected class has an active session
+  const activeSessionForClass = useMemo(() => 
+    activeSessions.find(s => s.class_id === displayClassId),
+    [activeSessions, displayClassId]
+  );
+  
+  const canUseLiveMode = !!activeSessionForClass;
 
   return (
     <Layout title="Class Leaderboards">
@@ -98,15 +125,25 @@ export default function TeacherLeaderboards() {
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Standard</span>
               </Button>
-              <Button
-                variant={viewMode === "live" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("live")}
-                className="rounded-none gap-1.5"
-              >
-                <Zap className="h-4 w-4" />
-                <span className="hidden sm:inline">Live</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === "live" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => canUseLiveMode && setViewMode("live")}
+                    className="rounded-none gap-1.5"
+                    disabled={!canUseLiveMode}
+                  >
+                    <Zap className="h-4 w-4" />
+                    <span className="hidden sm:inline">Live</span>
+                  </Button>
+                </TooltipTrigger>
+                {!canUseLiveMode && (
+                  <TooltipContent>
+                    <p>No session in progress for this class</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
         </div>
@@ -136,7 +173,7 @@ export default function TeacherLeaderboards() {
               </Card>
             )}
 
-            {displayClassId && viewMode === "live" && (
+            {displayClassId && viewMode === "live" && activeSessionForClass && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -146,11 +183,14 @@ export default function TeacherLeaderboards() {
                     </CardTitle>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Tap a student to quickly award skills. Long-press for sub-tags.
+                    Tap a student to quickly award skills. Absent students are grayed out.
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <LiveAssessmentGrid classId={displayClassId} />
+                  <LiveAssessmentGrid 
+                    classId={displayClassId} 
+                    sessionId={activeSessionForClass.id}
+                  />
                 </CardContent>
               </Card>
             )}

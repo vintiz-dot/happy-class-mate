@@ -19,13 +19,17 @@ import { cn } from "@/lib/utils";
 
 interface LiveAssessmentGridProps {
   classId: string;
+  sessionId: string;
 }
+
+type AttendanceStatus = "Present" | "Absent" | "Excused" | null;
 
 interface StudentCard {
   id: string;
   full_name: string;
   avatar_url: string | null;
   todayPoints: number;
+  attendanceStatus: AttendanceStatus;
 }
 
 interface FeedbackItem {
@@ -37,7 +41,7 @@ interface FeedbackItem {
   studentId: string;
 }
 
-export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
+export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridProps) {
   const queryClient = useQueryClient();
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
@@ -47,9 +51,9 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
 
   const today = dayjs().format("YYYY-MM-DD");
 
-  // Fetch enrolled students
+  // Fetch enrolled students with attendance status
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ["live-assessment-students", classId, today],
+    queryKey: ["live-assessment-students", classId, sessionId, today],
     queryFn: async () => {
       // Get enrolled students
       const { data: enrollments, error: enrollError } = await supabase
@@ -68,6 +72,18 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
         const student = Array.isArray(e.students) ? e.students[0] : e.students;
         return student?.id;
       }).filter(Boolean) || [];
+
+      // Fetch attendance for this session
+      const { data: attendanceData } = await supabase
+        .from("attendance")
+        .select("student_id, status")
+        .eq("session_id", sessionId)
+        .in("student_id", studentIds);
+
+      const attendanceMap = new Map<string, AttendanceStatus>();
+      attendanceData?.forEach(a => {
+        attendanceMap.set(a.student_id, a.status as AttendanceStatus);
+      });
 
       const { data: todayPoints } = await supabase
         .from("point_transactions")
@@ -89,10 +105,18 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
           full_name: student.full_name,
           avatar_url: student.avatar_url,
           todayPoints: pointsMap.get(student.id) || 0,
+          attendanceStatus: attendanceMap.get(student.id) || null,
         };
       }) || [];
     },
   });
+
+  // Helper to check if student is absent/excused
+  const isStudentUnavailable = (status: AttendanceStatus) => 
+    status === "Absent" || status === "Excused";
+  
+  // Get only available students for bulk operations
+  const availableStudents = students.filter(s => !isStudentUnavailable(s.attendanceStatus));
 
   // Mutation for awarding skills using shared helper
   const awardSkillMutation = useMutation({
@@ -175,6 +199,10 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
   }, [bulkMode, selectedStudents, awardSkillMutation]);
 
   const toggleStudent = (studentId: string) => {
+    // Find the student and check if they're unavailable
+    const student = students.find(s => s.id === studentId);
+    if (student && isStudentUnavailable(student.attendanceStatus)) return;
+    
     setSelectedStudents(prev => {
       const next = new Set(prev);
       if (next.has(studentId)) {
@@ -186,7 +214,7 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
     });
   };
 
-  const selectAll = () => setSelectedStudents(new Set(students.map(s => s.id)));
+  const selectAll = () => setSelectedStudents(new Set(availableStudents.map(s => s.id)));
   const selectNone = () => setSelectedStudents(new Set());
 
   const removeFeedback = useCallback((studentId: string, feedbackId: string) => {
@@ -249,82 +277,113 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
 
       {/* Student Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {students.map((student) => (
-          <Popover 
-            key={student.id} 
-            open={openMenuId === student.id}
-            onOpenChange={(open) => setOpenMenuId(open ? student.id : null)}
-          >
-            <PopoverTrigger asChild>
-              <div
-                className={cn(
-                  "relative flex flex-col items-center p-4 rounded-2xl cursor-pointer transition-all active:scale-95 touch-manipulation select-none",
-                  "bg-card hover:bg-accent/50 border border-border/50",
-                  bulkMode && selectedStudents.has(student.id) && "ring-2 ring-primary bg-primary/10"
-                )}
-                onClick={(e) => {
-                  if (bulkMode) {
-                    e.preventDefault();
-                    toggleStudent(student.id);
-                  }
-                }}
-              >
-                {/* Selection Checkbox */}
-                {bulkMode && (
-                  <div className="absolute top-2 left-2">
-                    <Checkbox
-                      checked={selectedStudents.has(student.id)}
-                      onCheckedChange={() => toggleStudent(student.id)}
-                      className="h-5 w-5"
-                    />
-                  </div>
-                )}
-
-                {/* Avatar */}
-                <Avatar className="h-16 w-16 mb-2">
-                  <AvatarImage src={student.avatar_url || undefined} />
-                  <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                    {student.full_name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Name */}
-                <span className="text-sm font-medium text-center line-clamp-1">
-                  {student.full_name}
-                </span>
-
-                {/* Today's Points */}
-                <span className={cn(
-                  "text-xs font-medium mt-1",
-                  student.todayPoints > 0 ? "text-green-600 dark:text-green-400" :
-                  student.todayPoints < 0 ? "text-red-600 dark:text-red-400" :
-                  "text-muted-foreground"
-                )}>
-                  {student.todayPoints > 0 ? "+" : ""}{student.todayPoints} today
-                </span>
-
-                {/* Feedback Animation */}
-                <PointFeedbackAnimation
-                  feedbacks={feedbacks[student.id] || []}
-                  onComplete={(id) => removeFeedback(student.id, id)}
-                />
-              </div>
-            </PopoverTrigger>
-            
-            <PopoverContent 
-              className="w-auto p-0 border-0 bg-transparent shadow-none" 
-              side="top" 
-              align="center"
-              sideOffset={8}
+        {students.map((student) => {
+          const isUnavailable = isStudentUnavailable(student.attendanceStatus);
+          
+          const cardContent = (
+            <div
+              className={cn(
+                "relative flex flex-col items-center p-4 rounded-2xl transition-all touch-manipulation select-none",
+                "bg-card border border-border/50",
+                isUnavailable 
+                  ? "opacity-50 grayscale cursor-not-allowed" 
+                  : "cursor-pointer hover:bg-accent/50 active:scale-95",
+                bulkMode && selectedStudents.has(student.id) && !isUnavailable && "ring-2 ring-primary bg-primary/10"
+              )}
+              onClick={(e) => {
+                if (isUnavailable) return;
+                if (bulkMode) {
+                  e.preventDefault();
+                  toggleStudent(student.id);
+                }
+              }}
             >
-              <RadialSkillMenu
-                onSkillTap={(skill, points, subTag) => handleSkillTap(student.id, skill, points, subTag)}
-                onClose={() => setOpenMenuId(null)}
-                onReadingTheoryClick={() => setReadingTheoryOpen(true)}
+              {/* Selection Checkbox */}
+              {bulkMode && !isUnavailable && (
+                <div className="absolute top-2 left-2">
+                  <Checkbox
+                    checked={selectedStudents.has(student.id)}
+                    onCheckedChange={() => toggleStudent(student.id)}
+                    className="h-5 w-5"
+                  />
+                </div>
+              )}
+              
+              {/* Absent/Excused Badge */}
+              {isUnavailable && (
+                <div className="absolute top-2 right-2">
+                  <span className={cn(
+                    "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                    student.attendanceStatus === "Absent" 
+                      ? "bg-destructive/20 text-destructive" 
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {student.attendanceStatus}
+                  </span>
+                </div>
+              )}
+
+              {/* Avatar */}
+              <Avatar className="h-16 w-16 mb-2">
+                <AvatarImage src={student.avatar_url || undefined} />
+                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+                  {student.full_name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Name */}
+              <span className="text-sm font-medium text-center line-clamp-1">
+                {student.full_name}
+              </span>
+
+              {/* Today's Points */}
+              <span className={cn(
+                "text-xs font-medium mt-1",
+                student.todayPoints > 0 ? "text-green-600 dark:text-green-400" :
+                student.todayPoints < 0 ? "text-red-600 dark:text-red-400" :
+                "text-muted-foreground"
+              )}>
+                {student.todayPoints > 0 ? "+" : ""}{student.todayPoints} today
+              </span>
+
+              {/* Feedback Animation */}
+              <PointFeedbackAnimation
+                feedbacks={feedbacks[student.id] || []}
+                onComplete={(id) => removeFeedback(student.id, id)}
               />
-            </PopoverContent>
-          </Popover>
-        ))}
+            </div>
+          );
+          
+          // If student is unavailable, render without popover
+          if (isUnavailable) {
+            return <div key={student.id}>{cardContent}</div>;
+          }
+          
+          return (
+            <Popover 
+              key={student.id} 
+              open={openMenuId === student.id}
+              onOpenChange={(open) => setOpenMenuId(open ? student.id : null)}
+            >
+              <PopoverTrigger asChild>
+                {cardContent}
+              </PopoverTrigger>
+              
+              <PopoverContent 
+                className="w-auto p-0 border-0 bg-transparent shadow-none" 
+                side="top" 
+                align="center"
+                sideOffset={8}
+              >
+                <RadialSkillMenu
+                  onSkillTap={(skill, points, subTag) => handleSkillTap(student.id, skill, points, subTag)}
+                  onClose={() => setOpenMenuId(null)}
+                  onReadingTheoryClick={() => setReadingTheoryOpen(true)}
+                />
+              </PopoverContent>
+            </Popover>
+          );
+        })}
       </div>
 
       {/* Reading Theory Score Entry Dialog */}
