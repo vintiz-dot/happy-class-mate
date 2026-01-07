@@ -82,6 +82,8 @@ export function ReadingTheoryScoreEntry({
         .sort((a: any, b: any) => a.full_name.localeCompare(b.full_name));
     },
     enabled: open,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Fetch current reading theory points for all students
@@ -103,6 +105,8 @@ export function ReadingTheoryScoreEntry({
       return pointsMap;
     },
     enabled: open,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Combine students with their current scores
