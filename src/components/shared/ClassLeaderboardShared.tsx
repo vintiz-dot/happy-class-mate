@@ -74,10 +74,12 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ["class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("student_points")
+      // First, get all actively enrolled students for this class
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("enrollments")
         .select(`
-          *,
+          student_id,
           students (
             id,
             full_name,
@@ -85,16 +87,55 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
           )
         `)
         .eq("class_id", classId)
-        .eq("month", selectedMonth)
-        .order("total_points", { ascending: false });
+        .or(`end_date.is.null,end_date.gte.${today}`);
 
-      if (error) throw error;
+      if (enrollError) throw enrollError;
 
-      if (data && data.length > 0) {
+      // Then, get points data for these students for the selected month
+      const { data: points, error: pointsError } = await supabase
+        .from("student_points")
+        .select("*")
+        .eq("class_id", classId)
+        .eq("month", selectedMonth);
+
+      if (pointsError) throw pointsError;
+
+      // Create a map of student_id to points data
+      const pointsMap = new Map(points?.map(p => [p.student_id, p]) || []);
+
+      // Combine enrollments with points (default to 0 for students without points)
+      const combined = enrollments?.map(enrollment => {
+        const studentPoints = pointsMap.get(enrollment.student_id);
+        return {
+          id: studentPoints?.id || `temp-${enrollment.student_id}`,
+          student_id: enrollment.student_id,
+          class_id: classId,
+          month: selectedMonth,
+          homework_points: studentPoints?.homework_points || 0,
+          participation_points: studentPoints?.participation_points || 0,
+          reading_theory_points: studentPoints?.reading_theory_points || 0,
+          total_points: studentPoints?.total_points || 0,
+          students: enrollment.students,
+        };
+      }) || [];
+
+      // Sort by total_points descending, then by name for 0-point students
+      combined.sort((a, b) => {
+        if (b.total_points !== a.total_points) {
+          return b.total_points - a.total_points;
+        }
+        // Alphabetical sort for students with same points
+        const nameA = a.students?.full_name || '';
+        const nameB = b.students?.full_name || '';
+        return nameA.localeCompare(nameB);
+      });
+
+      // Assign ranks (with ties)
+      if (combined.length > 0) {
         let currentRank = 1;
-        let previousPoints = data[0].total_points;
+        let previousPoints = combined[0].total_points;
         
-        return data.map((entry, index) => {
+        return combined.map((entry, index) => {
           if (entry.total_points !== previousPoints) {
             currentRank = index + 1;
             previousPoints = entry.total_points;
@@ -103,7 +144,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
         });
       }
       
-      return data;
+      return combined;
     },
   });
 
