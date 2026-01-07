@@ -68,9 +68,17 @@ export function ReadingTheoryScoreEntry({
         .or(`end_date.is.null,end_date.gt.${today}`);
 
       if (error) throw error;
-      return data
-        ?.map((e: any) => e.students)
-        .filter((s: any) => s.is_active)
+
+      // Handle both array and object cases for students, and deduplicate
+      const uniqueStudents = new Map();
+      data?.forEach((e: any) => {
+        const student = Array.isArray(e.students) ? e.students[0] : e.students;
+        if (student && student.is_active && !uniqueStudents.has(student.id)) {
+          uniqueStudents.set(student.id, student);
+        }
+      });
+
+      return Array.from(uniqueStudents.values())
         .sort((a: any, b: any) => a.full_name.localeCompare(b.full_name));
     },
     enabled: open,
