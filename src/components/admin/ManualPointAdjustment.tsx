@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus, Minus } from "lucide-react";
 import { awardPoints } from "@/lib/pointsHelper";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, READING_THEORY_CONFIG } from "@/lib/skillConfig";
 import { soundManager } from "@/lib/soundManager";
 import { ReadingTheoryScoreEntry } from "@/components/shared/ReadingTheoryScoreEntry";
 
