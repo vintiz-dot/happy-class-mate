@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
@@ -49,7 +49,7 @@ export function ReadingTheoryScoreEntry({
   const currentMonth = dayjs().format("YYYY-MM");
 
   // Fetch enrolled students
-  const { data: students, isLoading: studentsLoading } = useQuery({
+  const { data: students, isLoading: studentsLoading, refetch: refetchStudents } = useQuery({
     queryKey: ["reading-theory-students", classId],
     queryFn: async () => {
       const today = dayjs().format("YYYY-MM-DD");
@@ -108,6 +108,13 @@ export function ReadingTheoryScoreEntry({
     staleTime: 0,
     refetchOnMount: "always",
   });
+
+  // Force refetch students when dialog opens
+  useEffect(() => {
+    if (open) {
+      refetchStudents();
+    }
+  }, [open, refetchStudents]);
 
   // Combine students with their current scores
   const studentsWithScores: StudentScore[] = useMemo(() => {
