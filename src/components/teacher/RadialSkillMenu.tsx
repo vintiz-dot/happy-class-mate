@@ -2,15 +2,16 @@ import { AlertTriangle, GraduationCap } from "lucide-react";
 import { SkillButton } from "./SkillButton";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_OPTIONS, DEDUCTION_OPTIONS, READING_THEORY_CONFIG, POINT_OPTIONS } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_OPTIONS, DEDUCTION_OPTIONS } from "@/lib/skillConfig";
 
 interface RadialSkillMenuProps {
   onSkillTap: (skill: string, points: number, subTag?: string) => void;
   onClose: () => void;
+  onReadingTheoryClick?: () => void;
 }
 
-export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
-  const [stage, setStage] = useState<"main" | "correction-reasons" | "correction-points" | "reading-theory-reasons" | "reading-theory-points">("main");
+export function RadialSkillMenu({ onSkillTap, onClose, onReadingTheoryClick }: RadialSkillMenuProps) {
+  const [stage, setStage] = useState<"main" | "correction-reasons" | "correction-points">("main");
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
   const handleSkillTap = (skill: string, points: number) => {
@@ -27,17 +28,16 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
     setStage("correction-reasons");
   };
 
-  const handleReadingTheoryClick = () => {
-    setStage("reading-theory-reasons");
+  const handleReadingTheoryButtonClick = () => {
+    if (onReadingTheoryClick) {
+      onReadingTheoryClick();
+      onClose();
+    }
   };
 
   const handleReasonSelect = (reason: string) => {
     setSelectedReason(reason);
-    if (stage === "correction-reasons") {
-      setStage("correction-points");
-    } else {
-      setStage("reading-theory-points");
-    }
+    setStage("correction-points");
   };
 
   const handleDeductionSelect = (points: number) => {
@@ -49,21 +49,9 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
     onClose();
   };
 
-  const handleReadingTheoryPointsSelect = (points: number) => {
-    if (selectedReason) {
-      onSkillTap("reading_theory", points, selectedReason);
-    }
-    setStage("main");
-    setSelectedReason(null);
-    onClose();
-  };
-
   const handleBack = () => {
     if (stage === "correction-points") {
       setStage("correction-reasons");
-      setSelectedReason(null);
-    } else if (stage === "reading-theory-points") {
-      setStage("reading-theory-reasons");
       setSelectedReason(null);
     } else {
       setStage("main");
@@ -125,61 +113,6 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
     );
   }
 
-  // Reading Theory reasons stage
-  if (stage === "reading-theory-reasons") {
-    return (
-      <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
-        <div className="flex items-center gap-2 mb-2">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 px-2">
-            ← Back
-          </Button>
-          <span className="text-sm font-medium text-muted-foreground">Select Reason</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {READING_THEORY_CONFIG.subTags.map((option) => (
-            <Button
-              key={option.value}
-              variant="outline"
-              size="sm"
-              className="h-auto py-2 px-3 text-xs text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 border-teal-500/30"
-              onClick={() => handleReasonSelect(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Reading Theory points stage
-  if (stage === "reading-theory-points") {
-    const reasonLabel = READING_THEORY_CONFIG.subTags.find(o => o.value === selectedReason)?.label || selectedReason;
-    return (
-      <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
-        <div className="flex items-center gap-2 mb-2">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 px-2">
-            ← Back
-          </Button>
-          <span className="text-sm font-medium text-muted-foreground truncate">{reasonLabel}</span>
-        </div>
-        <div className="flex gap-2 justify-center">
-          {POINT_OPTIONS.map((pts) => (
-            <Button
-              key={pts}
-              variant="outline"
-              size="sm"
-              className="w-12 h-12 p-0 text-lg font-bold text-teal-600 dark:text-teal-400 hover:bg-teal-500/20 border-teal-500/30"
-              onClick={() => handleReadingTheoryPointsSelect(pts)}
-            >
-              +{pts}
-            </Button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   // Main stage - skills and behaviors
   return (
     <div className="glass rounded-2xl p-3 shadow-xl border border-border/50">
@@ -210,14 +143,16 @@ export function RadialSkillMenu({ onSkillTap, onClose }: RadialSkillMenuProps) {
           />
         ))}
         
-        {/* Reading Theory Button */}
-        <button
-          className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-teal-500/20 hover:bg-teal-500/30 text-teal-600 dark:text-teal-400"
-          onClick={handleReadingTheoryClick}
-        >
-          <GraduationCap className="h-6 w-6" />
-          <span className="text-[10px] font-medium leading-tight">RT</span>
-        </button>
+        {/* Reading Theory Button - Opens cumulative score entry */}
+        {onReadingTheoryClick && (
+          <button
+            className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-teal-500/20 hover:bg-teal-500/30 text-teal-600 dark:text-teal-400"
+            onClick={handleReadingTheoryButtonClick}
+          >
+            <GraduationCap className="h-6 w-6" />
+            <span className="text-[10px] font-medium leading-tight">RT</span>
+          </button>
+        )}
         
         {/* Correction Button */}
         <button

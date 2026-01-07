@@ -19,8 +19,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { awardPoints } from "@/lib/pointsHelper";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, READING_THEORY_CONFIG } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG } from "@/lib/skillConfig";
 import { soundManager } from "@/lib/soundManager";
+import { ReadingTheoryScoreEntry } from "./ReadingTheoryScoreEntry";
 
 interface SelectedStudent {
   id: string;
@@ -46,6 +47,7 @@ export function BulkPointsDialog({
   onSuccess,
 }: BulkPointsDialogProps) {
   const [category, setCategory] = useState<CategoryType>("skill");
+  const [readingTheoryOpen, setReadingTheoryOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedSubTag, setSelectedSubTag] = useState("");
   const [selectedHomework, setSelectedHomework] = useState("");
@@ -71,9 +73,9 @@ export function BulkPointsDialog({
     enabled: open && category === "homework",
   });
 
-  // Get current skill/behavior config (includes reading_theory)
+  // Get current skill/behavior config
   const skillConfig = selectedSkill 
-    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill] || (selectedSkill === "reading_theory" ? READING_THEORY_CONFIG : null)) 
+    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) 
     : null;
 
   const addPointsMutation = useMutation({
@@ -87,8 +89,8 @@ export function BulkPointsDialog({
         throw new Error("Points must be a valid number");
       }
 
-      if (category === "skill" || category === "behavior" || category === "reading_theory") {
-        if (!selectedSkill) throw new Error("Please select a skill, behavior, or reading theory option");
+      if (category === "skill" || category === "behavior") {
+        if (!selectedSkill) throw new Error("Please select a skill or behavior");
       }
 
       if (category === "homework" && !selectedHomework) {
@@ -109,7 +111,7 @@ export function BulkPointsDialog({
       let homeworkId: string | undefined;
       let homeworkTitle: string | undefined;
 
-      if (category === "skill" || category === "behavior" || category === "reading_theory") {
+      if (category === "skill" || category === "behavior") {
         skill = selectedSkill;
         subTag = selectedSubTag || undefined;
       } else if (category === "homework") {
@@ -185,6 +187,11 @@ export function BulkPointsDialog({
 
   // When category changes, reset related selections
   const handleCategoryChange = (newCategory: CategoryType) => {
+    // If reading theory, open the score entry dialog instead
+    if (newCategory === "reading_theory") {
+      setReadingTheoryOpen(true);
+      return;
+    }
     setCategory(newCategory);
     setSelectedSkill("");
     setSelectedSubTag("");
@@ -296,31 +303,6 @@ export function BulkPointsDialog({
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Reading Theory Selection */}
-          {category === "reading_theory" && (
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">Reading Theory Reason *</Label>
-              <Select 
-                value={selectedSubTag} 
-                onValueChange={(val) => {
-                  setSelectedSkill("reading_theory");
-                  setSelectedSubTag(val);
-                }}
-              >
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Select reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {READING_THEORY_CONFIG.subTags.map((tag) => (
-                    <SelectItem key={tag.value} value={tag.value}>
-                      {tag.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           )}
 
@@ -487,6 +469,14 @@ export function BulkPointsDialog({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Reading Theory Score Entry Dialog */}
+      <ReadingTheoryScoreEntry
+        classId={classId}
+        open={readingTheoryOpen}
+        onOpenChange={setReadingTheoryOpen}
+        onSuccess={onSuccess}
+      />
     </Dialog>
   );
 }
