@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadialSkillMenu } from "./RadialSkillMenu";
 import { PointFeedbackAnimation } from "./PointFeedbackAnimation";
+import { ReadingTheoryScoreEntry } from "@/components/shared/ReadingTheoryScoreEntry";
 import { CheckSquare, Square, Users } from "lucide-react";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
@@ -41,6 +42,7 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [readingTheoryOpen, setReadingTheoryOpen] = useState(false);
   const [feedbacks, setFeedbacks] = useState<Record<string, FeedbackItem[]>>({});
 
   const today = dayjs().format("YYYY-MM-DD");
@@ -318,11 +320,19 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
               <RadialSkillMenu
                 onSkillTap={(skill, points, subTag) => handleSkillTap(student.id, skill, points, subTag)}
                 onClose={() => setOpenMenuId(null)}
+                onReadingTheoryClick={() => setReadingTheoryOpen(true)}
               />
             </PopoverContent>
           </Popover>
         ))}
       </div>
+
+      {/* Reading Theory Score Entry Dialog */}
+      <ReadingTheoryScoreEntry
+        classId={classId}
+        open={readingTheoryOpen}
+        onOpenChange={setReadingTheoryOpen}
+      />
 
       {/* Bulk Action Bar */}
       {bulkMode && selectedStudents.size > 0 && (
@@ -333,6 +343,7 @@ export function LiveAssessmentGrid({ classId }: LiveAssessmentGridProps) {
               awardSkillMutation.mutate({ studentIds: targetIds, skill, points, subTag });
             }}
             onClose={() => {}}
+            onReadingTheoryClick={() => setReadingTheoryOpen(true)}
           />
         </div>
       )}

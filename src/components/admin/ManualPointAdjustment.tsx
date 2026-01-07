@@ -10,8 +10,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus, Minus } from "lucide-react";
 import { awardPoints } from "@/lib/pointsHelper";
-import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG, READING_THEORY_CONFIG } from "@/lib/skillConfig";
+import { SKILL_CONFIG, BEHAVIOR_CONFIG, CORRECTION_CONFIG } from "@/lib/skillConfig";
 import { soundManager } from "@/lib/soundManager";
+import { ReadingTheoryScoreEntry } from "@/components/shared/ReadingTheoryScoreEntry";
 
 type CategoryType = "skill" | "behavior" | "correction" | "adjustment" | "reading_theory";
 
@@ -19,6 +20,7 @@ export function ManualPointAdjustment() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [category, setCategory] = useState<CategoryType>("skill");
+  const [readingTheoryOpen, setReadingTheoryOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedSubTag, setSelectedSubTag] = useState("");
   const [selectedCorrection, setSelectedCorrection] = useState("");
@@ -58,9 +60,9 @@ export function ManualPointAdjustment() {
     },
   });
 
-  // Get current skill/behavior config (includes reading_theory)
+  // Get current skill/behavior config
   const skillConfig = selectedSkill 
-    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill] || (selectedSkill === "reading_theory" ? READING_THEORY_CONFIG : null)) 
+    ? (SKILL_CONFIG[selectedSkill] || BEHAVIOR_CONFIG[selectedSkill]) 
     : null;
 
   const handleSubmit = async () => {
@@ -73,11 +75,11 @@ export function ManualPointAdjustment() {
       return;
     }
 
-    if (category === "skill" || category === "behavior" || category === "reading_theory") {
+    if (category === "skill" || category === "behavior") {
       if (!selectedSkill) {
         toast({
           title: "Missing skill",
-          description: "Please select a skill, behavior, or reading theory reason",
+          description: "Please select a skill or behavior",
           variant: "destructive",
         });
         return;
@@ -109,7 +111,7 @@ export function ManualPointAdjustment() {
       let skill: string;
       let subTag: string | undefined;
 
-      if (category === "skill" || category === "behavior" || category === "reading_theory") {
+      if (category === "skill" || category === "behavior") {
         skill = selectedSkill;
         subTag = selectedSubTag || undefined;
       } else if (category === "correction") {
@@ -165,6 +167,14 @@ export function ManualPointAdjustment() {
   };
 
   const handleCategoryChange = (newCategory: CategoryType) => {
+    if (newCategory === "reading_theory") {
+      if (!selectedClass) {
+        toast({ title: "Select a class first", variant: "destructive" });
+        return;
+      }
+      setReadingTheoryOpen(true);
+      return;
+    }
     setCategory(newCategory);
     setSelectedSkill("");
     setSelectedSubTag("");
