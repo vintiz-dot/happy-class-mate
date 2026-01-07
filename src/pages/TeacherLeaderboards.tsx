@@ -1,20 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Zap, BarChart3 } from "lucide-react";
+import { Trophy, Zap, BarChart3, Clock } from "lucide-react";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 import { LiveAssessmentGrid } from "@/components/teacher/LiveAssessmentGrid";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 export default function TeacherLeaderboards() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"standard" | "live">("standard");
+  const [remainingTime, setRemainingTime] = useState<string | null>(null);
   const today = dayjs().format("YYYY-MM-DD");
 
   const { data: activeClasses, isLoading } = useQuery({
@@ -81,6 +83,56 @@ export default function TeacherLeaderboards() {
   
   const canUseLiveMode = !!activeSessionForClass;
 
+  // Calculate remaining time for active session
+  const calculateRemainingTime = useCallback(() => {
+    if (!activeSessionForClass?.end_time) {
+      setRemainingTime(null);
+      return;
+    }
+    
+    const now = new Date();
+    const [endH, endM, endS] = activeSessionForClass.end_time.split(':').map(Number);
+    const endDate = new Date();
+    endDate.setHours(endH, endM, endS || 0, 0);
+    
+    const diffMs = endDate.getTime() - now.getTime();
+    
+    if (diffMs <= 0) {
+      setRemainingTime(null);
+      return;
+    }
+    
+    const diffMins = Math.ceil(diffMs / 60000);
+    if (diffMins >= 60) {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      setRemainingTime(`${hours}h ${mins}m`);
+    } else {
+      setRemainingTime(`${diffMins} min`);
+    }
+  }, [activeSessionForClass?.end_time]);
+
+  // Update remaining time every minute
+  useEffect(() => {
+    calculateRemainingTime();
+    const interval = setInterval(calculateRemainingTime, 60000);
+    return () => clearInterval(interval);
+  }, [calculateRemainingTime]);
+
+  // Detect when session ends and notify user
+  useEffect(() => {
+    if (viewMode === "live" && !canUseLiveMode) {
+      toast.info("Session ended", {
+        description: "The class session has ended. Switching to Standard view.",
+        action: {
+          label: "Got it",
+          onClick: () => {},
+        },
+      });
+      setViewMode("standard");
+    }
+  }, [viewMode, canUseLiveMode]);
+
   return (
     <Layout title="Class Leaderboards">
       <div className="space-y-6">
@@ -136,6 +188,12 @@ export default function TeacherLeaderboards() {
                   >
                     <Zap className="h-4 w-4" />
                     <span className="hidden sm:inline">Live</span>
+                    {canUseLiveMode && remainingTime && (
+                      <span className="flex items-center gap-1 text-[10px] bg-primary/20 text-primary-foreground px-1.5 py-0.5 rounded-full ml-1">
+                        <Clock className="h-2.5 w-2.5" />
+                        {remainingTime}
+                      </span>
+                    )}
                   </Button>
                 </TooltipTrigger>
                 {!canUseLiveMode && (
