@@ -244,7 +244,7 @@ export function ReadingTheoryScoreEntry({
               <span className="text-center">Diff</span>
             </div>
 
-            <ScrollArea className="flex-1 border rounded-b-lg">
+            <ScrollArea className="h-[60vh] border rounded-b-lg">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
