@@ -408,12 +408,12 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
           {/* Ranks 4+ List */}
           {restOfList.length > 0 && (
             <div className="relative z-10 glass-panel rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
-              <div className="grid grid-cols-[30px_40px_1fr_70px_50px] md:grid-cols-[40px_80px_1fr_120px_80px] gap-1 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
+              <div className="grid grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
                 <div></div>
                 <div>RANK</div>
                 <div>NAME</div>
-                <div className="text-center">BREAKDOWN</div>
-                <div className="text-right">TOTAL</div>
+                <div className="hidden md:block text-center">BREAKDOWN</div>
+                <div className="text-right">PTS</div>
               </div>
               <div className="divide-y divide-leaderboard-glassBorder/20">
                 {restOfList.map((entry: any) => {
@@ -442,7 +442,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                   return (
                     <motion.div
                       key={entry.id}
-                      className={`grid grid-cols-[30px_40px_1fr_70px_50px] md:grid-cols-[40px_80px_1fr_120px_80px] gap-1 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
+                      className={`grid grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
                         isCurrentStudent ? 'bg-yellow-300/20 ring-2 ring-yellow-300' : ''
                       } ${isSelected && !isCurrentStudent ? 'bg-primary/20' : ''}`}
                       onClick={handleOpenAnalytics}
@@ -457,33 +457,33 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                         )}
                       </div>
                       <div className="flex items-center">
-                        <span className="text-leaderboard-text font-bold text-sm md:text-lg">#{entry.rank}</span>
+                        <span className="text-leaderboard-text font-bold text-xs md:text-base">#{entry.rank}</span>
                       </div>
-                      <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                        <Avatar className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 border-2 ${isCurrentStudent ? 'border-yellow-300' : 'border-transparent'} bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Avatar className={`h-7 w-7 md:h-9 md:w-9 flex-shrink-0 border-2 ${isCurrentStudent ? 'border-yellow-300' : 'border-transparent'} bg-gradient-to-br from-leaderboard-gradientStart to-leaderboard-gradientEnd p-0.5`}>
                           <AvatarImage src={getAvatarUrl(entry.students?.avatar_url) || getRandomAvatarUrl(entry.student_id)} alt={entry.students?.full_name} className="object-cover rounded-full" />
                           <AvatarFallback className="text-xs font-semibold rounded-full">
                             <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex items-center gap-1 md:gap-2 min-w-0 flex-1">
-                          <span className="font-semibold text-leaderboard-text truncate text-sm md:text-base">{entry.students?.full_name}</span>
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          <span className="font-semibold text-leaderboard-text text-xs md:text-sm leading-tight line-clamp-2">{entry.students?.full_name}</span>
                           {isCurrentStudent && (
-                            <Flag className="h-3 w-3 md:h-4 md:w-4 text-yellow-300 fill-yellow-300 flex-shrink-0" />
+                            <Flag className="h-3 w-3 text-yellow-300 fill-yellow-300 flex-shrink-0" />
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-center gap-1 text-[10px] md:text-xs text-leaderboard-text/70">
+                      <div className="hidden md:flex items-center justify-center gap-1 text-[10px] text-leaderboard-text/70">
                         <span className="flex items-center gap-0.5" title="Homework">
-                          <BookOpen className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.homework_points || 0}
+                          <BookOpen className="h-2.5 w-2.5" /> {entry.homework_points || 0}
                         </span>
                         <span>/</span>
                         <span className="flex items-center gap-0.5" title="Participation">
-                          <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {entry.participation_points || 0}
+                          <Zap className="h-2.5 w-2.5" /> {entry.participation_points || 0}
                         </span>
                       </div>
                       <div className="flex items-center justify-end">
-                        <span className="text-sm md:text-lg font-bold text-leaderboard-text">{entry.total_points}</span>
+                        <span className="text-xs md:text-base font-bold text-leaderboard-text">{entry.total_points}</span>
                       </div>
                     </motion.div>
                   );
