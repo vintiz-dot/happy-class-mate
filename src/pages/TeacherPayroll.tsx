@@ -215,11 +215,11 @@ export default function TeacherPayroll() {
           </Button>
         </div>
 
-        {(!payrollData?.payrollResult?.sessionDetailsProjected || payrollData.payrollResult.sessionDetailsProjected.length === 0) ? (
+        {!payrollData?.payrollResult ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                No payroll record found for {dayjs(month).format("MMMM YYYY")}
+                Unable to load payroll data for {dayjs(month).format("MMMM YYYY")}
               </p>
             </CardContent>
           </Card>
@@ -297,25 +297,33 @@ export default function TeacherPayroll() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payrollData?.payrollResult?.sessionDetailsProjected?.map((session: any) => (
-                      <TableRow key={session.id} className={session.status === "Scheduled" ? "opacity-60" : ""}>
-                        <TableCell>
-                          {dayjs(session.date).format("MMM D, YYYY")}
-                        </TableCell>
-                        <TableCell>{session.classes?.name || 'N/A'}</TableCell>
-                        <TableCell>
-                          {session.start_time.slice(0, 5)} - {session.end_time.slice(0, 5)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={session.status === "Held" ? "default" : "secondary"}>
-                            {session.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {session.amount.toLocaleString()} ₫
+                    {payrollData?.payrollResult?.sessionDetailsProjected?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No sessions scheduled for this month
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      payrollData?.payrollResult?.sessionDetailsProjected?.map((session: any) => (
+                        <TableRow key={session.id} className={session.status === "Scheduled" ? "opacity-60" : ""}>
+                          <TableCell>
+                            {dayjs(session.date).format("MMM D, YYYY")}
+                          </TableCell>
+                          <TableCell>{session.classes?.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            {session.start_time.slice(0, 5)} - {session.end_time.slice(0, 5)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={session.status === "Held" ? "default" : "secondary"}>
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {session.amount.toLocaleString()} ₫
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
