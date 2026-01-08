@@ -5,7 +5,6 @@ import {
   X, Star, Zap, Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface HowToEarnXPProps {
   onClose?: () => void;
@@ -95,7 +94,7 @@ export function HowToEarnXP({ onClose }: HowToEarnXPProps) {
       </div>
 
       {/* XP Categories */}
-      <ScrollArea className="h-[60vh] pr-4">
+      <div className="max-h-[60vh] overflow-y-auto pr-2">
         <div className="space-y-6">
           {xpCategories.map((category, categoryIndex) => (
             <motion.div
@@ -168,7 +167,7 @@ export function HowToEarnXP({ onClose }: HowToEarnXPProps) {
             </ul>
           </motion.div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

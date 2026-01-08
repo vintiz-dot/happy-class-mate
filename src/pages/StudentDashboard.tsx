@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,6 +25,7 @@ import { LevelProgressRing } from "@/components/student/LevelProgressRing";
 import { QuestCard } from "@/components/student/QuestCard";
 import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
 import { HowToEarnXP } from "@/components/student/HowToEarnXP";
+import { AchievementBadges } from "@/components/student/AchievementBadges";
 
 // Animation variants
 const containerVariants = {
@@ -80,8 +82,8 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [showXPGuide, setShowXPGuide] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard");
   const greeting = useMemo(() => getGreeting(), []);
 
   // Login challenge hook for real streak data
@@ -225,6 +227,35 @@ export default function StudentDashboard() {
     enabled: !!studentId,
   });
 
+  // Fetch achievement data
+  const { data: achievementData } = useQuery({
+    queryKey: ["student-achievement-data", studentId],
+    queryFn: async () => {
+      if (!studentId) return { homeworkCompleted: 0, classesAttended: 0, perfectWeeks: 0 };
+
+      // Count completed homework submissions
+      const { count: homeworkCount } = await supabase
+        .from("homework_submissions")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", studentId)
+        .eq("status", "graded");
+
+      // Count attended classes
+      const { count: attendanceCount } = await supabase
+        .from("attendance")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", studentId)
+        .eq("status", "Present");
+
+      return {
+        homeworkCompleted: homeworkCount || 0,
+        classesAttended: attendanceCount || 0,
+        perfectWeeks: Math.floor((attendanceCount || 0) / 5), // Simplified calculation
+      };
+    },
+    enabled: !!studentId,
+  });
+
   const levelInfo = calculateLevel(totalPoints || 0);
 
   // Build dynamic challenges based on real data
@@ -353,11 +384,27 @@ export default function StudentDashboard() {
       </div>
 
       <motion.div 
-        className="space-y-8 relative z-10"
+        className="space-y-6 relative z-10"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
+        {/* Tab Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="glass w-full justify-start gap-1 p-1 h-auto flex-wrap">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+              🏠 Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+              🏆 Achievements
+            </TabsTrigger>
+            <TabsTrigger value="xp-guide" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+              ⚡ How to Earn XP
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="mt-6 space-y-8">
         {/* Hero Section with Mascot */}
         <motion.div 
           variants={itemVariants}
@@ -468,16 +515,16 @@ export default function StudentDashboard() {
           </motion.div>
         </div>
 
-        {/* How to Earn XP Button */}
-        <motion.div variants={itemVariants} className="flex justify-center">
-          <Button
-            onClick={() => setShowXPGuide(true)}
-            variant="outline"
-            className="glass border-warning/30 hover:border-warning hover:bg-warning/10 text-warning"
-          >
-            <HelpCircle className="h-4 w-4 mr-2" />
-            How to Earn XP
-          </Button>
+        {/* Achievement Badges */}
+        <motion.div variants={itemVariants} className="glass-lg border-0 shadow-xl rounded-2xl p-6">
+          <AchievementBadges
+            totalXp={totalPoints || 0}
+            homeworkCompleted={achievementData?.homeworkCompleted || 0}
+            perfectAttendanceWeeks={achievementData?.perfectWeeks || 0}
+            currentStreak={streakData.currentStreak}
+            longestStreak={streakData.longestStreak}
+            classesAttended={achievementData?.classesAttended || 0}
+          />
         </motion.div>
 
         {/* Quick Stats Cards */}
@@ -780,6 +827,37 @@ export default function StudentDashboard() {
             </Link>
           ))}
         </motion.div>
+          </TabsContent>
+
+          {/* Achievements Tab */}
+          <TabsContent value="achievements" className="mt-6">
+            <motion.div
+              className="glass-lg border-0 shadow-xl rounded-2xl p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <AchievementBadges
+                totalXp={totalPoints || 0}
+                homeworkCompleted={achievementData?.homeworkCompleted || 0}
+                perfectAttendanceWeeks={achievementData?.perfectWeeks || 0}
+                currentStreak={streakData.currentStreak}
+                longestStreak={streakData.longestStreak}
+                classesAttended={achievementData?.classesAttended || 0}
+              />
+            </motion.div>
+          </TabsContent>
+
+          {/* How to Earn XP Tab */}
+          <TabsContent value="xp-guide" className="mt-6">
+            <motion.div
+              className="glass-lg border-0 shadow-xl rounded-2xl p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <HowToEarnXP />
+            </motion.div>
+          </TabsContent>
+        </Tabs>
       </motion.div>
 
       {/* Edit Profile Dialog */}
@@ -794,14 +872,6 @@ export default function StudentDashboard() {
           <div className="relative">
             <StudentProfileEdit studentId={studentId} />
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* How to Earn XP Dialog */}
-      <Dialog open={showXPGuide} onOpenChange={setShowXPGuide}>
-        <DialogContent className="glass-lg border-0 shadow-2xl max-w-2xl max-h-[90vh] overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent pointer-events-none" />
-          <HowToEarnXP onClose={() => setShowXPGuide(false)} />
         </DialogContent>
       </Dialog>
     </Layout>
