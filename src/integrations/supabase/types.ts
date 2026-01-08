@@ -277,6 +277,38 @@ export type Database = {
           },
         ]
       }
+      daily_login_rewards: {
+        Row: {
+          created_at: string | null
+          id: string
+          reward_date: string
+          student_id: string
+          xp_awarded: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          reward_date: string
+          student_id: string
+          xp_awarded?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          reward_date?: string
+          student_id?: string
+          xp_awarded?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_login_rewards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_assignments: {
         Row: {
           created_at: string
@@ -1837,6 +1869,98 @@ export type Database = {
             foreignKeyName: "skill_assessments_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_attendance_streaks: {
+        Row: {
+          bonuses_awarded: number | null
+          class_id: string
+          consecutive_days: number | null
+          created_at: string | null
+          id: string
+          last_attendance_date: string | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          bonuses_awarded?: number | null
+          class_id: string
+          consecutive_days?: number | null
+          created_at?: string | null
+          id?: string
+          last_attendance_date?: string | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          bonuses_awarded?: number | null
+          class_id?: string
+          consecutive_days?: number | null
+          created_at?: string | null
+          id?: string
+          last_attendance_date?: string | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_attendance_streaks_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_streaks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_login_streaks: {
+        Row: {
+          created_at: string | null
+          current_streak: number | null
+          id: string
+          last_homework_check: string | null
+          last_login_date: string | null
+          longest_streak: number | null
+          streak_freeze_count: number | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_homework_check?: string | null
+          last_login_date?: string | null
+          longest_streak?: number | null
+          streak_freeze_count?: number | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_homework_check?: string | null
+          last_login_date?: string | null
+          longest_streak?: number | null
+          streak_freeze_count?: number | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_login_streaks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
             referencedRelation: "students"
             referencedColumns: ["id"]
           },

@@ -5,15 +5,16 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight, HelpCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLoginChallenge } from "@/hooks/useLoginChallenge";
 
 // New kid-friendly components
 import { MascotCompanion } from "@/components/student/MascotCompanion";
@@ -22,6 +23,7 @@ import { DailyChallengesCard } from "@/components/student/DailyChallengesCard";
 import { LevelProgressRing } from "@/components/student/LevelProgressRing";
 import { QuestCard } from "@/components/student/QuestCard";
 import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
+import { HowToEarnXP } from "@/components/student/HowToEarnXP";
 
 // Animation variants
 const containerVariants = {
@@ -78,8 +80,12 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showXPGuide, setShowXPGuide] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
+
+  // Login challenge hook for real streak data
+  const { streakData, claimDailyReward, isClaimingReward } = useLoginChallenge(studentId);
 
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
@@ -221,19 +227,46 @@ export default function StudentDashboard() {
 
   const levelInfo = calculateLevel(totalPoints || 0);
 
-  // Mock streak data (would come from database in production)
-  const mockStreak = {
-    currentStreak: 5,
-    longestStreak: 12,
-    weekActivity: [true, true, true, true, true, false, false], // M-T-W-T-F-S-S
-  };
+  // Build dynamic challenges based on real data
+  const dynamicChallenges = useMemo(() => {
+    const hasCompletedHomework = (pendingHomework?.length || 0) === 0;
+    const hasAttendedToday = upcomingSessions?.some((s: any) => 
+      dayjs(s.date).isSame(dayjs(), 'day') && s.status === 'Held'
+    ) || false;
 
-  // Mock daily challenges
-  const mockChallenges = [
-    { id: '1', title: 'Early Bird', description: 'Log in before 9 AM', xpReward: 10, progress: 1, target: 1, completed: true, icon: '🌅' },
-    { id: '2', title: 'Homework Hero', description: 'Complete 1 homework', xpReward: 20, progress: pendingHomework?.length === 0 ? 1 : 0, target: 1, completed: pendingHomework?.length === 0, icon: '📚' },
-    { id: '3', title: 'Class Champion', description: 'Attend a class session', xpReward: 15, progress: 0, target: 1, completed: false, icon: '🎓' },
-  ];
+    return [
+      { 
+        id: '1', 
+        title: 'Daily Check-In', 
+        description: 'Log in and check your homework page', 
+        xpReward: 1, 
+        progress: streakData.hasCheckedHomeworkToday ? 1 : 0, 
+        target: 1, 
+        completed: !streakData.canClaimReward && streakData.hasCheckedHomeworkToday, 
+        icon: '✅' 
+      },
+      { 
+        id: '2', 
+        title: 'Homework Hero', 
+        description: 'Complete 1 homework', 
+        xpReward: 20, 
+        progress: hasCompletedHomework ? 1 : 0, 
+        target: 1, 
+        completed: hasCompletedHomework, 
+        icon: '📚' 
+      },
+      { 
+        id: '3', 
+        title: 'Class Champion', 
+        description: 'Attend a class session', 
+        xpReward: 15, 
+        progress: hasAttendedToday ? 1 : 0, 
+        target: 1, 
+        completed: hasAttendedToday, 
+        icon: '🎓' 
+      },
+    ];
+  }, [pendingHomework, upcomingSessions, streakData]);
 
   if (!studentId || !studentProfile) {
     return (
@@ -339,7 +372,7 @@ export default function StudentDashboard() {
                 {/* Mascot */}
                 <MascotCompanion 
                   studentName={studentProfile.full_name}
-                  streak={mockStreak.currentStreak}
+                  streak={streakData.currentStreak}
                   pendingHomework={pendingHomework?.length || 0}
                   level={levelInfo.level}
                 />
@@ -423,17 +456,29 @@ export default function StudentDashboard() {
         <div className="grid gap-6 md:grid-cols-2">
           <motion.div variants={itemVariants}>
             <DailyStreakCard 
-              currentStreak={mockStreak.currentStreak}
-              longestStreak={mockStreak.longestStreak}
-              weekActivity={mockStreak.weekActivity}
-              streakFreezeAvailable={true}
+              currentStreak={streakData.currentStreak}
+              longestStreak={streakData.longestStreak}
+              weekActivity={streakData.weekActivity}
+              streakFreezeAvailable={false}
             />
           </motion.div>
 
           <motion.div variants={itemVariants}>
-            <DailyChallengesCard challenges={mockChallenges} />
+            <DailyChallengesCard challenges={dynamicChallenges} />
           </motion.div>
         </div>
+
+        {/* How to Earn XP Button */}
+        <motion.div variants={itemVariants} className="flex justify-center">
+          <Button
+            onClick={() => setShowXPGuide(true)}
+            variant="outline"
+            className="glass border-warning/30 hover:border-warning hover:bg-warning/10 text-warning"
+          >
+            <HelpCircle className="h-4 w-4 mr-2" />
+            How to Earn XP
+          </Button>
+        </motion.div>
 
         {/* Quick Stats Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
@@ -749,6 +794,14 @@ export default function StudentDashboard() {
           <div className="relative">
             <StudentProfileEdit studentId={studentId} />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* How to Earn XP Dialog */}
+      <Dialog open={showXPGuide} onOpenChange={setShowXPGuide}>
+        <DialogContent className="glass-lg border-0 shadow-2xl max-w-2xl max-h-[90vh] overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent pointer-events-none" />
+          <HowToEarnXP onClose={() => setShowXPGuide(false)} />
         </DialogContent>
       </Dialog>
     </Layout>

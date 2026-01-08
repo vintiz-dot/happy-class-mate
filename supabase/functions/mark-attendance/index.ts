@@ -145,6 +145,88 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Track attendance streak for "Present" status and award 50 XP bonus for every 5 consecutive classes
+    if (status === 'Present') {
+      try {
+        // Get session's class_id
+        const { data: sessionData } = await supabase
+          .from('sessions')
+          .select('class_id')
+          .eq('id', sessionId)
+          .single();
+
+        if (sessionData?.class_id) {
+          const classId = sessionData.class_id;
+
+          // Get or create attendance streak record
+          const { data: existingStreak } = await supabase
+            .from('student_attendance_streaks')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('class_id', classId)
+            .maybeSingle();
+
+          let newConsecutive = 1;
+          let bonusesAwarded = existingStreak?.bonuses_awarded || 0;
+
+          if (existingStreak) {
+            // Check if this is consecutive (based on last attendance)
+            // For simplicity, we increment if last attendance was within reasonable time
+            const lastDate = existingStreak.last_attendance_date;
+            const today = new Date().toISOString().split('T')[0];
+            
+            // If last attendance was not today (prevent double counting same day)
+            if (lastDate !== today) {
+              newConsecutive = (existingStreak.consecutive_days || 0) + 1;
+            } else {
+              newConsecutive = existingStreak.consecutive_days || 1;
+            }
+          }
+
+          // Check if we've reached a 5-class milestone
+          const previousMilestones = bonusesAwarded;
+          const currentMilestones = Math.floor(newConsecutive / 5);
+
+          if (currentMilestones > previousMilestones) {
+            // Award 50 XP as focus points
+            console.log(`Awarding 50 XP focus bonus for ${newConsecutive} consecutive classes`);
+            
+            await supabase
+              .from('point_transactions')
+              .insert({
+                student_id: studentId,
+                class_id: classId,
+                points: 50,
+                type: 'focus',
+                reason: `Attendance streak bonus: ${newConsecutive} consecutive classes attended!`
+              });
+
+            bonusesAwarded = currentMilestones;
+          }
+
+          // Update streak record
+          const today = new Date().toISOString().split('T')[0];
+          await supabase
+            .from('student_attendance_streaks')
+            .upsert({
+              student_id: studentId,
+              class_id: classId,
+              consecutive_days: newConsecutive,
+              last_attendance_date: today,
+              bonuses_awarded: bonusesAwarded,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'student_id,class_id'
+            });
+
+          console.log(`Updated attendance streak: ${newConsecutive} consecutive classes`);
+        }
+      } catch (streakError) {
+        // Don't fail the main attendance marking if streak tracking fails
+        console.error('Error tracking attendance streak:', streakError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, attendance }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
