@@ -5,25 +5,30 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Flame, Star, Zap } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarUrl } from "@/lib/avatars";
 import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
-import { motion } from "framer-motion";
-import { Progress } from "@/components/ui/progress";
+import { motion, AnimatePresence } from "framer-motion";
+
+// New kid-friendly components
+import { MascotCompanion } from "@/components/student/MascotCompanion";
+import { DailyStreakCard } from "@/components/student/DailyStreakCard";
+import { DailyChallengesCard } from "@/components/student/DailyChallengesCard";
+import { LevelProgressRing } from "@/components/student/LevelProgressRing";
+import { QuestCard } from "@/components/student/QuestCard";
+import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
 
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+    transition: { staggerChildren: 0.06, delayChildren: 0.1 }
   }
 } as const;
 
@@ -34,13 +39,6 @@ const itemVariants = {
     y: 0, 
     scale: 1,
     transition: { type: "spring" as const, stiffness: 300, damping: 24 }
-  }
-};
-
-const floatVariants = {
-  animate: {
-    y: [0, -8, 0],
-    transition: { duration: 3, repeat: Infinity, ease: "easeInOut" as const }
   }
 };
 
@@ -66,13 +64,13 @@ function calculateLevel(xp: number): { level: number; currentXp: number; nextLev
   return { level, currentXp, nextLevelXp, progress };
 }
 
-// Time-based greeting
+// Time-based greeting with kid-friendly messages
 function getGreeting(): { text: string; emoji: string; subtext: string } {
   const hour = new Date().getHours();
-  if (hour < 12) return { text: "Good Morning", emoji: "☀️", subtext: "Ready to learn something new?" };
-  if (hour < 17) return { text: "Good Afternoon", emoji: "🌤️", subtext: "Keep up the great work!" };
-  if (hour < 21) return { text: "Good Evening", emoji: "🌙", subtext: "Time for some evening study!" };
-  return { text: "Good Night", emoji: "✨", subtext: "Burning the midnight oil?" };
+  if (hour < 12) return { text: "Good Morning", emoji: "🌅", subtext: "A brand new day of adventure awaits!" };
+  if (hour < 17) return { text: "Good Afternoon", emoji: "☀️", subtext: "You're doing amazing today!" };
+  if (hour < 21) return { text: "Good Evening", emoji: "🌆", subtext: "Time for some evening learning!" };
+  return { text: "Good Night", emoji: "🌙", subtext: "Rest up for tomorrow's quests!" };
 }
 
 export default function StudentDashboard() {
@@ -80,6 +78,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const greeting = useMemo(() => getGreeting(), []);
 
   const { data: studentProfile } = useQuery({
@@ -222,6 +221,20 @@ export default function StudentDashboard() {
 
   const levelInfo = calculateLevel(totalPoints || 0);
 
+  // Mock streak data (would come from database in production)
+  const mockStreak = {
+    currentStreak: 5,
+    longestStreak: 12,
+    weekActivity: [true, true, true, true, true, false, false], // M-T-W-T-F-S-S
+  };
+
+  // Mock daily challenges
+  const mockChallenges = [
+    { id: '1', title: 'Early Bird', description: 'Log in before 9 AM', xpReward: 10, progress: 1, target: 1, completed: true, icon: '🌅' },
+    { id: '2', title: 'Homework Hero', description: 'Complete 1 homework', xpReward: 20, progress: pendingHomework?.length === 0 ? 1 : 0, target: 1, completed: pendingHomework?.length === 0, icon: '📚' },
+    { id: '3', title: 'Class Champion', description: 'Attend a class session', xpReward: 15, progress: 0, target: 1, completed: false, icon: '🎓' },
+  ];
+
   if (!studentId || !studentProfile) {
     return (
       <Layout title="Dashboard">
@@ -240,7 +253,16 @@ export default function StudentDashboard() {
   }
 
   return (
-    <Layout title={`Dashboard`}>
+    <Layout title="Dashboard">
+      {/* Celebration Overlay */}
+      <CelebrationOverlay 
+        show={showCelebration} 
+        type="level_up"
+        title="Level Up!"
+        subtitle="You've reached a new level!"
+        onComplete={() => setShowCelebration(false)}
+      />
+
       {/* Premium Immersive Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5" />
@@ -263,7 +285,7 @@ export default function StudentDashboard() {
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
         <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-secondary/10 rounded-full blur-[100px]"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-warning/5 rounded-full blur-[100px]"
           animate={{ 
             scale: [1, 1.2, 1],
             opacity: [0.08, 0.12, 0.08]
@@ -273,7 +295,7 @@ export default function StudentDashboard() {
 
         {/* Starfield */}
         <div className="starfield">
-          {Array.from({ length: 60 }).map((_, i) => (
+          {Array.from({ length: 40 }).map((_, i) => (
             <motion.div
               key={i}
               className="absolute rounded-full bg-foreground/20"
@@ -303,82 +325,29 @@ export default function StudentDashboard() {
         initial="hidden"
         animate="visible"
       >
-        {/* Premium Profile Header with Level System */}
+        {/* Hero Section with Mascot */}
         <motion.div 
           variants={itemVariants}
           className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
           
-          <div className="p-8 relative">
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                {/* Avatar with Level Ring */}
-                <motion.div 
-                  className="relative"
-                  variants={floatVariants}
-                  animate="animate"
-                >
-                  {/* XP Progress Ring */}
-                  <svg className="absolute -inset-3 h-32 w-32 -rotate-90">
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="58"
-                      fill="none"
-                      stroke="hsl(var(--muted))"
-                      strokeWidth="4"
-                      className="opacity-30"
-                    />
-                    <motion.circle
-                      cx="64"
-                      cy="64"
-                      r="58"
-                      fill="none"
-                      stroke="url(#xpGradient)"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={`${levelInfo.progress * 3.64} 364`}
-                      initial={{ strokeDasharray: "0 364" }}
-                      animate={{ strokeDasharray: `${levelInfo.progress * 3.64} 364` }}
-                      transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
-                    />
-                    <defs>
-                      <linearGradient id="xpGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" />
-                        <stop offset="100%" stopColor="hsl(var(--accent))" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  
-                  {/* Glow effect */}
-                  <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl animate-pulse" />
-                  
-                  <Avatar className="h-24 w-24 border-4 border-background shadow-2xl relative ring-2 ring-primary/30">
-                    <AvatarImage src={getAvatarUrl(studentProfile.avatar_url) || undefined} alt={studentProfile.full_name} className="object-cover" />
-                    <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-primary to-accent text-white">
-                      {studentProfile.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+          <div className="p-6 md:p-8 relative">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              {/* Left: Mascot + Greeting */}
+              <div className="flex items-center gap-4 md:gap-6">
+                {/* Mascot */}
+                <MascotCompanion 
+                  studentName={studentProfile.full_name}
+                  streak={mockStreak.currentStreak}
+                  pendingHomework={pendingHomework?.length || 0}
+                  level={levelInfo.level}
+                />
 
-                  {/* Level Badge */}
+                {/* Greeting & Name */}
+                <div className="space-y-1">
                   <motion.div 
-                    className="absolute -bottom-2 -right-2 bg-gradient-to-r from-primary to-accent rounded-full px-3 py-1 shadow-lg"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", delay: 0.8, stiffness: 400 }}
-                  >
-                    <span className="text-xs font-black text-primary-foreground flex items-center gap-1">
-                      <Star className="h-3 w-3" />
-                      LV {levelInfo.level}
-                    </span>
-                  </motion.div>
-                </motion.div>
-                
-                <div className="space-y-3 text-center sm:text-left">
-                  {/* Greeting */}
-                  <motion.div 
-                    className="flex items-center gap-2 justify-center sm:justify-start"
+                    className="flex items-center gap-2"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
@@ -387,74 +356,86 @@ export default function StudentDashboard() {
                     <span className="text-lg text-muted-foreground">{greeting.text},</span>
                   </motion.div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                      {studentProfile.full_name}
-                    </h1>
-                    <Badge 
-                      variant={studentProfile.is_active ? "default" : "secondary"} 
-                      className={`${studentProfile.is_active ? "bg-gradient-to-r from-success to-success/80 shadow-lg" : ""} px-3 py-1`}
-                    >
-                      {studentProfile.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                    {studentProfile.full_name.split(' ')[0]}!
+                  </h1>
 
                   <p className="text-sm text-muted-foreground">{greeting.subtext}</p>
-                  
-                  {/* XP Display */}
-                  <motion.div 
-                    className="flex items-center gap-4 flex-wrap justify-center sm:justify-start"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                  >
-                    <div className="flex items-center gap-2 glass-sm px-4 py-2 rounded-full">
-                      <Zap className="h-4 w-4 text-warning" />
-                      <span className="text-sm font-bold">{totalPoints || 0} XP</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {levelInfo.currentXp}/{levelInfo.nextLevelXp} to Level {levelInfo.level + 1}
-                    </div>
-                  </motion.div>
-
-                  <div className="flex flex-col gap-2 text-muted-foreground">
-                    {studentProfile.family?.name && (
-                      <div className="flex items-center gap-2 glass-sm px-3 py-1.5 rounded-lg w-fit mx-auto sm:mx-0">
-                        <span className="font-semibold text-foreground">Family:</span>
-                        <span>{studentProfile.family.name}</span>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-4 justify-center sm:justify-start">
-                      {studentProfile.email && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="h-4 w-4 text-primary" />
-                          <span>{studentProfile.email}</span>
-                        </div>
-                      )}
-                      {studentProfile.phone && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="h-4 w-4 text-primary" />
-                          <span>{studentProfile.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
-              
+
+              {/* Center: Level Ring */}
+              <div className="flex justify-center lg:justify-end">
+                <LevelProgressRing
+                  avatarUrl={studentProfile.avatar_url}
+                  name={studentProfile.full_name}
+                  level={levelInfo.level}
+                  currentXp={levelInfo.currentXp}
+                  nextLevelXp={levelInfo.nextLevelXp}
+                  progress={levelInfo.progress}
+                  totalXp={totalPoints || 0}
+                  size="lg"
+                />
+              </div>
+
+              {/* Right: Edit Button */}
               <Button 
                 onClick={() => setShowEditProfile(true)} 
                 className="glass border-primary/20 hover:border-primary hover:bg-primary/10 transition-all duration-300 shadow-lg hover:shadow-xl self-center lg:self-start"
                 variant="outline"
+                size="sm"
               >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Profile
+                Edit
               </Button>
             </div>
+
+            {/* XP Progress Bar */}
+            <motion.div 
+              className="mt-6 space-y-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-warning" />
+                  <span className="font-medium">Level {levelInfo.level}</span>
+                </div>
+                <span className="text-muted-foreground">
+                  {levelInfo.currentXp}/{levelInfo.nextLevelXp} XP to Level {levelInfo.level + 1}
+                </span>
+              </div>
+              <div className="h-3 bg-muted/50 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full"
+                  style={{ backgroundSize: '200% 100%' }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${levelInfo.progress}%` }}
+                  transition={{ duration: 1, delay: 0.8, ease: "easeOut" }}
+                />
+              </div>
+            </motion.div>
           </div>
         </motion.div>
 
-        {/* Premium Stats Cards */}
+        {/* Stats Row - Streak & Challenges */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <motion.div variants={itemVariants}>
+            <DailyStreakCard 
+              currentStreak={mockStreak.currentStreak}
+              longestStreak={mockStreak.longestStreak}
+              weekActivity={mockStreak.weekActivity}
+              streakFreezeAvailable={true}
+            />
+          </motion.div>
+
+          <motion.div variants={itemVariants}>
+            <DailyChallengesCard challenges={mockChallenges} />
+          </motion.div>
+        </div>
+
+        {/* Quick Stats Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
           <motion.div 
             variants={itemVariants}
@@ -468,20 +449,20 @@ export default function StudentDashboard() {
                   className="p-3 rounded-xl bg-gradient-to-br from-secondary/30 to-muted/30"
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <Clock className="h-6 w-6 text-secondary-foreground" />
+                  <Rocket className="h-6 w-6 text-secondary-foreground" />
                 </motion.div>
-                <CardDescription className="text-base font-medium">Upcoming Sessions</CardDescription>
+                <CardDescription className="text-base font-medium">Upcoming Adventures</CardDescription>
               </div>
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.4, type: "spring" }}
               >
-                <CardTitle className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
+                <CardTitle className="text-5xl font-black bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
                   {upcomingSessions?.length || 0}
                 </CardTitle>
               </motion.div>
-              <p className="text-sm text-muted-foreground">Next 7 days</p>
+              <p className="text-sm text-muted-foreground">Classes this week</p>
             </div>
           </motion.div>
 
@@ -497,20 +478,20 @@ export default function StudentDashboard() {
                   className="p-3 rounded-xl bg-gradient-to-br from-accent/30 to-secondary/30"
                   whileHover={{ scale: 1.1, rotate: -5 }}
                 >
-                  <FileText className="h-6 w-6 text-accent-foreground" />
+                  <Target className="h-6 w-6 text-accent-foreground" />
                 </motion.div>
-                <CardDescription className="text-base font-medium">Pending Homework</CardDescription>
+                <CardDescription className="text-base font-medium">Active Quests</CardDescription>
               </div>
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5, type: "spring" }}
               >
-                <CardTitle className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
+                <CardTitle className="text-5xl font-black bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
                   {pendingHomework?.length || 0}
                 </CardTitle>
               </motion.div>
-              <p className="text-sm text-muted-foreground">Assignments to complete</p>
+              <p className="text-sm text-muted-foreground">Homework to complete</p>
             </div>
           </motion.div>
 
@@ -524,19 +505,19 @@ export default function StudentDashboard() {
             <div className="relative">
               <div className="flex items-center gap-3 mb-4">
                 <motion.div 
-                  className="p-3 rounded-xl bg-gradient-to-br from-muted/30 to-accent/30"
+                  className="p-3 rounded-xl bg-gradient-to-br from-warning/30 to-accent/30"
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <DollarSign className="h-6 w-6 text-muted-foreground" />
+                  <DollarSign className="h-6 w-6 text-warning" />
                 </motion.div>
-                <CardDescription className="text-base font-medium">Current Balance</CardDescription>
+                <CardDescription className="text-base font-medium">Balance</CardDescription>
               </div>
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.6, type: "spring" }}
               >
-                <CardTitle className={`text-3xl sm:text-4xl font-bold mb-2 ${tuitionData?.carryOutDebt ? 'text-destructive' : tuitionData?.carryOutCredit ? 'text-success' : 'bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent'}`}>
+                <CardTitle className={`text-3xl sm:text-4xl font-black mb-2 ${tuitionData?.carryOutDebt ? 'text-destructive' : tuitionData?.carryOutCredit ? 'text-success' : 'bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent'}`}>
                   {tuitionData?.carryOutDebt 
                     ? formatVND(tuitionData.carryOutDebt)
                     : tuitionData?.carryOutCredit
@@ -545,29 +526,91 @@ export default function StudentDashboard() {
                 </CardTitle>
               </motion.div>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
-                {dayjs().format("MMMM YYYY")} 
-                <span className="text-xs glass-sm px-2 py-0.5 rounded-full">Click to view</span>
+                {dayjs().format("MMMM")} 
+                <span className="text-xs glass-sm px-2 py-0.5 rounded-full">View →</span>
               </p>
             </div>
           </motion.div>
         </div>
 
-        {/* Premium Content Cards */}
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Quest Board & Sessions */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Quest Board (Homework) */}
           <motion.div 
             variants={itemVariants}
             className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden"
           >
             <div className="p-6 relative">
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <motion.div 
+                    className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10"
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <span className="text-2xl">📋</span>
+                  </motion.div>
+                  <CardTitle className="text-xl font-bold">Quest Board</CardTitle>
+                </div>
+                <Link to="/student/assignments">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    View All <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+              
+              {pendingHomework && pendingHomework.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingHomework.slice(0, 3).map((hw: any, index: number) => (
+                    <QuestCard
+                      key={hw.id}
+                      id={hw.id}
+                      title={hw.title}
+                      className={hw.classes?.name || 'Class'}
+                      dueDate={hw.due_date}
+                      xpReward={20}
+                      type="homework"
+                      status={hw.due_date && dayjs(hw.due_date).isBefore(dayjs()) ? "overdue" : "pending"}
+                      onClick={() => navigate('/student/assignments')}
+                    />
+                  ))}
+                </div>
+              ) : (
                 <motion.div 
-                  className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.5 }}
+                  className="glass-muted rounded-xl p-8 text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                 >
-                  <Clock className="h-6 w-6 text-primary" />
+                  <span className="text-5xl mb-4 block">🎉</span>
+                  <p className="text-lg font-medium text-foreground mb-1">All Quests Complete!</p>
+                  <p className="text-muted-foreground text-sm">You're all caught up. Great job!</p>
                 </motion.div>
-                <CardTitle className="text-2xl font-bold">Upcoming Sessions</CardTitle>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Upcoming Sessions */}
+          <motion.div 
+            variants={itemVariants}
+            className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden"
+          >
+            <div className="p-6 relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <motion.div 
+                    className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10"
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <span className="text-2xl">🚀</span>
+                  </motion.div>
+                  <CardTitle className="text-xl font-bold">Upcoming Adventures</CardTitle>
+                </div>
+                <Link to="/schedule">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    Schedule <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
               </div>
               
               {upcomingSessions && upcomingSessions.length > 0 ? (
@@ -581,21 +624,26 @@ export default function StudentDashboard() {
                       transition={{ delay: index * 0.1 }}
                       whileHover={{ x: 4 }}
                     >
-                      <div className="space-y-1">
-                        <p className="font-semibold text-foreground">{session.classes.name}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {dayjs(session.date).format("MMM D, YYYY")} • {session.start_time.slice(0, 5)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                          <span className="text-xl">🎓</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-foreground">{session.classes.name}</p>
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {dayjs(session.date).format("MMM D")} • {session.start_time.slice(0, 5)}
+                          </p>
+                        </div>
                       </div>
-                      <Badge className="shadow-md">{session.status}</Badge>
+                      <div className="flex items-center gap-2">
+                        {dayjs(session.date).isSame(dayjs(), 'day') && (
+                          <Badge className="bg-success text-success-foreground">Today!</Badge>
+                        )}
+                        <span className="text-xs text-warning font-bold">+15 XP</span>
+                      </div>
                     </motion.div>
                   ))}
-                  <Link to="/schedule">
-                    <Button className="w-full glass border-primary/20 hover:border-primary hover:bg-primary/10 transition-all duration-300 shadow-lg mt-2" variant="outline">
-                      View Full Schedule
-                    </Button>
-                  </Link>
                 </div>
               ) : (
                 <motion.div 
@@ -603,67 +651,16 @@ export default function StudentDashboard() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">No upcoming sessions</p>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-
-          <motion.div 
-            variants={itemVariants}
-            className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden"
-          >
-            <div className="p-6 relative">
-              <div className="flex items-center gap-3 mb-6">
-                <motion.div 
-                  className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <FileText className="h-6 w-6 text-accent" />
-                </motion.div>
-                <CardTitle className="text-2xl font-bold">Pending Homework</CardTitle>
-              </div>
-              
-              {pendingHomework && pendingHomework.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingHomework.map((hw: any, index: number) => (
-                    <motion.div 
-                      key={hw.id} 
-                      className="glass p-4 rounded-xl hover:shadow-lg transition-all duration-300"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ x: 4 }}
-                    >
-                      <p className="font-semibold text-foreground mb-1">{hw.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {hw.classes.name} • Due: {hw.due_date ? dayjs(hw.due_date).format("MMM D") : "No due date"}
-                      </p>
-                    </motion.div>
-                  ))}
-                  <Link to="/student/assignments">
-                    <Button className="w-full glass border-accent/20 hover:border-accent hover:bg-accent/10 transition-all duration-300 shadow-lg mt-2" variant="outline">
-                      View All Assignments
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <motion.div 
-                  className="glass-muted rounded-xl p-8 text-center"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">No pending homework</p>
+                  <span className="text-5xl mb-4 block">📅</span>
+                  <p className="text-lg font-medium text-foreground mb-1">No upcoming sessions</p>
+                  <p className="text-muted-foreground text-sm">Enjoy your free time!</p>
                 </motion.div>
               )}
             </div>
           </motion.div>
         </div>
 
-        {/* Premium Class Leaderboards */}
+        {/* Class Rankings */}
         {enrolledClasses && enrolledClasses.length > 0 && (
           <motion.div variants={itemVariants} className="space-y-6">
             <div className="flex items-center gap-4">
@@ -673,9 +670,12 @@ export default function StudentDashboard() {
               >
                 <Trophy className="h-8 w-8 text-warning" />
               </motion.div>
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Class Rankings
-              </h2>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  Class Champions
+                </h2>
+                <p className="text-sm text-muted-foreground">Climb the leaderboard and earn XP!</p>
+              </div>
             </div>
             
             <div className="grid gap-6 md:grid-cols-2">
@@ -700,43 +700,44 @@ export default function StudentDashboard() {
           </motion.div>
         )}
 
-        {/* Premium Quick Access Cards */}
+        {/* Quick Access Cards */}
         <motion.div 
           variants={itemVariants}
           className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4"
         >
           {[
-            { to: "/schedule", icon: Calendar, title: "Schedule", desc: "View your class schedule", color: "primary" },
-            { to: "/student/assignments", icon: FileText, title: "Assignments", desc: "Submit and track homework", color: "accent" },
-            { to: "/student/journal", icon: BookOpen, title: "Journal", desc: "Write and manage entries", color: "success" },
-            { to: "/tuition", icon: DollarSign, title: "Tuition", desc: "View payment details", color: "warning" },
+            { to: "/schedule", icon: "📅", title: "Schedule", desc: "View your classes", gradient: "from-primary/20 to-primary/5" },
+            { to: "/student/assignments", icon: "📚", title: "Quests", desc: "Complete homework", gradient: "from-accent/20 to-accent/5" },
+            { to: "/student/journal", icon: "📓", title: "Journal", desc: "Write entries", gradient: "from-success/20 to-success/5" },
+            { to: "/tuition", icon: "💰", title: "Tuition", desc: "View payments", gradient: "from-warning/20 to-warning/5" },
           ].map((item, index) => (
             <Link key={item.to} to={item.to}>
               <motion.div 
-                className="glass-lg border-0 shadow-xl rounded-2xl p-6 cursor-pointer group relative overflow-hidden h-full"
+                className={`glass-lg border-0 shadow-xl rounded-2xl p-6 cursor-pointer group relative overflow-hidden h-full bg-gradient-to-br ${item.gradient}`}
                 whileHover={{ scale: 1.05, y: -4 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br from-${item.color}/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
                 <div className="relative">
                   <motion.div 
-                    className={`p-3 rounded-xl bg-gradient-to-br from-${item.color}/20 to-${item.color}/10 w-fit mb-4`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="text-4xl mb-4"
+                    whileHover={{ scale: 1.2, rotate: 10 }}
+                    transition={{ type: "spring", stiffness: 400 }}
                   >
-                    <item.icon className={`h-6 w-6 text-${item.color}`} />
+                    {item.icon}
                   </motion.div>
-                  <CardTitle className="text-lg sm:text-xl font-bold mb-2">{item.title}</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl font-bold mb-1">{item.title}</CardTitle>
                   <CardDescription className="text-xs sm:text-sm">{item.desc}</CardDescription>
                 </div>
+                <ChevronRight className="absolute bottom-4 right-4 h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </motion.div>
             </Link>
           ))}
         </motion.div>
       </motion.div>
 
-      {/* Premium Edit Profile Dialog */}
+      {/* Edit Profile Dialog */}
       <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
         <DialogContent className="glass-lg border-0 shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
