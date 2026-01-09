@@ -1,179 +1,289 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Users, BookOpen, Calendar, DollarSign, BarChart3, Receipt, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy } from "lucide-react";
+import { GraduationCap, LogOut, Users, BookOpen, Calendar, DollarSign, BarChart3, Receipt, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+
 interface LayoutProps {
   children: ReactNode;
   title?: string;
 }
-const Layout = ({
-  children,
-  title
-}: LayoutProps) => {
-  const {
-    user,
-    role,
-    signOut
-  } = useAuth();
+
+const Layout = ({ children, title }: LayoutProps) => {
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userName, setUserName] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!user) return;
 
-      // Try to get student info
-      const {
-        data: studentData
-      } = await supabase.from("students").select("full_name, avatar_url").eq("linked_user_id", user.id).single();
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("full_name, avatar_url")
+        .eq("linked_user_id", user.id)
+        .single();
       if (studentData?.full_name) {
         setUserName(studentData.full_name);
         setAvatarUrl(studentData.avatar_url);
         return;
       }
 
-      // Try to get teacher info
-      const {
-        data: teacherData
-      } = await supabase.from("teachers").select("full_name, avatar_url").eq("user_id", user.id).single();
+      const { data: teacherData } = await supabase
+        .from("teachers")
+        .select("full_name, avatar_url")
+        .eq("user_id", user.id)
+        .single();
       if (teacherData?.full_name) {
         setUserName(teacherData.full_name);
         setAvatarUrl(teacherData.avatar_url);
         return;
       }
 
-      // Try to get family name
-      const {
-        data: familyData
-      } = await supabase.from("families").select("name").eq("primary_user_id", user.id).single();
+      const { data: familyData } = await supabase
+        .from("families")
+        .select("name")
+        .eq("primary_user_id", user.id)
+        .single();
       if (familyData?.name) {
         setUserName(familyData.name);
       }
     };
     fetchUserInfo();
   }, [user]);
+
   if (!user) {
     return <>{children}</>;
   }
+
   const getNavigationItems = () => {
     switch (role) {
       case "admin":
-        return [{
-          icon: LayoutDashboard,
-          label: "Admin",
-          path: "/admin"
-        }, {
-          icon: Users,
-          label: "Students",
-          path: "/students"
-        }, {
-          icon: Users,
-          label: "Teachers",
-          path: "/teachers"
-        }, {
-          icon: BookOpen,
-          label: "Classes",
-          path: "/classes"
-        }];
+        return [
+          { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
+          { icon: Users, label: "Students", path: "/students" },
+          { icon: Users, label: "Teachers", path: "/teachers" },
+          { icon: BookOpen, label: "Classes", path: "/classes" },
+          { icon: Home, label: "Families", path: "/families" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: DollarSign, label: "Tuition", path: "/tuition" },
+          { icon: Wallet, label: "Finance", path: "/finance" },
+        ];
       case "teacher":
-        return [{
-          icon: BarChart3,
-          label: "Dashboard",
-          path: "/dashboard"
-        }, {
-          icon: Calendar,
-          label: "Schedule",
-          path: "/schedule"
-        }, {
-          icon: Trophy,
-          label: "Leaderboard",
-          path: "/teacher/leaderboards"
-        }, {
-          icon: Wallet,
-          label: "Payroll",
-          path: "/teacher/payroll"
-        }, {
-          icon: FileText,
-          label: "Assignments",
-          path: "/teacher/assignments"
-        }, {
-          icon: ClipboardList,
-          label: "Attendance",
-          path: "/teacher/attendance"
-        }, {
-          icon: BookMarked,
-          label: "Journal",
-          path: "/teacher/journal"
-        }];
-      case "family":
-        return [{
-          icon: BarChart3,
-          label: "Dashboard",
-          path: "/dashboard"
-        }, {
-          icon: Users,
-          label: "Children",
-          path: "/students"
-        }, {
-          icon: Receipt,
-          label: "Tuition",
-          path: "/tuition"
-        }];
-      case "student":
-        return [];
+        return [
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: Trophy, label: "Leaderboard", path: "/teacher/leaderboards" },
+          { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
+          { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
+          { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
+          { icon: BookMarked, label: "Journal", path: "/teacher/journal" },
+        ];
       default:
         return [];
     }
   };
+
   const navItems = getNavigationItems();
-  return <div className="min-h-screen bg-background">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+  const showSidebar = role === "admin" || role === "teacher";
+
+  // Student/Family layout - unchanged
+  if (!showSidebar) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
+          <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-base md:text-xl font-bold text-foreground">{title || "Education Manager"}</h1>
+                <p className="text-xs text-muted-foreground hidden md:block">Happy English Club</p>
+              </div>
             </div>
-            <div className="hidden sm:block">
-              <h1 className="text-base md:text-xl font-bold text-foreground">{title || "Education Manager"}</h1>
-              <p className="text-xs text-muted-foreground hidden md:block">Happy English Club</p>
+            <div className="flex items-center gap-2 md:gap-4">
+              <ProfileSwitcher />
+              <NotificationBell />
+              {userName && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src={avatarUrl || undefined} alt={userName} />
+                    <AvatarFallback className="text-xs">
+                      {userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground">{userName}</span>
+                </div>
+              )}
+              <ChangePassword />
+              <Button onClick={signOut} variant="outline" size="sm" className="hidden sm:flex">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+              <Button onClick={signOut} variant="outline" size="icon" className="sm:hidden">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            {(role === "student" || role === "family") && <ProfileSwitcher />}
-            <NotificationBell />
-            {userName && <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={avatarUrl || undefined} alt={userName} />
-                  <AvatarFallback className="text-xs">
-                    {userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium text-foreground">{userName}</span>
-              </div>}
-            <ChangePassword />
-            <Button onClick={signOut} variant="outline" size="sm" className="hidden sm:flex">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-            <Button onClick={signOut} variant="outline" size="icon" className="sm:hidden">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+        </header>
+        <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">{children}</main>
+      </div>
+    );
+  }
+
+  // Admin/Teacher layout with sidebar
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside
+        className={cn(
+          "hidden md:flex flex-col border-r bg-card transition-all duration-300 sticky top-0 h-screen",
+          sidebarOpen ? "w-56" : "w-16"
+        )}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 border-b flex items-center justify-between">
+          {sidebarOpen && (
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <GraduationCap className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-semibold text-sm">Happy English</span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
         </div>
-      </header>
 
-      {/* Navigation */}
-      
+        {/* Navigation */}
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Button
+                key={item.path}
+                variant={isActive ? "secondary" : "ghost"}
+                className={cn(
+                  "w-full justify-start gap-3",
+                  !sidebarOpen && "justify-center px-2",
+                  isActive && "bg-primary/10 text-primary hover:bg-primary/15"
+                )}
+                onClick={() => navigate(item.path)}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {sidebarOpen && <span>{item.label}</span>}
+              </Button>
+            );
+          })}
+        </nav>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">{children}</main>
-    </div>;
+        {/* Sidebar Footer */}
+        <div className="p-2 border-t space-y-2">
+          {sidebarOpen && userName && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={avatarUrl || undefined} alt={userName} />
+                <AvatarFallback className="text-xs">
+                  {userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium truncate">{userName}</span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            className={cn("w-full justify-start gap-3 text-muted-foreground", !sidebarOpen && "justify-center px-2")}
+            onClick={signOut}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {sidebarOpen && <span>Sign Out</span>}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Mobile Header + Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header */}
+        <header className="md:hidden sticky top-0 z-50 border-b bg-card/95 backdrop-blur shadow-sm">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+              <span className="font-semibold">{title || "Dashboard"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ChangePassword />
+            </div>
+          </div>
+          
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <nav className="border-t bg-card p-2 space-y-1">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Button
+                    key={item.path}
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start gap-3",
+                      isActive && "bg-primary/10 text-primary"
+                    )}
+                    onClick={() => {
+                      navigate(item.path);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Button>
+                );
+              })}
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-muted-foreground"
+                onClick={signOut}
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </Button>
+            </nav>
+          )}
+        </header>
+
+        {/* Desktop Header */}
+        <header className="hidden md:flex sticky top-0 z-40 border-b bg-card/95 backdrop-blur shadow-sm px-6 py-4 items-center justify-between">
+          <h1 className="text-xl font-bold">{title || "Dashboard"}</h1>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <ChangePassword />
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">{children}</main>
+      </div>
+    </div>
+  );
 };
+
 export default Layout;
