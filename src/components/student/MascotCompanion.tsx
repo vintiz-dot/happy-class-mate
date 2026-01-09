@@ -86,15 +86,15 @@ export function MascotCompanion({ studentName, streak = 0, pendingHomework = 0, 
       <AnimatePresence>
         {showBubble && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, x: -10 }}
+            initial={{ opacity: 0, scale: 0.8, x: 10 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.8, x: -10 }}
-            className="absolute bottom-full left-0 mb-2 bg-gradient-to-br from-card to-card/80 rounded-2xl rounded-bl-sm px-4 py-3 shadow-xl border border-border/50 max-w-[200px] backdrop-blur-xl"
+            exit={{ opacity: 0, scale: 0.8, x: 10 }}
+            className="absolute left-full bottom-0 ml-3 z-50 bg-gradient-to-br from-card to-card/80 rounded-2xl rounded-bl-sm px-4 py-3 shadow-xl border border-border/50 max-w-[200px] backdrop-blur-xl"
           >
             <p className="text-sm font-medium text-foreground leading-relaxed">
               {studentName ? `Hey ${studentName.split(' ')[0]}! ` : ''}{currentMessage.message}
             </p>
-            <div className="absolute -bottom-2 left-4 w-4 h-4 bg-card border-l border-b border-border/50 transform rotate-[-45deg]" />
+            <div className="absolute -left-2 bottom-4 w-4 h-4 bg-card border-l border-b border-border/50 transform rotate-[45deg]" />
           </motion.div>
         )}
       </AnimatePresence>
