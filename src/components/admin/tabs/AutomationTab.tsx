@@ -12,7 +12,8 @@ import { InvoiceStatusManager } from "@/components/admin/InvoiceStatusManager";
 import { PaymentIntegrityRepair } from "@/components/admin/PaymentIntegrityRepair";
 import { VoluntaryContributionRepair } from "@/components/admin/VoluntaryContributionRepair";
 import { GenerateTuition } from "@/components/admin/GenerateTuition";
-import { Cog, Wrench } from "lucide-react";
+import { XPSettingsManager } from "@/components/admin/XPSettingsManager";
+import { Cog, Wrench, Sparkles } from "lucide-react";
 import { dayjs } from "@/lib/date";
 
 const AutomationTab = () => {
@@ -58,6 +59,14 @@ const AutomationTab = () => {
           <BulkSessionDelete />
           <TuitionBulkDownload month={dayjs().format("YYYY-MM")} />
         </div>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <Sparkles className="h-6 w-6" />
+          Gamification Settings
+        </h2>
+        <XPSettingsManager />
       </div>
     </div>
   );
