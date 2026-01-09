@@ -6,12 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
 import { MonthPicker } from "@/components/MonthPicker";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
+import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
 
 export default function Tuition() {
   const { role } = useAuth();
@@ -31,7 +30,7 @@ export default function Tuition() {
     );
   }
 
-  // Student/family tuition page - rest of the component stays the same
+  // Teacher access denied
   if (role === "teacher") {
     return (
       <Layout title="Tuition">
@@ -44,85 +43,8 @@ export default function Tuition() {
     );
   }
 
-  const { data: tuitionData, isLoading } = useQuery({
-    queryKey: ["student-tuition", studentId, month],
-    queryFn: async () => {
-      if (!studentId) return null;
-
-      // Fetch invoice from database (same as admin)
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("student_id", studentId)
-        .eq("month", month)
-        .maybeSingle();
-
-      if (invoiceError) throw invoiceError;
-      if (!invoice) return null;
-
-      // Fetch payments from database
-      const monthStart = `${month}-01`;
-      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
-        .toISOString()
-        .slice(0, 10);
-
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("student_id", studentId)
-        .gte("occurred_at", monthStart)
-        .lte("occurred_at", monthEnd)
-        .order("occurred_at", { ascending: true });
-
-      // Fetch enrollments and sessions for session breakdown
-      const { data: enrollments } = await supabase
-        .from("enrollments")
-        .select("class_id, classes(name)")
-        .eq("student_id", studentId)
-        .lte("start_date", `${month}-31`)
-        .or(`end_date.is.null,end_date.gte.${month}-01`);
-
-      const classIds = enrollments?.map((e) => e.class_id) || [];
-      let sessionDetails: any[] = [];
-
-      if (classIds.length > 0) {
-        const { data: sessions } = await supabase
-          .from("sessions")
-          .select(
-            `
-            id,
-            date,
-            start_time,
-            end_time,
-            status,
-            class_id,
-            classes(name)
-          `,
-          )
-          .in("class_id", classIds)
-          .gte("date", `${month}-01`)
-          .lte("date", `${month}-31`)
-          .in("status", ["Held", "Scheduled"])
-          .order("date", { ascending: true });
-
-        sessionDetails = sessions || [];
-      }
-
-      // Use recorded_payment if available, otherwise fall back to paid_amount
-      const effectivePaidAmount = invoice.recorded_payment ?? invoice.paid_amount;
-
-      return {
-        baseAmount: invoice.base_amount,
-        discountAmount: invoice.discount_amount,
-        totalAmount: invoice.total_amount,
-        paidAmount: effectivePaidAmount,
-        balance: invoice.total_amount - effectivePaidAmount,
-        payments: payments || [],
-        sessionDetails,
-      };
-    },
-    enabled: !!studentId,
-  });
+  // Use the same hook as StudentTuitionTab for consistent data
+  const { data: tuitionData, isLoading } = useStudentMonthFinance(studentId, month);
 
   if (!studentId) {
     return (
@@ -140,29 +62,24 @@ export default function Tuition() {
     return <Layout title="Tuition">Loading...</Layout>;
   }
 
-  const balance = tuitionData?.balance || 0;
+  // Calculate status using shared utility
+  const statusBadge = tuitionData ? getTuitionStatusBadge(getPaymentStatus({
+    carryOutDebt: tuitionData.carryOutDebt,
+    carryOutCredit: tuitionData.carryOutCredit,
+    totalAmount: tuitionData.totalAmount,
+    monthPayments: tuitionData.monthPayments,
+  })) : null;
 
-  const getStatusBadge = () => {
-    if (!tuitionData) return null;
-    const { paidAmount, totalAmount } = tuitionData;
-
-    if (paidAmount > totalAmount) {
-      return <Badge className="bg-blue-500">Overpaid</Badge>;
+  // Display balance correctly based on debt/credit
+  const getBalanceDisplay = () => {
+    if (!tuitionData) return formatVND(0);
+    if (tuitionData.carryOutDebt > 0) {
+      return formatVND(tuitionData.carryOutDebt);
     }
-    if (paidAmount === totalAmount && totalAmount > 0) {
-      return <Badge className="bg-green-500">Settled</Badge>;
+    if (tuitionData.carryOutCredit > 0) {
+      return `+${formatVND(tuitionData.carryOutCredit)}`;
     }
-    if (paidAmount < totalAmount && paidAmount > 0) {
-      return (
-        <Badge variant="outline" className="border-amber-500 text-amber-700">
-          Underpaid
-        </Badge>
-      );
-    }
-    if (paidAmount >= totalAmount && totalAmount > 0) {
-      return <Badge className="bg-green-500">Paid</Badge>;
-    }
-    return <Badge variant="secondary">Unpaid</Badge>;
+    return formatVND(0);
   };
 
   return (
@@ -173,7 +90,7 @@ export default function Tuition() {
           {tuitionData && studentId && <InvoiceDownloadButton studentId={studentId} month={month} />}
         </div>
 
-        {!tuitionData || tuitionData.totalAmount === undefined ? (
+        {!tuitionData || tuitionData.totalAmount === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">No tuition record found for {dayjs(month).format("MMMM YYYY")}</p>
@@ -185,64 +102,33 @@ export default function Tuition() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardDescription>Current Balance</CardDescription>
-                  {getStatusBadge()}
+                  {statusBadge}
                 </div>
-                <CardTitle className="text-4xl">{balance.toLocaleString()} ₫</CardTitle>
+                <CardTitle className="text-4xl">{getBalanceDisplay()}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Base Amount</p>
-                    <p className="text-lg font-semibold">{tuitionData.baseAmount.toLocaleString()} ₫</p>
+                    <p className="text-lg font-semibold">{formatVND(tuitionData.baseAmount)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Discounts</p>
                     <p className="text-lg font-semibold text-green-600">
-                      -{tuitionData.discountAmount.toLocaleString()} ₫
+                      -{formatVND(tuitionData.totalDiscount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Payable</p>
-                    <p className="text-lg font-semibold">{tuitionData.totalAmount.toLocaleString()} ₫</p>
+                    <p className="text-lg font-semibold">{formatVND(tuitionData.totalAmount)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Recorded Pay</p>
-                    <p className="text-lg font-semibold text-blue-600">{tuitionData.paidAmount.toLocaleString()} ₫</p>
+                    <p className="text-lg font-semibold text-blue-600">{formatVND(tuitionData.monthPayments)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
-            {tuitionData?.payments && tuitionData.payments.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Payment History</CardTitle>
-                  <CardDescription>Payments made in {dayjs(month).format("MMMM YYYY")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Method</TableHead>
-                        <TableHead>Memo</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tuitionData.payments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell>{dayjs(payment.occurred_at).format("MMM D, YYYY")}</TableCell>
-                          <TableCell>{payment.method}</TableCell>
-                          <TableCell>{payment.memo || "-"}</TableCell>
-                          <TableCell className="text-right">{payment.amount.toLocaleString()} ₫</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
 
             {tuitionData?.sessionDetails && tuitionData.sessionDetails.length > 0 && (
               <Card>
@@ -255,19 +141,15 @@ export default function Tuition() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead>Time</TableHead>
+                        <TableHead>Rate</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {tuitionData.sessionDetails.map((session: any) => (
-                        <TableRow key={session.id}>
+                      {tuitionData.sessionDetails.map((session, idx) => (
+                        <TableRow key={idx}>
                           <TableCell>{dayjs(session.date).format("MMM D, YYYY")}</TableCell>
-                          <TableCell>{session.classes?.name || "-"}</TableCell>
-                          <TableCell>
-                            {session.start_time} - {session.end_time}
-                          </TableCell>
+                          <TableCell>{formatVND(session.rate)}</TableCell>
                           <TableCell>
                             <span
                               className={`px-2 py-1 rounded-full text-xs ${
