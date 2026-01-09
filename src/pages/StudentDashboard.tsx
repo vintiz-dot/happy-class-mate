@@ -87,7 +87,7 @@ export default function StudentDashboard() {
   const greeting = useMemo(() => getGreeting(), []);
 
   // Login challenge hook for real streak data
-  const { streakData, claimDailyReward, isClaimingReward } = useLoginChallenge(studentId);
+  const { streakData } = useLoginChallenge(studentId);
 
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
