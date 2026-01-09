@@ -6,7 +6,7 @@ import Layout from "@/components/Layout";
 import { CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight, HelpCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StudentClassLeaderboard } from "@/components/student/StudentClassLeaderboard";
 import { useState, useMemo, useEffect } from "react";
@@ -80,11 +80,23 @@ function getGreeting(): { text: string; emoji: string; subtext: string } {
 export default function StudentDashboard() {
   const { studentId } = useStudentProfile();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "dashboard");
   const greeting = useMemo(() => getGreeting(), []);
+
+  // Sync tab with URL
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && (tab === "achievements" || tab === "xp-guide")) {
+      setActiveTab(tab);
+    } else if (!tab) {
+      setActiveTab("dashboard");
+    }
+  }, [searchParams]);
 
   // Login challenge hook for real streak data
   const { streakData } = useLoginChallenge(studentId);
@@ -389,20 +401,8 @@ export default function StudentDashboard() {
         initial="hidden"
         animate="visible"
       >
-        {/* Tab Navigation */}
+        {/* Tab Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass w-full justify-start gap-0.5 p-1 h-auto flex-nowrap bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm rounded-xl overflow-x-auto">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap hover:text-red-500">
-              🏠 Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap hover:text-red-500">
-              🏆 Achievements
-            </TabsTrigger>
-            <TabsTrigger value="xp-guide" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm whitespace-nowrap hover:text-red-500">
-              ⚡ XP Guide
-            </TabsTrigger>
-          </TabsList>
-
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="mt-6 space-y-8">
         {/* Hero Section with Mascot */}
