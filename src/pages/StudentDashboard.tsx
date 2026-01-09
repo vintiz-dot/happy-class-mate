@@ -398,7 +398,7 @@ export default function StudentDashboard() {
             <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/schedule")}>
               📅 Schedule
             </Button>
-            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/student/assignments")}>
+            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg hover:text-red-500" onClick={() => navigate("/student/assignments")}>
               📚 Quests
             </Button>
             <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/student/journal")}>
