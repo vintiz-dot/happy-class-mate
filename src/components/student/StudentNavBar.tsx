@@ -2,13 +2,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { id: "dashboard", label: "🏠 Dashboard", path: "/student" },
+  { id: "dashboard", label: "🏠 Dashboard", path: "/student/dashboard" },
   { id: "schedule", label: "📅 Schedule", path: "/schedule" },
   { id: "quests", label: "📚 Quests", path: "/student/assignments" },
   { id: "journal", label: "📖 Journal", path: "/student/journal" },
   { id: "tuition", label: "💰 Tuition", path: "/tuition" },
-  { id: "achievements", label: "🏆 Achievements", path: "/student?tab=achievements" },
-  { id: "xp-guide", label: "⚡ XP Guide", path: "/student?tab=xp-guide" },
+  { id: "achievements", label: "🏆 Achievements", path: "/student/dashboard?tab=achievements" },
+  { id: "xp-guide", label: "⚡ XP Guide", path: "/student/dashboard?tab=xp-guide" },
 ];
 
 export function StudentNavBar() {
@@ -18,12 +18,16 @@ export function StudentNavBar() {
   const isActive = (path: string, id: string) => {
     const searchParams = new URLSearchParams(location.search);
     const currentTab = searchParams.get("tab");
+    const isOnDashboard = location.pathname === "/student/dashboard" || location.pathname === "/student" || location.pathname === "/student/";
     
-    if (id === "achievements" || id === "xp-guide") {
-      return currentTab === id;
+    if (id === "achievements") {
+      return isOnDashboard && currentTab === "achievements";
     }
-    if (path === "/student") {
-      return (location.pathname === "/student" || location.pathname === "/student/" || location.pathname === "/student/dashboard") && !currentTab;
+    if (id === "xp-guide") {
+      return isOnDashboard && currentTab === "xp-guide";
+    }
+    if (id === "dashboard") {
+      return isOnDashboard && !currentTab;
     }
     return location.pathname.startsWith(path);
   };
