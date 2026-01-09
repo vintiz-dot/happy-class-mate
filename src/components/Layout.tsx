@@ -9,11 +9,14 @@ import NotificationBell from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { StudentNavBar } from "@/components/student/StudentNavBar";
 
 interface LayoutProps {
   children: ReactNode;
   title?: string;
 }
+
+const SIDEBAR_KEY = "sidebar-collapsed";
 
 const Layout = ({ children, title }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
@@ -21,8 +24,16 @@ const Layout = ({ children, title }: LayoutProps) => {
   const location = useLocation();
   const [userName, setUserName] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem(SIDEBAR_KEY);
+    return saved !== "true"; // collapsed = true means sidebar is closed
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Persist sidebar state
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_KEY, (!sidebarOpen).toString());
+  }, [sidebarOpen]);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -97,7 +108,7 @@ const Layout = ({ children, title }: LayoutProps) => {
   const navItems = getNavigationItems();
   const showSidebar = role === "admin" || role === "teacher";
 
-  // Student/Family layout - unchanged
+  // Student/Family layout with sticky navbar
   if (!showSidebar) {
     return (
       <div className="min-h-screen bg-background">
@@ -127,16 +138,17 @@ const Layout = ({ children, title }: LayoutProps) => {
                 </div>
               )}
               <ChangePassword />
-              <Button onClick={signOut} variant="outline" size="sm" className="hidden sm:flex">
-                <LogOut className="h-4 w-4 mr-2" />
+              <Button onClick={signOut} variant="outline" size="sm" className="hidden sm:flex group">
+                <LogOut className="h-4 w-4 mr-2 group-hover:text-red-500 transition-colors" />
                 Sign Out
               </Button>
-              <Button onClick={signOut} variant="outline" size="icon" className="sm:hidden">
-                <LogOut className="h-4 w-4" />
+              <Button onClick={signOut} variant="outline" size="icon" className="sm:hidden group">
+                <LogOut className="h-4 w-4 group-hover:text-red-500 transition-colors" />
               </Button>
             </div>
           </div>
         </header>
+        {role === "student" && <StudentNavBar />}
         <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">{children}</main>
       </div>
     );
@@ -144,7 +156,7 @@ const Layout = ({ children, title }: LayoutProps) => {
 
   // Admin/Teacher layout with sidebar
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex w-full">
       {/* Desktop Sidebar */}
       <aside
         className={cn(
@@ -165,10 +177,14 @@ const Layout = ({ children, title }: LayoutProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 group"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {sidebarOpen ? (
+              <ChevronLeft className="h-4 w-4 group-hover:text-red-500 transition-colors" />
+            ) : (
+              <ChevronRight className="h-4 w-4 group-hover:text-red-500 transition-colors" />
+            )}
           </Button>
         </div>
 
@@ -181,13 +197,16 @@ const Layout = ({ children, title }: LayoutProps) => {
                 key={item.path}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start gap-3",
+                  "w-full justify-start gap-3 group",
                   !sidebarOpen && "justify-center px-2",
-                  isActive && "bg-primary/10 text-primary hover:bg-primary/15"
+                  isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-600/20"
                 )}
                 onClick={() => navigate(item.path)}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
+                <item.icon className={cn(
+                  "h-4 w-4 shrink-0 transition-colors",
+                  !isActive && "group-hover:text-red-500"
+                )} />
                 {sidebarOpen && <span>{item.label}</span>}
               </Button>
             );
@@ -209,10 +228,10 @@ const Layout = ({ children, title }: LayoutProps) => {
           )}
           <Button
             variant="ghost"
-            className={cn("w-full justify-start gap-3 text-muted-foreground", !sidebarOpen && "justify-center px-2")}
+            className={cn("w-full justify-start gap-3 text-muted-foreground group", !sidebarOpen && "justify-center px-2")}
             onClick={signOut}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0 group-hover:text-red-500 transition-colors" />
             {sidebarOpen && <span>Sign Out</span>}
           </Button>
         </div>
@@ -224,8 +243,12 @@ const Layout = ({ children, title }: LayoutProps) => {
         <header className="md:hidden sticky top-0 z-50 border-b bg-card/95 backdrop-blur shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Button variant="ghost" size="icon" className="group" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5 group-hover:text-red-500 transition-colors" />
+                ) : (
+                  <Menu className="h-5 w-5 group-hover:text-red-500 transition-colors" />
+                )}
               </Button>
               <span className="font-semibold">{title || "Dashboard"}</span>
             </div>
@@ -245,25 +268,28 @@ const Layout = ({ children, title }: LayoutProps) => {
                     key={item.path}
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
-                      "w-full justify-start gap-3",
-                      isActive && "bg-primary/10 text-primary"
+                      "w-full justify-start gap-3 group",
+                      isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400"
                     )}
                     onClick={() => {
                       navigate(item.path);
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className={cn(
+                      "h-4 w-4 transition-colors",
+                      !isActive && "group-hover:text-red-500"
+                    )} />
                     <span>{item.label}</span>
                   </Button>
                 );
               })}
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 text-muted-foreground"
+                className="w-full justify-start gap-3 text-muted-foreground group"
                 onClick={signOut}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 group-hover:text-red-500 transition-colors" />
                 <span>Sign Out</span>
               </Button>
             </nav>
