@@ -5,7 +5,23 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, DollarSign, BookOpen, Users, Edit, FileText, Trophy } from "lucide-react";
+import { 
+  Calendar, 
+  Clock, 
+  DollarSign, 
+  BookOpen, 
+  Edit, 
+  FileText, 
+  Trophy, 
+  TrendingUp,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  ChevronRight,
+  GraduationCap,
+  Users,
+  Zap
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
@@ -16,6 +32,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAvatarUrl } from "@/lib/avatars";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
+import { motion } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
 
 export default function TeacherDashboard() {
   const queryClient = useQueryClient();
@@ -95,7 +113,6 @@ export default function TeacherDashboard() {
         .eq("teacher_id", teacher.id)
         .gte("date", dayjs().format("YYYY-MM-DD"));
 
-      // Get unique classes
       const classMap = new Map();
       data?.forEach(s => {
         const classData = Array.isArray(s.classes) ? s.classes[0] : s.classes;
@@ -122,7 +139,6 @@ export default function TeacherDashboard() {
 
       if (!teacher) return 0;
 
-      // Get teacher's classes
       const { data: sessions } = await supabase
         .from("sessions")
         .select("class_id")
@@ -130,7 +146,6 @@ export default function TeacherDashboard() {
 
       const classIds = [...new Set(sessions?.map(s => s.class_id))];
 
-      // Get homeworks for these classes
       const { data: homeworks } = await supabase
         .from("homeworks")
         .select("id")
@@ -138,7 +153,6 @@ export default function TeacherDashboard() {
 
       const homeworkIds = homeworks?.map(h => h.id) || [];
 
-      // Count pending submissions
       const { count } = await supabase
         .from("homework_submissions")
         .select("*", { count: "exact", head: true })
@@ -149,7 +163,7 @@ export default function TeacherDashboard() {
     },
   });
 
-  const { data: payrollData, isLoading } = useQuery({
+  const { data: payrollData } = useQuery({
     queryKey: ["teacher-payroll", currentMonth],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -172,7 +186,6 @@ export default function TeacherDashboard() {
     },
   });
 
-  // Real-time subscription for sessions changes
   useEffect(() => {
     if (!payrollData?.teacherId) return;
 
@@ -197,257 +210,447 @@ export default function TeacherDashboard() {
     };
   }, [payrollData?.teacherId, currentMonth]);
 
+  const getTimeStatus = (startTime: string, endTime: string) => {
+    const now = dayjs();
+    const start = dayjs(`${dayjs().format("YYYY-MM-DD")} ${startTime}`);
+    const end = dayjs(`${dayjs().format("YYYY-MM-DD")} ${endTime}`);
+    
+    if (now.isBefore(start)) return "upcoming";
+    if (now.isAfter(end)) return "completed";
+    return "ongoing";
+  };
+
+  const progressPercent = payrollData?.sessionsCountProjected 
+    ? Math.round((payrollData?.sessionsCountActual || 0) / payrollData.sessionsCountProjected * 100)
+    : 0;
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } }
+  };
+
+  const quickActions = [
+    { 
+      to: "/teacher/attendance", 
+      icon: CheckCircle2, 
+      title: "Attendance", 
+      description: "Mark student attendance",
+      gradient: "from-emerald-500/20 to-teal-500/20",
+      iconColor: "text-emerald-500"
+    },
+    { 
+      to: "/teacher/assignments", 
+      icon: FileText, 
+      title: "Assignments", 
+      description: "Manage homework & grading",
+      gradient: "from-blue-500/20 to-indigo-500/20",
+      iconColor: "text-blue-500"
+    },
+    { 
+      to: "/teacher/journal", 
+      icon: BookOpen, 
+      title: "Journal", 
+      description: "Student progress notes",
+      gradient: "from-purple-500/20 to-pink-500/20",
+      iconColor: "text-purple-500"
+    },
+    { 
+      to: "/teacher/payroll", 
+      icon: DollarSign, 
+      title: "Payroll", 
+      description: "View earnings & sessions",
+      gradient: "from-amber-500/20 to-orange-500/20",
+      iconColor: "text-amber-500"
+    },
+  ];
+
   return (
     <Layout title="Dashboard">
-      {/* Premium animated background orbs - different color scheme from auth */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-40 right-40 w-96 h-96 bg-accent/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-40 left-40 w-[28rem] h-[28rem] bg-secondary/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-        <div className="absolute top-1/2 right-1/3 w-80 h-80 bg-muted/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
+      {/* Premium animated background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute top-20 right-20 w-[500px] h-[500px] bg-gradient-to-br from-primary/20 via-accent/15 to-transparent rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-[600px] h-[600px] bg-gradient-to-tr from-secondary/20 via-muted/15 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-accent/10 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="space-y-6 relative z-10">
-        {/* Teacher Profile Header */}
+      <motion.div 
+        className="space-y-8 relative"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Hero Profile Section */}
         {teacherProfile && (
-          <Card className="glass-lg border-0 shadow-2xl backdrop-blur-xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.01] animate-fade-in overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/20 via-transparent to-secondary/10 pointer-events-none"></div>
-            <CardHeader className="relative">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16 ring-2 ring-border">
-                    <AvatarImage src={getAvatarUrl(teacherProfile.avatar_url) || undefined} alt={teacherProfile.full_name} className="object-cover" />
-                    <AvatarFallback className="text-xl bg-gradient-to-br from-accent/20 to-secondary/10">
-                      {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-3xl font-bold">{teacherProfile.full_name}</h1>
-                      <Badge variant={teacherProfile.is_active ? "default" : "secondary"} className={teacherProfile.is_active ? "bg-green-500" : ""}>
+          <motion.div variants={itemVariants}>
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-card via-card to-card/80 shadow-2xl">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 via-accent/5 to-transparent rounded-full blur-2xl" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full blur-2xl" />
+              
+              <CardContent className="relative p-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                  {/* Avatar with glow */}
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-secondary rounded-full blur opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+                    <Avatar className="relative h-24 w-24 ring-4 ring-background shadow-xl">
+                      <AvatarImage src={getAvatarUrl(teacherProfile.avatar_url) || undefined} alt={teacherProfile.full_name} className="object-cover" />
+                      <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-primary/20 to-accent/20">
+                        {teacherProfile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  
+                  {/* Profile Info */}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+                        {teacherProfile.full_name}
+                      </h1>
+                      <Badge 
+                        variant={teacherProfile.is_active ? "default" : "secondary"} 
+                        className={`${teacherProfile.is_active ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0" : ""} px-3 py-1`}
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
                         {teacherProfile.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </div>
-                    <div className="flex flex-col gap-1 text-muted-foreground text-sm">
-                      {teacherProfile.email && <span>{teacherProfile.email}</span>}
-                      {teacherProfile.phone && <span>{teacherProfile.phone}</span>}
-                      <span>Hourly Rate: {(teacherProfile.hourly_rate_vnd || 0).toLocaleString()} ₫/hour</span>
+                    
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      {teacherProfile.email && (
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                          {teacherProfile.email}
+                        </span>
+                      )}
+                      {teacherProfile.phone && (
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent/50" />
+                          {teacherProfile.phone}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-lg font-semibold">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      <span>{(teacherProfile.hourly_rate_vnd || 0).toLocaleString()} ₫</span>
+                      <span className="text-sm font-normal text-muted-foreground">/hour</span>
                     </div>
                   </div>
+                  
+                  {/* Edit Button */}
+                  <Button 
+                    onClick={() => setShowEditProfile(true)} 
+                    variant="outline" 
+                    size="lg"
+                    className="shrink-0 gap-2 border-2 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Profile
+                  </Button>
                 </div>
-                <Button onClick={() => setShowEditProfile(true)} variant="outline" size="sm">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
-
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in">
-            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <CardHeader className="pb-2 relative">
-              <CardDescription>Today's Sessions</CardDescription>
-              <CardTitle className="text-3xl">{todaySessions?.length || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {dayjs().format("MMM D, YYYY")}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <CardHeader className="pb-2 relative">
-              <CardDescription>Active Classes</CardDescription>
-              <CardTitle className="text-3xl">{activeClasses?.length || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Teaching this term</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-muted/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <CardHeader className="pb-2 relative">
-              <CardDescription>Pending Grading</CardDescription>
-              <CardTitle className="text-3xl">{pendingGrading || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Submissions to review</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <CardHeader className="pb-2 relative">
-              <CardDescription>Earned (Actual)</CardDescription>
-              <CardTitle className="text-3xl">
-                {(payrollData?.totalAmountActual || 0).toLocaleString()} ₫
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {payrollData?.sessionsCountActual || 0} held sessions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-lg border-0 backdrop-blur-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 group overflow-hidden animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <CardHeader className="pb-2 relative">
-              <CardDescription>Projected Total</CardDescription>
-              <CardTitle className="text-3xl">
-                {(payrollData?.totalAmountProjected || 0).toLocaleString()} ₫
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {payrollData?.sessionsCountProjected || 0} total sessions
-              </p>
-            </CardContent>
-          </Card>
-
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Today's Schedule
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {todaySessions && todaySessions.length > 0 ? (
-              <div className="space-y-3">
-                {todaySessions.map((session: any) => (
-                  <div key={session.id} className="flex justify-between items-center p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{session.classes.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {session.start_time.slice(0, 5)} - {session.end_time.slice(0, 5)}
-                      </p>
-                    </div>
-                    <Badge variant={session.status === "Held" ? "default" : "secondary"}>
-                      {session.status}
-                    </Badge>
-                  </div>
-                ))}
-                <Link to="/teacher/attendance">
-                  <Button variant="outline" className="w-full">Mark Attendance</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No sessions scheduled for today</p>
-                <Link to="/schedule">
-                  <Button variant="outline" className="mt-4">View Full Schedule</Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 md:grid-cols-4">
-          <Link to="/teacher/attendance">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Attendance
-                </CardTitle>
-                <CardDescription>Mark student attendance</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link to="/teacher/assignments">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Assignments
-                </CardTitle>
-                <CardDescription>Manage homework and grading</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link to="/teacher/journal">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Journal
-                </CardTitle>
-                <CardDescription>Student journals</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link to="/teacher/payroll">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Payroll
-                </CardTitle>
-                <CardDescription>View earnings and sessions</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        </div>
-
-        <Tabs defaultValue="schedule" className="w-full">
-          <TabsList>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="leaderboards">Class Leaderboards</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="schedule" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Teaching Schedule</CardTitle>
-                <CardDescription>Your upcoming and recent classes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <TeacherScheduleCalendar />
               </CardContent>
             </Card>
-          </TabsContent>
+          </motion.div>
+        )}
 
-          <TabsContent value="leaderboards" className="space-y-6">
-            {activeClasses && activeClasses.length > 0 ? (
-              activeClasses.map((classData: any) => (
-                <Card key={classData.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <Trophy className="h-5 w-5" />
-                          {classData.name}
-                        </CardTitle>
-                        <CardDescription>Class Rankings & Points</CardDescription>
-                      </div>
-                      <ManualPointsDialog classId={classData.id} isAdmin={false} />
+        {/* Stats Grid */}
+        <motion.div variants={itemVariants} className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          {/* Today's Sessions */}
+          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/10">
+                  <Calendar className="h-5 w-5 text-blue-500" />
+                </div>
+                <Badge variant="secondary" className="text-xs">Today</Badge>
+              </div>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold">{todaySessions?.length || 0}</p>
+                <p className="text-sm text-muted-foreground">Sessions</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Classes */}
+          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10">
+                  <GraduationCap className="h-5 w-5 text-purple-500" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold">{activeClasses?.length || 0}</p>
+                <p className="text-sm text-muted-foreground">Active Classes</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Grading */}
+          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10">
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                </div>
+                {(pendingGrading || 0) > 0 && (
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold">{pendingGrading || 0}</p>
+                <p className="text-sm text-muted-foreground">Pending Grading</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Earned Amount */}
+          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10">
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold">{((payrollData?.totalAmountActual || 0) / 1000).toFixed(0)}K</p>
+                <p className="text-sm text-muted-foreground">Earned (VND)</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Projected Total */}
+          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 col-span-2 lg:col-span-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10">
+                  <Zap className="h-5 w-5 text-primary" />
+                </div>
+                <span className="text-xs text-muted-foreground">{progressPercent}%</span>
+              </div>
+              <div className="space-y-2">
+                <p className="text-2xl font-bold">{((payrollData?.totalAmountProjected || 0) / 1000).toFixed(0)}K</p>
+                <p className="text-sm text-muted-foreground mb-2">Projected (VND)</p>
+                <Progress value={progressPercent} className="h-1.5" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Today's Agenda */}
+          <motion.div variants={itemVariants} className="lg:col-span-2">
+            <Card className="h-full border-0 bg-gradient-to-br from-card to-card/90 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10">
+                      <Clock className="h-5 w-5 text-primary" />
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ClassLeaderboardShared classId={classData.id} />
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">No active classes found</p>
+                    <div>
+                      <CardTitle>Today's Agenda</CardTitle>
+                      <CardDescription>{dayjs().format("dddd, MMMM D, YYYY")}</CardDescription>
+                    </div>
+                  </div>
+                  <Link to="/teacher/attendance">
+                    <Button size="sm" className="gap-1">
+                      Mark All <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {todaySessions && todaySessions.length > 0 ? (
+                  <div className="space-y-3">
+                    {todaySessions.map((session: any, index: number) => {
+                      const timeStatus = getTimeStatus(session.start_time, session.end_time);
+                      return (
+                        <motion.div
+                          key={session.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${
+                            timeStatus === "ongoing" 
+                              ? "bg-gradient-to-r from-primary/10 via-card to-card border-primary/30 shadow-md" 
+                              : timeStatus === "completed"
+                              ? "bg-muted/30 opacity-60"
+                              : "bg-card hover:bg-muted/30"
+                          }`}
+                        >
+                          {/* Timeline indicator */}
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`w-3 h-3 rounded-full ${
+                              timeStatus === "ongoing" ? "bg-primary animate-pulse" :
+                              timeStatus === "completed" ? "bg-muted-foreground" : "bg-accent"
+                            }`} />
+                            {index < todaySessions.length - 1 && (
+                              <div className="w-0.5 h-8 bg-border" />
+                            )}
+                          </div>
+                          
+                          {/* Session Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold truncate">{session.classes.name}</h4>
+                              {timeStatus === "ongoing" && (
+                                <Badge className="bg-primary/20 text-primary border-0 text-xs">
+                                  In Progress
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {session.start_time.slice(0, 5)} – {session.end_time.slice(0, 5)}
+                            </p>
+                          </div>
+                          
+                          {/* Status Badge */}
+                          <Badge 
+                            variant={session.status === "Held" ? "default" : "secondary"}
+                            className={session.status === "Held" ? "bg-emerald-500/20 text-emerald-600 border-0" : ""}
+                          >
+                            {session.status === "Held" ? <CheckCircle2 className="h-3 w-3 mr-1" /> : null}
+                            {session.status}
+                          </Badge>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="p-4 rounded-full bg-muted/50 mb-4">
+                      <Calendar className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-lg font-medium mb-1">No sessions today</p>
+                    <p className="text-sm text-muted-foreground mb-4">Enjoy your free day!</p>
+                    <Link to="/schedule">
+                      <Button variant="outline">View Full Schedule</Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Quick Actions */}
+          <motion.div variants={itemVariants} className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Quick Actions
+            </h3>
+            <div className="grid gap-3">
+              {quickActions.map((action, index) => (
+                <Link key={action.to} to={action.to}>
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer">
+                      <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                      <CardContent className="p-4 relative flex items-center gap-4">
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${action.gradient}`}>
+                          <action.icon className={`h-5 w-5 ${action.iconColor}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold">{action.title}</h4>
+                          <p className="text-sm text-muted-foreground truncate">{action.description}</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Schedule & Leaderboards Tabs */}
+        <motion.div variants={itemVariants}>
+          <Tabs defaultValue="schedule" className="w-full">
+            <TabsList className="w-full max-w-md mx-auto grid grid-cols-2 bg-muted/50 p-1 rounded-xl">
+              <TabsTrigger value="schedule" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                Schedule
+              </TabsTrigger>
+              <TabsTrigger value="leaderboards" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <Trophy className="h-4 w-4 mr-2" />
+                Leaderboards
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="schedule" className="mt-6">
+              <Card className="border-0 bg-gradient-to-br from-card to-card/90 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Teaching Schedule
+                  </CardTitle>
+                  <CardDescription>Your upcoming and recent classes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TeacherScheduleCalendar />
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </TabsContent>
+
+            <TabsContent value="leaderboards" className="mt-6 space-y-6">
+              {activeClasses && activeClasses.length > 0 ? (
+                activeClasses.map((classData: any) => (
+                  <Card key={classData.id} className="border-0 bg-gradient-to-br from-card to-card/90 shadow-lg overflow-hidden">
+                    <CardHeader className="relative">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-full blur-2xl" />
+                      <div className="flex items-center justify-between relative">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10">
+                            <Trophy className="h-5 w-5 text-amber-500" />
+                          </div>
+                          <div>
+                            <CardTitle>{classData.name}</CardTitle>
+                            <CardDescription>Class Rankings & Points</CardDescription>
+                          </div>
+                        </div>
+                        <ManualPointsDialog classId={classData.id} isAdmin={false} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ClassLeaderboardShared classId={classData.id} />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card className="border-0 bg-gradient-to-br from-card to-card/90 shadow-lg">
+                  <CardContent className="py-16 text-center">
+                    <div className="p-4 rounded-full bg-muted/50 inline-block mb-4">
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-lg font-medium mb-1">No active classes</p>
+                    <p className="text-sm text-muted-foreground">Classes will appear here when you have scheduled sessions</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </motion.div>
+      </motion.div>
 
       {/* Edit Profile Dialog */}
       {teacherProfile && (
