@@ -391,14 +391,26 @@ export default function StudentDashboard() {
       >
         {/* Tab Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass w-full justify-start gap-1 p-1 h-auto flex-wrap">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+          <TabsList className="glass w-full justify-start gap-1 p-1.5 h-auto flex-wrap sticky top-[73px] md:top-[81px] z-40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm rounded-xl">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg">
               🏠 Dashboard
             </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/schedule")}>
+              📅 Schedule
+            </Button>
+            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/student/assignments")}>
+              📚 Quests
+            </Button>
+            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/student/journal")}>
+              📖 Journal
+            </Button>
+            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium rounded-lg" onClick={() => navigate("/tuition")}>
+              💰 Tuition
+            </Button>
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg">
               🏆 Achievements
             </TabsTrigger>
-            <TabsTrigger value="xp-guide" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
+            <TabsTrigger value="xp-guide" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg">
               ⚡ How to Earn XP
             </TabsTrigger>
           </TabsList>
