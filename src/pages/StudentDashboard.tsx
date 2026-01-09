@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight, HelpCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { StudentClassLeaderboard } from "@/components/student/StudentClassLeaderboard";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -793,7 +793,11 @@ export default function StudentDashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <ClassLeaderboard classId={classData.id} showAddPoints={false} />
+                    <StudentClassLeaderboard 
+                      classId={classData.id} 
+                      className={classData.name}
+                      currentStudentId={studentId}
+                    />
                   </motion.div>
                 );
               }).filter(Boolean)}
