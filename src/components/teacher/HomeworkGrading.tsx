@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { Download, Undo } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import { sanitizeHtml } from "@/lib/sanitize";
 
@@ -156,7 +156,57 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit grade");
+    }
+  });
+
+  // Reverse early submission bonus mutation
+  const reverseEarlyBonusMutation = useMutation({
+    mutationFn: async ({ homeworkId, studentId }: { homeworkId: string; studentId: string }) => {
+      const { data: reward } = await supabase
+        .from("early_submission_rewards")
+        .select("*, homeworks(class_id, due_date, title)")
+        .eq("homework_id", homeworkId)
+        .eq("student_id", studentId)
+        .is("reversed_at", null)
+        .maybeSingle();
+
+      if (!reward) throw new Error("No early bonus to reverse");
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      await supabase
+        .from("early_submission_rewards")
+        .update({ 
+          reversed_at: new Date().toISOString(),
+          reversed_by: user?.id
+        })
+        .eq("id", reward.id);
+
+      const effectiveDate = reward.homeworks?.due_date || dayjs().format("YYYY-MM-DD");
+      const month = effectiveDate.slice(0, 7);
+
+      await supabase
+        .from("point_transactions")
+        .insert({
+          student_id: studentId,
+          class_id: reward.homeworks?.class_id,
+          homework_id: homeworkId,
+          homework_title: reward.homeworks?.title,
+          points: -5,
+          type: "early_submission",
+          reason: "Early submission bonus reversed (empty submission)",
+          date: effectiveDate,
+          month
+        });
     },
+    onSuccess: () => {
+      toast.success("Early submission bonus reversed (-5 XP)");
+      queryClient.invalidateQueries({ queryKey: ["homework-submissions", homeworkId] });
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to reverse bonus");
+    }
   });
 
   const downloadFile = async (storageKey: string, fileName: string) => {
@@ -364,16 +414,18 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="points">Points</Label>
+                <Label htmlFor="points">Points (0-100)</Label>
                 <Input
                   id="points"
                   type="number"
+                  min="0"
+                  max="100"
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
-                  placeholder="Enter points for leaderboard"
+                  placeholder="Max 100 points"
                 />
                 <p className="text-xs text-muted-foreground">
-                  These points will be added to the student's homework score on the leaderboard
+                  Homework points (max 100) for leaderboard
                 </p>
               </div>
 
@@ -390,6 +442,24 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
 
               <Button onClick={handleGradeSubmit} disabled={!grade || gradeMutation.isPending} className="w-full">
                 Submit Grade
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-destructive hover:text-destructive"
+                onClick={() => {
+                  if (selectedSubmission?.student?.id) {
+                    reverseEarlyBonusMutation.mutate({
+                      homeworkId,
+                      studentId: selectedSubmission.student.id
+                    });
+                  }
+                }}
+                disabled={reverseEarlyBonusMutation.isPending}
+              >
+                <Undo className="h-4 w-4 mr-2" />
+                Reverse Early Bonus (-5 XP)
               </Button>
             </div>
           </DialogContent>

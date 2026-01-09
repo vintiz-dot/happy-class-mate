@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { dayjs } from "@/lib/date";
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
@@ -29,6 +30,19 @@ export default function HomeworkSubmission({
   );
   const [file, setFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
+
+  // Fetch homework details to check due date
+  const { data: homework } = useQuery({
+    queryKey: ["homework-details", homeworkId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("homeworks")
+        .select("due_date, class_id, title")
+        .eq("id", homeworkId)
+        .single();
+      return data;
+    }
+  });
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -65,7 +79,7 @@ export default function HomeworkSubmission({
       }
 
       // Get homework instructions to store with submission
-      const { data: homework } = await supabase
+      const { data: homeworkData } = await supabase
         .from("homeworks")
         .select("body")
         .eq("id", homeworkId)
@@ -82,10 +96,58 @@ export default function HomeworkSubmission({
         file_size: fileSize,
         status: "submitted",
         submitted_at: new Date().toISOString(),
-        assignment_instructions: homework?.body || null,
+        assignment_instructions: homeworkData?.body || null,
       });
 
       if (error) throw error;
+
+      // Check for early submission bonus (only for first-time submissions)
+      const isFirstSubmission = !existingSubmission?.submitted_at;
+      const isEarly = homework?.due_date && new Date() < new Date(homework.due_date + 'T23:59:59');
+      
+      if (isFirstSubmission && isEarly && homework?.class_id) {
+        // Check if already received early bonus
+        const { data: existingBonus } = await supabase
+          .from("early_submission_rewards")
+          .select("id")
+          .eq("homework_id", homeworkId)
+          .eq("student_id", studentId)
+          .maybeSingle();
+
+        if (!existingBonus) {
+          const effectiveDate = homework.due_date || dayjs().format("YYYY-MM-DD");
+          const month = effectiveDate.slice(0, 7);
+
+          // Insert point transaction for early submission
+          const { data: pointTx } = await supabase
+            .from("point_transactions")
+            .insert({
+              student_id: studentId,
+              class_id: homework.class_id,
+              homework_id: homeworkId,
+              homework_title: homework.title,
+              points: 5,
+              type: "early_submission",
+              reason: "Early submission bonus",
+              date: effectiveDate,
+              month
+            })
+            .select("id")
+            .single();
+
+          // Track the early submission reward
+          await supabase
+            .from("early_submission_rewards")
+            .insert({
+              homework_id: homeworkId,
+              student_id: studentId,
+              points_awarded: 5,
+              point_transaction_id: pointTx?.id
+            });
+
+          toast.success("🌅 Early Bird Bonus! +5 XP");
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Homework submitted successfully");
@@ -93,6 +155,7 @@ export default function HomeworkSubmission({
       queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["homework-submission", homeworkId, studentId] });
       queryClient.invalidateQueries({ queryKey: ["homework-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["student-total-points", studentId] });
       setFile(null);
       onSuccess?.();
     },

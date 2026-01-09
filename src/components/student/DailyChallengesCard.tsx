@@ -19,7 +19,7 @@ interface DailyChallengesCardProps {
 }
 
 const defaultChallenges: Challenge[] = [
-  { id: '1', title: 'Daily Check-In', description: 'Log in and check your homework page', xpReward: 1, progress: 0, target: 1, completed: false, icon: '✅' },
+  { id: '1', title: 'Daily Check-In', description: 'Visit homework page (automatic)', xpReward: 1, progress: 0, target: 1, completed: false, icon: '✅' },
   { id: '2', title: 'Homework Hero', description: 'Complete 1 homework', xpReward: 20, progress: 0, target: 1, completed: false, icon: '📚' },
   { id: '3', title: 'Class Champion', description: 'Attend a class session', xpReward: 15, progress: 0, target: 1, completed: false, icon: '🎓' },
 ];

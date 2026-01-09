@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Download, Star } from "lucide-react";
+import { Download, Star, Undo } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { dayjs } from "@/lib/date";
 
 interface HomeworkGradingListProps {
   statusFilter?: string;
@@ -138,7 +139,60 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit grade");
+    }
+  });
+
+  // Reverse early submission bonus mutation
+  const reverseEarlyBonusMutation = useMutation({
+    mutationFn: async ({ homeworkId, studentId }: { homeworkId: string; studentId: string }) => {
+      // Get the early submission reward
+      const { data: reward } = await supabase
+        .from("early_submission_rewards")
+        .select("*, homeworks(class_id, due_date, title)")
+        .eq("homework_id", homeworkId)
+        .eq("student_id", studentId)
+        .is("reversed_at", null)
+        .maybeSingle();
+
+      if (!reward) throw new Error("No early bonus to reverse");
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Mark as reversed
+      await supabase
+        .from("early_submission_rewards")
+        .update({ 
+          reversed_at: new Date().toISOString(),
+          reversed_by: user?.id
+        })
+        .eq("id", reward.id);
+
+      // Add negative point transaction to cancel the bonus
+      const effectiveDate = reward.homeworks?.due_date || dayjs().format("YYYY-MM-DD");
+      const month = effectiveDate.slice(0, 7);
+
+      await supabase
+        .from("point_transactions")
+        .insert({
+          student_id: studentId,
+          class_id: reward.homeworks?.class_id,
+          homework_id: homeworkId,
+          homework_title: reward.homeworks?.title,
+          points: -5,
+          type: "early_submission",
+          reason: "Early submission bonus reversed (empty submission)",
+          date: effectiveDate,
+          month
+        });
     },
+    onSuccess: () => {
+      toast.success("Early submission bonus reversed (-5 XP)");
+      queryClient.invalidateQueries({ queryKey: ["all-homework-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["class-leaderboard"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to reverse bonus");
+    }
   });
 
   const downloadFile = async (storageKey: string, fileName: string) => {
@@ -328,18 +382,18 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="points">Points (-100-100)</Label>
+                <Label htmlFor="points">Points (0-100)</Label>
                 <Input
                   id="points"
                   type="number"
-                  min="-100"
+                  min="0"
                   max="100"
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
-                  placeholder="For leaderboard"
+                  placeholder="Max 100 points"
                   className="text-base"
                 />
-                <p className="text-xs text-muted-foreground">⭐ Points will appear on the class leaderboard</p>
+                <p className="text-xs text-muted-foreground">⭐ Homework points (max 100) for leaderboard</p>
               </div>
 
               <div className="space-y-2">
@@ -354,29 +408,47 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
                 />
               </div>
 
-              <Button
-                onClick={() => {
-                  if (!grade) {
-                    toast.error("Please enter a grade");
-                    return;
-                  }
-                  const pointsValue = points ? parseInt(points) : undefined;
-                  if (pointsValue !== undefined && (pointsValue < -100 || pointsValue > 100)) {
-                    toast.error("Points must be between 0 and 100");
-                    return;
-                  }
-                  gradeMutation.mutate({
-                    submissionId: selectedSubmission.id,
-                    grade,
-                    feedback,
-                    points: pointsValue,
-                  });
-                }}
-                disabled={!grade || gradeMutation.isPending}
-                className="w-full min-h-[48px] text-base font-semibold rounded-xl"
-              >
-                {gradeMutation.isPending ? "Submitting..." : "Submit Grade"}
-              </Button>
+              <div className="space-y-3">
+                <Button
+                  onClick={() => {
+                    if (!grade) {
+                      toast.error("Please enter a grade");
+                      return;
+                    }
+                    const pointsValue = points ? parseInt(points) : undefined;
+                    if (pointsValue !== undefined && (pointsValue < 0 || pointsValue > 100)) {
+                      toast.error("Points must be between 0 and 100");
+                      return;
+                    }
+                    gradeMutation.mutate({
+                      submissionId: selectedSubmission.id,
+                      grade,
+                      feedback,
+                      points: pointsValue,
+                    });
+                  }}
+                  disabled={!grade || gradeMutation.isPending}
+                  className="w-full min-h-[48px] text-base font-semibold rounded-xl"
+                >
+                  {gradeMutation.isPending ? "Submitting..." : "Submit Grade"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-destructive hover:text-destructive"
+                  onClick={() => {
+                    reverseEarlyBonusMutation.mutate({
+                      homeworkId: selectedSubmission.homework_id,
+                      studentId: selectedSubmission.student_id
+                    });
+                  }}
+                  disabled={reverseEarlyBonusMutation.isPending}
+                >
+                  <Undo className="h-4 w-4 mr-2" />
+                  Reverse Early Bonus (-5 XP)
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

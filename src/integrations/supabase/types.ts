@@ -411,6 +411,71 @@ export type Database = {
         }
         Relationships: []
       }
+      early_submission_rewards: {
+        Row: {
+          awarded_at: string | null
+          homework_id: string
+          id: string
+          point_transaction_id: string | null
+          points_awarded: number
+          reversed_at: string | null
+          reversed_by: string | null
+          student_id: string
+          submission_id: string | null
+        }
+        Insert: {
+          awarded_at?: string | null
+          homework_id: string
+          id?: string
+          point_transaction_id?: string | null
+          points_awarded?: number
+          reversed_at?: string | null
+          reversed_by?: string | null
+          student_id: string
+          submission_id?: string | null
+        }
+        Update: {
+          awarded_at?: string | null
+          homework_id?: string
+          id?: string
+          point_transaction_id?: string | null
+          points_awarded?: number
+          reversed_at?: string | null
+          reversed_by?: string | null
+          student_id?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "early_submission_rewards_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homeworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "early_submission_rewards_point_transaction_id_fkey"
+            columns: ["point_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "point_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "early_submission_rewards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "early_submission_rewards_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "homework_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           allowed_days: number[] | null

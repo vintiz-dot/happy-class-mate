@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -11,10 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
+import { useLoginChallenge } from "@/hooks/useLoginChallenge";
 
 export default function StudentAssignments() {
   const { studentId } = useStudentProfile();
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
+  const { recordHomeworkVisit } = useLoginChallenge(studentId);
+
+  // Auto-award daily XP when student visits assignments page
+  useEffect(() => {
+    if (studentId) {
+      recordHomeworkVisit();
+    }
+  }, [studentId]);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["student-assignments", studentId],
