@@ -7,15 +7,23 @@ const navItems = [
   { id: "quests", label: "📚 Quests", path: "/student/assignments" },
   { id: "journal", label: "📖 Journal", path: "/student/journal" },
   { id: "tuition", label: "💰 Tuition", path: "/tuition" },
+  { id: "achievements", label: "🏆 Achievements", path: "/student?tab=achievements" },
+  { id: "xp-guide", label: "⚡ XP Guide", path: "/student?tab=xp-guide" },
 ];
 
 export function StudentNavBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isActive = (path: string) => {
+  const isActive = (path: string, id: string) => {
+    const searchParams = new URLSearchParams(location.search);
+    const currentTab = searchParams.get("tab");
+    
+    if (id === "achievements" || id === "xp-guide") {
+      return currentTab === id;
+    }
     if (path === "/student") {
-      return location.pathname === "/student" || location.pathname === "/student/" || location.pathname === "/student/dashboard";
+      return (location.pathname === "/student" || location.pathname === "/student/" || location.pathname === "/student/dashboard") && !currentTab;
     }
     return location.pathname.startsWith(path);
   };
@@ -25,7 +33,7 @@ export function StudentNavBar() {
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-0.5 py-1.5 overflow-x-auto scrollbar-hide">
           {navItems.map((item) => {
-            const active = isActive(item.path);
+            const active = isActive(item.path, item.id);
             return (
               <button
                 key={item.id}
