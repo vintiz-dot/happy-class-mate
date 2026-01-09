@@ -75,29 +75,7 @@ export default function ProfilePicker() {
     loadStudents();
   }, []);
 
-  // Still loading
-  if (loading) {
-    return null;
-  }
-
-  // No students connected - show contact admin message
-  if (!students || students.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-        <Card className="w-[400px]">
-          <CardHeader>
-            <CardTitle>No Student Profile Connected</CardTitle>
-            <CardDescription>
-              Your account is not linked to any student profile. Please contact your administrator to connect your account.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  // Single student - auto-selected, don't show picker
-  if (students.length === 1 || studentId) {
+  if (loading || !students || students.length < 2 || studentId) {
     return null;
   }
 
