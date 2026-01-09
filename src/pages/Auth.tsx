@@ -68,21 +68,23 @@ const Auth = () => {
         throw new Error(data.error);
       }
 
-      toast.success("Bootstrap successful! First admin created: test@admin.com / abcabc!");
-
-      // Auto-login with the new admin credentials
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: 'test@admin.com',
-        password: 'abcabc!',
-      });
-
-      if (loginError) throw loginError;
-
-      // Hide bootstrap button and navigate
-      setShowBootstrap(false);
-      const state = location.state as { redirectTo?: string } | null;
-      const redirectTo = state?.redirectTo || "/dashboard";
-      navigate(redirectTo);
+      // Use the credentials returned from the server (secure random credentials)
+      if (data.temporaryPassword && data.email) {
+        toast.success(
+          `Admin account created!\n\nEmail: ${data.email}\nTemporary Password: ${data.temporaryPassword}\n\nPlease save these credentials and change the password immediately!`,
+          { duration: 30000 }
+        );
+        
+        // Set the email field so user can manually login
+        setEmail(data.email);
+        setShowBootstrap(false);
+        setMode("login");
+        
+        // Note: We do NOT auto-login - user must manually login with the provided credentials
+        // This is more secure as it forces the user to acknowledge and save the credentials
+      } else {
+        throw new Error('Bootstrap failed - no credentials returned from server');
+      }
     } catch (error: any) {
       toast.error("Bootstrap failed: " + error.message);
     } finally {
