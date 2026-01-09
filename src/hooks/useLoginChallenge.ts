@@ -76,62 +76,32 @@ export function useLoginChallenge(studentId: string | undefined) {
     staleTime: 30000, // 30 seconds
   });
 
-  // Record homework page visit
+  // Record homework page visit AND auto-award daily XP
   const recordHomeworkVisit = useMutation({
     mutationFn: async () => {
       if (!studentId) throw new Error("No student ID");
 
-      // Update or create streak record with homework check
-      const { data: existing } = await supabase
-        .from("student_login_streaks")
-        .select("*")
-        .eq("student_id", studentId)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase
-          .from("student_login_streaks")
-          .update({ 
-            last_homework_check: today,
-            updated_at: new Date().toISOString()
-          })
-          .eq("student_id", studentId);
-      } else {
-        await supabase
-          .from("student_login_streaks")
-          .insert({
-            student_id: studentId,
-            last_homework_check: today,
-            current_streak: 0,
-            longest_streak: 0
-          });
-      }
-
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["login-streak", studentId] });
-    }
-  });
-
-  // Claim daily reward
-  const claimDailyReward = useMutation({
-    mutationFn: async () => {
-      if (!studentId) throw new Error("No student ID");
-
-      // Check if already claimed
-      const { data: existing } = await supabase
+      // Check if already claimed today
+      const { data: todayReward } = await supabase
         .from("daily_login_rewards")
         .select("id")
         .eq("student_id", studentId)
         .eq("reward_date", today)
         .maybeSingle();
 
-      if (existing) {
-        throw new Error("Already claimed today");
+      if (todayReward) {
+        // Already claimed, just update homework check timestamp
+        await supabase
+          .from("student_login_streaks")
+          .upsert({
+            student_id: studentId,
+            last_homework_check: today,
+            updated_at: new Date().toISOString()
+          }, { onConflict: "student_id" });
+        return { alreadyClaimed: true };
       }
 
-      // Insert reward record
+      // Award reward automatically
       await supabase
         .from("daily_login_rewards")
         .insert({
@@ -151,7 +121,6 @@ export function useLoginChallenge(studentId: string | undefined) {
       const classId = enrollments?.[0]?.class_id;
 
       if (classId) {
-        // Add 1 XP as engagement points
         const currentMonth = dayjs().format("YYYY-MM");
         await supabase
           .from("point_transactions")
@@ -191,30 +160,22 @@ export function useLoginChallenge(studentId: string | undefined) {
           last_login_date: today,
           last_homework_check: today,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: "student_id"
-        });
+        }, { onConflict: "student_id" });
 
-      return { newStreak, xpAwarded: 1 };
+      return { xpAwarded: 1, newStreak, alreadyClaimed: false };
     },
     onSuccess: (data) => {
-      toast({
-        title: "🎉 Daily Check-In Complete!",
-        description: `+1 XP earned! Streak: ${data.newStreak} days`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["login-streak", studentId] });
-      queryClient.invalidateQueries({ queryKey: ["student-total-points", studentId] });
-    },
-    onError: (error: any) => {
-      if (error.message !== "Already claimed today") {
+      if (data && !data.alreadyClaimed) {
         toast({
-          title: "Error",
-          description: "Failed to claim daily reward",
-          variant: "destructive"
+          title: "🎉 Daily Check-In Complete!",
+          description: `+1 XP earned! Streak: ${data.newStreak} days`,
         });
       }
+      queryClient.invalidateQueries({ queryKey: ["login-streak", studentId] });
+      queryClient.invalidateQueries({ queryKey: ["student-total-points", studentId] });
     }
   });
+
 
   return {
     streakData: streakData || {
@@ -226,7 +187,6 @@ export function useLoginChallenge(studentId: string | undefined) {
     },
     isLoading,
     recordHomeworkVisit: recordHomeworkVisit.mutate,
-    claimDailyReward: claimDailyReward.mutate,
-    isClaimingReward: claimDailyReward.isPending
+    isRecordingVisit: recordHomeworkVisit.isPending
   };
 }

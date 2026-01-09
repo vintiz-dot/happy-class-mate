@@ -16,7 +16,7 @@ const xpCategories = [
     icon: "🌟",
     color: "from-warning/20 to-warning/10",
     items: [
-      { name: "Daily Check-In", description: "Log in and check your homework page", xp: "+1 XP", icon: "✅" },
+      { name: "Daily Check-In", description: "Visit your homework page (automatic!)", xp: "+1 XP", icon: "✅" },
     ]
   },
   {
@@ -35,8 +35,8 @@ const xpCategories = [
     icon: "📚",
     color: "from-accent/20 to-accent/10",
     items: [
-      { name: "Complete Homework", description: "Turn in your assignments", xp: "+5-20 XP", icon: "📝" },
-      { name: "On Time Bonus", description: "Submit before due date", xp: "+5 XP", icon: "⏰" },
+      { name: "Complete Homework", description: "Turn in your assignments (max 100 pts)", xp: "+1-100 XP", icon: "📝" },
+      { name: "Early Submission", description: "Submit before due date", xp: "+5 XP bonus", icon: "⏰" },
     ]
   },
   {
@@ -61,7 +61,7 @@ const xpCategories = [
     icon: "📕",
     color: "from-secondary/20 to-secondary/10",
     items: [
-      { name: "Quizzes & Exercises", description: "Complete theory work", xp: "+1-10 XP", icon: "📊" },
+      { name: "Quizzes & Exercises", description: "Complete theory work (no limit!)", xp: "Unlimited", icon: "📊" },
     ]
   },
 ];
