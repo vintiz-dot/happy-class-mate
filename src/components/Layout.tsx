@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Users, BookOpen, Calendar, DollarSign, BarChart3, Receipt, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { GraduationCap, LogOut, Users, BookOpen, Calendar, BarChart3, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { StudentNavBar } from "@/components/student/StudentNavBar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface LayoutProps {
   children: ReactNode;
@@ -87,8 +88,6 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Home, label: "Families", path: "/families" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
-          { icon: DollarSign, label: "Tuition", path: "/tuition" },
-          { icon: Wallet, label: "Finance", path: "/finance" },
         ];
       case "teacher":
         return [
@@ -190,27 +189,35 @@ const Layout = ({ children, title }: LayoutProps) => {
 
         {/* Navigation */}
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Button
-                key={item.path}
-                variant={isActive ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3 group",
-                  !sidebarOpen && "justify-center px-2",
-                  isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-600/20"
-                )}
-                onClick={() => navigate(item.path)}
-              >
-                <item.icon className={cn(
-                  "h-4 w-4 shrink-0 transition-colors",
-                  !isActive && "group-hover:text-red-500"
-                )} />
-                {sidebarOpen && <span>{item.label}</span>}
-              </Button>
-            );
-          })}
+          <TooltipProvider delayDuration={100}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Tooltip key={item.path}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isActive ? "secondary" : "ghost"}
+                      className={cn(
+                        "w-full justify-start gap-3 group",
+                        !sidebarOpen && "justify-center px-2",
+                        isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-600/20"
+                      )}
+                      onClick={() => navigate(item.path)}
+                    >
+                      <item.icon className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        !isActive && "group-hover:text-red-500"
+                      )} />
+                      {sidebarOpen && <span>{item.label}</span>}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </TooltipProvider>
         </nav>
 
         {/* Sidebar Footer */}
