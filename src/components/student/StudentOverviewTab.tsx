@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
-import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
+import { StudentClassLeaderboard } from "./StudentClassLeaderboard";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { PointsBreakdownChart } from "./PointsBreakdownChart";
 import { Users } from "lucide-react";
@@ -76,7 +76,7 @@ export function StudentOverviewTab({ student }: { student: any }) {
               <PointsBreakdownChart studentId={student.id} classId={cls.id} />
               
               {/* Leaderboard for this class */}
-              <ClassLeaderboardShared classId={cls.id} currentStudentId={student.id} />
+              <StudentClassLeaderboard classId={cls.id} className={cls.name} currentStudentId={student.id} />
             </div>
           ))}
         </div>
