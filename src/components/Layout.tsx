@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { StudentNavBar } from "@/components/student/StudentNavBar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -146,6 +147,7 @@ const Layout = ({ children, title }: LayoutProps) => {
             </div>
           </div>
         </header>
+        {role === "student" && <StudentNavBar />}
         <main className="container mx-auto px-4 py-4 md:py-6 lg:py-8">{children}</main>
       </div>
     );

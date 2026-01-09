@@ -1,13 +1,12 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Calendar, Trophy, BookOpen, CreditCard, Star, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: Home, path: "/student" },
-  { id: "schedule", label: "Schedule", icon: Calendar, path: "/schedule" },
-  { id: "quests", label: "Quests", icon: Trophy, path: "/student/assignments" },
-  { id: "journal", label: "Journal", icon: BookOpen, path: "/student/journal" },
-  { id: "tuition", label: "Tuition", icon: CreditCard, path: "/tuition" },
+  { id: "dashboard", label: "🏠 Dashboard", path: "/student" },
+  { id: "schedule", label: "📅 Schedule", path: "/schedule" },
+  { id: "quests", label: "📚 Quests", path: "/student/assignments" },
+  { id: "journal", label: "📖 Journal", path: "/student/journal" },
+  { id: "tuition", label: "💰 Tuition", path: "/tuition" },
 ];
 
 export function StudentNavBar() {
@@ -16,15 +15,15 @@ export function StudentNavBar() {
 
   const isActive = (path: string) => {
     if (path === "/student") {
-      return location.pathname === "/student" || location.pathname === "/student/";
+      return location.pathname === "/student" || location.pathname === "/student/" || location.pathname === "/student/dashboard";
     }
     return location.pathname.startsWith(path);
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-center gap-1 py-2 overflow-x-auto scrollbar-hide">
+    <nav className="sticky top-[57px] md:top-[65px] z-40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b shadow-sm">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center gap-0.5 py-1.5 overflow-x-auto scrollbar-hide">
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (
@@ -32,15 +31,14 @@ export function StudentNavBar() {
                 key={item.id}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                  "hover:bg-muted/80",
+                  "px-2 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-all duration-200",
+                  "hover:text-red-500",
                   active
-                    ? "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 shadow-sm"
-                    : "text-muted-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                <item.icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{item.label}</span>
+                {item.label}
               </button>
             );
           })}
