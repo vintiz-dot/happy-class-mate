@@ -49,29 +49,70 @@ Deno.serve(async (req) => {
     // Create admin client to bypass RLS
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // First, verify the user is enrolled in this class (or is a family member of someone enrolled)
-    const { data: userStudent } = await adminClient
-      .from("students")
-      .select("id, family_id")
-      .eq("linked_user_id", user.id)
-      .single();
-
     let isAuthorized = false;
     let currentStudentId: string | null = null;
 
-    if (userStudent) {
-      currentStudentId = userStudent.id;
-      // Check if this student is enrolled in the class
-      const { data: enrollment } = await adminClient
-        .from("enrollments")
+    // Check if user is a teacher for this class
+    const { data: teacher } = await adminClient
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (teacher) {
+      // Check if teacher is assigned to this class
+      const { data: classData } = await adminClient
+        .from("classes")
         .select("id")
-        .eq("student_id", userStudent.id)
-        .eq("class_id", classId)
-        .is("end_date", null)
+        .eq("id", classId)
+        .eq("default_teacher_id", teacher.id)
         .single();
 
-      if (enrollment) {
+      if (classData) {
         isAuthorized = true;
+      }
+
+      // Also check if teacher has any sessions for this class
+      if (!isAuthorized) {
+        const { data: teacherSession } = await adminClient
+          .from("sessions")
+          .select("id")
+          .eq("class_id", classId)
+          .eq("teacher_id", teacher.id)
+          .limit(1);
+
+        if (teacherSession && teacherSession.length > 0) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    // Check if user is a student enrolled in this class
+    if (!isAuthorized) {
+      const { data: userStudent } = await adminClient
+        .from("students")
+        .select("id, family_id")
+        .eq("linked_user_id", user.id)
+        .single();
+
+      if (userStudent) {
+        currentStudentId = userStudent.id;
+        // Check if this student has ANY enrollment in the class (active or with future end_date)
+        const { data: enrollment } = await adminClient
+          .from("enrollments")
+          .select("id, end_date")
+          .eq("student_id", userStudent.id)
+          .eq("class_id", classId)
+          .limit(1);
+
+        if (enrollment && enrollment.length > 0) {
+          // Allow if no end_date or end_date is in the future
+          const enr = enrollment[0];
+          if (!enr.end_date || new Date(enr.end_date) >= new Date()) {
+            isAuthorized = true;
+          }
+        }
       }
     }
 
@@ -87,16 +128,17 @@ Deno.serve(async (req) => {
         // Check if any family member is enrolled in this class
         const { data: familyEnrollment } = await adminClient
           .from("enrollments")
-          .select("id, student_id, students!inner(family_id)")
+          .select("id, student_id, end_date, students!inner(family_id)")
           .eq("class_id", classId)
           .eq("students.family_id", family.id)
-          .is("end_date", null)
           .limit(1);
 
         if (familyEnrollment && familyEnrollment.length > 0) {
-          isAuthorized = true;
-          // Set current student to the first family member in this class
-          currentStudentId = familyEnrollment[0].student_id;
+          const enr = familyEnrollment[0];
+          if (!enr.end_date || new Date(enr.end_date) >= new Date()) {
+            isAuthorized = true;
+            currentStudentId = enr.student_id;
+          }
         }
       }
     }
