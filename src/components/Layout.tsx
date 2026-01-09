@@ -110,7 +110,13 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: Receipt, label: "Tuition", path: "/tuition" },
         ];
       case "student":
-        return []; // Navigation handled in StudentDashboard
+        return [
+          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
+          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: FileText, label: "Quests", path: "/student/assignments" },
+          { icon: BookMarked, label: "Journal", path: "/student/journal" },
+          { icon: Receipt, label: "Tuition", path: "/tuition" },
+        ];
       default:
         return [];
     }
