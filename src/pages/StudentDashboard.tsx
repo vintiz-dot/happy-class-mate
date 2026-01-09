@@ -395,15 +395,6 @@ export default function StudentDashboard() {
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
               🏠 Dashboard
             </TabsTrigger>
-            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium" onClick={() => navigate("/schedule")}>
-              📅 Schedule
-            </Button>
-            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium" onClick={() => navigate("/tuition")}>
-              💰 Tuition
-            </Button>
-            <Button variant="ghost" className="px-4 py-2 h-auto text-sm font-medium" onClick={() => navigate("/student/assignments")}>
-              📚 Assignments
-            </Button>
             <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2">
               🏆 Achievements
             </TabsTrigger>

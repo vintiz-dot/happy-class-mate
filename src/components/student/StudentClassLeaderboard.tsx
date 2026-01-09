@@ -292,8 +292,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
 
           {/* Rest of leaderboard */}
           {rest.length > 0 && (
-            <ScrollArea className="max-h-[280px]">
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <AnimatePresence>
                   {rest.map((entry, index) => {
                     const isCurrentUser = entry.is_current_user;
@@ -370,7 +369,6 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                   })}
                 </AnimatePresence>
               </div>
-            </ScrollArea>
           )}
         </div>
       )}
