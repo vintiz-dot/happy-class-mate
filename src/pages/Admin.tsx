@@ -2,28 +2,18 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OverviewTab from "@/components/admin/tabs/OverviewTab";
-import StudentsTab from "@/components/admin/tabs/StudentsTab";
-import ClassesTab from "@/components/admin/tabs/ClassesTab";
-import TeachersTab from "@/components/admin/tabs/TeachersTab";
 import FinanceTab from "@/components/admin/tabs/FinanceTab";
 import ReportsTab from "@/components/admin/tabs/ReportsTab";
 import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
 import DataTab from "@/components/admin/tabs/DataTab";
-import GlobalCalendar from "@/components/schedule/GlobalCalendar";
 import { AdminJournalViewEnhanced } from "@/components/admin/AdminJournalViewEnhanced";
-import { FamiliesList } from "@/components/admin/FamiliesList";
 import { AssignmentsOverview } from "@/components/admin/AssignmentsOverview";
 import { 
   LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  GraduationCap, 
-  Calendar, 
   ClipboardList, 
   BookMarked, 
   Wallet, 
-  Home, 
   BarChart3, 
   CreditCard, 
   Cog, 
@@ -35,14 +25,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const tabConfig = [
   { value: "overview", label: "Overview", icon: LayoutDashboard, color: "from-violet-500 to-purple-600" },
-  { value: "students", label: "Students", icon: Users, color: "from-blue-500 to-cyan-500" },
-  { value: "classes", label: "Classes", icon: BookOpen, color: "from-emerald-500 to-teal-500" },
-  { value: "teachers", label: "Teachers", icon: GraduationCap, color: "from-amber-500 to-orange-500" },
-  { value: "schedule", label: "Schedule", icon: Calendar, color: "from-rose-500 to-pink-500" },
   { value: "assignments", label: "Assignments", icon: ClipboardList, color: "from-indigo-500 to-violet-500" },
   { value: "journal", label: "Journal", icon: BookMarked, color: "from-cyan-500 to-blue-500" },
   { value: "finance", label: "Finance", icon: Wallet, color: "from-green-500 to-emerald-500" },
-  { value: "families", label: "Families", icon: Home, color: "from-orange-500 to-amber-500" },
   { value: "reports", label: "Reports", icon: BarChart3, color: "from-purple-500 to-indigo-500" },
   { value: "account", label: "Account", icon: CreditCard, color: "from-pink-500 to-rose-500" },
   { value: "automation", label: "Automation", icon: Cog, color: "from-slate-500 to-zinc-600" },
@@ -150,18 +135,6 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
               <TabsContent value="overview" className="mt-0">
                 <OverviewTab />
               </TabsContent>
-              <TabsContent value="students" className="mt-0">
-                <StudentsTab />
-              </TabsContent>
-              <TabsContent value="classes" className="mt-0">
-                <ClassesTab />
-              </TabsContent>
-              <TabsContent value="teachers" className="mt-0">
-                <TeachersTab />
-              </TabsContent>
-              <TabsContent value="schedule" className="mt-0">
-                <GlobalCalendar role="admin" />
-              </TabsContent>
               <TabsContent value="assignments" className="mt-0">
                 <AssignmentsOverview />
               </TabsContent>
@@ -170,9 +143,6 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
               </TabsContent>
               <TabsContent value="finance" className="mt-0">
                 <FinanceTab />
-              </TabsContent>
-              <TabsContent value="families" className="mt-0">
-                <FamiliesList />
               </TabsContent>
               <TabsContent value="reports" className="mt-0">
                 <ReportsTab />
