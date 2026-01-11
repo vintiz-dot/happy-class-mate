@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Users, BookOpen, Calendar, BarChart3, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home, CreditCard, Cog, Database } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -82,29 +82,29 @@ const Layout = ({ children, title }: LayoutProps) => {
     switch (role) {
       case "admin":
         return [
-          { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-          { icon: Users, label: "Students", path: "/students" },
-          { icon: Users, label: "Teachers", path: "/teachers" },
-          { icon: BookOpen, label: "Classes", path: "/classes" },
-          { icon: Home, label: "Families", path: "/families" },
-          { icon: Calendar, label: "Schedule", path: "/schedule" },
-          { icon: ClipboardList, label: "Assignments", path: "/admin?tab=assignments" },
-          { icon: BookMarked, label: "Journal", path: "/admin?tab=journal" },
-          { icon: Wallet, label: "Finance", path: "/admin?tab=finance" },
-          { icon: BarChart3, label: "Reports", path: "/admin?tab=reports" },
-          { icon: CreditCard, label: "Account", path: "/admin?tab=account" },
-          { icon: Cog, label: "Automation", path: "/admin?tab=automation" },
-          { icon: Database, label: "Data", path: "/admin?tab=data" },
+          { icon: LayoutGrid, label: "Dashboard", path: "/admin" },
+          { icon: UsersRound, label: "Students", path: "/students" },
+          { icon: UserCog, label: "Teachers", path: "/teachers" },
+          { icon: School, label: "Classes", path: "/classes" },
+          { icon: Building2, label: "Families", path: "/families" },
+          { icon: CalendarDays, label: "Schedule", path: "/schedule" },
+          { icon: ListTodo, label: "Assignments", path: "/admin?tab=assignments" },
+          { icon: NotebookPen, label: "Journal", path: "/admin?tab=journal" },
+          { icon: PiggyBank, label: "Finance", path: "/admin?tab=finance" },
+          { icon: TrendingUp, label: "Reports", path: "/admin?tab=reports" },
+          { icon: Receipt, label: "Account", path: "/admin?tab=account" },
+          { icon: Settings2, label: "Automation", path: "/admin?tab=automation" },
+          { icon: HardDrive, label: "Data", path: "/admin?tab=data" },
         ];
       case "teacher":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/dashboard" },
-          { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: TrendingUp, label: "Dashboard", path: "/dashboard" },
+          { icon: CalendarDays, label: "Schedule", path: "/schedule" },
           { icon: Trophy, label: "Leaderboard", path: "/teacher/leaderboards" },
-          { icon: Wallet, label: "Payroll", path: "/teacher/payroll" },
-          { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
-          { icon: ClipboardList, label: "Attendance", path: "/teacher/attendance" },
-          { icon: BookMarked, label: "Journal", path: "/teacher/journal" },
+          { icon: PiggyBank, label: "Payroll", path: "/teacher/payroll" },
+          { icon: BookOpenCheck, label: "Assignments", path: "/teacher/assignments" },
+          { icon: ListTodo, label: "Attendance", path: "/teacher/attendance" },
+          { icon: NotebookPen, label: "Journal", path: "/teacher/journal" },
         ];
       default:
         return [];
