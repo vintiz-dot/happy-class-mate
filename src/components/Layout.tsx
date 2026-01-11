@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Users, BookOpen, Calendar, BarChart3, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { GraduationCap, LogOut, Users, BookOpen, Calendar, BarChart3, Wallet, LayoutDashboard, FileText, ClipboardList, BookMarked, Trophy, Menu, X, ChevronLeft, ChevronRight, Home, CreditCard, Cog, Database } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -88,6 +88,13 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: BookOpen, label: "Classes", path: "/classes" },
           { icon: Home, label: "Families", path: "/families" },
           { icon: Calendar, label: "Schedule", path: "/schedule" },
+          { icon: ClipboardList, label: "Assignments", path: "/admin?tab=assignments" },
+          { icon: BookMarked, label: "Journal", path: "/admin?tab=journal" },
+          { icon: Wallet, label: "Finance", path: "/admin?tab=finance" },
+          { icon: BarChart3, label: "Reports", path: "/admin?tab=reports" },
+          { icon: CreditCard, label: "Account", path: "/admin?tab=account" },
+          { icon: Cog, label: "Automation", path: "/admin?tab=automation" },
+          { icon: Database, label: "Data", path: "/admin?tab=data" },
         ];
       case "teacher":
         return [
@@ -191,7 +198,9 @@ const Layout = ({ children, title }: LayoutProps) => {
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           <TooltipProvider delayDuration={100}>
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.path.includes('?') 
+                ? location.pathname + location.search === item.path
+                : location.pathname === item.path && !location.search;
               return (
                 <Tooltip key={item.path}>
                   <TooltipTrigger asChild>
@@ -269,7 +278,9 @@ const Layout = ({ children, title }: LayoutProps) => {
           {mobileMenuOpen && (
             <nav className="border-t bg-card p-2 space-y-1">
               {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
+                const isActive = item.path.includes('?') 
+                  ? location.pathname + location.search === item.path
+                  : location.pathname === item.path && !location.search;
                 return (
                   <Button
                     key={item.path}
