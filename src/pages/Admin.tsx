@@ -6,6 +6,7 @@ import ReportsTab from "@/components/admin/tabs/ReportsTab";
 import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
 import DataTab from "@/components/admin/tabs/DataTab";
+import ClassesTab from "@/components/admin/tabs/ClassesTab";
 import { AdminJournalViewEnhanced } from "@/components/admin/AdminJournalViewEnhanced";
 import { AssignmentsOverview } from "@/components/admin/AssignmentsOverview";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +17,8 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
 
   const renderContent = () => {
     switch (tab) {
+      case "classes":
+        return <ClassesTab />;
       case "assignments":
         return <AssignmentsOverview />;
       case "journal":

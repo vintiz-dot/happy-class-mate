@@ -85,7 +85,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: LayoutGrid, label: "Dashboard", path: "/admin" },
           { icon: UsersRound, label: "Students", path: "/students" },
           { icon: UserCog, label: "Teachers", path: "/teachers" },
-          { icon: School, label: "Classes", path: "/classes" },
+          { icon: School, label: "Classes", path: "/admin?tab=classes" },
           { icon: Building2, label: "Families", path: "/families" },
           { icon: CalendarDays, label: "Schedule", path: "/schedule" },
           { icon: ListTodo, label: "Assignments", path: "/admin?tab=assignments" },
