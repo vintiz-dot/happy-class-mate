@@ -201,24 +201,34 @@ const Layout = ({ children, title }: LayoutProps) => {
               const isActive = item.path.includes('?') 
                 ? location.pathname + location.search === item.path
                 : location.pathname === item.path && !location.search;
+              
+              const buttonContent = (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start gap-3 group",
+                    !sidebarOpen && "justify-center px-2",
+                    isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-600/20"
+                  )}
+                  onClick={() => navigate(item.path)}
+                >
+                  <item.icon className={cn(
+                    "h-4 w-4 shrink-0 transition-colors",
+                    !isActive && "group-hover:text-purple-600"
+                  )} />
+                  {sidebarOpen && <span>{item.label}</span>}
+                </Button>
+              );
+
+              // Only show tooltip when sidebar is collapsed
+              if (sidebarOpen) {
+                return <div key={item.path}>{buttonContent}</div>;
+              }
+
               return (
                 <Tooltip key={item.path}>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant={isActive ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-start gap-3 group",
-                        !sidebarOpen && "justify-center px-2",
-                        isActive && "bg-blue-600/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-600/20"
-                      )}
-                      onClick={() => navigate(item.path)}
-                    >
-                      <item.icon className={cn(
-                        "h-4 w-4 shrink-0 transition-colors",
-                        !isActive && "group-hover:text-purple-600"
-                      )} />
-                      {sidebarOpen && <span>{item.label}</span>}
-                    </Button>
+                    {buttonContent}
                   </TooltipTrigger>
                   <TooltipContent side="right" className="font-medium">
                     {item.label}
