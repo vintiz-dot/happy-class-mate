@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/table";
 import { TeacherBankingInfo } from "@/components/teacher/TeacherBankingInfo";
 import { School, TrendingUp } from "lucide-react";
+import { MonthPicker } from "@/components/MonthPicker";
 
 interface TeacherProfilePayrollProps {
   teacherId: string;
   selectedMonth: string;
   hourlyRate: number;
+  onMonthChange?: (month: string) => void;
 }
 
-export function TeacherProfilePayroll({ teacherId, selectedMonth, hourlyRate }: TeacherProfilePayrollProps) {
+export function TeacherProfilePayroll({ teacherId, selectedMonth, hourlyRate, onMonthChange }: TeacherProfilePayrollProps) {
   const { data: payrollData } = useQuery({
     queryKey: ["teacher-payroll-detail", teacherId, selectedMonth],
     queryFn: async () => {
@@ -91,6 +93,14 @@ export function TeacherProfilePayroll({ teacherId, selectedMonth, hourlyRate }: 
 
   return (
     <div className="space-y-4">
+      {/* Month Picker Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Payroll Summary</h2>
+        {onMonthChange && (
+          <MonthPicker value={selectedMonth} onChange={onMonthChange} />
+        )}
+      </div>
+
       <TeacherBankingInfo teacherId={teacherId} />
 
       <div className="grid gap-4 md:grid-cols-2">
