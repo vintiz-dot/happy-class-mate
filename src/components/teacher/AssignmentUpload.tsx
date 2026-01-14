@@ -89,23 +89,28 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
   const queryClient = useQueryClient();
 
   // Single query for teacher data
-  const { data: teacherData, isLoading: teacherLoading } = useQuery({
+  const { data: teacherData, isLoading: teacherLoading, isError: teacherError } = useQuery({
     queryKey: ["teacher-data"],
     queryFn: fetchTeacherData,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
   });
 
   const classIds = teacherData?.classes.map(c => c.id) || [];
+  // Create stable key for query
+  const classIdsKey = classIds.sort().join(",");
 
   // Fetch homeworks only when we have class IDs
   const { data: homeworks = [], isLoading: homeworksLoading } = useQuery({
-    queryKey: ["teacher-homeworks", classIds],
+    queryKey: ["teacher-homeworks", classIdsKey],
     queryFn: () => fetchHomeworks(classIds),
-    enabled: classIds.length > 0,
+    enabled: !!teacherData && classIds.length > 0,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
   });
 
-  const isLoading = teacherLoading || homeworksLoading;
+  // Only show loading if teacher data is loading, or if we have classes and homeworks are loading
+  const isLoading = teacherLoading || (classIds.length > 0 && homeworksLoading);
 
   // Create homework mutation
   const createMutation = useMutation({
@@ -314,6 +319,10 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
               <Loader2 className="h-5 w-5 animate-spin" />
               Loading assignments...
             </div>
+          ) : teacherError ? (
+            <p className="text-center text-destructive py-8">Failed to load teacher data. Please refresh.</p>
+          ) : classIds.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No classes assigned yet.</p>
           ) : filteredHomeworks.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No assignments yet. Create one above!</p>
           ) : (
