@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Eye, Calendar, FileText, Edit, Users } from "lucide-react";
+import { Upload, Eye, Calendar, FileText, Edit, Users, Loader2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { EditHomeworkDialog } from "./EditHomeworkDialog";
@@ -36,9 +36,46 @@ interface AssignmentUploadProps {
   classFilter?: string;
 }
 
+// Single query to get teacher data and classes
+async function fetchTeacherData() {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error("Not authenticated");
+
+  const { data: teacher } = await supabase
+    .from("teachers")
+    .select("id")
+    .eq("user_id", user.user.id)
+    .single();
+
+  if (!teacher) throw new Error("Teacher not found");
+
+  const { data: classData } = await supabase
+    .from("sessions")
+    .select("class_id, classes(id, name)")
+    .eq("teacher_id", teacher.id);
+
+  const uniqueClasses = Array.from(
+    new Map(classData?.map(s => [s.classes?.id, s.classes]).filter(([id]) => id) as [string, Class][])
+  ).map(([_, cls]) => cls);
+
+  return { teacherId: teacher.id, classes: uniqueClasses };
+}
+
+// Fetch homeworks for teacher's classes
+async function fetchHomeworks(classIds: string[]) {
+  if (classIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("homeworks")
+    .select("id, title, body, due_date, created_at, class_id, classes(name), homework_files(file_name, storage_key)")
+    .in("class_id", classIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as unknown as Homework[];
+}
+
 export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [teacherId, setTeacherId] = useState<string>("");
   const [formData, setFormData] = useState({
     class_id: "",
     title: "",
@@ -46,128 +83,35 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
     due_date: "",
   });
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [homeworks, setHomeworks] = useState<Homework[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
   const [gradingHomeworkId, setGradingHomeworkId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    loadTeacherClasses();
-    loadHomeworks();
-  }, []);
+  // Single query for teacher data
+  const { data: teacherData, isLoading: teacherLoading } = useQuery({
+    queryKey: ["teacher-data"],
+    queryFn: fetchTeacherData,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  const loadTeacherClasses = async () => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
+  const classIds = teacherData?.classes.map(c => c.id) || [];
 
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.user.id)
-        .single();
+  // Fetch homeworks only when we have class IDs
+  const { data: homeworks = [], isLoading: homeworksLoading } = useQuery({
+    queryKey: ["teacher-homeworks", classIds],
+    queryFn: () => fetchHomeworks(classIds),
+    enabled: classIds.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-      if (!teacher) return;
-      setTeacherId(teacher.id);
+  const isLoading = teacherLoading || homeworksLoading;
 
-      const { data: classData } = await supabase
-        .from("sessions")
-        .select("class_id, classes(id, name)")
-        .eq("teacher_id", teacher.id);
-
-      // Get unique classes
-      const uniqueClasses = Array.from(
-        new Map(classData?.map(s => [s.classes?.id, s.classes]).filter(([id]) => id) as [string, Class][])
-      ).map(([_, cls]) => cls);
-
-      setClasses(uniqueClasses);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadHomeworks = async () => {
-    try {
-      setLoading(true);
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.user.id)
-        .single();
-
-      if (!teacher) return;
-
-      // Get all classes taught by this teacher
-      const { data: teacherClasses } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacher.id);
-
-      const classIds = [...new Set(teacherClasses?.map(s => s.class_id) || [])];
-
-      // Load homeworks for those classes
-      const { data, error } = await supabase
-        .from("homeworks")
-        .select("id, title, body, due_date, created_at, class_id, classes(name), homework_files(file_name, storage_key)")
-        .in("class_id", classIds)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setHomeworks(data as unknown as Homework[]);
-    } catch (error: any) {
-      toast({
-        title: "Error loading assignments",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Maximum file size is 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      setFile(selectedFile);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.class_id || !formData.title) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploading(true);
-
-    try {
+  // Create homework mutation
+  const createMutation = useMutation({
+    mutationFn: async () => {
       const { data: user } = await supabase.auth.getUser();
       
-      // Create homework record
       const { data: homework, error: insertError } = await supabase
         .from("homeworks")
         .insert({
@@ -182,7 +126,6 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
 
       if (insertError) throw insertError;
 
-      // Upload file if present
       if (file && homework) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${homework.id}/${Date.now()}.${fileExt}`;
@@ -193,7 +136,6 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
 
         if (uploadError) throw uploadError;
 
-        // Create homework_files record
         const { error: fileError } = await supabase
           .from("homework_files")
           .insert({
@@ -206,33 +148,41 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
         if (fileError) throw fileError;
       }
 
-      toast({
-        title: "Success",
-        description: "Assignment uploaded successfully",
-      });
-
-      // Invalidate queries and reload
+      return homework;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Assignment uploaded successfully" });
+      queryClient.invalidateQueries({ queryKey: ["teacher-homeworks"] });
       queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["class-homeworks"] });
-      loadHomeworks();
-
-      // Reset form
-      setFormData({
-        class_id: "",
-        title: "",
-        description: "",
-        due_date: "",
-      });
+      setFormData({ class_id: "", title: "", description: "", due_date: "" });
       setFile(null);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Maximum file size is 5MB", variant: "destructive" });
+        return;
+      }
+      setFile(selectedFile);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.class_id || !formData.title) {
+      toast({ title: "Missing fields", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    createMutation.mutate();
   };
 
   const viewFile = async (storageKey: string) => {
@@ -240,13 +190,13 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
       const { data } = await supabase.storage.from("homework").getPublicUrl(storageKey);
       window.open(data.publicUrl, "_blank");
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
+
+  const filteredHomeworks = classFilter && classFilter !== "all"
+    ? homeworks.filter(hw => hw.class_id === classFilter)
+    : homeworks;
 
   return (
     <div className="space-y-6">
@@ -271,7 +221,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map(cls => (
+                  {(teacherData?.classes || []).map(cls => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.name}
                     </SelectItem>
@@ -335,8 +285,15 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
               )}
             </div>
 
-            <Button type="submit" disabled={uploading} className="w-full min-h-[44px]">
-              {uploading ? "Uploading..." : "Upload Assignment"}
+            <Button type="submit" disabled={createMutation.isPending} className="w-full min-h-[44px]">
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                "Upload Assignment"
+              )}
             </Button>
           </form>
         </CardContent>
@@ -352,20 +309,16 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
           <CardDescription>View all assignments you've created</CardDescription>
         </CardHeader>
         <CardContent>
-          {(() => {
-            const filteredHomeworks = classFilter && classFilter !== "all"
-              ? homeworks.filter(hw => hw.class_id === classFilter)
-              : homeworks;
-
-            if (loading) {
-              return <p className="text-center text-muted-foreground py-8">Loading assignments...</p>;
-            }
-            if (filteredHomeworks.length === 0) {
-              return <p className="text-center text-muted-foreground py-8">No assignments yet. Create one above!</p>;
-            }
-            return (
-              <div className="space-y-4">
-                {filteredHomeworks.map((hw) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading assignments...
+            </div>
+          ) : filteredHomeworks.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No assignments yet. Create one above!</p>
+          ) : (
+            <div className="space-y-4">
+              {filteredHomeworks.map((hw) => (
                 <Card key={hw.id} className="p-4 hover:shadow-md transition-shadow">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
@@ -435,10 +388,9 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                     </div>
                   </div>
                 </Card>
-                ))}
-              </div>
-            );
-          })()}
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -447,7 +399,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
         isOpen={!!editingHomeworkId}
         onClose={() => setEditingHomeworkId(null)}
         onSuccess={() => {
-          loadHomeworks();
+          queryClient.invalidateQueries({ queryKey: ["teacher-homeworks"] });
           queryClient.invalidateQueries({ queryKey: ["teacher-assignments"] });
         }}
       />
