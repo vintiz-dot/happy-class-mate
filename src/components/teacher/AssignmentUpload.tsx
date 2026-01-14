@@ -45,20 +45,37 @@ async function fetchTeacherData() {
     .from("teachers")
     .select("id")
     .eq("user_id", user.user.id)
-    .single();
+    .maybeSingle();
 
   if (!teacher) throw new Error("Teacher not found");
 
-  const { data: classData } = await supabase
-    .from("sessions")
-    .select("class_id, classes(id, name)")
-    .eq("teacher_id", teacher.id);
+  // Get classes where teacher is the default teacher OR has sessions
+  const [defaultClassesRes, sessionClassesRes] = await Promise.all([
+    supabase
+      .from("classes")
+      .select("id, name")
+      .eq("default_teacher_id", teacher.id)
+      .eq("is_active", true),
+    supabase
+      .from("sessions")
+      .select("class_id, classes(id, name)")
+      .eq("teacher_id", teacher.id)
+  ]);
 
-  const uniqueClasses = Array.from(
-    new Map(classData?.map(s => [s.classes?.id, s.classes]).filter(([id]) => id) as [string, Class][])
-  ).map(([_, cls]) => cls);
+  // Merge both sources of classes
+  const classMap = new Map<string, Class>();
+  
+  // Add default classes
+  defaultClassesRes.data?.forEach(cls => {
+    if (cls.id) classMap.set(cls.id, cls);
+  });
+  
+  // Add session-based classes
+  sessionClassesRes.data?.forEach(s => {
+    if (s.classes?.id) classMap.set(s.classes.id, s.classes as Class);
+  });
 
-  return { teacherId: teacher.id, classes: uniqueClasses };
+  return { teacherId: teacher.id, classes: Array.from(classMap.values()) };
 }
 
 // Fetch homeworks for teacher's classes
