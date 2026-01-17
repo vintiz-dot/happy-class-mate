@@ -28,35 +28,38 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
 
       const classIds = enrollments?.map(e => e.class_id) || [];
 
-      const { data: homeworks } = await supabase
-        .from("homeworks")
-        .select(`
-          id,
-          title,
-          body,
-          due_date,
-          created_at,
-          class_id,
-          classes(name)
-        `)
-        .in("class_id", classIds)
-        .order("created_at", { ascending: false });
+      // Fetch homeworks and submissions in parallel (fixes N+1 query problem)
+      const [homeworksResult, submissionsResult] = await Promise.all([
+        supabase
+          .from("homeworks")
+          .select(`
+            id,
+            title,
+            body,
+            due_date,
+            created_at,
+            class_id,
+            classes(name)
+          `)
+          .in("class_id", classIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("homework_submissions")
+          .select("*")
+          .eq("student_id", studentId)
+      ]);
 
-      // Fetch submissions for each homework
-      const homeworksWithSubmissions = await Promise.all(
-        (homeworks || []).map(async (hw) => {
-          const { data: submission } = await supabase
-            .from("homework_submissions")
-            .select("*")
-            .eq("homework_id", hw.id)
-            .eq("student_id", studentId)
-            .maybeSingle();
+      const homeworks = homeworksResult.data || [];
+      const submissions = submissionsResult.data || [];
 
-          return { ...hw, submission };
-        })
-      );
+      // Create a map for O(1) lookups instead of N queries
+      const submissionMap = new Map(submissions.map(s => [s.homework_id, s]));
 
-      return homeworksWithSubmissions;
+      // Merge homeworks with their submissions
+      return homeworks.map(hw => ({
+        ...hw,
+        submission: submissionMap.get(hw.id) || null
+      }));
     },
   });
 
