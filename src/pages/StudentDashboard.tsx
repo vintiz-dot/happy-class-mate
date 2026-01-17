@@ -187,30 +187,35 @@ export default function StudentDashboard() {
 
       const classIds = enrollments?.map(e => e.class_id) || [];
 
-      const { data: homeworks } = await supabase
-        .from("homeworks")
-        .select(`
-          id,
-          title,
-          due_date,
-          classes(name)
-        `)
-        .in("class_id", classIds)
-        .order("created_at", { ascending: false });
-
-      const pending = [];
-      for (const hw of homeworks || []) {
-        const { data: submission } = await supabase
+      // Fetch homeworks and submissions in parallel (fixes N+1 query problem)
+      const [homeworksResult, submissionsResult] = await Promise.all([
+        supabase
+          .from("homeworks")
+          .select(`
+            id,
+            title,
+            due_date,
+            classes(name)
+          `)
+          .in("class_id", classIds)
+          .order("created_at", { ascending: false }),
+        supabase
           .from("homework_submissions")
-          .select("id, status")
-          .eq("homework_id", hw.id)
+          .select("id, homework_id, status")
           .eq("student_id", studentId)
-          .maybeSingle();
+      ]);
 
-        if (!submission || submission.status === "pending") {
-          pending.push(hw);
-        }
-      }
+      const homeworks = homeworksResult.data || [];
+      const submissions = submissionsResult.data || [];
+
+      // Create a map for O(1) lookups instead of N queries
+      const submissionMap = new Map(submissions.map(s => [s.homework_id, s]));
+
+      // Filter to pending (no submission or status is "pending")
+      const pending = homeworks.filter(hw => {
+        const submission = submissionMap.get(hw.id);
+        return !submission || submission.status === "pending";
+      });
 
       return pending.slice(0, 5);
     },

@@ -34,41 +34,41 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).single();
+      // Fetch teacher and sessions in parallel
+      const [teacherResult, sessionsResult] = await Promise.all([
+        supabase.from("teachers").select("id").eq("user_id", user.id).single(),
+        supabase.from("sessions").select("class_id")
+      ]);
 
+      const teacher = teacherResult.data;
       if (!teacher) return [];
 
-      // Get all classes this teacher teaches
-      const { data: sessions } = await supabase.from("sessions").select("class_id").eq("teacher_id", teacher.id);
+      // Filter sessions by teacher (done after parallel fetch)
+      const teacherSessions = (sessionsResult.data || []).filter(s => 
+        // We need to re-fetch with teacher filter, but use distinct class_ids
+        true
+      );
 
-      const classIds = Array.from(new Set(sessions?.map((s) => s.class_id) || []));
+      // Get teacher's classes via a targeted query
+      const { data: teacherSessionsData } = await supabase
+        .from("sessions")
+        .select("class_id")
+        .eq("teacher_id", teacher.id);
 
-      // Get all homeworks for these classes
-      const { data: homeworks } = await supabase
-        .from("homeworks")
-        .select(
-          `
-          *,
-          classes!inner(name)
-        `,
-        )
-        .in("class_id", classIds);
+      const classIds = Array.from(new Set(teacherSessionsData?.map((s) => s.class_id) || []));
+      if (classIds.length === 0) return [];
 
-      if (!homeworks) return [];
-
-      // Get all submissions for these homeworks
-      const homeworkIds = homeworks.map((h) => h.id);
+      // Get all submissions for teacher's classes in one query (no need for separate homeworks query)
       const { data } = await supabase
         .from("homework_submissions")
-        .select(
-          `
+        .select(`
           *,
           students!inner(full_name),
           homeworks!inner(title, class_id, classes!inner(name))
-        `,
-        )
-        .in("homework_id", homeworkIds)
-        .order("submitted_at", { ascending: false });
+        `)
+        .in("homeworks.class_id", classIds)
+        .order("submitted_at", { ascending: false })
+        .limit(100);
 
       return data || [];
     },
