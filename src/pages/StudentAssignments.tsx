@@ -25,20 +25,28 @@ export default function StudentAssignments() {
     }
   }, [studentId]);
 
-  const { data: assignments = [], isLoading } = useQuery({
-    queryKey: ["student-assignments", studentId],
+  // Separate query for enrollments with longer cache time (rarely changes)
+  const { data: enrollments } = useQuery({
+    queryKey: ["student-enrollments", studentId],
     queryFn: async () => {
       if (!studentId) return [];
-
-      const { data: enrollments } = await supabase
+      const { data } = await supabase
         .from("enrollments")
         .select("class_id")
         .eq("student_id", studentId)
         .is("end_date", null);
+      return data || [];
+    },
+    enabled: !!studentId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - enrollments rarely change
+  });
 
-      if (!enrollments || enrollments.length === 0) return [];
+  const classIds = enrollments?.map(e => e.class_id) || [];
 
-      const classIds = enrollments.map(e => e.class_id);
+  const { data: assignments = [], isLoading } = useQuery({
+    queryKey: ["student-assignments", studentId, classIds.join(",")],
+    queryFn: async () => {
+      if (!studentId || classIds.length === 0) return [];
 
       // Fetch homeworks and submissions in parallel (fixes N+1 query problem)
       const [homeworksResult, submissionsResult] = await Promise.all([
@@ -50,7 +58,8 @@ export default function StudentAssignments() {
             homework_files(*)
           `)
           .in("class_id", classIds)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(100), // Pagination: limit to 100 most recent
         supabase
           .from("homework_submissions")
           .select("*")
@@ -69,7 +78,8 @@ export default function StudentAssignments() {
         submission: submissionMap.get(hw.id) || null
       }));
     },
-    enabled: !!studentId,
+    enabled: !!studentId && classIds.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Helper function to get card background color based on status
