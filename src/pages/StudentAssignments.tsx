@@ -48,7 +48,7 @@ export default function StudentAssignments() {
           homework_files(*)
         `)
         .in("class_id", classIds)
-        .order("due_date", { ascending: true, nullsFirst: false });
+        .order("created_at", { ascending: false });
 
       // Get submission data for each homework
       const homeworksWithStatus = await Promise.all(

@@ -40,7 +40,7 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
           classes(name)
         `)
         .in("class_id", classIds)
-        .order("due_date", { ascending: true });
+        .order("created_at", { ascending: false });
 
       // Fetch submissions for each homework
       const homeworksWithSubmissions = await Promise.all(

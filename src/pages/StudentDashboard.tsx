@@ -196,7 +196,7 @@ export default function StudentDashboard() {
           classes(name)
         `)
         .in("class_id", classIds)
-        .order("due_date", { ascending: true });
+        .order("created_at", { ascending: false });
 
       const pending = [];
       for (const hw of homeworks || []) {
