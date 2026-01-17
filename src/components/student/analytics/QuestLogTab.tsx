@@ -95,7 +95,7 @@ export function QuestLogTab({ studentId, classId, selectedMonth, viewerStudentId
         .eq("class_id", classId)
         .gte("due_date", monthStartStr)
         .lte("due_date", monthEndStr)
-        .order("due_date", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (hwError) throw hwError;
 
