@@ -17,16 +17,26 @@ interface AssignmentsListProps {
 export default function AssignmentsList({ studentId }: AssignmentsListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: assignments, isLoading } = useQuery({
-    queryKey: ["student-assignments", studentId],
+  // Reuse the same query key as StudentAssignments for cache sharing
+  const { data: enrollments } = useQuery({
+    queryKey: ["student-enrollments", studentId],
     queryFn: async () => {
-      const { data: enrollments } = await supabase
+      const { data } = await supabase
         .from("enrollments")
         .select("class_id")
         .eq("student_id", studentId)
         .is("end_date", null);
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-      const classIds = enrollments?.map(e => e.class_id) || [];
+  const classIds = enrollments?.map(e => e.class_id) || [];
+
+  const { data: assignments, isLoading } = useQuery({
+    queryKey: ["student-assignments", studentId, classIds.join(",")],
+    queryFn: async () => {
+      if (classIds.length === 0) return [];
 
       // Fetch homeworks and submissions in parallel (fixes N+1 query problem)
       const [homeworksResult, submissionsResult] = await Promise.all([
@@ -42,7 +52,8 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
             classes(name)
           `)
           .in("class_id", classIds)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(100), // Pagination: limit to 100 most recent
         supabase
           .from("homework_submissions")
           .select("*")
@@ -61,6 +72,8 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
         submission: submissionMap.get(hw.id) || null
       }));
     },
+    enabled: classIds.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   if (isLoading) {
