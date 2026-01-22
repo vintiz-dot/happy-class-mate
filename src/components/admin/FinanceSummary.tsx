@@ -21,12 +21,14 @@ export function FinanceSummary() {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const endDate = format(nextMonth, "yyyy-MM-dd");
 
-      // Total tuition billed
+      // Total tuition billed - fetch gross, discounts, and net
       const { data: invoices } = await supabase
         .from("invoices")
-        .select("total_amount")
+        .select("base_amount, discount_amount, total_amount")
         .eq("month", selectedMonth);
 
+      const grossTuition = (invoices || []).reduce((sum, inv) => sum + (inv.base_amount || 0), 0);
+      const totalDiscounts = (invoices || []).reduce((sum, inv) => sum + (inv.discount_amount || 0), 0);
       const totalTuition = (invoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
       // Total teacher salary - use calculate-payroll for accurate actual vs projected
@@ -50,6 +52,8 @@ export function FinanceSummary() {
       const netProjected = totalTuition - totalSalaryProjected - totalExpenditures;
 
       return {
+        grossTuition,
+        totalDiscounts,
         totalTuition,
         totalSalaryActual,
         totalSalaryProjected,
@@ -169,7 +173,10 @@ export function FinanceSummary() {
             <div className="text-2xl font-bold">
               {isLoading ? "..." : formatVND(summary?.totalTuition || 0)}
             </div>
-            <p className="text-xs text-muted-foreground">Revenue from students</p>
+            <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+              <p>Gross: {isLoading ? "..." : formatVND(summary?.grossTuition || 0)}</p>
+              <p>Discounts: {isLoading ? "..." : `-${formatVND(summary?.totalDiscounts || 0)}`}</p>
+            </div>
           </CardContent>
         </Card>
 
