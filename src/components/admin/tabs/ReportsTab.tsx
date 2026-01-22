@@ -126,7 +126,9 @@ const ReportsTab = () => {
           const studentCount = enrollments?.length || 0;
 
           // Get actual tuition from invoices using class_breakdown for accurate per-class amounts
-          let tuition = 0;
+          // Use net_amount_vnd (post-discount) if available, otherwise fall back to amount_vnd
+          let grossTuition = 0;
+          let netTuition = 0;
           if (enrollments && enrollments.length > 0) {
             const studentIds = enrollments.map(e => e.student_id);
             const { data: invoices, error: invoicesError } = await supabase
@@ -137,11 +139,15 @@ const ReportsTab = () => {
 
             if (!invoicesError && invoices) {
               // Sum only the amount for THIS specific class from each invoice's class_breakdown
-              tuition = invoices.reduce((sum, inv) => {
-                const breakdown = inv.class_breakdown as Array<{ class_id: string; amount_vnd: number }> | null;
+              invoices.forEach((inv) => {
+                const breakdown = inv.class_breakdown as Array<{ class_id: string; amount_vnd: number; net_amount_vnd?: number }> | null;
                 const classEntry = breakdown?.find(c => c.class_id === cls.id);
-                return sum + (classEntry?.amount_vnd || 0);
-              }, 0);
+                if (classEntry) {
+                  grossTuition += classEntry.amount_vnd || 0;
+                  // Use net_amount_vnd if available, otherwise fall back to amount_vnd
+                  netTuition += classEntry.net_amount_vnd ?? classEntry.amount_vnd ?? 0;
+                }
+              });
             }
           }
 
@@ -156,14 +162,17 @@ const ReportsTab = () => {
             payroll += hours * rate;
           });
 
-          const net = tuition - payroll;
+          const discounts = grossTuition - netTuition;
+          const net = netTuition - payroll;
 
           return {
             id: cls.id,
             name: cls.name,
             sessionCount,
             studentCount,
-            tuition: Math.round(tuition),
+            grossTuition: Math.round(grossTuition),
+            discounts: Math.round(discounts),
+            tuition: Math.round(netTuition), // This is now net tuition (post-discount)
             payroll: Math.round(payroll),
             net: Math.round(net),
           };
@@ -174,6 +183,8 @@ const ReportsTab = () => {
     },
   });
 
+  const totalGrossTuition = classFinance?.reduce((sum, c) => sum + c.grossTuition, 0) || 0;
+  const totalDiscounts = classFinance?.reduce((sum, c) => sum + c.discounts, 0) || 0;
   const totalTuition = classFinance?.reduce((sum, c) => sum + c.tuition, 0) || 0;
   const totalPayroll = classFinance?.reduce((sum, c) => sum + c.payroll, 0) || 0;
   const totalNet = classFinance?.reduce((sum, c) => sum + c.net, 0) || 0;
@@ -270,9 +281,11 @@ const ReportsTab = () => {
                 <TableHead>Class Name</TableHead>
                 <TableHead className="text-right">Sessions</TableHead>
                 <TableHead className="text-right">Students</TableHead>
-                <TableHead className="text-right">Tuition</TableHead>
+                <TableHead className="text-right">Gross Tuition</TableHead>
+                <TableHead className="text-right">Discounts</TableHead>
+                <TableHead className="text-right">Net Tuition</TableHead>
                 <TableHead className="text-right">Payroll</TableHead>
-                <TableHead className="text-right">Net</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -281,7 +294,11 @@ const ReportsTab = () => {
                   <TableCell className="font-medium">{cls.name}</TableCell>
                   <TableCell className="text-right">{cls.sessionCount}</TableCell>
                   <TableCell className="text-right">{cls.studentCount}</TableCell>
-                  <TableCell className="text-right">{formatVND(cls.tuition)}</TableCell>
+                  <TableCell className="text-right">{formatVND(cls.grossTuition)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {cls.discounts > 0 ? `-${formatVND(cls.discounts)}` : '-'}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">{formatVND(cls.tuition)}</TableCell>
                   <TableCell className="text-right">{formatVND(cls.payroll)}</TableCell>
                   <TableCell className={`text-right font-semibold ${cls.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatVND(cls.net)}
@@ -292,6 +309,10 @@ const ReportsTab = () => {
                 <TableCell>TOTAL</TableCell>
                 <TableCell className="text-right">-</TableCell>
                 <TableCell className="text-right">-</TableCell>
+                <TableCell className="text-right">{formatVND(totalGrossTuition)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {totalDiscounts > 0 ? `-${formatVND(totalDiscounts)}` : '-'}
+                </TableCell>
                 <TableCell className="text-right">{formatVND(totalTuition)}</TableCell>
                 <TableCell className="text-right">{formatVND(totalPayroll)}</TableCell>
                 <TableCell className={`text-right ${totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
