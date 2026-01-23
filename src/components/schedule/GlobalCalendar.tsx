@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
 import PremiumCalendar, { type CalendarEvent } from "@/components/calendar/PremiumCalendar";
@@ -7,6 +7,7 @@ import SessionDrawer from "@/components/admin/class/SessionDrawer";
 import AttendanceDrawer from "@/components/admin/class/AttendanceDrawer";
 import ClassSelector from "./ClassSelector";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
+import { toast } from "sonner";
 
 interface GlobalCalendarProps {
   role: "admin" | "teacher" | "student";
@@ -16,6 +17,7 @@ interface GlobalCalendarProps {
 }
 
 const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCalendarProps) => {
+  const queryClient = useQueryClient();
   const [month, setMonth] = useState(dayjs());
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [showClassSelector, setShowClassSelector] = useState(false);
@@ -104,6 +106,25 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     },
   });
 
+  // Mutation for rescheduling sessions (admin only)
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ sessionId, newDate }: { sessionId: string; newDate: string }) => {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ date: newDate })
+        .eq("id", sessionId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Session rescheduled successfully");
+      queryClient.invalidateQueries({ queryKey: ["calendar-sessions"] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to reschedule: ${error.message}`);
+    },
+  });
+
   // Transform raw sessions to CalendarEvent format
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     return rawSessions.map((session: any) => ({
@@ -144,12 +165,30 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
     }
   };
 
+  const handleRescheduleEvent = (eventId: string, newDate: string) => {
+    if (role !== "admin") return;
+    
+    const session = findRawSession(eventId);
+    if (!session) return;
+    
+    // Confirm reschedule
+    const sessionName = session.classes?.name || "Session";
+    const fromDate = dayjs(session.date).format("MMM D");
+    const toDate = dayjs(newDate).format("MMM D");
+    
+    if (window.confirm(`Move "${sessionName}" from ${fromDate} to ${toDate}?`)) {
+      rescheduleMutation.mutate({ sessionId: eventId, newDate });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <PremiumCalendar
         events={calendarEvents}
         onSelectDay={handleSelectDay}
         onSelectEvent={handleSelectEvent}
+        onRescheduleEvent={role === "admin" ? handleRescheduleEvent : undefined}
+        isAdmin={role === "admin"}
       />
 
       {showClassSelector && multipleSessions && (

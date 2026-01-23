@@ -1,10 +1,23 @@
 import { useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Clock, Users } from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar as CalendarIcon, 
+  Sparkles, 
+  Clock, 
+  Users,
+  List,
+  Grid3X3,
+  CalendarDays,
+  GripVertical
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { dayjs, nowBangkok } from "@/lib/date";
 import { getSessionDisplayStatus, type SessionStatus } from "@/lib/sessionStatus";
+import MiniCalendar from "./MiniCalendar";
+import AgendaView from "./AgendaView";
 
 // Types
 export interface CalendarEvent {
@@ -23,6 +36,8 @@ interface PremiumCalendarProps {
   events: CalendarEvent[];
   onSelectDay?: (date: string) => void;
   onSelectEvent?: (event: CalendarEvent) => void;
+  onRescheduleEvent?: (eventId: string, newDate: string) => void;
+  isAdmin?: boolean;
   className?: string;
 }
 
@@ -105,27 +120,41 @@ function getEventStatusKey(event: CalendarEvent): string {
   return "scheduled";
 }
 
-// Premium Event Card Component
+// Draggable Event Card Component
 function EventCard({ 
   event, 
   onSelect,
-  index 
+  index,
+  isDraggable,
+  onDragStart,
 }: { 
   event: CalendarEvent; 
   onSelect?: (event: CalendarEvent) => void;
   index: number;
+  isDraggable?: boolean;
+  onDragStart?: (event: CalendarEvent) => void;
 }) {
   const statusKey = getEventStatusKey(event);
   const config = statusConfig[statusKey];
 
+  const handleNativeDragStart = (e: React.DragEvent) => {
+    if (isDraggable && onDragStart) {
+      e.dataTransfer.setData("text/plain", event.id);
+      e.dataTransfer.effectAllowed = "move";
+      onDragStart(event);
+    }
+  };
+
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ delay: index * 0.03, duration: 0.2 }}
       whileHover={{ scale: 1.02, y: -1 }}
       whileTap={{ scale: 0.98 }}
+      draggable={isDraggable}
+      onDragStart={handleNativeDragStart as any}
       onClick={() => onSelect?.(event)}
       className={cn(
         "w-full text-left px-2.5 py-2 rounded-xl border transition-all duration-300",
@@ -133,17 +162,23 @@ function EventCard({
         "hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         config.bg,
         config.border,
-        `hover:${config.glow}`
+        `hover:${config.glow}`,
+        isDraggable && "cursor-grab active:cursor-grabbing"
       )}
     >
       <div className="flex items-start justify-between gap-1">
         <div className="flex-1 min-w-0">
-          <div className={cn(
-            "font-semibold text-xs truncate transition-colors",
-            config.text,
-            "group-hover:opacity-100"
-          )}>
-            {event.class_name}
+          <div className="flex items-center gap-1">
+            {isDraggable && (
+              <GripVertical className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
+            )}
+            <div className={cn(
+              "font-semibold text-xs truncate transition-colors",
+              config.text,
+              "group-hover:opacity-100"
+            )}>
+              {event.class_name}
+            </div>
           </div>
           <div className="flex items-center gap-1 mt-0.5">
             <Clock className="h-2.5 w-2.5 text-muted-foreground/60" />
@@ -168,11 +203,11 @@ function EventCard({
           </span>
         </div>
       ) : null}
-    </motion.button>
+    </motion.div>
   );
 }
 
-// Day Cell Component
+// Day Cell Component with drop zone
 function DayCell({
   date,
   events,
@@ -180,6 +215,12 @@ function DayCell({
   isToday,
   onSelectDay,
   onSelectEvent,
+  isAdmin,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragStart,
 }: {
   date: dayjs.Dayjs;
   events: CalendarEvent[];
@@ -187,6 +228,12 @@ function DayCell({
   isToday: boolean;
   onSelectDay?: (date: string) => void;
   onSelectEvent?: (event: CalendarEvent) => void;
+  isAdmin?: boolean;
+  isDragOver?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragStart?: (event: CalendarEvent) => void;
 }) {
   const dateStr = date.format("YYYY-MM-DD");
   const hasEvents = events.length > 0;
@@ -197,6 +244,9 @@ function DayCell({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       className={cn(
         "min-h-[120px] md:min-h-[140px] p-2 rounded-2xl border transition-all duration-300",
         "relative overflow-hidden group",
@@ -205,9 +255,24 @@ function DayCell({
           : "bg-muted/20 dark:bg-muted/10 border-transparent opacity-50",
         isToday && "ring-2 ring-primary ring-offset-2 ring-offset-background",
         hasEvents && isCurrentMonth && "hover:shadow-xl hover:border-primary/30 hover:bg-card/80",
-        isWeekend && isCurrentMonth && "bg-muted/30 dark:bg-muted/20"
+        isWeekend && isCurrentMonth && "bg-muted/30 dark:bg-muted/20",
+        isDragOver && "ring-2 ring-primary ring-dashed bg-primary/5 border-primary/50"
       )}
     >
+      {/* Drag over indicator */}
+      <AnimatePresence>
+        {isDragOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-primary/10 rounded-2xl flex items-center justify-center pointer-events-none z-10"
+          >
+            <span className="text-xs font-medium text-primary">Drop here</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Subtle gradient overlay for today */}
       {isToday && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
@@ -253,6 +318,8 @@ function DayCell({
               event={event} 
               onSelect={onSelectEvent}
               index={idx}
+              isDraggable={isAdmin}
+              onDragStart={onDragStart}
             />
           ))}
           {events.length > 3 && (
@@ -270,14 +337,59 @@ function DayCell({
   );
 }
 
+// View toggle component
+function ViewToggle({ 
+  view, 
+  onViewChange 
+}: { 
+  view: "grid" | "agenda"; 
+  onViewChange: (view: "grid" | "agenda") => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
+      <Button
+        variant={view === "grid" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => onViewChange("grid")}
+        className={cn(
+          "h-8 px-3 rounded-lg transition-all",
+          view === "grid" && "shadow-md"
+        )}
+      >
+        <Grid3X3 className="h-4 w-4 mr-1.5" />
+        Grid
+      </Button>
+      <Button
+        variant={view === "agenda" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => onViewChange("agenda")}
+        className={cn(
+          "h-8 px-3 rounded-lg transition-all",
+          view === "agenda" && "shadow-md"
+        )}
+      >
+        <List className="h-4 w-4 mr-1.5" />
+        Agenda
+      </Button>
+    </div>
+  );
+}
+
 // Main Premium Calendar Component
 export default function PremiumCalendar({
   events,
   onSelectDay,
   onSelectEvent,
+  onRescheduleEvent,
+  isAdmin = false,
   className,
 }: PremiumCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => dayjs());
+  const [view, setView] = useState<"grid" | "agenda">("grid");
+  const [showMiniCalendar, setShowMiniCalendar] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
 
   // Build month grid
   const { cells, weekdays } = useMemo(() => {
@@ -308,6 +420,9 @@ export default function PremiumCalendar({
     return map;
   }, [events]);
 
+  // Event dates set for mini calendar
+  const eventDatesSet = useMemo(() => new Set(events.map(e => e.date)), [events]);
+
   // Stats for the header
   const monthStats = useMemo(() => {
     const monthStart = currentMonth.startOf("month").format("YYYY-MM-DD");
@@ -316,14 +431,49 @@ export default function PremiumCalendar({
     const monthEvents = events.filter(e => e.date >= monthStart && e.date <= monthEnd);
     const totalSessions = monthEvents.length;
     const scheduledCount = monthEvents.filter(e => getEventStatusKey(e) === "scheduled" || getEventStatusKey(e) === "today").length;
-    const heldCount = monthEvents.filter(e => getEventStatusKey(e) === "held").length;
     
-    return { totalSessions, scheduledCount, heldCount };
+    return { totalSessions, scheduledCount };
   }, [events, currentMonth]);
 
   const goToToday = useCallback(() => setCurrentMonth(dayjs()), []);
   const goToPrevMonth = useCallback(() => setCurrentMonth(m => m.subtract(1, "month")), []);
   const goToNextMonth = useCallback(() => setCurrentMonth(m => m.add(1, "month")), []);
+
+  const handleMiniCalendarSelect = useCallback((dateStr: string) => {
+    setSelectedDate(dateStr);
+    setCurrentMonth(dayjs(dateStr));
+    onSelectDay?.(dateStr);
+    setShowMiniCalendar(false);
+  }, [onSelectDay]);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent, dateStr: string) => {
+    if (!isAdmin || !draggingEvent) return;
+    e.preventDefault();
+    setDragOverDate(dateStr);
+  }, [isAdmin, draggingEvent]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverDate(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    setDragOverDate(null);
+    
+    if (!isAdmin || !draggingEvent) return;
+    
+    const eventId = e.dataTransfer?.getData("text/plain");
+    if (eventId && draggingEvent.date !== dateStr) {
+      onRescheduleEvent?.(eventId, dateStr);
+    }
+    
+    setDraggingEvent(null);
+  }, [isAdmin, draggingEvent, onRescheduleEvent]);
+
+  const handleDragStart = useCallback((event: CalendarEvent) => {
+    setDraggingEvent(event);
+  }, []);
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -360,18 +510,50 @@ export default function PremiumCalendar({
             </Button>
           </motion.div>
 
-          <motion.h2 
-            key={currentMonth.format("YYYY-MM")}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl md:text-3xl font-bold tracking-tight"
-          >
-            {currentMonth.format("MMMM YYYY")}
-          </motion.h2>
+          <div className="relative">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowMiniCalendar(!showMiniCalendar)}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <motion.h2 
+                key={currentMonth.format("YYYY-MM")}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-2xl md:text-3xl font-bold tracking-tight"
+              >
+                {currentMonth.format("MMMM YYYY")}
+              </motion.h2>
+              <CalendarDays className={cn(
+                "h-5 w-5 text-muted-foreground transition-transform",
+                showMiniCalendar && "rotate-180"
+              )} />
+            </motion.button>
+
+            {/* Mini Calendar Dropdown */}
+            <AnimatePresence>
+              {showMiniCalendar && (
+                <div className="absolute top-full left-0 mt-2 z-50">
+                  <MiniCalendar
+                    currentMonth={currentMonth}
+                    selectedDate={selectedDate}
+                    eventDates={eventDatesSet}
+                    onSelectDate={handleMiniCalendarSelect}
+                    onChangeMonth={setCurrentMonth}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Stats Pills */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Right side controls */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* View Toggle */}
+          <ViewToggle view={view} onViewChange={setView} />
+
+          {/* Stats Pills */}
           <motion.div 
             whileHover={{ scale: 1.02, y: -1 }}
             className="flex items-center gap-2 px-4 py-2 rounded-2xl glass-sm"
@@ -391,54 +573,97 @@ export default function PremiumCalendar({
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="glass rounded-3xl p-4 md:p-6">
-        {/* Weekday Headers */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {weekdays.map((day, idx) => (
-            <div 
-              key={day} 
-              className={cn(
-                "text-center py-3 text-sm font-semibold rounded-xl",
-                idx >= 5 
-                  ? "text-muted-foreground/70 bg-muted/30" 
-                  : "text-muted-foreground"
-              )}
-            >
-              <span className="hidden sm:inline">{day}</span>
-              <span className="sm:hidden">{day.slice(0, 1)}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Days Grid */}
-        <motion.div 
-          key={currentMonth.format("YYYY-MM")}
-          initial={{ opacity: 0, y: 10 }}
+      {/* Drag hint for admin */}
+      {isAdmin && view === "grid" && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="grid grid-cols-7 gap-2"
+          className="flex items-center gap-2 text-xs text-muted-foreground px-4"
         >
-          {cells.map((date) => {
-            const dateStr = date.format("YYYY-MM-DD");
-            const dayEvents = eventsByDate[dateStr] || [];
-            const isCurrentMonth = date.isSame(currentMonth, "month");
-            const isToday = date.isSame(dayjs(), "day");
-
-            return (
-              <DayCell
-                key={dateStr}
-                date={date}
-                events={dayEvents}
-                isCurrentMonth={isCurrentMonth}
-                isToday={isToday}
-                onSelectDay={onSelectDay}
-                onSelectEvent={onSelectEvent}
-              />
-            );
-          })}
+          <GripVertical className="h-3 w-3" />
+          <span>Drag and drop sessions to reschedule</span>
         </motion.div>
-      </div>
+      )}
+
+      {/* Calendar Content */}
+      <AnimatePresence mode="wait">
+        {view === "grid" ? (
+          <motion.div
+            key="grid"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="glass rounded-3xl p-4 md:p-6"
+          >
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-2 mb-4">
+              {weekdays.map((day, idx) => (
+                <div 
+                  key={day} 
+                  className={cn(
+                    "text-center py-3 text-sm font-semibold rounded-xl",
+                    idx >= 5 
+                      ? "text-muted-foreground/70 bg-muted/30" 
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.slice(0, 1)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Days Grid */}
+            <motion.div 
+              key={currentMonth.format("YYYY-MM")}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="grid grid-cols-7 gap-2"
+            >
+              {cells.map((date) => {
+                const dateStr = date.format("YYYY-MM-DD");
+                const dayEvents = eventsByDate[dateStr] || [];
+                const isCurrentMonth = date.isSame(currentMonth, "month");
+                const isToday = date.isSame(dayjs(), "day");
+
+                return (
+                  <DayCell
+                    key={dateStr}
+                    date={date}
+                    events={dayEvents}
+                    isCurrentMonth={isCurrentMonth}
+                    isToday={isToday}
+                    onSelectDay={onSelectDay}
+                    onSelectEvent={onSelectEvent}
+                    isAdmin={isAdmin}
+                    isDragOver={dragOverDate === dateStr}
+                    onDragOver={(e) => handleDragOver(e, dateStr)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, dateStr)}
+                    onDragStart={handleDragStart}
+                  />
+                );
+              })}
+            </motion.div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="agenda"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            <AgendaView
+              events={events}
+              currentMonth={currentMonth}
+              onSelectEvent={onSelectEvent!}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Legend */}
       <motion.div 
