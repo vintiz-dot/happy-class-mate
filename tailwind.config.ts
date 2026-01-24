@@ -19,6 +19,15 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // Premium hover theme colors
+        royalGreen: {
+          DEFAULT: "hsl(152, 69%, 31%)",
+          light: "hsl(152, 55%, 45%)",
+        },
+        warmGray: {
+          DEFAULT: "hsl(30, 10%, 94%)",
+          dark: "hsl(30, 5%, 20%)",
+        },
         leaderboard: {
           bg: "hsl(var(--leaderboard-bg))",
           text: "hsl(var(--leaderboard-text))",

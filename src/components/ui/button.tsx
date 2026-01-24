@@ -11,9 +11,9 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg backdrop-blur-xl",
         destructive: "glass-sm bg-destructive/90 text-destructive-foreground hover:bg-destructive shadow-md hover:shadow-lg",
-        outline: "glass-sm hover:bg-accent/50 hover:text-accent-foreground shadow-sm hover:shadow-md",
+        outline: "glass-sm hover:bg-warmGray hover:text-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light shadow-sm hover:shadow-md",
         secondary: "glass-sm bg-secondary/80 text-secondary-foreground hover:bg-secondary shadow-sm hover:shadow-md",
-        ghost: "hover:glass-sm hover:bg-accent/30 hover:text-accent-foreground",
+        ghost: "hover:glass-sm hover:bg-warmGray hover:text-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

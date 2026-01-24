@@ -64,7 +64,7 @@ export function SkillButton({
               key={pts}
               variant="outline"
               size="sm"
-              className="w-10 h-10 p-0 text-sm font-bold hover:bg-green-500/20 hover:text-green-600 hover:border-green-500"
+              className="w-10 h-10 p-0 text-sm font-bold hover:bg-warmGray hover:text-royalGreen hover:border-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light dark:hover:border-royalGreen-light"
               onClick={() => handlePointSelect(pts)}
             >
               +{pts}

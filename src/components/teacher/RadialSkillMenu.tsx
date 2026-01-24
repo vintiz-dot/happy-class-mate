@@ -146,7 +146,7 @@ export function RadialSkillMenu({ onSkillTap, onClose, onReadingTheoryClick }: R
         {/* Reading Theory Button - Opens cumulative score entry */}
         {onReadingTheoryClick && (
           <button
-            className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-teal-500/20 hover:bg-teal-500/30 text-teal-600 dark:text-teal-400"
+            className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-teal-500/20 hover:bg-warmGray hover:text-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light text-teal-600 dark:text-teal-400"
             onClick={handleReadingTheoryButtonClick}
           >
             <GraduationCap className="h-6 w-6" />
@@ -156,7 +156,7 @@ export function RadialSkillMenu({ onSkillTap, onClose, onReadingTheoryClick }: R
         
         {/* Correction Button */}
         <button
-          className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400"
+          className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl min-w-[56px] min-h-[56px] transition-all active:scale-95 touch-manipulation select-none bg-red-500/20 hover:bg-warmGray hover:text-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light text-red-600 dark:text-red-400"
           onClick={handleCorrectionClick}
         >
           <AlertTriangle className="h-6 w-6" />
