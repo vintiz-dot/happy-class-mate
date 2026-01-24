@@ -25,7 +25,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[state=open]:bg-accent focus:bg-accent",
+      "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[state=open]:bg-warmGray data-[state=open]:text-royalGreen focus:bg-warmGray focus:text-royalGreen dark:data-[state=open]:bg-warmGray-dark dark:data-[state=open]:text-royalGreen-light dark:focus:bg-warmGray-dark dark:focus:text-royalGreen-light",
       inset && "pl-8",
       className,
     )}
@@ -79,7 +79,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-all duration-200 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent/50 focus:bg-accent focus:text-accent-foreground hover:scale-[1.01]",
+      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-all duration-200 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-warmGray hover:text-royalGreen focus:bg-warmGray focus:text-royalGreen dark:hover:bg-warmGray-dark dark:hover:text-royalGreen-light dark:focus:bg-warmGray-dark dark:focus:text-royalGreen-light hover:scale-[1.01]",
       inset && "pl-8",
       className,
     )}

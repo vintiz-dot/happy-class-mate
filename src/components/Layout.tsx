@@ -187,9 +187,9 @@ const Layout = ({ children, title }: LayoutProps) => {
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? (
-              <ChevronLeft className="h-4 w-4 group-hover:text-purple-600 transition-colors" />
+              <ChevronLeft className="h-4 w-4 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
             ) : (
-              <ChevronRight className="h-4 w-4 group-hover:text-purple-600 transition-colors" />
+              <ChevronRight className="h-4 w-4 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
             )}
           </Button>
         </div>
@@ -214,7 +214,7 @@ const Layout = ({ children, title }: LayoutProps) => {
                 >
                   <item.icon className={cn(
                     "h-4 w-4 shrink-0 transition-colors",
-                    !isActive && "group-hover:text-purple-600"
+                    !isActive && "group-hover:text-royalGreen dark:group-hover:text-royalGreen-light"
                   )} />
                   {sidebarOpen && <span>{item.label}</span>}
                 </Button>
@@ -257,7 +257,7 @@ const Layout = ({ children, title }: LayoutProps) => {
             className={cn("w-full justify-start gap-3 text-muted-foreground group", !sidebarOpen && "justify-center px-2")}
             onClick={signOut}
           >
-            <LogOut className="h-4 w-4 shrink-0 group-hover:text-purple-600 transition-colors" />
+            <LogOut className="h-4 w-4 shrink-0 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
             {sidebarOpen && <span>Sign Out</span>}
           </Button>
         </div>
@@ -271,9 +271,9 @@ const Layout = ({ children, title }: LayoutProps) => {
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="group" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 {mobileMenuOpen ? (
-                  <X className="h-5 w-5 group-hover:text-purple-600 transition-colors" />
+                  <X className="h-5 w-5 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
                 ) : (
-                  <Menu className="h-5 w-5 group-hover:text-purple-600 transition-colors" />
+                  <Menu className="h-5 w-5 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
                 )}
               </Button>
               <span className="font-semibold">{title || "Dashboard"}</span>
@@ -306,7 +306,7 @@ const Layout = ({ children, title }: LayoutProps) => {
                   >
                     <item.icon className={cn(
                       "h-4 w-4 transition-colors",
-                      !isActive && "group-hover:text-purple-600"
+                      !isActive && "group-hover:text-royalGreen dark:group-hover:text-royalGreen-light"
                     )} />
                     <span>{item.label}</span>
                   </Button>
@@ -317,7 +317,7 @@ const Layout = ({ children, title }: LayoutProps) => {
                 className="w-full justify-start gap-3 text-muted-foreground group"
                 onClick={signOut}
               >
-                <LogOut className="h-4 w-4 group-hover:text-purple-600 transition-colors" />
+                <LogOut className="h-4 w-4 group-hover:text-royalGreen dark:group-hover:text-royalGreen-light transition-colors" />
                 <span>Sign Out</span>
               </Button>
             </nav>

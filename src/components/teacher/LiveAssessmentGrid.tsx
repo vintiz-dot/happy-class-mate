@@ -287,7 +287,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
                 "bg-card border border-border/50",
                 isUnavailable 
                   ? "opacity-50 grayscale cursor-not-allowed" 
-                  : "cursor-pointer hover:bg-accent/50 active:scale-95",
+                  : "cursor-pointer hover:bg-warmGray dark:hover:bg-warmGray-dark active:scale-95",
                 bulkMode && selectedStudents.has(student.id) && !isUnavailable && "ring-2 ring-primary bg-primary/10"
               )}
               onClick={(e) => {
@@ -371,9 +371,10 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
               
               <PopoverContent 
                 className="w-auto p-0 border-0 bg-transparent shadow-none" 
-                side="top" 
-                align="center"
-                sideOffset={8}
+                side="right" 
+                align="start"
+                sideOffset={12}
+                collisionPadding={16}
               >
                 <RadialSkillMenu
                   onSkillTap={(skill, points, subTag) => handleSkillTap(student.id, skill, points, subTag)}

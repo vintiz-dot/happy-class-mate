@@ -552,3 +552,26 @@ All colors MUST be HSL.
 .nav-hover-red:hover svg {
   color: hsl(0, 90%, 55%) !important;
 }
+
+/* Premium royal green hover for admin/teacher interfaces */
+.premium-admin-hover {
+  @apply transition-all duration-200;
+}
+
+.premium-admin-hover:hover {
+  background-color: hsl(30, 10%, 94%) !important;
+  color: hsl(152, 69%, 31%) !important;
+}
+
+.premium-admin-hover:hover svg {
+  color: hsl(152, 69%, 31%) !important;
+}
+
+.dark .premium-admin-hover:hover {
+  background-color: hsl(30, 5%, 20%) !important;
+  color: hsl(152, 55%, 45%) !important;
+}
+
+.dark .premium-admin-hover:hover svg {
+  color: hsl(152, 55%, 45%) !important;
+}
