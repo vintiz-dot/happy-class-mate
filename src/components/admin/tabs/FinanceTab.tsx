@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdminTuitionList } from "@/components/admin/AdminTuitionList";
+import { AdminTuitionListEnhanced } from "@/components/admin/AdminTuitionListEnhanced";
 import { TuitionBulkDownload } from "@/components/admin/TuitionBulkDownload";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
@@ -33,7 +33,7 @@ const FinanceTab = () => {
 
       <TabsContent value="overview" className="space-y-4">
         <MonthPicker value={currentMonth} onChange={setCurrentMonth} />
-        <AdminTuitionList month={currentMonth} />
+        <AdminTuitionListEnhanced month={currentMonth} />
       </TabsContent>
 
       <TabsContent value="bulk">
