@@ -5,17 +5,22 @@ import { dayjs } from "@/lib/date";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { RadialSkillMenu } from "./RadialSkillMenu";
 import { PointFeedbackAnimation } from "./PointFeedbackAnimation";
 import { ReadingTheoryScoreEntry } from "@/components/shared/ReadingTheoryScoreEntry";
-import { CheckSquare, Square, Users } from "lucide-react";
+import { CheckSquare, Square, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { awardPoints, getTodaySession } from "@/lib/pointsHelper";
 import { SKILL_ICONS } from "@/lib/skillConfig";
 import { LucideIcon, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface LiveAssessmentGridProps {
   classId: string;
@@ -45,7 +50,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
   const queryClient = useQueryClient();
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [activeStudent, setActiveStudent] = useState<StudentCard | null>(null);
   const [readingTheoryOpen, setReadingTheoryOpen] = useState(false);
   const [feedbacks, setFeedbacks] = useState<Record<string, FeedbackItem[]>>({});
 
@@ -195,7 +200,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
       : [studentId];
 
     awardSkillMutation.mutate({ studentIds: targetIds, skill, points, subTag });
-    setOpenMenuId(null);
+    setActiveStudent(null);
   }, [bulkMode, selectedStudents, awardSkillMutation]);
 
   const toggleStudent = (studentId: string) => {
@@ -360,32 +365,69 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
           }
           
           return (
-            <Popover 
-              key={student.id} 
-              open={openMenuId === student.id}
-              onOpenChange={(open) => setOpenMenuId(open ? student.id : null)}
+            <div 
+              key={student.id}
+              onClick={() => {
+                if (!bulkMode) {
+                  setActiveStudent(student);
+                }
+              }}
             >
-              <PopoverTrigger asChild>
-                {cardContent}
-              </PopoverTrigger>
-              
-              <PopoverContent 
-                className="w-auto p-0 border-0 bg-transparent shadow-none" 
-                side="right" 
-                align="start"
-                sideOffset={12}
-                collisionPadding={16}
-              >
-                <RadialSkillMenu
-                  onSkillTap={(skill, points, subTag) => handleSkillTap(student.id, skill, points, subTag)}
-                  onClose={() => setOpenMenuId(null)}
-                  onReadingTheoryClick={() => setReadingTheoryOpen(true)}
-                />
-              </PopoverContent>
-            </Popover>
+              {cardContent}
+            </div>
           );
         })}
       </div>
+
+      {/* Skill Selection Dialog - appears centered, away from cards */}
+      <Dialog open={!!activeStudent} onOpenChange={(open) => !open && setActiveStudent(null)}>
+        <DialogContent className="sm:max-w-md p-0 border-0 bg-transparent shadow-none overflow-visible">
+          <VisuallyHidden>
+            <DialogTitle>Award points to {activeStudent?.full_name}</DialogTitle>
+          </VisuallyHidden>
+          <div className="flex flex-col items-center gap-4">
+            {/* Student info header */}
+            {activeStudent && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-card/95 backdrop-blur-sm rounded-xl border border-border/50 shadow-lg">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={activeStudent.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    {activeStudent.full_name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-sm">{activeStudent.full_name}</p>
+                  <p className={cn(
+                    "text-xs",
+                    activeStudent.todayPoints > 0 ? "text-green-600" :
+                    activeStudent.todayPoints < 0 ? "text-red-600" :
+                    "text-muted-foreground"
+                  )}>
+                    {activeStudent.todayPoints > 0 ? "+" : ""}{activeStudent.todayPoints} today
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 ml-2"
+                  onClick={() => setActiveStudent(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            
+            {/* Radial skill menu */}
+            {activeStudent && (
+              <RadialSkillMenu
+                onSkillTap={(skill, points, subTag) => handleSkillTap(activeStudent.id, skill, points, subTag)}
+                onClose={() => setActiveStudent(null)}
+                onReadingTheoryClick={() => setReadingTheoryOpen(true)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Reading Theory Score Entry Dialog */}
       <ReadingTheoryScoreEntry
