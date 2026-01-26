@@ -139,6 +139,7 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
         </CardHeader>
         <CardContent>
           <ProfilePictureUpload
+            studentId={studentId}
             currentAvatarUrl={student?.avatar_url}
             studentName={student?.full_name || "Student"}
           />
