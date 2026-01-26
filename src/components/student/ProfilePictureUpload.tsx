@@ -8,11 +8,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAvatarUrl } from "@/lib/avatars";
 
 interface ProfilePictureUploadProps {
+  studentId?: string;
   currentAvatarUrl?: string | null;
   studentName: string;
 }
 
 export function ProfilePictureUpload({ 
+  studentId,
   currentAvatarUrl,
   studentName 
 }: ProfilePictureUploadProps) {
@@ -39,6 +41,9 @@ export function ProfilePictureUpload({
       // Create form data with the file
       const formData = new FormData();
       formData.append('file', file);
+      if (studentId) {
+        formData.append('studentId', studentId);
+      }
 
       // Call the edge function
       const response = await fetch(

@@ -124,6 +124,7 @@ export function StudentOverviewTab({ student }: { student: any }) {
         </CardHeader>
         <CardContent className="space-y-6">
           <ProfilePictureUpload 
+            studentId={student.id}
             currentAvatarUrl={student.avatar_url}
             studentName={student.full_name}
           />
