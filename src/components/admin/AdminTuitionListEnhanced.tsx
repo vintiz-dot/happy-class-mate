@@ -53,11 +53,12 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
 
       const allStudentIds = allStudents.map((s) => s.id);
 
-      // Fetch enrollments for ALL active students
+      // Fetch enrollments for ALL active students - only include active classes
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select(`student_id, class_id, classes(id, name)`)
+        .select(`student_id, class_id, classes!inner(id, name, is_active)`)
         .in("student_id", allStudentIds)
+        .eq("classes.is_active", true)
         .lte("start_date", monthEnd)
         .or(`end_date.is.null,end_date.gte.${monthStart}`);
 
@@ -118,42 +119,48 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
         priorBalanceMap.set(inv.student_id, currentBalance + (inv.recorded_payment || 0) - (inv.total_amount || 0));
       });
 
-      // Build tuition data for ALL active students
-      return allStudents.map((student) => {
-        const invoice = invoiceMap.get(student.id);
-        const currentCharges = invoice?.total_amount || 0;
-        
-        const carryInCredit = invoice?.carry_in_credit || 0;
-        const carryInDebt = invoice?.carry_in_debt || 0;
-        const priorBalance = priorBalanceMap.get(student.id) || 0;
-        const finalPayable = currentCharges + carryInDebt - carryInCredit;
+      // Build tuition data for ALL active students with enrollments
+      return allStudents
+        .filter((student) => {
+          // Only include students who have at least one enrollment for this month
+          const studentEnrollments = studentClasses.get(student.id) || [];
+          return studentEnrollments.length > 0;
+        })
+        .map((student) => {
+          const invoice = invoiceMap.get(student.id);
+          const currentCharges = invoice?.total_amount || 0;
+          
+          const carryInCredit = invoice?.carry_in_credit || 0;
+          const carryInDebt = invoice?.carry_in_debt || 0;
+          const priorBalance = priorBalanceMap.get(student.id) || 0;
+          const finalPayable = currentCharges + carryInDebt - carryInCredit;
 
-        const recordedPayment = invoice?.recorded_payment || 0;
-        const carryOutCredit = Math.max(0, recordedPayment - finalPayable);
-        const carryOutDebt = Math.max(0, finalPayable - recordedPayment);
+          const recordedPayment = invoice?.recorded_payment || 0;
+          const carryOutCredit = Math.max(0, recordedPayment - finalPayable);
+          const carryOutDebt = Math.max(0, finalPayable - recordedPayment);
 
-        return {
-          id: invoice?.id || `placeholder-${student.id}`,
-          student_id: student.id,
-          month: month,
-          base_amount: invoice?.base_amount || 0,
-          discount_amount: invoice?.discount_amount || 0,
-          total_amount: currentCharges,
-          paid_amount: invoice?.paid_amount || 0,
-          recorded_payment: recordedPayment,
-          status: invoice?.status || "open",
-          confirmation_status: invoice?.confirmation_status || "needs_review",
-          students: student,
-          hasDiscount: studentDiscounts.has(student.id),
-          hasSiblings: siblingStudents.has(student.id),
-          priorBalance: priorBalance,
-          finalPayable: finalPayable,
-          balance: finalPayable - recordedPayment,
-          classes: studentClasses.get(student.id) || [],
-          carry_out_credit: invoice?.carry_out_credit ?? carryOutCredit,
-          carry_out_debt: invoice?.carry_out_debt ?? carryOutDebt,
-        };
-      });
+          return {
+            id: invoice?.id || `placeholder-${student.id}`,
+            student_id: student.id,
+            month: month,
+            base_amount: invoice?.base_amount || 0,
+            discount_amount: invoice?.discount_amount || 0,
+            total_amount: currentCharges,
+            paid_amount: invoice?.paid_amount || 0,
+            recorded_payment: recordedPayment,
+            status: invoice?.status || "open",
+            confirmation_status: invoice?.confirmation_status || "needs_review",
+            students: student,
+            hasDiscount: studentDiscounts.has(student.id),
+            hasSiblings: siblingStudents.has(student.id),
+            priorBalance: priorBalance,
+            finalPayable: finalPayable,
+            balance: finalPayable - recordedPayment,
+            classes: studentClasses.get(student.id) || [],
+            carry_out_credit: invoice?.carry_out_credit ?? carryOutCredit,
+            carry_out_debt: invoice?.carry_out_debt ?? carryOutDebt,
+          };
+        });
     },
   });
 
