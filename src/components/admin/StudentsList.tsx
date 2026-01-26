@@ -36,9 +36,10 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
         .select(`
           *,
           families:family_id(name),
-          enrollments(class_id, start_date, classes(name))
+          enrollments(class_id, start_date, classes!inner(name, is_active))
         `)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("enrollments.classes.is_active", true);
 
       // Apply class filter
       if (filterClass && filterClass !== "all") {
