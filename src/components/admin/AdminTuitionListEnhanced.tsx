@@ -45,7 +45,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       // Fetch ALL active students first
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
-        .select("id, full_name, family_id, is_active")
+        .select("id, full_name, family_id, is_active, avatar_url")
         .eq("is_active", true);
 
       if (studentsError) throw studentsError;

@@ -24,6 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatars";
 
 interface TuitionStudentCardProps {
   item: any;
@@ -95,27 +97,39 @@ export function TuitionStudentCard({
         <CardContent className="p-4">
           {/* Main Row */}
           <div className="flex items-center justify-between gap-4">
-            {/* Left: Student Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold text-base truncate">
-                  {(item.students as any)?.full_name}
-                </h3>
-                {getTuitionStatusBadge(status)}
-                {item.hasDiscount && (
-                  <Badge variant="outline" className="gap-1 text-xs border-violet-300 text-violet-700 bg-violet-50 dark:bg-violet-950/30">
-                    <Percent className="h-3 w-3" />
-                    Discount
-                  </Badge>
-                )}
-                {item.hasSiblings && (
-                  <Badge variant="outline" className="gap-1 text-xs border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
-                    <Award className="h-3 w-3" />
-                    Sibling
-                  </Badge>
-                )}
+            {/* Left: Avatar + Student Info */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm shrink-0">
+                <AvatarImage 
+                  src={getAvatarUrl((item.students as any)?.avatar_url) || undefined} 
+                  alt={(item.students as any)?.full_name}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-medium text-sm">
+                  {(item.students as any)?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-base truncate">
+                    {(item.students as any)?.full_name}
+                  </h3>
+                  {getTuitionStatusBadge(status)}
+                  {item.hasDiscount && (
+                    <Badge variant="outline" className="gap-1 text-xs border-violet-300 text-violet-700 bg-violet-50 dark:bg-violet-950/30">
+                      <Percent className="h-3 w-3" />
+                      Discount
+                    </Badge>
+                  )}
+                  {item.hasSiblings && (
+                    <Badge variant="outline" className="gap-1 text-xs border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                      <Award className="h-3 w-3" />
+                      Sibling
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">{classes}</p>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{classes}</p>
             </div>
 
             {/* Center: Financial Summary */}

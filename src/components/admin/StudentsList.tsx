@@ -17,6 +17,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatars";
 
 interface StudentsListProps {
   searchQuery?: string;
@@ -123,32 +125,41 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
         ) : (
           <div className="space-y-3">
             {students?.map((student) => (
-              <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{student.full_name}</p>
-                    <Badge variant={student.is_active ? "default" : "secondary"}>
-                      {student.is_active ? "Active" : "Inactive"}
-                    </Badge>
+              <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <Avatar className="h-12 w-12 ring-2 ring-background shadow-md shrink-0">
+                    <AvatarImage 
+                      src={getAvatarUrl(student.avatar_url) || undefined} 
+                      alt={student.full_name}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                      {student.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold truncate">{student.full_name}</p>
+                      <Badge variant={student.is_active ? "default" : "secondary"} className="shrink-0">
+                        {student.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    {(student.enrollments as any)?.length > 0 && (
+                      <p className="text-sm text-muted-foreground truncate">
+                        📚 {(student.enrollments as any).map((e: any) => e.classes?.name).filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                      {student.families && (
+                        <span>👨‍👩‍👧 {(student.families as any).name}</span>
+                      )}
+                      {student.email && (
+                        <span className="hidden sm:inline">✉️ {student.email}</span>
+                      )}
+                    </div>
                   </div>
-                  {(student.enrollments as any)?.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      📚 Classes: {(student.enrollments as any).map((e: any) => e.classes?.name).filter(Boolean).join(", ")}
-                    </p>
-                  )}
-                  {student.email && (
-                    <p className="text-sm text-muted-foreground">✉️ {student.email}</p>
-                  )}
-                  {student.phone && (
-                    <p className="text-sm text-muted-foreground">📱 {student.phone}</p>
-                  )}
-                  {student.families && (
-                    <p className="text-sm text-muted-foreground">
-                      👨‍👩‍👧 Family: {(student.families as any).name}
-                    </p>
-                  )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <Button variant="outline" size="sm" onClick={() => navigate(`/students/${student.id}`)}>
                     <Eye className="h-4 w-4 mr-1" />
                     View
