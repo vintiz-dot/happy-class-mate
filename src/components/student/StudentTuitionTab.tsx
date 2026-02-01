@@ -12,6 +12,7 @@ import { checkStudentFinanceParity } from "@/lib/dev/parityCheck";
 import { SettleBillModal } from "@/components/admin/SettleBillModal";
 import { useAuth } from "@/hooks/useAuth";
 import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
+import { PriorBalanceBreakdown } from "./PriorBalanceBreakdown";
 
 export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -315,6 +316,11 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
               {tuitionData.carryInCredit > 0 ? '✓ Credit (Family overpaid)' : 
                tuitionData.carryInDebt > 0 ? '⚠ Debt (Family owes)' : 'No carry-over'}
             </p>
+            
+            {/* Prior Balance Breakdown */}
+            {tuitionData.priorBalanceBreakdown && (
+              <PriorBalanceBreakdown breakdown={tuitionData.priorBalanceBreakdown} />
+            )}
           </CardContent>
         </Card>
       </div>

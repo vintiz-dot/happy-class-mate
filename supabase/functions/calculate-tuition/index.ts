@@ -326,13 +326,16 @@ Deno.serve(async (req) => {
     // ---------- Payments and carryovers ----------
     // Prior charges: sum invoices before this month
     let priorCharges = 0;
+    let priorInvoicesDetailed: any[] = [];
     try {
       const { data: priorInvoices } = await supabase
         .from("invoices")
-        .select("total_amount, month")
+        .select("total_amount, month, recorded_payment, class_breakdown")
         .lt("month", month)
-        .eq("student_id", studentId);
-      priorCharges = (priorInvoices ?? []).reduce((s, r) => s + Number(r.total_amount ?? 0), 0);
+        .eq("student_id", studentId)
+        .order("month", { ascending: true });
+      priorInvoicesDetailed = priorInvoices ?? [];
+      priorCharges = priorInvoicesDetailed.reduce((s, r) => s + Number(r.total_amount ?? 0), 0);
     } catch {
       priorCharges = 0;
     }
@@ -343,13 +346,7 @@ Deno.serve(async (req) => {
 
     try {
       // Sum recorded_payment from all prior invoices
-      const { data: priorInvoicesPayments } = await supabase
-        .from("invoices")
-        .select("recorded_payment")
-        .lt("month", month)
-        .eq("student_id", studentId);
-      
-      priorPayments = (priorInvoicesPayments ?? []).reduce(
+      priorPayments = priorInvoicesDetailed.reduce(
         (s, inv) => s + Number(inv.recorded_payment ?? 0), 
         0
       );
@@ -372,10 +369,91 @@ Deno.serve(async (req) => {
       console.error("Error fetching month payments:", e);
     }
 
+    // Build prior balance breakdown for detailed view
+    const priorBalanceBreakdown: {
+      months: Array<{
+        month: string;
+        label: string;
+        charges: number;
+        payments: number;
+        netBalance: number;
+        items: Array<{
+          type: 'charge' | 'payment' | 'canceled';
+          className?: string;
+          classId?: string;
+          amount: number;
+          description: string;
+          date?: string;
+        }>;
+      }>;
+      summary: {
+        totalPriorCharges: number;
+        totalPriorPayments: number;
+        netCarryIn: number;
+      };
+    } = {
+      months: [],
+      summary: {
+        totalPriorCharges: priorCharges,
+        totalPriorPayments: priorPayments,
+        netCarryIn: 0 // Will be set after calculation
+      }
+    };
+
+    // Build month-by-month breakdown from prior invoices
+    for (const invoice of priorInvoicesDetailed) {
+      const invoiceMonth = invoice.month;
+      const invoiceDate = new Date(`${invoiceMonth}-01T12:00:00+07:00`);
+      const monthLabel = invoiceDate.toLocaleDateString('en-US', { 
+        month: 'long', 
+        year: 'numeric',
+        timeZone: 'Asia/Bangkok'
+      });
+      
+      const items: typeof priorBalanceBreakdown.months[0]['items'] = [];
+      const classBreakdownData = invoice.class_breakdown || [];
+      
+      // Add class charges from breakdown
+      for (const classItem of classBreakdownData) {
+        items.push({
+          type: 'charge',
+          className: classItem.class_name,
+          classId: classItem.class_id,
+          amount: -Number(classItem.amount_vnd || 0),
+          description: `${classItem.sessions_count || 0} sessions`
+        });
+      }
+      
+      // Add payment if any
+      const recordedPayment = Number(invoice.recorded_payment ?? 0);
+      if (recordedPayment > 0) {
+        items.push({
+          type: 'payment',
+          amount: recordedPayment,
+          description: 'Payment received'
+        });
+      }
+      
+      const invoiceCharges = Number(invoice.total_amount ?? 0);
+      const netBalance = recordedPayment - invoiceCharges;
+      
+      priorBalanceBreakdown.months.push({
+        month: invoiceMonth,
+        label: monthLabel,
+        charges: invoiceCharges,
+        payments: recordedPayment,
+        netBalance,
+        items
+      });
+    }
+
     // Carry-in (credit positive, debt negative)
     const carryInBalance = priorPayments - priorCharges;
     const carryInCredit = carryInBalance > 0 ? carryInBalance : 0;
     const carryInDebt = carryInBalance < 0 ? Math.abs(carryInBalance) : 0;
+    
+    // Update summary with final carry-in
+    priorBalanceBreakdown.summary.netCarryIn = carryInBalance;
 
     // Closing balance for this month: current charges - carry-in credit + carry-in debt - current payments
     // carryInBalance > 0 means credit (reduces what's owed), < 0 means debt (increases what's owed)
@@ -569,6 +647,7 @@ Deno.serve(async (req) => {
         paid_amount: cumulativePaidAmount,
         recorded_payment: cumulativePaidAmount,
       },
+      priorBalanceBreakdown,
     };
 
     return new Response(JSON.stringify(response), {
