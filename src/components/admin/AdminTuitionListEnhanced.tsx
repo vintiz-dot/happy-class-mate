@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TuitionSummaryCards } from "@/components/admin/tuition/TuitionSummaryCards";
 import { TuitionToolbar } from "@/components/admin/tuition/TuitionToolbar";
@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { getPaymentStatus } from "@/lib/tuitionStatus";
 import { motion } from "framer-motion";
-import { FileSearch } from "lucide-react";
+import { FileSearch, RefreshCw } from "lucide-react";
+import { useLiveTuitionData } from "@/hooks/useLiveTuitionData";
 
 const PaymentSchema = z.object({
   amount: z.number().min(0, "Amount must be positive").max(100000000, "Amount too large"),
@@ -34,135 +35,8 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
   const [editMethod, setEditMethod] = useState("Cash");
   const queryClient = useQueryClient();
 
-  const { data: tuitionData, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["admin-tuition-list", month],
-    queryFn: async () => {
-      const monthStart = `${month}-01`;
-      const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
-        .toISOString()
-        .slice(0, 10);
-
-      // Fetch ALL active students first
-      const { data: allStudents, error: studentsError } = await supabase
-        .from("students")
-        .select("id, full_name, family_id, is_active, avatar_url")
-        .eq("is_active", true);
-
-      if (studentsError) throw studentsError;
-      if (!allStudents || allStudents.length === 0) return [];
-
-      const allStudentIds = allStudents.map((s) => s.id);
-
-      // Fetch enrollments for ALL active students - only include active classes
-      const { data: enrollments } = await supabase
-        .from("enrollments")
-        .select(`student_id, class_id, classes!inner(id, name, is_active)`)
-        .in("student_id", allStudentIds)
-        .eq("classes.is_active", true)
-        .lte("start_date", monthEnd)
-        .or(`end_date.is.null,end_date.gte.${monthStart}`);
-
-      // Fetch invoices for ALL active students
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("month", month)
-        .in("student_id", allStudentIds);
-
-      // Fetch discount assignments
-      const { data: discounts } = await supabase
-        .from("discount_assignments")
-        .select("student_id, discount_def_id")
-        .lte("effective_from", monthEnd)
-        .or(`effective_to.is.null,effective_to.gte.${monthStart}`);
-
-      const studentDiscounts = new Set(discounts?.map((d) => d.student_id) || []);
-
-      // Get families with multiple students
-      const { data: students } = await supabase.from("students").select("id, family_id").eq("is_active", true);
-
-      const familyCounts = new Map<string, number>();
-      students?.forEach((s) => {
-        if (s.family_id) {
-          familyCounts.set(s.family_id, (familyCounts.get(s.family_id) || 0) + 1);
-        }
-      });
-
-      const siblingStudents = new Set(
-        students?.filter((s) => s.family_id && (familyCounts.get(s.family_id) || 0) >= 2).map((s) => s.id) || [],
-      );
-
-      // Map student to classes
-      const studentClasses = new Map<string, any[]>();
-      enrollments?.forEach((e: any) => {
-        const existing = studentClasses.get(e.student_id) || [];
-        if (e.classes) {
-          existing.push(Array.isArray(e.classes) ? e.classes[0] : e.classes);
-        }
-        studentClasses.set(e.student_id, existing);
-      });
-
-      // Create invoice map for quick lookup
-      const invoiceMap = new Map(invoices?.map((inv) => [inv.student_id, inv]) || []);
-
-      // Fetch prior invoices to calculate carry-in balance
-      const { data: priorInvoices } = await supabase
-        .from("invoices")
-        .select("student_id, total_amount, recorded_payment")
-        .lt("month", month)
-        .in("student_id", allStudentIds);
-
-      // Calculate prior balance for each student
-      const priorBalanceMap = new Map<string, number>();
-      priorInvoices?.forEach((inv) => {
-        const currentBalance = priorBalanceMap.get(inv.student_id) || 0;
-        priorBalanceMap.set(inv.student_id, currentBalance + (inv.recorded_payment || 0) - (inv.total_amount || 0));
-      });
-
-      // Build tuition data for ALL active students with enrollments
-      return allStudents
-        .filter((student) => {
-          // Only include students who have at least one enrollment for this month
-          const studentEnrollments = studentClasses.get(student.id) || [];
-          return studentEnrollments.length > 0;
-        })
-        .map((student) => {
-          const invoice = invoiceMap.get(student.id);
-          const currentCharges = invoice?.total_amount || 0;
-          
-          const carryInCredit = invoice?.carry_in_credit || 0;
-          const carryInDebt = invoice?.carry_in_debt || 0;
-          const priorBalance = priorBalanceMap.get(student.id) || 0;
-          const finalPayable = currentCharges + carryInDebt - carryInCredit;
-
-          const recordedPayment = invoice?.recorded_payment || 0;
-          const carryOutCredit = Math.max(0, recordedPayment - finalPayable);
-          const carryOutDebt = Math.max(0, finalPayable - recordedPayment);
-
-          return {
-            id: invoice?.id || `placeholder-${student.id}`,
-            student_id: student.id,
-            month: month,
-            base_amount: invoice?.base_amount || 0,
-            discount_amount: invoice?.discount_amount || 0,
-            total_amount: currentCharges,
-            paid_amount: invoice?.paid_amount || 0,
-            recorded_payment: recordedPayment,
-            status: invoice?.status || "open",
-            confirmation_status: invoice?.confirmation_status || "needs_review",
-            students: student,
-            hasDiscount: studentDiscounts.has(student.id),
-            hasSiblings: siblingStudents.has(student.id),
-            priorBalance: priorBalance,
-            finalPayable: finalPayable,
-            balance: finalPayable - recordedPayment,
-            classes: studentClasses.get(student.id) || [],
-            carry_out_credit: invoice?.carry_out_credit ?? carryOutCredit,
-            carry_out_debt: invoice?.carry_out_debt ?? carryOutDebt,
-          };
-        });
-    },
-  });
+  // Use live tuition data from calculate-tuition edge function
+  const { data: tuitionData, isLoading, refetch, isRefetching } = useLiveTuitionData(month);
 
   // Calculate summary statistics
   const stats = useMemo(() => {
