@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ArrowDown, ArrowUp, X } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatVND } from "@/hooks/useStudentMonthFinance";
 import { cn } from "@/lib/utils";
@@ -35,10 +35,14 @@ interface Props {
   breakdown: PriorBalanceBreakdownData;
 }
 
+function formatShortMonth(monthStr: string): string {
+  const date = new Date(`${monthStr}-01`);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
 export function PriorBalanceBreakdown({ breakdown }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Don't show if no prior months
   if (!breakdown.months || breakdown.months.length === 0) {
     return (
       <p className="text-xs text-muted-foreground mt-2">
@@ -46,6 +50,8 @@ export function PriorBalanceBreakdown({ breakdown }: Props) {
       </p>
     );
   }
+
+  const { months, summary } = breakdown;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -56,68 +62,65 @@ export function PriorBalanceBreakdown({ breakdown }: Props) {
             isOpen && "rotate-90"
           )} 
         />
-        View Details
+        View History
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="mt-3 space-y-4 border-t border-border/50 pt-3">
-          {breakdown.months.map((monthData) => (
-            <div key={monthData.month} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold">{monthData.label}</p>
-                <span className={cn(
-                  "text-xs font-medium",
-                  monthData.netBalance > 0 ? "text-green-600 dark:text-green-400" : 
-                  monthData.netBalance < 0 ? "text-red-600 dark:text-red-400" : ""
-                )}>
-                  {monthData.netBalance > 0 ? '+' : ''}{formatVND(monthData.netBalance)}
-                </span>
-              </div>
-              <div className="ml-3 space-y-0.5 border-l-2 border-border/50 pl-3">
-                {monthData.items.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex justify-between text-[11px] leading-relaxed"
-                  >
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      {item.type === 'charge' && (
-                        <ArrowDown className="h-3 w-3 text-red-500 shrink-0" />
-                      )}
-                      {item.type === 'payment' && (
-                        <ArrowUp className="h-3 w-3 text-green-500 shrink-0" />
-                      )}
-                      {item.type === 'canceled' && (
-                        <X className="h-3 w-3 text-blue-500 shrink-0" />
-                      )}
-                      <span className="truncate">
-                        {item.className && `${item.className}: `}
-                        {item.description}
-                        {item.date && ` (${item.date})`}
-                      </span>
-                    </span>
-                    <span className={cn(
-                      "ml-2 tabular-nums shrink-0",
-                      item.amount > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+        <div className="mt-3 border-t border-border/50 pt-3">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border/50 text-muted-foreground">
+                <th className="text-left py-1.5 font-medium">Month</th>
+                <th className="text-right py-1.5 font-medium">Charged</th>
+                <th className="text-right py-1.5 font-medium">Paid</th>
+                <th className="text-right py-1.5 font-medium">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {months.map((m, idx) => {
+                // Calculate running balance up to this point
+                const runningBalance = months
+                  .slice(0, idx + 1)
+                  .reduce((sum, month) => sum + month.netBalance, 0);
+                
+                return (
+                  <tr key={m.month} className="border-b border-border/30">
+                    <td className="py-1.5">{formatShortMonth(m.month)}</td>
+                    <td className="text-right text-red-600 dark:text-red-400 tabular-nums">
+                      {formatVND(m.charges)}
+                    </td>
+                    <td className="text-right text-green-600 dark:text-green-400 tabular-nums">
+                      {formatVND(m.payments)}
+                    </td>
+                    <td className={cn(
+                      "text-right font-medium tabular-nums",
+                      runningBalance > 0 && "text-green-600 dark:text-green-400",
+                      runningBalance < 0 && "text-red-600 dark:text-red-400"
                     )}>
-                      {item.amount > 0 ? '+' : ''}{formatVND(item.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          
-          {/* Cumulative summary */}
-          <div className="border-t border-border/50 pt-2 mt-3">
-            <div className="flex justify-between text-xs font-medium">
-              <span className="text-muted-foreground">Cumulative Balance</span>
-              <span className={cn(
-                breakdown.summary.netCarryIn > 0 ? "text-green-600 dark:text-green-400" :
-                breakdown.summary.netCarryIn < 0 ? "text-red-600 dark:text-red-400" : ""
-              )}>
-                {breakdown.summary.netCarryIn > 0 ? '+' : ''}{formatVND(breakdown.summary.netCarryIn)}
-              </span>
-            </div>
-          </div>
+                      {runningBalance > 0 ? '+' : ''}{formatVND(runningBalance)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold bg-muted/30">
+                <td className="py-2">Total</td>
+                <td className="text-right text-red-600 dark:text-red-400 tabular-nums">
+                  {formatVND(summary.totalPriorCharges)}
+                </td>
+                <td className="text-right text-green-600 dark:text-green-400 tabular-nums">
+                  {formatVND(summary.totalPriorPayments)}
+                </td>
+                <td className={cn(
+                  "text-right tabular-nums",
+                  summary.netCarryIn > 0 && "text-green-600 dark:text-green-400",
+                  summary.netCarryIn < 0 && "text-red-600 dark:text-red-400"
+                )}>
+                  {summary.netCarryIn > 0 ? '+' : ''}{formatVND(summary.netCarryIn)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </CollapsibleContent>
     </Collapsible>
