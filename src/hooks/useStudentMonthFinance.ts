@@ -11,6 +11,34 @@ import { supabase } from "@/integrations/supabase/client";
  * - Same currency formatting, date handling, and math
  */
 
+// Prior balance breakdown types
+export interface PriorBalanceItem {
+  type: 'charge' | 'payment' | 'canceled';
+  className?: string;
+  classId?: string;
+  amount: number;
+  description: string;
+  date?: string;
+}
+
+export interface PriorBalanceMonth {
+  month: string;
+  label: string;
+  charges: number;
+  payments: number;
+  netBalance: number;
+  items: PriorBalanceItem[];
+}
+
+export interface PriorBalanceBreakdown {
+  months: PriorBalanceMonth[];
+  summary: {
+    totalPriorCharges: number;
+    totalPriorPayments: number;
+    netCarryIn: number;
+  };
+}
+
 export interface StudentMonthFinanceData {
   // Core amounts - match Admin Finance
   baseAmount: number;
@@ -76,6 +104,9 @@ export interface StudentMonthFinanceData {
     total_amount: number;
     paid_amount: number;
   };
+  
+  // Prior balance breakdown for detailed view
+  priorBalanceBreakdown?: PriorBalanceBreakdown;
   
   // Student context
   studentId: string;
@@ -155,6 +186,9 @@ export function useStudentMonthFinance(
         
         // Raw invoice
         invoice: data.invoice,
+        
+        // Prior balance breakdown
+        priorBalanceBreakdown: data.priorBalanceBreakdown,
       };
 
       return normalized;
