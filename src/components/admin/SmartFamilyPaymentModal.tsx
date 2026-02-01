@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, ArrowDown, Check, AlertCircle, Loader2, Wallet } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -121,33 +122,36 @@ export function SmartFamilyPaymentModal({ open, onClose }: SmartFamilyPaymentMod
         .eq("is_active", true)
         .order("full_name");
 
-      if (!studentsData) return;
+      if (!studentsData || studentsData.length === 0) {
+        setSiblings([]);
+        return;
+      }
 
-      const balances: SiblingBalance[] = [];
-      
-      for (const student of studentsData) {
+      // Parallel fetch - all siblings at once
+      const balancePromises = studentsData.map(async (student) => {
         try {
           const { data } = await supabase.functions.invoke("calculate-tuition", {
             body: { studentId: student.id, month: formData.month }
           });
-
-          balances.push({
+          return {
             id: student.id,
             name: student.full_name,
             debt: data?.carry?.carryOutDebt ?? 0,
             credit: data?.carry?.carryOutCredit ?? 0,
-          });
+          };
         } catch (e) {
           console.error(`Failed to fetch balance for ${student.id}:`, e);
-          balances.push({
+          return {
             id: student.id,
             name: student.full_name,
             debt: 0,
             credit: 0,
-          });
+          };
         }
-      }
+      });
 
+      const balances = await Promise.all(balancePromises);
+      
       // Sort by debt descending
       balances.sort((a, b) => b.debt - a.debt);
       setSiblings(balances);
@@ -318,21 +322,35 @@ export function SmartFamilyPaymentModal({ open, onClose }: SmartFamilyPaymentMod
                 {loadingBalances && <Loader2 className="h-4 w-4 animate-spin" />}
               </div>
               
-              <div className="border rounded-lg divide-y">
-                {siblings.map((sibling, index) => (
-                  <div key={sibling.id} className="flex items-center justify-between p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                        {index + 1}
+              {loadingBalances ? (
+                <div className="border rounded-lg divide-y">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-6 w-6 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
                       </div>
-                      <span className="font-medium">{sibling.name}</span>
+                      <Skeleton className="h-5 w-24" />
                     </div>
-                    <Badge variant={sibling.debt > 0 ? "destructive" : "secondary"}>
-                      {sibling.debt > 0 ? `Owes ${formatVND(sibling.debt)}` : "Settled"}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border rounded-lg divide-y">
+                  {siblings.map((sibling, index) => (
+                    <div key={sibling.id} className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                          {index + 1}
+                        </div>
+                        <span className="font-medium">{sibling.name}</span>
+                      </div>
+                      <Badge variant={sibling.debt > 0 ? "destructive" : "secondary"}>
+                        {sibling.debt > 0 ? `Owes ${formatVND(sibling.debt)}` : "Settled"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
               
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Total Family Debt:</span>
