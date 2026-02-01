@@ -10,22 +10,36 @@ import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
+import { Button } from "@/components/ui/button";
+import { Wallet } from "lucide-react";
+import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
 
 const FinanceTab = () => {
+  const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
 
   return (
-    <Tabs defaultValue="summary" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="summary">Summary</TabsTrigger>
-        <TabsTrigger value="overview">Tuition</TabsTrigger>
-        <TabsTrigger value="bulk">Bulk Download</TabsTrigger>
-        <TabsTrigger value="recorded">Recorded Payments</TabsTrigger>
-        <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
-        <TabsTrigger value="discounts">Discounts</TabsTrigger>
-        <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
-        <TabsTrigger value="payroll">Teacher Payroll</TabsTrigger>
-      </TabsList>
+    <>
+      <SmartFamilyPaymentModal open={smartPaymentOpen} onClose={() => setSmartPaymentOpen(false)} />
+      
+      <Tabs defaultValue="summary" className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <TabsList>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="overview">Tuition</TabsTrigger>
+            <TabsTrigger value="bulk">Bulk Download</TabsTrigger>
+            <TabsTrigger value="recorded">Recorded Payments</TabsTrigger>
+            <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
+            <TabsTrigger value="discounts">Discounts</TabsTrigger>
+            <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
+            <TabsTrigger value="payroll">Teacher Payroll</TabsTrigger>
+          </TabsList>
+          
+          <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
+            <Wallet className="h-4 w-4" />
+            Smart Family Payment
+          </Button>
+        </div>
 
       <TabsContent value="summary" className="space-y-4">
         <FinanceSummary />
@@ -57,10 +71,11 @@ const FinanceTab = () => {
         <SiblingDiscountCompute />
       </TabsContent>
 
-      <TabsContent value="payroll">
-        <PayrollTab />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="payroll">
+          <PayrollTab />
+        </TabsContent>
+      </Tabs>
+    </>
   );
 };
 

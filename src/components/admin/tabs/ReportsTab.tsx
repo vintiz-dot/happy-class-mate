@@ -8,6 +8,7 @@ import { monthKey } from "@/lib/date";
 import { formatVND } from "@/lib/invoice/formatter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaymentDetailsTable } from "./PaymentDetailsTable";
+import { FamilyPaymentActivityLog } from "@/components/admin/FamilyPaymentActivityLog";
 
 const ReportsTab = () => {
   const [selectedMonth, setSelectedMonth] = useState(monthKey());
@@ -246,6 +247,9 @@ const ReportsTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Family Payment Activity Log */}
+      <FamilyPaymentActivityLog selectedMonth={selectedMonth} />
 
       {/* Payment Details Section */}
       <Card>
