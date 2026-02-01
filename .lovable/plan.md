@@ -1,143 +1,238 @@
 
-# Plan: Fix Popover Positioning and Update Teacher/Admin Hover Effects
+# Intelligent Family Payment System with Cross-Sibling Credit Transfer
 
 ## Overview
-This plan addresses two key issues: (1) fixing the popover modal positioning in the live assessment grid to prevent overlap with student cards during bulk selection, and (2) updating all hover effects for teacher and admin interfaces to use a premium royal green text with warm gray background theme.
 
----
+This plan implements an intelligent background listener that automatically handles family payments across siblings, including:
+1. Automatic detection of sibling groups with outstanding balances
+2. Smart payment distribution with excess credit transfer between siblings
+3. Real-time activity logging visible in the Reports section
 
-## Part 1: Fix Popover Modal Positioning in Live Assessment Grid
-
-### Problem
-When teachers click on a student card in bulk mode, the skill selection popover appears on top of adjacent student cards, making it impossible to select those students. The popover currently uses `side="top"` which can cause overlap in a dense grid layout.
-
-### Solution
-1. **Change popover positioning strategy** in `LiveAssessmentGrid.tsx`:
-   - Use `side="right"` or `side="left"` instead of `side="top"` to prevent vertical overlap
-   - Add `collisionPadding` to ensure the popover stays within viewport bounds
-   - Enable `avoidCollisions={true}` (default) with proper `collisionBoundary` settings
-   - Add `sideOffset` and `alignOffset` for better spacing
-
-2. **Update the PopoverContent component** to support collision-aware positioning by passing through collision props properly
-
-### Files to Modify
-- `src/components/teacher/LiveAssessmentGrid.tsx`
-- `src/components/ui/popover.tsx` (enhance collision handling)
-
-### Technical Details
-```text
-PopoverContent changes:
-- side: "right" (prefers right, falls back on collision)
-- sideOffset: 12 (more spacing from trigger)
-- align: "start" (aligns to top of trigger)
-- collisionPadding: 16 (buffer from viewport edges)
-```
-
----
-
-## Part 2: Update Hover Effects to Royal Green + Warm Gray Theme
-
-### Problem
-Current hover effects use purple/accent colors that don't match the requested premium theme of "royal green text with warm gray background".
-
-### Color Palette Definition
-- **Royal Green**: `hsl(152, 69%, 31%)` - A rich, deep green (#1B7340)
-- **Warm Gray Background**: `hsl(30, 10%, 94%)` - A subtle warm gray (#F2F0ED)
-- **Dark Mode Warm Gray**: `hsl(30, 5%, 20%)` - Darker warm gray for dark mode
-
-### Files to Modify
-
-1. **`src/index.css`**
-   - Add new CSS custom properties for royal green and warm gray
-   - Create new utility class `.premium-hover` for consistent hover styling
-   - Update `.nav-hover-red` to `.nav-hover-premium` with the new colors
-
-2. **`src/components/ui/button.tsx`**
-   - Update ghost and outline variant hover states to use new premium colors
-
-3. **`src/components/ui/dropdown-menu.tsx`**
-   - Update `DropdownMenuItem` hover state: `hover:bg-warmGray hover:text-royalGreen`
-   - Update `DropdownMenuSubTrigger` hover state
-
-4. **`src/components/ui/select.tsx`**
-   - Update `SelectItem` focus/hover state to match new theme
-
-5. **`src/components/Layout.tsx`**
-   - Update sidebar navigation hover states from purple to royal green
-   - Update mobile menu hover states
-   - Change `group-hover:text-purple-600` to `group-hover:text-emerald-700`
-
-6. **`src/components/teacher/LiveAssessmentGrid.tsx`**
-   - Update student card hover state: `hover:bg-accent/50` to warm gray
-   
-7. **`src/components/teacher/SkillButton.tsx`**
-   - Update point selection button hover states
-
-8. **`src/components/teacher/RadialSkillMenu.tsx`**
-   - Update skill/behavior button hover states
-
----
-
-## Implementation Sequence
-
-### Phase 1: CSS Foundation
-1. Add color variables to `tailwind.config.ts` for `royalGreen` and `warmGray`
-2. Add utility classes in `src/index.css`:
-   ```css
-   .premium-hover {
-     @apply transition-all duration-200;
-   }
-   .premium-hover:hover {
-     background-color: hsl(30, 10%, 94%) !important;
-     color: hsl(152, 69%, 31%) !important;
-   }
-   .dark .premium-hover:hover {
-     background-color: hsl(30, 5%, 20%) !important;
-     color: hsl(152, 55%, 45%) !important;
-   }
-   ```
-
-### Phase 2: Fix Popover Positioning
-1. Update `PopoverContent` in `src/components/ui/popover.tsx` to accept and pass collision props
-2. Modify `LiveAssessmentGrid.tsx` popover to use `side="right"` with proper offsets
-
-### Phase 3: Update UI Components
-1. Update `button.tsx` ghost/outline variants
-2. Update `dropdown-menu.tsx` item hover styles
-3. Update `select.tsx` item focus styles
-
-### Phase 4: Update Layout and Navigation
-1. Update `Layout.tsx` sidebar hover states
-2. Replace all `group-hover:text-purple-600` with royal green
-
-### Phase 5: Update Teacher-Specific Components
-1. Update `LiveAssessmentGrid.tsx` card hover
-2. Update `SkillButton.tsx` hover states
-3. Update `RadialSkillMenu.tsx` button hover states
-
----
-
-## Visual Summary
+## Architecture
 
 ```text
-Before:
-- Hover: purple-600 text, accent/50 background
-- Popover: appears on top, overlaps cards
-
-After:
-- Hover: emerald-700/royalGreen text, warmGray background
-- Popover: appears to the side, avoids card overlap
-- High contrast between text (#1B7340) and background (#F2F0ED)
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Admin Finance UI                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐    ┌──────────────────┐    ┌───────────────┐  │
+│  │ Smart Family     │    │ Family Activity  │    │ Live Tuition  │  │
+│  │ Payment Modal    │    │ Log (Reports)    │    │ Dashboard     │  │
+│  └────────┬─────────┘    └────────┬─────────┘    └───────────────┘  │
+└───────────┼────────────────────────┼────────────────────────────────┘
+            │                        │
+            ▼                        ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                   Edge Function: smart-family-payment                  │
+├───────────────────────────────────────────────────────────────────────┤
+│  1. Auto-detect all siblings in family                                 │
+│  2. Fetch live balances via calculate-tuition                          │
+│  3. Apply payment to highest-debt sibling first (waterfall)            │
+│  4. Transfer excess credit to next sibling automatically               │
+│  5. Log each allocation step to audit_log with detailed diff           │
+│  6. Recalculate tuition for all affected students                      │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
----
+## Implementation Steps
+
+### 1. Create New Edge Function: `smart-family-payment`
+
+**File:** `supabase/functions/smart-family-payment/index.ts`
+
+This function enhances the existing `family-payment` logic with:
+
+- **Auto-sibling detection**: When admin enters family ID and amount, automatically identify all active siblings
+- **Live balance fetching**: Call `calculate-tuition` for each sibling to get real-time debt
+- **Waterfall allocation**: Pay off highest-debt sibling first, then cascade excess to next
+- **Credit transfer logic**: If sibling A is fully paid and has excess, automatically reduce sibling B's debt
+- **Detailed audit logging**: Each allocation step logged with:
+  - `action: "family_payment_allocation"`
+  - `diff`: Contains before/after balances, transfer amounts, sibling chain
+
+**Key Algorithm:**
+```text
+1. Get all active siblings in family
+2. For each sibling, fetch live balance (carryOutDebt from calculate-tuition)
+3. Sort siblings by debt descending (highest debt first)
+4. Waterfall payment:
+   - Apply to first sibling until settled
+   - If excess, move to next sibling
+   - Continue until no money left or all settled
+5. For each allocation:
+   - Post ledger entries
+   - Update invoice
+   - Log to audit_log with full context
+```
+
+### 2. Create UI Component: `SmartFamilyPaymentModal`
+
+**File:** `src/components/admin/SmartFamilyPaymentModal.tsx`
+
+Enhanced modal that shows:
+- Family selector (auto-loads all siblings when family selected)
+- Single payment amount input
+- Live preview of how payment will be distributed
+- Visual waterfall diagram showing allocation flow
+- Credit transfer preview (e.g., "₫200,000 excess from Student A → Student B")
+- Real-time balance summary
+
+**Key Features:**
+- Auto-selects all active siblings by default
+- Shows each sibling's current debt from live calculations
+- Preview allocation before confirming
+- One-click "Settle All" button when payment equals total family debt
+
+### 3. Create Activity Log Component: `FamilyPaymentActivityLog`
+
+**File:** `src/components/admin/FamilyPaymentActivityLog.tsx`
+
+Displays real-time family payment activities:
+- Filter by family or date range
+- Shows allocation chain visually
+- Highlights credit transfers between siblings
+- Expandable details showing before/after balances
+- Color-coded status (settled = green, partial = yellow, pending = gray)
+
+### 4. Integrate into Reports Tab
+
+**File:** `src/components/admin/tabs/ReportsTab.tsx`
+
+Add new section:
+- "Family Payment Activity" card
+- Real-time updates via Supabase realtime subscription on `audit_log`
+- Filter by month (matches existing month selector)
+- Searchable by family name
+
+### 5. Database Migration
+
+Add new audit action types to track:
+```sql
+-- No schema changes needed, using existing audit_log table
+-- Actions to log:
+-- 'family_payment_initiated' - When payment starts
+-- 'family_payment_allocation' - Each sibling allocation
+-- 'credit_transfer' - When excess moves between siblings
+-- 'family_payment_completed' - Summary when finished
+```
+
+### 6. Update Finance Tab Integration
+
+**File:** `src/components/admin/tabs/FinanceTab.tsx`
+
+- Add "Smart Family Payment" button to toolbar
+- Replace or complement existing "Family Payment" modal
+- Add quick-action button for families with multiple students
+
+## Technical Details
+
+### Edge Function Logic (smart-family-payment)
+
+```text
+Input:
+  - familyId: UUID
+  - amount: number (total payment)
+  - method: string
+  - occurredAt: datetime
+  - memo?: string
+
+Process:
+  1. Validate admin authentication
+  2. Fetch all active students with family_id
+  3. For each student, invoke calculate-tuition to get carryOutDebt
+  4. Sort by debt (highest first for waterfall)
+  5. Initialize remaining = amount
+  6. For each student (while remaining > 0):
+     a. Debt = student's carryOutDebt
+     b. Apply = min(debt, remaining)
+     c. Post ledger entries (CASH/BANK debit, AR credit)
+     d. Update invoice paid_amount
+     e. Log audit entry with allocation details
+     f. remaining -= apply
+     g. If remaining > 0 and debt fully paid, log credit transfer
+  7. Handle leftover (voluntary contribution or credit)
+  8. Log completion summary
+
+Output:
+  - Success response with allocation breakdown
+  - Each student's new balance
+  - Activity log IDs for tracking
+```
+
+### Audit Log Entry Structure
+
+```json
+{
+  "action": "family_payment_allocation",
+  "entity": "family_payment",
+  "entity_id": "payment-uuid",
+  "diff": {
+    "family_id": "uuid",
+    "family_name": "Smith",
+    "total_payment": 5000000,
+    "allocation_order": 1,
+    "student": {
+      "id": "uuid",
+      "name": "Student A",
+      "before_debt": 2000000,
+      "applied": 2000000,
+      "after_debt": 0
+    },
+    "excess_transferred": 0,
+    "remaining_to_allocate": 3000000
+  }
+}
+```
+
+### UI Preview Component
+
+The allocation preview will show:
+```text
+┌─────────────────────────────────────────────────┐
+│ Payment: 5,000,000 ₫                            │
+├─────────────────────────────────────────────────┤
+│ 1. Student A (debt: 2,000,000 ₫)                │
+│    ├─ Apply: 2,000,000 ₫                        │
+│    └─ Remaining: 3,000,000 ₫ → transfers to ↓   │
+│                                                 │
+│ 2. Student B (debt: 2,500,000 ₫)                │
+│    ├─ Apply: 2,500,000 ₫                        │
+│    └─ Remaining: 500,000 ₫ → transfers to ↓    │
+│                                                 │
+│ 3. Student C (debt: 300,000 ₫)                  │
+│    ├─ Apply: 300,000 ₫                          │
+│    └─ Remaining: 200,000 ₫ → Unapplied Cash    │
+└─────────────────────────────────────────────────┘
+```
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/smart-family-payment/index.ts` | Core edge function with waterfall logic |
+| `src/components/admin/SmartFamilyPaymentModal.tsx` | Enhanced payment modal with live preview |
+| `src/components/admin/FamilyPaymentActivityLog.tsx` | Real-time activity display component |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/admin/tabs/ReportsTab.tsx` | Add Family Payment Activity section |
+| `src/components/admin/tabs/FinanceTab.tsx` | Add Smart Family Payment button |
+| `supabase/config.toml` | Add smart-family-payment function config |
+
+## Security Considerations
+
+- Admin-only access (verified via user_roles table)
+- Rate limiting on edge function (10 requests/minute per user)
+- Input validation with Zod schema
+- All financial operations logged to audit_log
+- Service role key used for cross-table operations
 
 ## Testing Checklist
-- [ ] Verify popover does not overlap student cards in bulk mode
-- [ ] Confirm popover repositions correctly on screen edges
-- [ ] Check all button hover states show royal green text
-- [ ] Verify warm gray background is visible on hover
-- [ ] Test dark mode hover colors for proper contrast
-- [ ] Verify navigation sidebar hover states are consistent
-- [ ] Test mobile menu hover states
-- [ ] Confirm dropdown menus show new hover theme
+
+- [ ] Create payment for family with 2+ siblings
+- [ ] Verify waterfall allocation (highest debt first)
+- [ ] Test excess credit transfer between siblings
+- [ ] Confirm audit log entries are created
+- [ ] Check Reports tab shows activity in real-time
+- [ ] Test edge cases: single sibling, zero debt, overpayment
