@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { id: "dashboard", label: "🏠 Dashboard", path: "/student/dashboard" },
   { id: "schedule", label: "📅 Schedule", path: "/schedule" },
-  { id: "quests", label: "📚 Quests", path: "/student/assignments" },
+  { id: "homework", label: "📝 Homework", path: "/student/assignments" },
   { id: "journal", label: "📖 Journal", path: "/student/journal" },
   { id: "tuition", label: "💰 Tuition", path: "/tuition" },
   { id: "achievements", label: "🏆 Achievements", path: "/student/dashboard?tab=achievements" },
