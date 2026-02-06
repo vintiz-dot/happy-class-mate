@@ -212,8 +212,14 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
 
   const viewFile = async (storageKey: string) => {
     try {
-      const { data } = await supabase.storage.from("homework").getPublicUrl(storageKey);
-      window.open(data.publicUrl, "_blank");
+      const { data, error } = await supabase.storage
+        .from("homework")
+        .createSignedUrl(storageKey, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }

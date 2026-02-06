@@ -32,17 +32,18 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
   });
 
   const downloadFile = async (storageKey: string, fileName: string) => {
-    const { data } = await supabase.storage
-      .from("homework")
-      .download(storageKey);
-
-    if (data) {
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
+    try {
+      const { data, error } = await supabase.storage
+        .from("homework")
+        .createSignedUrl(storageKey, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      if (data?.signedUrl) {
+        // Open in new tab - browser will handle download based on content type
+        window.open(data.signedUrl, "_blank");
+      }
+    } catch (error: any) {
+      console.error("Error downloading file:", error);
     }
   };
 

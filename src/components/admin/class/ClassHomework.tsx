@@ -130,9 +130,20 @@ const ClassHomework = ({ classId }: { classId: string }) => {
     }
   };
 
-  const getFileUrl = (storageKey: string) => {
-    const { data } = supabase.storage.from("homework").getPublicUrl(storageKey);
-    return data.publicUrl;
+  const openFile = async (storageKey: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("homework")
+        .createSignedUrl(storageKey, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+      }
+    } catch (error: any) {
+      console.error("Error opening file:", error);
+      toast.error(error.message || "Failed to open file");
+    }
   };
 
   const handleEdit = (homework: any) => {
@@ -307,16 +318,14 @@ const ClassHomework = ({ classId }: { classId: string }) => {
                   <Label>Attached Files</Label>
                   <div className="space-y-1">
                     {hw.homework_files.map((file: any) => (
-                      <a
+                      <button
                         key={file.id}
-                        href={getFileUrl(file.storage_key)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        onClick={() => openFile(file.storage_key)}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
                       >
                         <FileText className="h-4 w-4" />
                         {file.file_name}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 </div>
