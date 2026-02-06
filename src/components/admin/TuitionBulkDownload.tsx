@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import html2pdf from "html2pdf.js";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import JSZip from "jszip";
 
 import type { InvoiceData, BankInfo } from "@/lib/invoice/types";
@@ -249,7 +250,6 @@ export function TuitionBulkDownload({ month }: { month: string }) {
     const build = async () => {
       setBuilding(true);
       setProgress({ done: 0, total: pairs.length });
-      const h2p: any = (html2pdf as any)?.default ?? (html2pdf as any);
 
       for (const pair of pairs) {
         const sid = pair.invoice.student.id;
@@ -269,39 +269,31 @@ export function TuitionBulkDownload({ month }: { month: string }) {
         await waitForImages(node);
         await ensureLaidOut(node);
 
-        const opts = {
-          margin: [MARGIN_MM, MARGIN_MM, MARGIN_MM, MARGIN_MM],
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
-          html2canvas: {
+        try {
+          // Use html2canvas + jsPDF directly (safer than html2pdf.js)
+          const canvas = await html2canvas(node, {
             scale: 2,
             useCORS: true,
             backgroundColor: "#ffffff",
-            imageTimeout: 0,
             logging: false,
             windowWidth: CONTENT_W_PX,
-          },
-          pagebreak: { mode: ["css", "legacy"] as any },
-          filename: "tmp.pdf",
-        };
+          });
 
-        try {
-          let blob: Blob = await h2p()
-            .from(node)
-            .set(opts)
-            .toPdf()
-            .get("pdf")
-            .then((pdf: any) => pdf.output("blob"));
+          const imgData = canvas.toDataURL("image/jpeg", 0.95);
+          const pdf = new jsPDF({
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait",
+          });
 
-          if (!blob || blob.size < 1024) {
-            const retryOpts = { ...opts, html2canvas: { ...opts.html2canvas, scale: 3 } };
-            blob = await h2p()
-              .from(node)
-              .set(retryOpts)
-              .toPdf()
-              .get("pdf")
-              .then((pdf: any) => pdf.output("blob"));
-          }
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = pdfWidth - 2 * MARGIN_MM;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+          pdf.addImage(imgData, "JPEG", MARGIN_MM, MARGIN_MM, imgWidth, Math.min(imgHeight, pdfHeight - 2 * MARGIN_MM));
+
+          const blob = pdf.output("blob");
           pdfMapRef.current.set(sid, blob);
         } catch (err) {
           console.warn("PDF generation failed for", sid, err);
