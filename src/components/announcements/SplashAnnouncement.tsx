@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import { sanitizeHtml } from "@/lib/sanitize";
+
 import { useEffect, useState } from "react";
 import type { Announcement } from "@/hooks/useAnnouncements";
 
@@ -58,9 +58,12 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
           </div>
         )}
         {announcement.body ? (
-          <div
-            className="announcement-splash-body w-full min-h-full"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(announcement.body) }}
+          <iframe
+            srcDoc={announcement.body}
+            sandbox="allow-same-origin"
+            className="w-full h-full border-0"
+            title="Announcement content"
+            style={{ colorScheme: "normal" }}
           />
         ) : announcement.title ? (
           <div className="flex flex-col items-center justify-center min-h-full gap-4 p-6">
