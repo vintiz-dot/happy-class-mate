@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_dismissals: {
+        Row: {
+          announcement_id: string
+          dismissed_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          dismissed_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          dismissed_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_dismissals_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "site_announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archived_leaderboards: {
         Row: {
           archived_at: string
@@ -1916,6 +1945,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          display_type: string
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_dismissible: boolean
+          placement: string
+          priority: number
+          starts_at: string | null
+          style_config: Json
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          created_by: string
+          display_type?: string
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_dismissible?: boolean
+          placement?: string
+          priority?: number
+          starts_at?: string | null
+          style_config?: Json
+          target_audience?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          display_type?: string
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_dismissible?: boolean
+          placement?: string
+          priority?: number
+          starts_at?: string | null
+          style_config?: Json
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       skill_assessments: {
         Row: {

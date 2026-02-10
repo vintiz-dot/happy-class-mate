@@ -38,6 +38,7 @@ import TeacherProfile from "./pages/TeacherProfile";
 import StudentJournal from "./pages/StudentJournal";
 import TeacherJournal from "./pages/TeacherJournal";
 import { TuitionReviewQueue } from "./components/admin/TuitionReviewQueue";
+import { AnnouncementRenderer } from "./components/announcements/AnnouncementRenderer";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +63,7 @@ function AppContent() {
         <Sonner />
         <ProfilePicker />
         <BrowserRouter>
+          <AnnouncementRenderer />
           <StartupGuard>
             <Suspense fallback={<AppLoader />}>
               <Routes>
