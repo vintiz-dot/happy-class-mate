@@ -40,7 +40,7 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        className="w-full h-full flex flex-col items-center justify-start pt-[15vh] gap-4 px-2"
+        className="w-full h-full flex flex-col items-center pt-[8vh] gap-4 px-2 overflow-hidden"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 25 }}
@@ -49,24 +49,26 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
           <img
             src={announcement.image_url}
             alt=""
-            className="max-w-[95vw] max-h-[85vh] object-contain rounded-2xl"
+            className="max-w-[95vw] max-h-[60vh] object-contain rounded-2xl flex-shrink-0"
             loading="eager"
             fetchPriority="high"
           />
         )}
         {announcement.title && (
-          <h1 className="text-3xl md:text-4xl font-bold">{announcement.title}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold flex-shrink-0">{announcement.title}</h1>
         )}
         {announcement.body && (
           <div
-            className="text-lg opacity-80 prose prose-lg max-w-none mx-auto"
+            className="text-lg opacity-80 prose prose-lg max-w-none mx-auto flex-shrink-0"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(announcement.body) }}
           />
         )}
+        {/* Spacer to push button down */}
+        <div className="flex-1" />
         {announcement.is_dismissible && onDismiss && (
           <button
             onClick={onDismiss}
-            className="mt-4 px-8 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+            className="mb-[4vh] px-8 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity flex-shrink-0"
           >
             {countdown > 0 ? `Continue (${countdown}s)` : "Continue"}
           </button>
