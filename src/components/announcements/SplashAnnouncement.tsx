@@ -32,54 +32,71 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-6"
+      className="fixed inset-0 z-[300] flex flex-col"
       style={{ background: bg, color: text }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
+      {/* Full-viewport HTML body */}
       <motion.div
-        className="w-full h-full flex flex-col items-center pt-[8vh] gap-4 px-2 overflow-hidden"
-        initial={{ scale: 0.9, opacity: 0 }}
+        className="flex-1 overflow-auto"
+        initial={{ scale: 0.97, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 25 }}
       >
-        {announcement.image_url && (
-          <img
-            src={announcement.image_url}
-            alt=""
-            className="max-w-[95vw] max-h-[60vh] object-contain rounded-2xl flex-shrink-0"
-            loading="eager"
-            fetchPriority="high"
-          />
+        {announcement.image_url && !announcement.body && (
+          <div className="flex items-center justify-center min-h-full p-4 pt-[8vh]">
+            <img
+              src={announcement.image_url}
+              alt=""
+              className="max-w-[95vw] max-h-[80vh] object-contain rounded-2xl"
+              loading="eager"
+              fetchPriority="high"
+            />
+          </div>
         )}
-        {announcement.title && (
-          <h1 className="text-3xl md:text-4xl font-bold flex-shrink-0">{announcement.title}</h1>
-        )}
-        {announcement.body && (
+        {announcement.body ? (
           <div
-            className="text-lg opacity-80 prose prose-lg max-w-none mx-auto flex-shrink-0"
+            className="announcement-splash-body w-full min-h-full"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(announcement.body) }}
           />
-        )}
-        {/* Spacer to push button down */}
-        <div className="flex-1" />
-        {announcement.is_dismissible && onDismiss && (
+        ) : announcement.title ? (
+          <div className="flex flex-col items-center justify-center min-h-full gap-4 p-6">
+            {announcement.image_url && (
+              <img
+                src={announcement.image_url}
+                alt=""
+                className="max-w-[95vw] max-h-[60vh] object-contain rounded-2xl"
+                loading="eager"
+                fetchPriority="high"
+              />
+            )}
+            <h1 className="text-3xl md:text-4xl font-bold">{announcement.title}</h1>
+          </div>
+        ) : null}
+      </motion.div>
+
+      {/* Fixed bottom Continue button */}
+      {announcement.is_dismissible && onDismiss && (
+        <div className="shrink-0 flex justify-center py-4 px-6" style={{ background: bg }}>
           <button
             onClick={onDismiss}
-            className="mb-[4vh] px-8 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity flex-shrink-0"
+            className="px-10 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold text-lg shadow-lg hover:opacity-90 transition-opacity"
           >
             {countdown > 0 ? `Continue (${countdown}s)` : "Continue"}
           </button>
-        )}
-      </motion.div>
+        </div>
+      )}
+
+      {/* Fixed X button */}
       {announcement.is_dismissible && onDismiss && (
         <button
           onClick={onDismiss}
-          className="absolute top-6 right-6 p-2 rounded-full hover:bg-black/10 transition-colors"
+          className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm transition-colors"
         >
-          <X className="h-5 w-5" />
+          <X className="h-6 w-6 text-white drop-shadow" />
         </button>
       )}
     </motion.div>
