@@ -40,7 +40,7 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        className="w-full h-full flex flex-col items-center justify-center gap-4 px-2"
+        className="w-full h-full flex flex-col items-center justify-start pt-[15vh] gap-4 px-2"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 25 }}
