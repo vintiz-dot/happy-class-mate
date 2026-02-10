@@ -1,159 +1,79 @@
 
 
-# Site-Wide Admin Notification System
+# Fix: Announcement Image Loading Speed + Splash Image Fullscreen
 
-## Overview
+## Problems
 
-A powerful announcement system where admins can create and manage rich notifications displayed across the platform. Supports multiple display formats (banner, popup, toast, sticky header, footer bar, full-screen splash), audience targeting, scheduling, and responsive design.
+1. **Images load slowly** -- All announcement images use `loading="lazy"`, which delays rendering since the browser defers fetching. For notifications that should appear instantly, this is counterproductive.
+2. **Splash image is too small** -- Currently capped at `max-h-64` inside a `max-w-2xl` container. For a full-screen splash/flashing notification, the image should fill 95% of the viewport.
 
-## Database Schema
+## Changes
 
-### New Table: `site_announcements`
+### 1. Remove `loading="lazy"` from all announcement images (6 files)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid (PK) | Auto-generated |
-| `title` | text | Short title for admin reference |
-| `body` | text | Main text content (supports basic HTML) |
-| `image_url` | text (nullable) | Optional image (stored in a new `announcements` storage bucket) |
-| `display_type` | text | One of: `banner`, `popup`, `sticky_header`, `footer_bar`, `splash`, `toast` |
-| `priority` | int | Ordering priority (higher = shown first) |
-| `target_audience` | text | One of: `everyone`, `authenticated`, `students`, `teachers`, `families`, `paying_students` |
-| `placement` | text | Where it shows: `before_login`, `after_login`, `both` |
-| `starts_at` | timestamptz (nullable) | When to start showing (null = immediately) |
-| `expires_at` | timestamptz (nullable) | When to stop showing (null = until disabled) |
-| `is_active` | boolean | Admin toggle to enable/disable |
-| `is_dismissible` | boolean | Whether users can close it |
-| `style_config` | jsonb | Colors, animation type, etc. (e.g. `{"bg": "#ff0000", "text": "#fff", "animation": "pulse"}`) |
-| `created_by` | uuid | Admin who created it |
-| `created_at` | timestamptz | Auto-generated |
-| `updated_at` | timestamptz | Auto-generated |
+Since announcements are above-the-fold, critical UI elements, lazy loading actively harms perceived performance. Change to `loading="eager"` (or simply remove the attribute) across all components.
 
-### New Table: `announcement_dismissals`
+| File | Line |
+|------|------|
+| `SplashAnnouncement.tsx` | Line 53 |
+| `PopupAnnouncement.tsx` | Line 46 |
+| `BannerAnnouncement.tsx` | Line 32 |
+| `ToastAnnouncement.tsx` | Line 27 |
+| `FooterBarAnnouncement.tsx` | Line 27 |
+| `StickyHeaderAnnouncement.tsx` | (no image, skip) |
 
-Tracks which users dismissed which announcements (for dismissible ones).
+Additionally, add `fetchPriority="high"` to splash and popup images to tell the browser to prioritize them.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid (PK) | Auto-generated |
-| `announcement_id` | uuid (FK) | References `site_announcements` |
-| `user_id` | uuid | The user who dismissed |
-| `dismissed_at` | timestamptz | When dismissed |
+### 2. Make Splash image fill 95% of viewport
 
-### RLS Policies
+Update `SplashAnnouncement.tsx`:
 
-- **site_announcements**: Admin full CRUD; all authenticated users can SELECT active announcements; anonymous users can SELECT announcements where `placement = 'before_login'` or `target_audience = 'everyone'`
-- **announcement_dismissals**: Users can INSERT/SELECT their own dismissals only; admins can SELECT all
+- Remove the `max-w-2xl` constraint on the inner container
+- Change image classes from `max-h-64 rounded-2xl object-contain` to `w-[95vw] h-[95vh] object-contain` so the image fills 95% of the viewport
+- When there's an image, reduce text/title prominence so the image dominates
+- Keep the dismiss button and countdown overlay
 
-### Storage Bucket
+**Before:**
+```tsx
+<motion.div className="max-w-2xl w-full text-center space-y-6">
+  <img className="mx-auto max-h-64 rounded-2xl object-contain" loading="lazy" />
+```
 
-- New `announcements` bucket (public) for announcement images
+**After:**
+```tsx
+<motion.div className="w-full h-full flex flex-col items-center justify-center gap-4 px-2">
+  <img className="max-w-[95vw] max-h-[85vh] object-contain rounded-2xl" loading="eager" fetchPriority="high" />
+```
 
-## Display Types
+The image gets 85vh (leaving room for title/button), or if there's no title/body, it gets the full 95vh.
 
-| Type | Behavior |
-|------|----------|
-| **Banner** | Full-width colored strip at top/bottom of page, auto-adjusts for content length |
-| **Popup** | Centered modal overlay with backdrop blur, image support, close button |
-| **Sticky Header** | Thin persistent bar pinned to top of viewport, above all other content |
-| **Footer Bar** | Fixed bar at bottom of viewport |
-| **Splash** | Full-screen overlay shown before page content loads (for critical announcements) |
-| **Toast** | Auto-appearing toast notification in corner |
+### 3. Add image preloading in AnnouncementRenderer
 
-## Target Audience Logic
+Add a preload mechanism: when announcements are fetched, immediately create `<link rel="preload">` tags for any image URLs. This starts the download before the component even mounts.
 
-| Target | Filter Logic |
-|--------|-------------|
-| `everyone` | No auth required, shown on public pages |
-| `authenticated` | Any logged-in user |
-| `students` | User has `student` role |
-| `teachers` | User has `teacher` role |
-| `families` | User has `family` role |
-| `paying_students` | Student with positive tuition balance (checked via enrollment status) |
+```tsx
+// In AnnouncementRenderer.tsx
+useEffect(() => {
+  announcements.forEach((a) => {
+    if (a.image_url && !document.querySelector(`link[href="${a.image_url}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = a.image_url;
+      document.head.appendChild(link);
+    }
+  });
+}, [announcements]);
+```
 
-## New Files
+## Files to Modify
 
-### 1. `src/components/announcements/AnnouncementRenderer.tsx`
-- Global component placed in `App.tsx` (inside `BrowserRouter` so it has access to route/auth context)
-- Fetches active announcements via react-query
-- Filters by audience, placement, timing, and dismissal status
-- Renders the appropriate display component for each announcement
-- Uses framer-motion for entrance/exit animations
-
-### 2. `src/components/announcements/BannerAnnouncement.tsx`
-- Full-width animated banner with gradient backgrounds
-- Supports image alongside text
-- Dismiss button (X) if `is_dismissible`
-- Responsive: stacks vertically on mobile
-
-### 3. `src/components/announcements/PopupAnnouncement.tsx`
-- Centered dialog/modal with backdrop blur
-- Supports large images, rich text body
-- CTA button optional
-- Animations: scale-in with spring physics
-
-### 4. `src/components/announcements/StickyHeaderAnnouncement.tsx`
-- Thin bar fixed to top, scrolls with marquee if text is long
-- Pulsing/flashing animation option via `style_config`
-
-### 5. `src/components/announcements/FooterBarAnnouncement.tsx`
-- Fixed bottom bar, similar to cookie consent patterns
-
-### 6. `src/components/announcements/SplashAnnouncement.tsx`
-- Full-screen overlay with fade-in
-- Auto-dismiss timer or manual close
-- Used for critical school-wide announcements
-
-### 7. `src/hooks/useAnnouncements.ts`
-- Custom hook to fetch, filter, and manage announcement state
-- Handles dismissal logic (writes to `announcement_dismissals`)
-- Checks audience eligibility (role, tuition status)
-- Time-based filtering (starts_at / expires_at)
-
-### 8. `src/components/admin/AnnouncementManager.tsx`
-- Admin CRUD interface for managing announcements
-- Form with: title, body (rich text), image upload, display type selector, audience picker, placement selector, date range pickers, style customization (color pickers, animation toggles)
-- Live preview of how the announcement will look
-- List of existing announcements with status toggles, edit, delete
-- Shows active/expired/scheduled status badges
-
-## Modified Files
-
-### `src/App.tsx`
-- Add `<AnnouncementRenderer />` inside the `BrowserRouter` / `StudentProfileProvider` tree
-
-### `src/components/admin/tabs/OverviewTab.tsx`
-- Add an "Announcements" quick-action card linking to the manager
-
-### `src/components/Layout.tsx`
-- No changes needed; announcements render independently via portal/fixed positioning
-
-### Admin Navigation (`Layout.tsx`)
-- Add a new nav item: "Announcements" under admin sidebar (using `Megaphone` icon)
-
-## Technical Details
-
-### Animation System
-- Uses `framer-motion` `AnimatePresence` for smooth mount/unmount
-- Banner: slide-down from top
-- Popup: scale + fade with spring
-- Sticky: slide-down
-- Splash: full fade with blur transition
-- Flashing effect via CSS `@keyframes` with configurable speed in `style_config`
-
-### Responsive Design
-- All components use Tailwind responsive classes
-- Popup max-width constrained, full-width on mobile
-- Banner text truncates with "Read more" on small screens
-- Sticky header uses smaller font on mobile
-- Image announcements use `object-cover` with aspect ratio containers
-
-### Performance
-- Announcements cached with react-query (5-minute stale time)
-- Dismissals stored locally + synced to DB
-- Only active, non-expired, non-dismissed announcements rendered
-- Lazy image loading for announcement images
-
-### Paying Students Check
-- Query `enrollments` table for active enrollments joined with `tuition_records` or `monthly_tuition` to verify positive balance for the `paying_students` audience target
+| File | Change |
+|------|--------|
+| `src/components/announcements/SplashAnnouncement.tsx` | 95vw/85vh image, eager loading, fetchPriority |
+| `src/components/announcements/PopupAnnouncement.tsx` | Remove lazy, add eager + fetchPriority |
+| `src/components/announcements/BannerAnnouncement.tsx` | Remove lazy, add eager |
+| `src/components/announcements/ToastAnnouncement.tsx` | Remove lazy, add eager |
+| `src/components/announcements/FooterBarAnnouncement.tsx` | Remove lazy, add eager |
+| `src/components/announcements/AnnouncementRenderer.tsx` | Add image preload effect |
 
