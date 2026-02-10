@@ -24,7 +24,7 @@ export const FooterBarAnnouncement = ({ announcement, onDismiss }: Props) => {
     >
       <div className="container mx-auto px-4 py-3 flex items-center gap-4">
         {announcement.image_url && (
-          <img src={announcement.image_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" loading="lazy" />
+          <img src={announcement.image_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" loading="eager" />
         )}
         <div className="flex-1 min-w-0">
           <div

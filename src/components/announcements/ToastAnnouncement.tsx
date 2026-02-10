@@ -24,7 +24,7 @@ export const ToastAnnouncement = ({ announcement, onDismiss }: Props) => {
     >
       <div className="p-4 flex items-start gap-3">
         {announcement.image_url && (
-          <img src={announcement.image_url} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0" loading="lazy" />
+          <img src={announcement.image_url} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0" loading="eager" />
         )}
         <div className="flex-1 min-w-0">
           {announcement.title && (

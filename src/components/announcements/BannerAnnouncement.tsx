@@ -29,7 +29,7 @@ export const BannerAnnouncement = ({ announcement, onDismiss }: Props) => {
             src={announcement.image_url}
             alt=""
             className="h-10 w-10 rounded-lg object-cover shrink-0"
-            loading="lazy"
+            loading="eager"
           />
         )}
         <div className="flex-1 min-w-0">

@@ -40,7 +40,7 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        className="max-w-2xl w-full text-center space-y-6"
+        className="w-full h-full flex flex-col items-center justify-center gap-4 px-2"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 25 }}
@@ -49,8 +49,9 @@ export const SplashAnnouncement = ({ announcement, onDismiss }: Props) => {
           <img
             src={announcement.image_url}
             alt=""
-            className="mx-auto max-h-64 rounded-2xl object-contain"
-            loading="lazy"
+            className="max-w-[95vw] max-h-[85vh] object-contain rounded-2xl"
+            loading="eager"
+            fetchPriority="high"
           />
         )}
         {announcement.title && (
