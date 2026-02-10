@@ -1,4 +1,5 @@
 import { AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { BannerAnnouncement } from "./BannerAnnouncement";
 import { PopupAnnouncement } from "./PopupAnnouncement";
@@ -9,6 +10,19 @@ import { ToastAnnouncement } from "./ToastAnnouncement";
 
 export const AnnouncementRenderer = () => {
   const { announcements, dismiss } = useAnnouncements();
+
+  // Preload announcement images as soon as data arrives
+  useEffect(() => {
+    announcements.forEach((a) => {
+      if (a.image_url && !document.querySelector(`link[href="${CSS.escape(a.image_url)}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "image";
+        link.href = a.image_url;
+        document.head.appendChild(link);
+      }
+    });
+  }, [announcements]);
 
   if (!announcements.length) return null;
 

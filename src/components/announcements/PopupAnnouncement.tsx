@@ -43,7 +43,8 @@ export const PopupAnnouncement = ({ announcement, onDismiss }: Props) => {
               src={announcement.image_url}
               alt=""
               className="w-full h-full object-cover"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
             />
           </div>
         )}
