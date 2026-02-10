@@ -9,6 +9,7 @@ import DataTab from "@/components/admin/tabs/DataTab";
 import ClassesTab from "@/components/admin/tabs/ClassesTab";
 import { AdminJournalViewEnhanced } from "@/components/admin/AdminJournalViewEnhanced";
 import { AssignmentsOverview } from "@/components/admin/AssignmentsOverview";
+import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
@@ -33,6 +34,8 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
         return <AutomationTab />;
       case "data":
         return <DataTab />;
+      case "announcements":
+        return <AnnouncementManager />;
       default:
         return <OverviewTab />;
     }

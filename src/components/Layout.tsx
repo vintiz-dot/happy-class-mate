@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -95,6 +95,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: Receipt, label: "Account", path: "/admin?tab=account" },
           { icon: Settings2, label: "Automation", path: "/admin?tab=automation" },
           { icon: HardDrive, label: "Data", path: "/admin?tab=data" },
+          { icon: Megaphone, label: "Announcements", path: "/admin?tab=announcements" },
         ];
       case "teacher":
         return [
