@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export interface Announcement {
   id: string;
@@ -25,6 +25,7 @@ export interface Announcement {
 export function useAnnouncements() {
   const { user, role } = useAuth();
   const queryClient = useQueryClient();
+  const [localDismissals, setLocalDismissals] = useState<string[]>([]);
 
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ["announcements", user?.id],
@@ -69,7 +70,10 @@ export function useAnnouncements() {
   });
 
   const dismiss = useCallback(
-    (id: string) => dismissMutation.mutate(id),
+    (id: string) => {
+      setLocalDismissals((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      dismissMutation.mutate(id);
+    },
     [dismissMutation]
   );
 
@@ -80,8 +84,7 @@ export function useAnnouncements() {
       if (a.starts_at && new Date(a.starts_at) > now) return false;
       if (a.expires_at && new Date(a.expires_at) < now) return false;
 
-      // Dismissal filter
-      if (dismissals.includes(a.id)) return false;
+      if (dismissals.includes(a.id) || localDismissals.includes(a.id)) return false;
 
       // Placement filter
       const isLoggedIn = !!user;
@@ -100,7 +103,7 @@ export function useAnnouncements() {
 
       return true;
     });
-  }, [announcements, dismissals, user, role]);
+  }, [announcements, dismissals, localDismissals, user, role]);
 
   return { announcements: filtered, isLoading, dismiss };
 }
