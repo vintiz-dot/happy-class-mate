@@ -151,7 +151,24 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
         }
       }
 
-      await queryClient.refetchQueries({ queryKey: ["admin-tuition-live", month] });
+      // Optimistic cache update — patch all affected students instantly
+      queryClient.setQueryData(["admin-tuition-live", month], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((row: any) => {
+          const amt = parseInt(entries[row.student_id] || "0") || 0;
+          if (amt <= 0) return row;
+          const newRecorded = (row.recorded_payment ?? 0) + amt;
+          const fp = row.finalPayable ?? 0;
+          const debt = Math.max(0, fp - newRecorded);
+          const credit = Math.max(0, newRecorded - fp);
+          let status = row.status;
+          if (newRecorded >= fp && fp > 0) status = "paid";
+          else if (newRecorded > 0) status = "partial";
+          return { ...row, recorded_payment: newRecorded, balance: debt > 0 ? debt : -credit, carry_out_debt: debt, carry_out_credit: credit, status };
+        });
+      });
+      // Background refresh for eventual consistency
+      queryClient.invalidateQueries({ queryKey: ["admin-tuition-live", month] });
 
       if (failCount === 0) {
         toast.success(`Recorded payments for ${successCount} student${successCount > 1 ? 's' : ''}`);
