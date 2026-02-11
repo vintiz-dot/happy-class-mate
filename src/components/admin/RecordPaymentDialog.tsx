@@ -124,7 +124,7 @@ export const RecordPaymentDialog = ({ open, onClose, item, month, onSuccess }: R
         },
       });
 
-      queryClient.invalidateQueries({ queryKey: ["admin-tuition-live", month] });
+      await queryClient.refetchQueries({ queryKey: ["admin-tuition-live", month] });
       queryClient.invalidateQueries({ queryKey: ["student-tuition", item.student_id, month] });
 
       toast.success(`Recorded ${enteredAmount.toLocaleString()} ₫ for ${studentName}`);
