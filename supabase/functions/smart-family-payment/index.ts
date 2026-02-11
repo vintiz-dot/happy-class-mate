@@ -137,7 +137,8 @@ Deno.serve(async (req) => {
     // Step 2: Fetch live balances for each sibling
     const siblingBalances: SiblingBalance[] = [];
     
-    for (const sibling of siblings) {
+    // Parallel fetch for all siblings
+    const balancePromises = siblings.map(async (sibling) => {
       try {
         const { data: tuitionData, error: tuitionError } = await supabase.functions.invoke('calculate-tuition', {
           body: { studentId: sibling.id, month }
@@ -145,22 +146,32 @@ Deno.serve(async (req) => {
 
         if (tuitionError) {
           console.error(`Error calculating tuition for ${sibling.id}:`, tuitionError);
-          continue;
+          return null;
         }
 
         const debt = tuitionData?.carry?.carryOutDebt ?? 0;
         const credit = tuitionData?.carry?.carryOutCredit ?? 0;
 
-        siblingBalances.push({
+        return {
           id: sibling.id,
           name: sibling.full_name,
           debt,
           credit,
-          order: 0
-        });
+          order: 0,
+          baseAmount: tuitionData?.baseAmount ?? 0,
+          totalDiscount: tuitionData?.totalDiscount ?? 0,
+          totalAmount: tuitionData?.totalAmount ?? 0,
+          discounts: tuitionData?.discounts ?? [],
+        } as SiblingBalance & { baseAmount: number; totalDiscount: number; totalAmount: number; discounts: any[] };
       } catch (e) {
         console.error(`Failed to get balance for ${sibling.id}:`, e);
+        return null;
       }
+    });
+
+    const balanceResults = await Promise.all(balancePromises);
+    for (const result of balanceResults) {
+      if (result) siblingBalances.push(result);
     }
 
     // Step 3: Sort by debt descending (highest debt first)
@@ -250,24 +261,38 @@ Deno.serve(async (req) => {
           }
         ]);
 
-        // Update invoice paid_amount if exists
+        // Update or create invoice
         const { data: invoice } = await supabase
           .from('invoices')
-          .select('id, paid_amount, total_amount')
+          .select('id, paid_amount, total_amount, recorded_payment')
           .eq('student_id', sibling.id)
           .eq('month', month)
           .single();
 
         if (invoice) {
           const newPaid = (invoice.paid_amount || 0) + applied;
+          const newRecorded = (invoice.recorded_payment || 0) + applied;
           await supabase
             .from('invoices')
             .update({
               paid_amount: newPaid,
               status: newPaid >= invoice.total_amount ? 'paid' : 'partial',
-              recorded_payment: newPaid
+              recorded_payment: newRecorded
             })
             .eq('id', invoice.id);
+        } else {
+          // Create invoice so payment is tracked
+          const sibData = sibling as any;
+          await supabase.from('invoices').insert({
+            student_id: sibling.id,
+            month,
+            base_amount: sibData.baseAmount ?? 0,
+            discount_amount: sibData.totalDiscount ?? 0,
+            total_amount: sibData.totalAmount ?? 0,
+            paid_amount: applied,
+            recorded_payment: applied,
+            status: applied >= (sibData.totalAmount ?? 0) ? 'paid' : 'partial',
+          });
         }
 
         // Log allocation
