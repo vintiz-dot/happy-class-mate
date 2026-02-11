@@ -151,7 +151,7 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ["admin-tuition-live", month] });
+      await queryClient.refetchQueries({ queryKey: ["admin-tuition-live", month] });
 
       if (failCount === 0) {
         toast.success(`Recorded payments for ${successCount} student${successCount > 1 ? 's' : ''}`);
