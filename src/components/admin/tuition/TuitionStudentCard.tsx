@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, 
   CreditCard, 
@@ -21,6 +22,9 @@ interface TuitionStudentCardProps {
   item: any;
   month: string;
   onRecordPay: () => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (studentId: string) => void;
 }
 
 const formatVND = (amount: number) => {
@@ -35,6 +39,9 @@ export function TuitionStudentCard({
   item,
   month,
   onRecordPay,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }: TuitionStudentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
@@ -65,10 +72,18 @@ export function TuitionStudentCard({
       exit={{ opacity: 0, y: -10 }}
       layout
     >
-      <Card className={`border-l-4 transition-all duration-200 hover:shadow-md ${getStatusColor(status)}`}>
+      <Card className={`border-l-4 transition-all duration-200 hover:shadow-md ${getStatusColor(status)} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}>
         <CardContent className="p-4">
           {/* Main Row */}
           <div className="flex items-center justify-between gap-4">
+            {/* Selection checkbox */}
+            {selectionMode && (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect?.(item.student_id)}
+                className="shrink-0"
+              />
+            )}
             {/* Left: Avatar + Student Info */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm shrink-0">
