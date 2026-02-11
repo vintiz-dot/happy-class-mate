@@ -1,78 +1,68 @@
 
 
-# Fix Smart Family Payment Discounts + Add Quick Payment to Admin Tuition Page
+# Intuitive Payment Recording on Admin Tuition Page
 
-## Issue 1: Smart Family Payment Not Showing Discounts
+## Problem
 
-### Root Cause
-The Smart Family Payment modal fetches each sibling's `carryOutDebt` from `calculate-tuition`, which IS post-discount. However, the modal only displays "Owes X" without showing:
-- The base (pre-discount) amount
-- Applied discounts and their values
-- The net (post-discount) tuition for the current month
+The current "Record Payment" flow on the Tuition page has several UX and functional issues:
 
-This makes it impossible for the admin to verify whether discounts were applied before submitting the payment. Additionally, the edge function should be enhanced to show discount transparency.
+1. **Tiny gear icon** -- easy to miss; the "Record Pay" button only shows on desktop in the Enhanced view but the Tuition page uses the basic `AdminTuitionList`
+2. **Cramped inline form** -- amount, date, and method fields are squeezed into a single row inside the card, making it hard to use especially on mobile
+3. **Replaces instead of adds** -- clicking "Record Pay" sets `recorded_payment` to the entered value, overwriting any previous payment. If a student paid 500K last week and 300K today, the admin has to manually add them up
+4. **Fails for new students** -- students without an existing invoice get a `placeholder-xxx` ID, so the update query silently fails
 
-### Changes
+## Solution
 
-**File: `src/components/admin/SmartFamilyPaymentModal.tsx`**
-- Expand the `SiblingBalance` interface to include `baseAmount`, `totalDiscount`, `totalAmount` (post-discount current charges), and `discounts` array from `calculate-tuition`
-- Update `loadSiblingBalances` to capture these additional fields from the edge function response
-- Update the sibling balance list UI to show:
-  - Base amount, discount amount, net charges (post-discount)
-  - Individual discount names/amounts in a collapsible section
-  - Debt (which includes carry-in from prior months)
-- Update `totalFamilyDebt` to clearly label it as post-discount
-- The allocation preview already uses `carryOutDebt` (post-discount), so the waterfall logic itself is correct
+Create a dedicated **Record Payment Dialog** that opens when the admin clicks "Record Pay" on any student card. This dialog will:
 
-**File: `supabase/functions/smart-family-payment/index.ts`**
-- When fetching sibling balances, also capture `totalAmount`, `baseAmount`, `totalDiscount`, and `discounts` from calculate-tuition response
-- Include discount details in the audit log entries for transparency
-- If no invoice exists for a sibling in the current month, create one so the payment is properly tracked (currently payments are lost if no invoice exists)
-
-## Issue 2: Admin Tuition Page Missing Quick Payment Button
-
-### Root Cause
-The `/tuition` page for admin uses `AdminTuitionList` component, which has a basic inline payment editor (small gear icon) but no prominent "Smart Family Payment" button. Meanwhile, the Finance > Tuition tab (`AdminTuitionListEnhanced`) has a visible "Record Pay" button on each card and a global "Smart Family Payment" button.
-
-### Changes
-
-**File: `src/pages/Tuition.tsx`**
-- Add the `SmartFamilyPaymentModal` component to the admin tuition view
-- Add a "Smart Family Payment" button (with Wallet icon) next to the MonthPicker in the header area
-- This matches the Finance tab's layout and gives admins quick access from the Tuition page
+- Show the student's financial summary (payable, already paid, outstanding) at the top for context
+- Have a clear amount input with a "Pay Full" quick-fill button
+- Include date, method, and optional memo fields
+- **Add** the payment to the existing `recorded_payment` (not replace)
+- **Create the invoice** if one doesn't exist yet (using calculated tuition data)
+- Show a live preview of the resulting balance before saving
+- Reflect immediately after save via query invalidation
 
 ## Technical Details
 
-### SmartFamilyPaymentModal - Enhanced Sibling Display
+### New File: `src/components/admin/RecordPaymentDialog.tsx`
 
-The sibling balance section will change from:
+A focused dialog component with these props:
+- `open`, `onClose` -- dialog state
+- `item` -- the tuition data item (student info, financial data, invoice id)
+- `month` -- current month string
+- `onSuccess` -- callback after successful save
 
-```
-[1] Student Name          Owes 2,000,000 VND
-```
+The dialog UI:
+- Header: student name + current status badge
+- Summary bar: Payable | Already Paid | Outstanding
+- Amount input with "Pay Full" button that auto-fills the outstanding amount
+- Date picker (defaults to today)
+- Payment method select (Cash, Bank Transfer, Card, Other)
+- Optional memo/note field
+- Live preview: "After this payment: Balance will be X" with color coding
+- Save button with loading state
 
-To:
+Save logic:
+1. Check if invoice exists (real UUID vs `placeholder-xxx`)
+2. If no invoice exists, create one using the item's calculated values (`base_amount`, `discount_amount`, `total_amount`) and set `recorded_payment` to the entered amount
+3. If invoice exists, **add** the entered amount to the existing `recorded_payment`
+4. Update invoice status accordingly (open/partial/paid)
+5. Write an audit log entry with old/new values, date, method, and memo
+6. Invalidate relevant React Query caches
+7. Show success toast and close
 
-```
-[1] Student Name
-    Base: 2,500,000 | Discount: -500,000 | Net: 2,000,000
-    Discounts: Sibling (10%), Enrollment (200K)
-    Carry-in debt: 300,000
-    Total owes: 2,300,000 VND
-```
+### Modified File: `src/components/admin/AdminTuitionList.tsx`
 
-### Smart Family Payment Edge Function - Invoice Safety
-
-When recording a payment allocation for a sibling, if no invoice exists for the current month:
-- Create a new invoice record with the calculated amounts from `calculate-tuition`
-- Set `recorded_payment` to the allocated amount
-- This prevents the "payment goes invisible" bug where `calculate-tuition` reads `monthPayments` from `invoices.recorded_payment`
+- Import and render the new `RecordPaymentDialog`
+- Replace the inline edit form with opening the dialog
+- Remove the inline editing state (`editingInvoiceId`, `editValue`, `editDate`, `editMethod`) and the `handleSaveEdit` function -- all of this moves into the dialog
+- Add a visible "Record Pay" button with a CreditCard icon on each student row (not just a tiny gear icon)
 
 ### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/admin/SmartFamilyPaymentModal.tsx` | Show discount breakdown per sibling, enhanced balance display |
-| `supabase/functions/smart-family-payment/index.ts` | Capture discount data, create invoice if missing, audit log discounts |
-| `src/pages/Tuition.tsx` | Add Smart Family Payment button and modal to admin view |
+| `src/components/admin/RecordPaymentDialog.tsx` | New component -- payment recording dialog with financial summary, additive logic, and invoice creation |
+| `src/components/admin/AdminTuitionList.tsx` | Replace inline edit form with dialog trigger; add visible "Record Pay" button per student |
 
