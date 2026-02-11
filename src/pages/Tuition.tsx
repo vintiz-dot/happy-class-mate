@@ -11,21 +11,32 @@ import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useStudentMonthFinance, formatVND } from "@/hooks/useStudentMonthFinance";
 import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
+import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
+import { Button } from "@/components/ui/button";
+import { Wallet } from "lucide-react";
 
 export default function Tuition() {
   const { role } = useAuth();
   const { studentId } = useStudentProfile();
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
   const currentMonth = dayjs().format("YYYY-MM");
+  const [smartPayOpen, setSmartPayOpen] = useState(false);
 
   // Admin tuition page
   if (role === "admin") {
     return (
       <Layout title="Tuition">
         <div className="space-y-6">
-          <MonthPicker value={month} onChange={setMonth} maxMonth={currentMonth} />
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <MonthPicker value={month} onChange={setMonth} maxMonth={currentMonth} />
+            <Button onClick={() => setSmartPayOpen(true)} variant="outline" className="gap-2">
+              <Wallet className="h-4 w-4" />
+              Smart Family Payment
+            </Button>
+          </div>
           <AdminTuitionList month={month} />
         </div>
+        <SmartFamilyPaymentModal open={smartPayOpen} onClose={() => setSmartPayOpen(false)} />
       </Layout>
     );
   }

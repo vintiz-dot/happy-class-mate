@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, ArrowDown, Check, AlertCircle, Loader2, Wallet } from "lucide-react";
+import { Users, ArrowDown, Check, AlertCircle, Loader2, Wallet, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,11 +28,23 @@ interface Family {
   name: string;
 }
 
+interface DiscountDetail {
+  name: string;
+  type: "percent" | "amount";
+  value: number;
+  amount: number;
+  appliedToClass?: string;
+}
+
 interface SiblingBalance {
   id: string;
   name: string;
   debt: number;
   credit: number;
+  baseAmount: number;
+  totalDiscount: number;
+  totalAmount: number; // post-discount current month charges
+  discounts: DiscountDetail[];
 }
 
 interface AllocationPreview {
@@ -138,6 +151,16 @@ export function SmartFamilyPaymentModal({ open, onClose }: SmartFamilyPaymentMod
             name: student.full_name,
             debt: data?.carry?.carryOutDebt ?? 0,
             credit: data?.carry?.carryOutCredit ?? 0,
+            baseAmount: data?.baseAmount ?? 0,
+            totalDiscount: data?.totalDiscount ?? 0,
+            totalAmount: data?.totalAmount ?? 0,
+            discounts: (data?.discounts ?? []).map((d: any) => ({
+              name: d.name,
+              type: d.type,
+              value: d.value,
+              amount: d.amount,
+              appliedToClass: d.appliedToClass,
+            })),
           };
         } catch (e) {
           console.error(`Failed to fetch balance for ${student.id}:`, e);
@@ -146,6 +169,10 @@ export function SmartFamilyPaymentModal({ open, onClose }: SmartFamilyPaymentMod
             name: student.full_name,
             debt: 0,
             credit: 0,
+            baseAmount: 0,
+            totalDiscount: 0,
+            totalAmount: 0,
+            discounts: [],
           };
         }
       });
@@ -337,23 +364,59 @@ export function SmartFamilyPaymentModal({ open, onClose }: SmartFamilyPaymentMod
               ) : (
                 <div className="border rounded-lg divide-y">
                   {siblings.map((sibling, index) => (
-                    <div key={sibling.id} className="flex items-center justify-between p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                          {index + 1}
+                    <div key={sibling.id} className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </div>
+                          <span className="font-medium">{sibling.name}</span>
                         </div>
-                        <span className="font-medium">{sibling.name}</span>
+                        <Badge variant={sibling.debt > 0 ? "destructive" : "secondary"}>
+                          {sibling.debt > 0 ? `Owes ${formatVND(sibling.debt)}` : "Settled"}
+                        </Badge>
                       </div>
-                      <Badge variant={sibling.debt > 0 ? "destructive" : "secondary"}>
-                        {sibling.debt > 0 ? `Owes ${formatVND(sibling.debt)}` : "Settled"}
-                      </Badge>
+                      
+                      {/* Discount breakdown */}
+                      {sibling.baseAmount > 0 && (
+                        <div className="ml-9 text-xs space-y-1">
+                          <div className="flex gap-3 text-muted-foreground">
+                            <span>Base: {formatVND(sibling.baseAmount)}</span>
+                            {sibling.totalDiscount > 0 && (
+                              <span className="text-green-600">Disc: -{formatVND(sibling.totalDiscount)}</span>
+                            )}
+                            <span className="font-medium text-foreground">Net: {formatVND(sibling.totalAmount)}</span>
+                          </div>
+                          
+                          {sibling.discounts.length > 0 && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+                                <ChevronDown className="h-3 w-3" />
+                                <span>{sibling.discounts.length} discount{sibling.discounts.length > 1 ? 's' : ''} applied</span>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-1 space-y-0.5">
+                                {sibling.discounts.map((d, i) => (
+                                  <div key={i} className="flex justify-between text-muted-foreground">
+                                    <span>
+                                      {d.name}
+                                      {d.type === 'percent' ? ` (${d.value}%)` : ''}
+                                      {d.appliedToClass ? ` · ${d.appliedToClass}` : ''}
+                                    </span>
+                                    <span className="text-green-600">-{formatVND(d.amount)}</span>
+                                  </div>
+                                ))}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
               
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Family Debt:</span>
+                <span className="text-muted-foreground">Total Family Debt (post-discount):</span>
                 <span className="font-semibold text-destructive">{formatVND(totalFamilyDebt)}</span>
               </div>
             </div>
