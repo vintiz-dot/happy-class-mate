@@ -1,13 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { TuitionSummaryCards } from "@/components/admin/tuition/TuitionSummaryCards";
 import { TuitionToolbar } from "@/components/admin/tuition/TuitionToolbar";
 import { TuitionStudentCard } from "@/components/admin/tuition/TuitionStudentCard";
 import { dayjs } from "@/lib/date";
 import { getPaymentStatus } from "@/lib/tuitionStatus";
-import { motion } from "framer-motion";
-import { FileSearch } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FileSearch, CheckSquare, X, CreditCard } from "lucide-react";
 import { useLiveTuitionData } from "@/hooks/useLiveTuitionData";
 import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
+import { BatchPaymentDialog } from "@/components/admin/BatchPaymentDialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AdminTuitionListEnhancedProps {
   month: string;
@@ -19,6 +23,9 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
   const [confirmationFilter, setConfirmationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentItem, setPaymentItem] = useState<any>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
   // Use live tuition data from calculate-tuition edge function
   const { data: tuitionData, isLoading, refetch, isRefetching } = useLiveTuitionData(month);
@@ -154,12 +161,50 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
     return tuitionData?.filter((i) => i.confirmation_status === 'needs_review').length || 0;
   }, [tuitionData]);
 
+  const toggleSelect = useCallback((studentId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredAndSortedData.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredAndSortedData.map((i) => i.student_id)));
+    }
+  }, [filteredAndSortedData, selectedIds.size]);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const selectedItems = useMemo(() => {
+    if (!tuitionData) return [];
+    return tuitionData.filter((i) => selectedIds.has(i.student_id));
+  }, [tuitionData, selectedIds]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Tuition Overview</h2>
-        <p className="text-muted-foreground">{dayjs(month).format("MMMM YYYY")}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Tuition Overview</h2>
+          <p className="text-muted-foreground">{dayjs(month).format("MMMM YYYY")}</p>
+        </div>
+        <Button
+          variant={selectionMode ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+          className="gap-2"
+        >
+          {selectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+          {selectionMode ? "Cancel" : "Select"}
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -181,6 +226,45 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
         onRefresh={() => refetch()}
         isRefreshing={isRefetching}
       />
+
+      {/* Selection bar */}
+      <AnimatePresence>
+        {selectionMode && filteredAndSortedData.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"
+          >
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedIds.size === filteredAndSortedData.length && filteredAndSortedData.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              <span className="text-sm font-medium">
+                {selectedIds.size > 0 ? (
+                  <>{selectedIds.size} selected</>
+                ) : (
+                  "Select students"
+                )}
+              </span>
+            </div>
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setBatchDialogOpen(true)}
+                className="gap-2"
+              >
+                <CreditCard className="h-4 w-4" />
+                Batch Record Pay
+                <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground">
+                  {selectedIds.size}
+                </Badge>
+              </Button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Student List */}
       {isLoading ? (
@@ -205,12 +289,15 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
         </motion.div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSortedData.map((item, index) => (
+          {filteredAndSortedData.map((item) => (
             <TuitionStudentCard
               key={item.id}
               item={item}
               month={month}
               onRecordPay={() => setPaymentItem(item)}
+              selectionMode={selectionMode}
+              isSelected={selectedIds.has(item.student_id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
@@ -227,6 +314,16 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
         open={!!paymentItem}
         onClose={() => setPaymentItem(null)}
         item={paymentItem}
+        month={month}
+      />
+
+      <BatchPaymentDialog
+        open={batchDialogOpen}
+        onClose={() => {
+          setBatchDialogOpen(false);
+          exitSelectionMode();
+        }}
+        items={selectedItems}
         month={month}
       />
     </div>
