@@ -1,22 +1,21 @@
 
-
-# Fix: Payment Not Reflecting Immediately
+# Fix: Payment Changes Not Reflecting in UI
 
 ## Root Cause
 
-The tuition list fetches data using a query with the key `["admin-tuition-live", month]` (in `useLiveTuitionData.ts`), but after saving a payment, both `RecordPaymentDialog` and `BatchPaymentDialog` invalidate a **different** key: `["admin-tuition-list", month]`. Since the wrong cache is being cleared, React Query never knows to re-fetch, and the UI stays stale until a manual page reload.
+The `invalidateQueries` call correctly marks the cache as stale, but it doesn't guarantee the refetch completes before the dialog closes. Since `useLiveTuitionData` calls the edge function for every student in batches (a slow operation), the background refetch may not complete quickly enough -- or may silently fail. Additionally, the dialog's `handleClose` resets state immediately after invalidation fires, but before data arrives.
 
-## Fix
+## Solution
 
-Update the cache invalidation calls in both dialog components to use the correct query key `"admin-tuition-live"`.
+Use `await queryClient.refetchQueries()` instead of `invalidateQueries` to **force a refetch and wait for it to complete** before closing the dialog. This guarantees the new data is loaded and rendered before the UI transitions.
 
 ### Files to Change
 
-**1. `src/components/admin/RecordPaymentDialog.tsx`** (line 127)
-- Change `"admin-tuition-list"` to `"admin-tuition-live"`
+**1. `src/components/admin/RecordPaymentDialog.tsx`**
+- Replace the fire-and-forget `invalidateQueries` with `await queryClient.refetchQueries({ queryKey: ["admin-tuition-live", month] })`
+- Keep the `student-tuition` invalidation as-is (secondary)
 
-**2. `src/components/admin/BatchPaymentDialog.tsx`** (line 154)
-- Change `"admin-tuition-list"` to `"admin-tuition-live"`
+**2. `src/components/admin/BatchPaymentDialog.tsx`**
+- Same change: replace `invalidateQueries` with `await queryClient.refetchQueries`
 
-This is a two-line fix that will make payments reflect instantly in the UI.
-
+This ensures the tuition list data is fully refreshed from the edge function before the dialog closes and the user sees the updated values.
