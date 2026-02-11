@@ -2,12 +2,9 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   Eye, 
   CreditCard, 
-  Check, 
-  X, 
   ChevronDown, 
   ChevronUp,
   Award,
@@ -17,29 +14,13 @@ import { useNavigate } from "react-router-dom";
 import { getPaymentStatus, getTuitionStatusBadge, PaymentStatus } from "@/lib/tuitionStatus";
 import { motion, AnimatePresence } from "framer-motion";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatars";
 
 interface TuitionStudentCardProps {
   item: any;
   month: string;
-  isEditing: boolean;
-  editValue: string;
-  editDate: string;
-  editMethod: string;
-  onStartEdit: () => void;
-  onCancelEdit: () => void;
-  onSaveEdit: () => void;
-  onEditValueChange: (value: string) => void;
-  onEditDateChange: (value: string) => void;
-  onEditMethodChange: (value: string) => void;
+  onRecordPay: () => void;
 }
 
 const formatVND = (amount: number) => {
@@ -53,16 +34,7 @@ const formatVND = (amount: number) => {
 export function TuitionStudentCard({
   item,
   month,
-  isEditing,
-  editValue,
-  editDate,
-  editMethod,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onEditValueChange,
-  onEditDateChange,
-  onEditMethodChange,
+  onRecordPay,
 }: TuitionStudentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
@@ -157,48 +129,44 @@ export function TuitionStudentCard({
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
-              {!isEditing && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onStartEdit}
-                    className="gap-1.5 hidden sm:flex"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Record Pay
-                  </Button>
-                  <div className="hidden sm:block">
-                    <InvoiceDownloadButton 
-                      studentId={item.student_id} 
-                      month={month}
-                      variant="ghost"
-                      size="sm"
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`/students/${item.student_id}`)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="md:hidden"
-                  >
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRecordPay}
+                className="gap-1.5 hidden sm:flex"
+              >
+                <CreditCard className="h-4 w-4" />
+                Record Pay
+              </Button>
+              <div className="hidden sm:block">
+                <InvoiceDownloadButton 
+                  studentId={item.student_id} 
+                  month={month}
+                  variant="ghost"
+                  size="sm"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/students/${item.student_id}`)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="md:hidden"
+              >
+                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
 
           {/* Expanded Details (Mobile) */}
           <AnimatePresence>
-            {isExpanded && !isEditing && (
+            {isExpanded && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
@@ -228,7 +196,7 @@ export function TuitionStudentCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={onStartEdit}
+                      onClick={onRecordPay}
                       className="flex-1 gap-1.5"
                     >
                       <CreditCard className="h-4 w-4" />
@@ -241,74 +209,6 @@ export function TuitionStudentCard({
                       size="sm"
                     />
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Inline Edit Form */}
-          <AnimatePresence>
-            {isEditing && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-4 pt-4 border-t">
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <div className="sm:col-span-1">
-                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                        Amount (₫)
-                      </label>
-                      <Input
-                        type="number"
-                        value={editValue}
-                        onChange={(e) => onEditValueChange(e.target.value)}
-                        placeholder="0"
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                        Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={editDate}
-                        onChange={(e) => onEditDateChange(e.target.value)}
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                        Method
-                      </label>
-                      <Select value={editMethod} onValueChange={onEditMethodChange}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Cash">Cash</SelectItem>
-                          <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                          <SelectItem value="Card">Card</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-end gap-2 sm:col-span-1">
-                      <Button size="sm" onClick={onSaveEdit} className="flex-1 gap-1.5">
-                        <Check className="h-4 w-4" />
-                        Save
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={onCancelEdit}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Outstanding: {formatVND(item.finalPayable - (item.recorded_payment ?? 0))}
-                  </p>
                 </div>
               </motion.div>
             )}

@@ -1,24 +1,13 @@
 import { useState, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { TuitionSummaryCards } from "@/components/admin/tuition/TuitionSummaryCards";
 import { TuitionToolbar } from "@/components/admin/tuition/TuitionToolbar";
 import { TuitionStudentCard } from "@/components/admin/tuition/TuitionStudentCard";
 import { dayjs } from "@/lib/date";
-import { toast } from "sonner";
-import { z } from "zod";
 import { getPaymentStatus } from "@/lib/tuitionStatus";
 import { motion } from "framer-motion";
-import { FileSearch, RefreshCw } from "lucide-react";
+import { FileSearch } from "lucide-react";
 import { useLiveTuitionData } from "@/hooks/useLiveTuitionData";
-
-const PaymentSchema = z.object({
-  amount: z.number().min(0, "Amount must be positive").max(100000000, "Amount too large"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
-  method: z.enum(["Cash", "Bank Transfer", "Card", "Other"], {
-    errorMap: () => ({ message: "Invalid payment method" }),
-  }),
-});
+import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
 
 interface AdminTuitionListEnhancedProps {
   month: string;
@@ -29,11 +18,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
   const [activeFilter, setActiveFilter] = useState("all");
   const [confirmationFilter, setConfirmationFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [editDate, setEditDate] = useState("");
-  const [editMethod, setEditMethod] = useState("Cash");
-  const queryClient = useQueryClient();
+  const [paymentItem, setPaymentItem] = useState<any>(null);
 
   // Use live tuition data from calculate-tuition edge function
   const { data: tuitionData, isLoading, refetch, isRefetching } = useLiveTuitionData(month);
@@ -115,7 +100,6 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
 
     let filtered = tuitionData;
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((item) => {
@@ -125,7 +109,6 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       });
     }
 
-    // Apply status filter
     if (activeFilter !== "all") {
       filtered = filtered.filter((item) => {
         const status = getStatus(item);
@@ -141,14 +124,12 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       });
     }
 
-    // Apply confirmation filter
     if (confirmationFilter !== "all") {
       filtered = filtered.filter((item) => 
         item.confirmation_status === confirmationFilter
       );
     }
 
-    // Apply sort
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "name":
@@ -172,90 +153,6 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
   const reviewQueueCount = useMemo(() => {
     return tuitionData?.filter((i) => i.confirmation_status === 'needs_review').length || 0;
   }, [tuitionData]);
-
-  const handleStartEdit = (invoice: any) => {
-    setEditingInvoiceId(invoice.id);
-    const balance = invoice.finalPayable - (invoice.recorded_payment ?? 0);
-    setEditValue(String(balance > 0 ? balance : 0));
-    setEditDate(new Date().toISOString().split("T")[0]);
-    setEditMethod("Cash");
-  };
-
-  const handleCancelEdit = () => {
-    setEditingInvoiceId(null);
-    setEditValue("");
-    setEditDate("");
-    setEditMethod("Cash");
-  };
-
-  const handleSaveEdit = async (invoice: any) => {
-    const newValue = parseInt(editValue) || 0;
-
-    const validation = PaymentSchema.safeParse({
-      amount: newValue,
-      date: editDate,
-      method: editMethod,
-    });
-
-    if (!validation.success) {
-      toast.error(validation.error.issues[0].message);
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      let newStatus = invoice.status;
-      const totalAmount = invoice.total_amount;
-
-      if (newValue === 0 && totalAmount === 0) {
-        newStatus = "paid";
-      } else if (newValue >= totalAmount) {
-        newStatus = "paid";
-      } else if (newValue > 0 && newValue < totalAmount) {
-        newStatus = "partial";
-      } else if (newValue === 0) {
-        newStatus = "open";
-      }
-
-      const { error: updateError } = await supabase
-        .from("invoices")
-        .update({
-          recorded_payment: newValue,
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", invoice.id);
-
-      if (updateError) throw updateError;
-
-      await supabase.from("audit_log").insert({
-        entity: "invoice",
-        entity_id: invoice.id,
-        action: "update_recorded_payment",
-        actor_user_id: user?.id,
-        diff: {
-          old_recorded_payment: invoice.recorded_payment ?? 0,
-          new_recorded_payment: newValue,
-          old_status: invoice.status,
-          new_status: newStatus,
-          payment_date: editDate,
-          payment_method: editMethod,
-          student_id: invoice.student_id,
-          month: invoice.month,
-        },
-      });
-
-      queryClient.invalidateQueries({ queryKey: ["admin-tuition-list", month] });
-      queryClient.invalidateQueries({ queryKey: ["student-tuition", invoice.student_id, invoice.month] });
-
-      toast.success("Payment recorded successfully");
-      handleCancelEdit();
-    } catch (error: any) {
-      console.error("Error recording payment:", error);
-      toast.error(error.message || "Failed to record payment");
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -313,16 +210,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
               key={item.id}
               item={item}
               month={month}
-              isEditing={editingInvoiceId === item.id}
-              editValue={editValue}
-              editDate={editDate}
-              editMethod={editMethod}
-              onStartEdit={() => handleStartEdit(item)}
-              onCancelEdit={handleCancelEdit}
-              onSaveEdit={() => handleSaveEdit(item)}
-              onEditValueChange={setEditValue}
-              onEditDateChange={setEditDate}
-              onEditMethodChange={setEditMethod}
+              onRecordPay={() => setPaymentItem(item)}
             />
           ))}
         </div>
@@ -334,6 +222,13 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
           Showing {filteredAndSortedData.length} of {tuitionData?.length || 0} students
         </p>
       )}
+
+      <RecordPaymentDialog
+        open={!!paymentItem}
+        onClose={() => setPaymentItem(null)}
+        item={paymentItem}
+        month={month}
+      />
     </div>
   );
 };
