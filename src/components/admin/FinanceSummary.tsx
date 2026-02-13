@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, UserX } from "lucide-react";
 
 export function FinanceSummary() {
   const queryClient = useQueryClient();
@@ -48,6 +48,23 @@ export function FinanceSummary() {
 
       const totalExpenditures = (expenditures || []).reduce((sum, e) => sum + (e.amount || 0), 0);
 
+      // Excused tuition loss
+      const { data: excused } = await supabase
+        .from("attendance")
+        .select(`
+          id,
+          sessions!inner (date, class_id,
+            classes (session_rate_vnd)
+          )
+        `)
+        .eq("status", "Excused")
+        .gte("sessions.date", startDate)
+        .lt("sessions.date", endDate);
+
+      const excusedLoss = (excused || []).reduce((sum, a: any) => {
+        return sum + (a.sessions?.classes?.session_rate_vnd || 0);
+      }, 0);
+
       const netActual = totalTuition - totalSalaryActual - totalExpenditures;
       const netProjected = totalTuition - totalSalaryProjected - totalExpenditures;
 
@@ -58,6 +75,7 @@ export function FinanceSummary() {
         totalSalaryActual,
         totalSalaryProjected,
         totalExpenditures,
+        excusedLoss,
         netActual,
         netProjected,
       };
@@ -163,7 +181,7 @@ export function FinanceSummary() {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tuition Billed</CardTitle>
@@ -208,6 +226,19 @@ export function FinanceSummary() {
               {isLoading ? "..." : formatVND(summary?.totalExpenditures || 0)}
             </div>
             <p className="text-xs text-muted-foreground">Operating costs</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Excused Tuition Loss</CardTitle>
+            <UserX className="h-4 w-4 text-amber-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">
+              {isLoading ? "..." : formatVND(summary?.excusedLoss || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Tuition missed from excused absences</p>
           </CardContent>
         </Card>
 

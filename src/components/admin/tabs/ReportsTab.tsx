@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, XCircle, TrendingDown } from "lucide-react";
+import { FileText, XCircle, TrendingDown, UserX } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -79,6 +79,52 @@ const ReportsTab = () => {
         savedPayroll: totalLostPayroll,
         sessionCount: cancelledSessions?.length || 0
       };
+    },
+  });
+
+  // Fetch excused absences with tuition loss
+  const { data: excusedData } = useQuery({
+    queryKey: ["excused-absences", selectedMonth],
+    queryFn: async () => {
+      const monthStart = `${selectedMonth}-01`;
+      const nextMonth = new Date(monthStart);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+      const { data: excused, error } = await supabase
+        .from("attendance")
+        .select(`
+          id, status,
+          students (id, full_name),
+          sessions!inner (id, date, start_time, end_time, class_id,
+            classes (id, name, session_rate_vnd)
+          )
+        `)
+        .eq("status", "Excused")
+        .gte("sessions.date", monthStart)
+        .lt("sessions.date", monthEnd);
+
+      if (error) throw error;
+
+      const rows = (excused || []).map((a: any) => {
+        const session = a.sessions;
+        const cls = session?.classes;
+        const rate = cls?.session_rate_vnd || 0;
+        return {
+          id: a.id,
+          studentName: a.students?.full_name || "Unknown",
+          className: cls?.name || "Unknown",
+          date: session?.date,
+          rate,
+        };
+      });
+
+      // Sort by date desc
+      rows.sort((a: any, b: any) => (b.date || "").localeCompare(a.date || ""));
+
+      const totalLoss = rows.reduce((sum: number, r: any) => sum + r.rate, 0);
+
+      return { rows, totalLoss, count: rows.length };
     },
   });
 
@@ -247,6 +293,49 @@ const ReportsTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Excused Absences & Tuition Loss */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserX className="h-5 w-5 text-amber-600" />
+            Excused Absences
+          </CardTitle>
+          <CardDescription>
+            Students excused from sessions — tuition lost: {formatVND(excusedData?.totalLoss || 0)} ({excusedData?.count || 0} absences)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {excusedData?.rows && excusedData.rows.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead className="text-right">Tuition Lost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {excusedData.rows.map((row: any) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.date}</TableCell>
+                    <TableCell className="font-medium">{row.studentName}</TableCell>
+                    <TableCell>{row.className}</TableCell>
+                    <TableCell className="text-right text-amber-600 font-medium">{formatVND(row.rate)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell colSpan={3}>TOTAL</TableCell>
+                  <TableCell className="text-right text-amber-600">{formatVND(excusedData.totalLoss)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No excused absences this month.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Family Payment Activity Log */}
       <FamilyPaymentActivityLog selectedMonth={selectedMonth} />
