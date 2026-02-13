@@ -85,19 +85,20 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
     }
   }, [students]);
 
-  const markAttendanceMutation = useMutation({
-    mutationFn: async ({ studentId, status }: { studentId: string; status: string }) => {
+  const saveAllMutation = useMutation({
+    mutationFn: async (entries: Record<string, string>) => {
+      const batch = Object.entries(entries).map(([studentId, status]) => ({
+        studentId,
+        status,
+      }));
       const { error } = await supabase.functions.invoke("mark-attendance", {
-        body: {
-          sessionId: session.id,
-          studentId,
-          status,
-        },
+        body: { sessionId: session.id, batch },
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["session-students", session?.id] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-sessions"] });
       toast.success("Attendance saved");
     },
     onError: (error: any) => {
@@ -106,14 +107,8 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   });
 
   const saveAllAttendance = async () => {
-    try {
-      for (const [studentId, status] of Object.entries(attendance)) {
-        await markAttendanceMutation.mutateAsync({ studentId, status });
-      }
-      onClose();
-    } catch (error) {
-      console.error("Error saving attendance:", error);
-    }
+    await saveAllMutation.mutateAsync(attendance);
+    onClose();
   };
 
   const toggleAttendance = (studentId: string) => {
@@ -223,7 +218,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
             <>
               <Button
                 onClick={saveAllAttendance}
-                disabled={markAttendanceMutation.isPending}
+                disabled={saveAllMutation.isPending}
                 className="w-full"
               >
                 <Save className="h-4 w-4 mr-2" />
