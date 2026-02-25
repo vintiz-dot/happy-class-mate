@@ -13,7 +13,7 @@ const allNavItems = [
   { id: "journal", label: "Journal", emoji: "📖", path: "/student/journal", icon: NotebookPen, primary: false },
   { id: "tuition", label: "Tuition", emoji: "💰", path: "/tuition", icon: DollarSign, primary: false },
   { id: "achievements", label: "Achievements", emoji: "🏆", path: "/student/dashboard?tab=achievements", icon: Trophy, primary: false },
-  { id: "xp-guide", label: "XP Guide", emoji: "⚡", path: "/student/dashboard?tab=xp-guide", icon: Zap, primary: false },
+  
 ];
 
 export function StudentNavBar() {
@@ -28,7 +28,7 @@ export function StudentNavBar() {
     const isOnDashboard = location.pathname === "/student/dashboard" || location.pathname === "/student" || location.pathname === "/student/";
     
     if (id === "achievements") return isOnDashboard && currentTab === "achievements";
-    if (id === "xp-guide") return isOnDashboard && currentTab === "xp-guide";
+    
     if (id === "attendance") return isOnDashboard && currentTab === "attendance";
     if (id === "dashboard") return isOnDashboard && !currentTab;
     return location.pathname.startsWith(path);

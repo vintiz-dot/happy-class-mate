@@ -93,7 +93,7 @@ export default function StudentDashboard() {
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "achievements" || tab === "xp-guide" || tab === "attendance")) {
+    if (tab && (tab === "achievements" || tab === "attendance")) {
       setActiveTab(tab);
     } else if (!tab) {
       setActiveTab("dashboard");
@@ -848,29 +848,23 @@ export default function StudentDashboard() {
           {/* Achievements Tab */}
           <TabsContent value="achievements" className="mt-6">
             <motion.div
-              className="glass-lg border-0 shadow-xl rounded-2xl p-6"
+              className="space-y-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <AchievementBadges
-                totalXp={totalPoints || 0}
-                homeworkCompleted={achievementData?.homeworkCompleted || 0}
-                perfectAttendanceWeeks={achievementData?.perfectWeeks || 0}
-                currentStreak={streakData.currentStreak}
-                longestStreak={streakData.longestStreak}
-                classesAttended={achievementData?.classesAttended || 0}
-              />
-            </motion.div>
-          </TabsContent>
-
-          {/* How to Earn XP Tab */}
-          <TabsContent value="xp-guide" className="mt-6">
-            <motion.div
-              className="glass-lg border-0 shadow-xl rounded-2xl p-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <HowToEarnXP />
+              <div className="glass-lg border-0 shadow-xl rounded-2xl p-6">
+                <AchievementBadges
+                  totalXp={totalPoints || 0}
+                  homeworkCompleted={achievementData?.homeworkCompleted || 0}
+                  perfectAttendanceWeeks={achievementData?.perfectWeeks || 0}
+                  currentStreak={streakData.currentStreak}
+                  longestStreak={streakData.longestStreak}
+                  classesAttended={achievementData?.classesAttended || 0}
+                />
+              </div>
+              <div className="glass-lg border-0 shadow-xl rounded-2xl p-6">
+                <HowToEarnXP />
+              </div>
             </motion.div>
           </TabsContent>
 
