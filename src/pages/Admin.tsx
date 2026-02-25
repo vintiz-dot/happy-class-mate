@@ -7,6 +7,7 @@ import AccountInfoTab from "@/components/admin/tabs/AccountInfoTab";
 import AutomationTab from "@/components/admin/tabs/AutomationTab";
 import DataTab from "@/components/admin/tabs/DataTab";
 import ClassesTab from "@/components/admin/tabs/ClassesTab";
+import { PayrollTab } from "@/components/admin/tabs/PayrollTab";
 import { AdminJournalViewEnhanced } from "@/components/admin/AdminJournalViewEnhanced";
 import { AssignmentsOverview } from "@/components/admin/AssignmentsOverview";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
@@ -26,6 +27,8 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
         return <AdminJournalViewEnhanced />;
       case "finance":
         return <FinanceTab />;
+      case "payroll":
+        return <PayrollTab />;
       case "reports":
         return <ReportsTab />;
       case "account":

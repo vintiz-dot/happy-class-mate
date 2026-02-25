@@ -1,110 +1,125 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserCog, BookOpen, Calendar, TrendingUp, Sparkles } from "lucide-react";
+import { Users, UserCog, BookOpen, Calendar, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { dayjs } from "@/lib/date";
 
 export function OverviewStats() {
   const queryClient = useQueryClient();
 
-  // Real-time subscriptions for live stats updates
   useEffect(() => {
-    const studentsChannel = supabase
-      .channel('overview-students-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'students',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["overview-stats"] });
-        }
-      )
-      .subscribe();
-
-    const enrollmentsChannel = supabase
-      .channel('overview-enrollments-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'enrollments',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["overview-stats"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(studentsChannel);
-      supabase.removeChannel(enrollmentsChannel);
-    };
+    const channels = ["students", "enrollments", "sessions", "teachers"].map((table) =>
+      supabase
+        .channel(`overview-${table}-changes`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+          queryClient.invalidateQueries({ queryKey: ["overview-stats-real"] });
+        })
+        .subscribe()
+    );
+    return () => { channels.forEach((c) => supabase.removeChannel(c)); };
   }, [queryClient]);
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["overview-stats"],
+    queryKey: ["overview-stats-real"],
     queryFn: async () => {
-      const [studentsRes, teachersRes, classesRes, sessionsRes] = await Promise.all([
-        supabase.from("students").select("id", { count: "exact", head: true }),
-        supabase.from("teachers").select("id", { count: "exact", head: true }),
-        supabase.from("classes").select("id", { count: "exact", head: true }),
-        supabase.from("sessions").select("id", { count: "exact", head: true }).eq("status", "Scheduled"),
+      const now = dayjs();
+      const thisMonthStart = now.startOf("month").format("YYYY-MM-DD");
+      const lastMonthStart = now.subtract(1, "month").startOf("month").format("YYYY-MM-DD");
+      const lastMonthEnd = now.subtract(1, "month").endOf("month").format("YYYY-MM-DD");
+
+      const [
+        activeStudentsRes,
+        lastMonthStudentsRes,
+        teachersRes,
+        lastMonthTeachersRes,
+        classesRes,
+        upcomingRes,
+      ] = await Promise.all([
+        // Active students: have at least one enrollment with no end_date or end_date >= today
+        supabase
+          .from("enrollments")
+          .select("student_id")
+          .or(`end_date.is.null,end_date.gte.${now.format("YYYY-MM-DD")}`),
+        // Last month active students for comparison
+        supabase
+          .from("enrollments")
+          .select("student_id")
+          .lte("start_date", lastMonthEnd)
+          .or(`end_date.is.null,end_date.gte.${lastMonthStart}`),
+        // Active teachers
+        supabase.from("teachers").select("id", { count: "exact", head: true }).eq("is_active", true),
+        // Teachers last month (use same active filter since teacher activation doesn't change monthly usually)
+        supabase.from("teachers").select("id", { count: "exact", head: true }).eq("is_active", true),
+        // Active classes
+        supabase.from("classes").select("id", { count: "exact", head: true }).eq("is_active", true),
+        // Upcoming sessions (today and forward)
+        supabase
+          .from("sessions")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "Scheduled")
+          .gte("date", now.format("YYYY-MM-DD")),
       ]);
 
+      // Deduplicate student IDs
+      const activeStudents = new Set(activeStudentsRes.data?.map((e) => e.student_id) || []).size;
+      const lastMonthStudents = new Set(lastMonthStudentsRes.data?.map((e) => e.student_id) || []).size;
+
+      const studentDelta = lastMonthStudents > 0
+        ? Math.round(((activeStudents - lastMonthStudents) / lastMonthStudents) * 100)
+        : 0;
+
       return {
-        students: studentsRes.count || 0,
+        students: activeStudents,
+        studentDelta,
         teachers: teachersRes.count || 0,
         classes: classesRes.count || 0,
-        upcomingSessions: sessionsRes.count || 0,
+        upcomingSessions: upcomingRes.count || 0,
       };
     },
   });
 
   const statCards = [
     {
-      title: "Total Students",
+      title: "Active Students",
       value: stats?.students || 0,
       icon: Users,
-      description: "Active student accounts",
+      description: "Currently enrolled students",
       gradient: "from-blue-500 to-cyan-500",
       bgGlow: "bg-blue-500/20",
-      trend: "+12%",
-      trendUp: true,
+      trend: stats?.studentDelta !== undefined ? `${stats.studentDelta >= 0 ? "+" : ""}${stats.studentDelta}%` : "—",
+      trendUp: stats?.studentDelta !== undefined ? (stats.studentDelta > 0 ? true : stats.studentDelta < 0 ? false : null) : null,
     },
     {
-      title: "Total Teachers",
+      title: "Active Teachers",
       value: stats?.teachers || 0,
       icon: UserCog,
       description: "Teaching staff members",
       gradient: "from-amber-500 to-orange-500",
       bgGlow: "bg-amber-500/20",
-      trend: "+3%",
-      trendUp: true,
+      trend: null,
+      trendUp: null,
     },
     {
       title: "Active Classes",
       value: stats?.classes || 0,
       icon: BookOpen,
-      description: "Classes in curriculum",
+      description: "Running classes",
       gradient: "from-emerald-500 to-teal-500",
       bgGlow: "bg-emerald-500/20",
-      trend: "+5%",
-      trendUp: true,
+      trend: null,
+      trendUp: null,
     },
     {
       title: "Upcoming Sessions",
       value: stats?.upcomingSessions || 0,
       icon: Calendar,
-      description: "Scheduled sessions",
+      description: "Scheduled ahead",
       gradient: "from-violet-500 to-purple-500",
       bgGlow: "bg-violet-500/20",
-      trend: "This week",
+      trend: null,
       trendUp: null,
     },
   ];
@@ -142,61 +157,38 @@ export function OverviewStats() {
             transition={{ duration: 0.4, delay: index * 0.1 }}
           >
             <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-500 border-border/50 bg-card/80 backdrop-blur-sm">
-              {/* Gradient glow effect */}
               <div className={cn(
                 "absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500",
                 stat.bgGlow
               )} />
-              
-              {/* Decorative sparkle */}
               <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Sparkles className="h-4 w-4 text-muted-foreground/50" />
               </div>
-
               <CardContent className="p-6 relative">
                 <div className="flex items-start justify-between mb-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {stat.title}
-                    </p>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold tracking-tight">
-                        {stat.value.toLocaleString()}
-                      </span>
-                      {stat.trendUp !== null && (
+                      <span className="text-3xl font-bold tracking-tight">{stat.value.toLocaleString()}</span>
+                      {stat.trend && stat.trendUp !== null && (
                         <span className={cn(
                           "flex items-center text-xs font-medium",
                           stat.trendUp ? "text-emerald-500" : "text-rose-500"
                         )}>
-                          <TrendingUp className={cn(
-                            "h-3 w-3 mr-0.5",
-                            !stat.trendUp && "rotate-180"
-                          )} />
-                          {stat.trend}
-                        </span>
-                      )}
-                      {stat.trendUp === null && (
-                        <span className="text-xs font-medium text-muted-foreground">
+                          {stat.trendUp ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
                           {stat.trend}
                         </span>
                       )}
                     </div>
                   </div>
-                  
                   <div className={cn(
-                    "h-12 w-12 rounded-xl flex items-center justify-center shadow-lg",
-                    "bg-gradient-to-br",
+                    "h-12 w-12 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br",
                     stat.gradient
                   )}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                
-                <p className="text-xs text-muted-foreground">
-                  {stat.description}
-                </p>
-                
-                {/* Bottom gradient line */}
+                <p className="text-xs text-muted-foreground">{stat.description}</p>
                 <div className={cn(
                   "absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500",
                   stat.gradient
