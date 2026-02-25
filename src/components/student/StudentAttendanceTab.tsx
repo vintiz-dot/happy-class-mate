@@ -119,7 +119,7 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
               <CardTitle>Attendance Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <AttendanceHeatmap studentId={studentId} months={3} />
+              <AttendanceHeatmap studentId={studentId} />
             </CardContent>
           </Card>
         </TabsContent>
