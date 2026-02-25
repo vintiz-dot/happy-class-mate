@@ -45,7 +45,7 @@ export function PayrollTab() {
             `)
             .eq("teacher_id", teacher.id)
             .gte("date", `${selectedMonth}-01`)
-            .lte("date", `${selectedMonth}-31`)
+            .lt("date", dayjs(`${selectedMonth}-01`).add(1, "month").format("YYYY-MM-DD"))
             .in("status", ["Held", "Scheduled"])
             .order("date", { ascending: true });
 
