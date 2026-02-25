@@ -27,7 +27,7 @@ import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
 import { HowToEarnXP } from "@/components/student/HowToEarnXP";
 import { AchievementBadges } from "@/components/student/AchievementBadges";
 import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
-import { AttendanceHeatmap } from "@/components/student/AttendanceHeatmap";
+import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 
 // Animation variants
 const containerVariants = {
@@ -93,7 +93,7 @@ export default function StudentDashboard() {
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "achievements" || tab === "attendance")) {
+    if (tab && (tab === "achievements" || tab === "schedule")) {
       setActiveTab(tab);
     } else if (!tab) {
       setActiveTab("dashboard");
@@ -710,7 +710,7 @@ export default function StudentDashboard() {
                   </motion.div>
                   <CardTitle className="text-xl font-bold">Upcoming Adventures</CardTitle>
                 </div>
-                <Link to="/schedule">
+                <Link to="/student/dashboard?tab=schedule">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                     Schedule <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -814,7 +814,7 @@ export default function StudentDashboard() {
           className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4"
         >
           {[
-            { to: "/schedule", icon: "📅", title: "Schedule", desc: "View your classes", gradient: "from-primary/20 to-primary/5" },
+            { to: "/student/dashboard?tab=schedule", icon: "📅", title: "My Classes", desc: "View your classes", gradient: "from-primary/20 to-primary/5" },
             { to: "/student/assignments", icon: "📚", title: "Quests", desc: "Complete homework", gradient: "from-accent/20 to-accent/5" },
             { to: "/student/journal", icon: "📓", title: "Journal", desc: "Write entries", gradient: "from-success/20 to-success/5" },
             { to: "/tuition", icon: "💰", title: "Tuition", desc: "View payments", gradient: "from-warning/20 to-warning/5" },
@@ -868,23 +868,23 @@ export default function StudentDashboard() {
             </motion.div>
           </TabsContent>
 
-          {/* Attendance Tab */}
-          <TabsContent value="attendance" className="mt-6">
+          {/* My Classes / Schedule Tab */}
+          <TabsContent value="schedule" className="mt-6">
             <motion.div
               className="glass-lg border-0 shadow-xl rounded-2xl p-6 space-y-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/10">
-                  <span className="text-2xl">📊</span>
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
+                  <span className="text-2xl">📅</span>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">My Attendance</h2>
-                  <p className="text-sm text-muted-foreground">Track your class attendance and streaks</p>
+                  <h2 className="text-xl font-bold">My Classes</h2>
+                  <p className="text-sm text-muted-foreground">Your schedule, attendance & homework all in one place!</p>
                 </div>
               </div>
-              <AttendanceHeatmap studentId={studentId} />
+              <StudentScheduleCalendar studentId={studentId} />
             </motion.div>
           </TabsContent>
         </Tabs>
