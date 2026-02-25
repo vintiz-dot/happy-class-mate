@@ -27,7 +27,7 @@ export function AttendanceHeatmap({ studentId, months = 3 }: AttendanceHeatmapPr
 
       const classIds = enrollments.map(e => e.class_id);
 
-      const [sessionsRes, attendanceRes] = await Promise.all([
+      const [sessionsRes, attendanceRes, pointsRes] = await Promise.all([
         supabase
           .from("sessions")
           .select("id, date, start_time, status, class:classes(name)")
@@ -40,13 +40,28 @@ export function AttendanceHeatmap({ studentId, months = 3 }: AttendanceHeatmapPr
           .select("session_id, status")
           .eq("student_id", studentId)
           .eq("status", "Present"),
+        supabase
+          .from("point_transactions")
+          .select("points, type, date")
+          .eq("student_id", studentId)
+          .gte("date", startDate.format("YYYY-MM-DD"))
+          .lte("date", endDate.format("YYYY-MM-DD")),
       ]);
 
       const presentSet = new Set(attendanceRes.data?.map(a => a.session_id) || []);
-      const byDate: Record<string, { count: number; sessions: Array<{ name: string; time: string; present: boolean }> }> = {};
+      
+      // Group points by date
+      const pointsByDate: Record<string, Array<{ points: number; category: string }>> = {};
+      for (const pt of pointsRes.data || []) {
+        const d = pt.date;
+        if (!pointsByDate[d]) pointsByDate[d] = [];
+        pointsByDate[d].push({ points: pt.points, category: pt.type });
+      }
+
+      const byDate: Record<string, { count: number; totalPoints: number; sessions: Array<{ name: string; time: string; present: boolean }>; points: Array<{ points: number; category: string }> }> = {};
 
       for (const s of sessionsRes.data || []) {
-        if (!byDate[s.date]) byDate[s.date] = { count: 0, sessions: [] };
+        if (!byDate[s.date]) byDate[s.date] = { count: 0, totalPoints: 0, sessions: [], points: pointsByDate[s.date] || [] };
         const present = presentSet.has(s.id);
         if (present) byDate[s.date].count++;
         byDate[s.date].sessions.push({
@@ -54,6 +69,7 @@ export function AttendanceHeatmap({ studentId, months = 3 }: AttendanceHeatmapPr
           time: s.start_time?.slice(0, 5) || "",
           present,
         });
+        byDate[s.date].totalPoints = (pointsByDate[s.date] || []).reduce((sum, p) => sum + p.points, 0);
       }
 
       // Calculate streak
@@ -192,7 +208,7 @@ export function AttendanceHeatmap({ studentId, months = 3 }: AttendanceHeatmapPr
                       <PopoverTrigger asChild>
                         <button className="focus:outline-none">{cell}</button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-48 p-3 text-xs space-y-1.5">
+                      <PopoverContent className="w-56 p-3 text-xs space-y-1.5">
                         <p className="font-semibold">{dayjs(day).format("ddd, MMM D")}</p>
                         {info.sessions.map((s, i) => (
                           <div key={i} className="flex justify-between items-center">
@@ -205,6 +221,18 @@ export function AttendanceHeatmap({ studentId, months = 3 }: AttendanceHeatmapPr
                             </span>
                           </div>
                         ))}
+                        {info.totalPoints > 0 && (
+                          <>
+                            <div className="border-t border-border/50 my-1.5" />
+                            <p className="font-semibold text-warning">⚡ {info.totalPoints} XP earned</p>
+                            {info.points.map((p, i) => (
+                              <div key={i} className="flex justify-between items-center text-muted-foreground">
+                                <span className="capitalize">{p.category.replace(/_/g, " ")}</span>
+                                <span className="text-success font-medium">+{p.points}</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </PopoverContent>
                     </Popover>
                   );

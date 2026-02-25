@@ -27,6 +27,7 @@ import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
 import { HowToEarnXP } from "@/components/student/HowToEarnXP";
 import { AchievementBadges } from "@/components/student/AchievementBadges";
 import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
+import { AttendanceHeatmap } from "@/components/student/AttendanceHeatmap";
 
 // Animation variants
 const containerVariants = {
@@ -92,7 +93,7 @@ export default function StudentDashboard() {
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "achievements" || tab === "xp-guide")) {
+    if (tab && (tab === "achievements" || tab === "xp-guide" || tab === "attendance")) {
       setActiveTab(tab);
     } else if (!tab) {
       setActiveTab("dashboard");
@@ -870,6 +871,26 @@ export default function StudentDashboard() {
               animate={{ opacity: 1, y: 0 }}
             >
               <HowToEarnXP />
+            </motion.div>
+          </TabsContent>
+
+          {/* Attendance Tab */}
+          <TabsContent value="attendance" className="mt-6">
+            <motion.div
+              className="glass-lg border-0 shadow-xl rounded-2xl p-6 space-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/10">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">My Attendance</h2>
+                  <p className="text-sm text-muted-foreground">Track your class attendance and streaks</p>
+                </div>
+              </div>
+              <AttendanceHeatmap studentId={studentId} months={6} />
             </motion.div>
           </TabsContent>
         </Tabs>
