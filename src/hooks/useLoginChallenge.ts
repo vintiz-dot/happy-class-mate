@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
 import { useToast } from "@/hooks/use-toast";
+import { soundManager } from "@/lib/soundManager";
 
 interface LoginStreakData {
   currentStreak: number;
@@ -166,6 +167,7 @@ export function useLoginChallenge(studentId: string | undefined) {
     },
     onSuccess: (data) => {
       if (data && !data.alreadyClaimed) {
+        soundManager.play("checkin");
         toast({
           title: "🎉 Daily Check-In Complete!",
           description: `+1 XP earned! Streak: ${data.newStreak} days`,

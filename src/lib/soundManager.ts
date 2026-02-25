@@ -4,7 +4,7 @@
  * Respects user preferences and accessibility settings
  */
 
-type SoundType = 'click' | 'success' | 'error' | 'notification' | 'hover' | 'navigation';
+type SoundType = 'click' | 'success' | 'error' | 'notification' | 'hover' | 'navigation' | 'checkin' | 'levelUp' | 'questComplete';
 
 class SoundManager {
   private context: AudioContext | null = null;
@@ -45,20 +45,22 @@ class SoundManager {
   }
 
   private setupSounds() {
-    // Define sound generators using oscillators
     this.sounds.set('click', () => this.playTone(800, 0.03, 'sine'));
     this.sounds.set('success', () => this.playChord([523.25, 659.25, 783.99], 0.15));
     this.sounds.set('error', () => this.playTone(200, 0.1, 'square'));
     this.sounds.set('notification', () => this.playChord([659.25, 783.99], 0.2));
     this.sounds.set('hover', () => this.playTone(1200, 0.02, 'sine'));
     this.sounds.set('navigation', () => this.playTone(600, 0.05, 'sine'));
+    // New gamification sounds
+    this.sounds.set('checkin', () => this.playChord([523.25, 659.25], 0.12));
+    this.sounds.set('levelUp', () => this.playArpeggio([523.25, 659.25, 783.99, 1046.5], 0.18));
+    this.sounds.set('questComplete', () => this.playChord([783.99, 987.77, 1174.66], 0.2));
   }
 
   private playTone(frequency: number, duration: number, type: OscillatorType = 'sine') {
     if (!this.enabled || !this.context) return;
 
     try {
-      // Resume context if suspended (required by browser autoplay policies)
       if (this.context.state === 'suspended') {
         this.context.resume();
       }
@@ -72,7 +74,6 @@ class SoundManager {
       oscillator.frequency.value = frequency;
       oscillator.type = type;
 
-      // Envelope: quick attack, exponential decay
       const now = this.context.currentTime;
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(this.volume * 0.3, now + 0.005);
@@ -90,6 +91,14 @@ class SoundManager {
 
     frequencies.forEach((freq, index) => {
       setTimeout(() => this.playTone(freq, duration * 0.8, 'sine'), index * 50);
+    });
+  }
+
+  private playArpeggio(frequencies: number[], duration: number) {
+    if (!this.enabled || !this.context) return;
+
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => this.playTone(freq, duration, 'sine'), index * 100);
     });
   }
 

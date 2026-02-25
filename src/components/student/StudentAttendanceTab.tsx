@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AttendanceHeatmap } from "./AttendanceHeatmap";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const getAttendanceColor = (sessionDate: string, sessionStatus: string, attendanceStatus?: string) => {
   const today = new Date();
@@ -105,6 +107,24 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-6">
+      <Tabs defaultValue="heatmap">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="heatmap">Activity Heatmap</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="heatmap" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Attendance Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AttendanceHeatmap studentId={studentId} months={3} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-4 space-y-6">
       <div className="flex items-center justify-between">
         <Label>Month</Label>
         <Input
@@ -200,6 +220,8 @@ export function StudentAttendanceTab({ studentId }: { studentId: string }) {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
