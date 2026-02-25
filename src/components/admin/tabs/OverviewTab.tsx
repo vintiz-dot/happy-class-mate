@@ -1,10 +1,11 @@
 import { OverviewStats } from "@/components/admin/OverviewStats";
+import { TodayAgenda } from "@/components/admin/TodayAgenda";
+import { AdminAlerts } from "@/components/admin/AdminAlerts";
 import { LeaderboardResetControl } from "@/components/admin/LeaderboardResetControl";
 import { PointsResetControl } from "@/components/admin/PointsResetControl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Activity, Trophy, Star, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const OverviewTab = () => {
   return (
@@ -28,12 +29,30 @@ const OverviewTab = () => {
         <OverviewStats />
       </section>
 
+      {/* Today's Agenda + Alerts */}
+      <section className="grid gap-6 md:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+        >
+          <TodayAgenda />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <AdminAlerts />
+        </motion.div>
+      </section>
+
       {/* Controls Section */}
       <section>
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
           className="flex items-center gap-3 mb-4"
         >
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
@@ -73,7 +92,7 @@ const OverviewTab = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
           >
             <Card className="h-full border-border/50 bg-card/80 backdrop-blur-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
               <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-violet-500/20" />

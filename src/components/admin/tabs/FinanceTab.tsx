@@ -4,7 +4,6 @@ import { AdminTuitionListEnhanced } from "@/components/admin/AdminTuitionListEnh
 import { TuitionBulkDownload } from "@/components/admin/TuitionBulkDownload";
 import { DiscountManager } from "@/components/admin/DiscountManager";
 import { SiblingDiscountCompute } from "@/components/admin/SiblingDiscountCompute";
-import { PayrollTab } from "./PayrollTab";
 import { FinanceSummary } from "@/components/admin/FinanceSummary";
 import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
@@ -32,7 +31,6 @@ const FinanceTab = () => {
             <TabsTrigger value="expenditures">Expenditures</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
-            <TabsTrigger value="payroll">Teacher Payroll</TabsTrigger>
           </TabsList>
           
           <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
@@ -70,10 +68,6 @@ const FinanceTab = () => {
       <TabsContent value="sibling">
         <SiblingDiscountCompute />
       </TabsContent>
-
-        <TabsContent value="payroll">
-          <PayrollTab />
-        </TabsContent>
       </Tabs>
     </>
   );

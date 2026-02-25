@@ -13,7 +13,6 @@ import { FamilyPaymentActivityLog } from "@/components/admin/FamilyPaymentActivi
 const ReportsTab = () => {
   const [selectedMonth, setSelectedMonth] = useState(monthKey());
 
-  // Get month options (last 6 months + next 2 months)
   const getMonthOptions = () => {
     const options = [];
     const today = new Date();
@@ -25,7 +24,7 @@ const ReportsTab = () => {
     return options;
   };
 
-  // Fetch cancelled sessions count and lost profit calculation
+  // Cancelled sessions & lost profit
   const { data: lostRevenue } = useQuery({
     queryKey: ["lost-revenue", selectedMonth],
     queryFn: async () => {
@@ -34,40 +33,41 @@ const ReportsTab = () => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      // Get cancelled sessions with class and teacher info
+      // Bulk fetch cancelled sessions with class + teacher info
       const { data: cancelledSessions, error } = await supabase
         .from("sessions")
-        .select(`
-          id, date, start_time, end_time,
-          classes (id, name, session_rate_vnd),
-          teachers (id, hourly_rate_vnd)
-        `)
+        .select(`id, date, start_time, end_time, class_id, classes(id, name, session_rate_vnd), teachers(id, hourly_rate_vnd)`)
         .eq("status", "Canceled")
         .gte("date", monthStart)
         .lt("date", monthEnd);
 
       if (error) throw error;
+      if (!cancelledSessions?.length) return { lostProfit: 0, lostTuition: 0, savedPayroll: 0, sessionCount: 0 };
+
+      // Bulk fetch all enrollments for affected classes
+      const classIds = [...new Set(cancelledSessions.map(s => s.class_id))];
+      const { data: allEnrollments } = await supabase
+        .from("enrollments")
+        .select("class_id, student_id, start_date, end_date")
+        .in("class_id", classIds);
 
       let totalLostTuition = 0;
       let totalLostPayroll = 0;
 
-      for (const session of cancelledSessions || []) {
-        // Calculate session duration in hours
+      for (const session of cancelledSessions) {
         const [startHr, startMin] = session.start_time.split(':').map(Number);
         const [endHr, endMin] = session.end_time.split(':').map(Number);
         const hours = ((endHr * 60 + endMin) - (startHr * 60 + startMin)) / 60;
 
-        // Get enrolled student count for this class at time of session
-        const { count } = await supabase
-          .from("enrollments")
-          .select("*", { count: "exact", head: true })
-          .eq("class_id", session.classes?.id)
-          .lte("start_date", session.date)
-          .or(`end_date.is.null,end_date.gte.${session.date}`);
+        // Count enrolled students on this session's date
+        const studentCount = (allEnrollments || []).filter(e =>
+          e.class_id === session.class_id &&
+          e.start_date <= session.date &&
+          (!e.end_date || e.end_date >= session.date)
+        ).length;
 
-        const studentCount = count || 0;
-        const sessionRate = session.classes?.session_rate_vnd || 0;
-        const teacherHourlyRate = session.teachers?.hourly_rate_vnd || 0;
+        const sessionRate = (session.classes as any)?.session_rate_vnd || 0;
+        const teacherHourlyRate = (session.teachers as any)?.hourly_rate_vnd || 0;
 
         totalLostTuition += sessionRate * studentCount;
         totalLostPayroll += teacherHourlyRate * hours;
@@ -77,12 +77,12 @@ const ReportsTab = () => {
         lostProfit: totalLostTuition - totalLostPayroll,
         lostTuition: totalLostTuition,
         savedPayroll: totalLostPayroll,
-        sessionCount: cancelledSessions?.length || 0
+        sessionCount: cancelledSessions.length,
       };
     },
   });
 
-  // Fetch excused absences with tuition loss
+  // Excused absences
   const { data: excusedData } = useQuery({
     queryKey: ["excused-absences", selectedMonth],
     queryFn: async () => {
@@ -93,42 +93,28 @@ const ReportsTab = () => {
 
       const { data: excused, error } = await supabase
         .from("attendance")
-        .select(`
-          id, status,
-          students (id, full_name),
-          sessions!inner (id, date, start_time, end_time, class_id,
-            classes (id, name, session_rate_vnd)
-          )
-        `)
+        .select(`id, status, students(id, full_name), sessions!inner(id, date, start_time, end_time, class_id, classes(id, name, session_rate_vnd))`)
         .eq("status", "Excused")
         .gte("sessions.date", monthStart)
         .lt("sessions.date", monthEnd);
 
       if (error) throw error;
 
-      const rows = (excused || []).map((a: any) => {
-        const session = a.sessions;
-        const cls = session?.classes;
-        const rate = cls?.session_rate_vnd || 0;
-        return {
-          id: a.id,
-          studentName: a.students?.full_name || "Unknown",
-          className: cls?.name || "Unknown",
-          date: session?.date,
-          rate,
-        };
-      });
+      const rows = (excused || []).map((a: any) => ({
+        id: a.id,
+        studentName: a.students?.full_name || "Unknown",
+        className: a.sessions?.classes?.name || "Unknown",
+        date: a.sessions?.date,
+        rate: a.sessions?.classes?.session_rate_vnd || 0,
+      }));
 
-      // Sort by date desc
       rows.sort((a: any, b: any) => (b.date || "").localeCompare(a.date || ""));
-
       const totalLoss = rows.reduce((sum: number, r: any) => sum + r.rate, 0);
-
       return { rows, totalLoss, count: rows.length };
     },
   });
 
-  // Fetch class finance data
+  // Class finance - BULK queries instead of per-class waterfall
   const { data: classFinance } = useQuery({
     queryKey: ["class-finance", selectedMonth],
     queryFn: async () => {
@@ -137,96 +123,97 @@ const ReportsTab = () => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      // Get all classes
-      const { data: classes, error: classesError } = await supabase
-        .from("classes")
-        .select("id, name, session_rate_vnd")
-        .eq("is_active", true);
+      // 3 bulk queries instead of N*3
+      const [classesRes, sessionsRes, enrollmentsRes, invoicesRes] = await Promise.all([
+        supabase.from("classes").select("id, name, session_rate_vnd").eq("is_active", true),
+        supabase
+          .from("sessions")
+          .select("id, class_id, teacher_id, start_time, end_time, rate_override_vnd, status, teachers(hourly_rate_vnd)")
+          .in("status", ["Scheduled", "Held"])
+          .gte("date", monthStart)
+          .lt("date", monthEnd),
+        supabase
+          .from("enrollments")
+          .select("student_id, class_id")
+          .lte("start_date", monthEnd)
+          .or(`end_date.is.null,end_date.gte.${monthStart}`),
+        supabase
+          .from("invoices")
+          .select("class_breakdown, student_id")
+          .eq("month", selectedMonth),
+      ]);
 
-      if (classesError) throw classesError;
+      const classes = classesRes.data || [];
+      const sessions = sessionsRes.data || [];
+      const enrollments = enrollmentsRes.data || [];
+      const invoices = invoicesRes.data || [];
 
-      // For each class, calculate projected tuition and payroll
-      const classData = await Promise.all(
-        (classes || []).map(async (cls) => {
-          // Get projected sessions (Scheduled + Held, excluding Canceled)
-          const { data: sessions, error: sessionsError } = await supabase
-            .from("sessions")
-            .select("id, teacher_id, start_time, end_time, rate_override_vnd, status, teachers(hourly_rate_vnd)")
-            .eq("class_id", cls.id)
-            .in("status", ["Scheduled", "Held"])
-            .gte("date", monthStart)
-            .lt("date", monthEnd);
+      // Group sessions by class
+      const sessionsByClass: Record<string, typeof sessions> = {};
+      for (const s of sessions) {
+        if (!sessionsByClass[s.class_id]) sessionsByClass[s.class_id] = [];
+        sessionsByClass[s.class_id].push(s);
+      }
 
-          if (sessionsError) throw sessionsError;
+      // Group enrollments by class
+      const enrollmentsByClass: Record<string, Set<string>> = {};
+      for (const e of enrollments) {
+        if (!enrollmentsByClass[e.class_id]) enrollmentsByClass[e.class_id] = new Set();
+        enrollmentsByClass[e.class_id].add(e.student_id);
+      }
 
-          // Get enrollments for student count
-          const { data: enrollments, error: enrollmentsError } = await supabase
-            .from("enrollments")
-            .select("student_id")
-            .eq("class_id", cls.id)
-            .lte("start_date", monthEnd)
-            .or(`end_date.is.null,end_date.gte.${monthStart}`);
+      // Index invoices by student
+      const invoicesByStudent: Record<string, typeof invoices> = {};
+      for (const inv of invoices) {
+        if (!invoicesByStudent[inv.student_id]) invoicesByStudent[inv.student_id] = [];
+        invoicesByStudent[inv.student_id].push(inv);
+      }
 
-          if (enrollmentsError) throw enrollmentsError;
+      return classes.map((cls) => {
+        const classSessions = sessionsByClass[cls.id] || [];
+        const classEnrollments = enrollmentsByClass[cls.id] || new Set();
+        const studentCount = classEnrollments.size;
 
-          const sessionCount = sessions?.length || 0;
-          const studentCount = enrollments?.length || 0;
-
-          // Get actual tuition from invoices using class_breakdown for accurate per-class amounts
-          // Use net_amount_vnd (post-discount) if available, otherwise fall back to amount_vnd
-          let grossTuition = 0;
-          let netTuition = 0;
-          if (enrollments && enrollments.length > 0) {
-            const studentIds = enrollments.map(e => e.student_id);
-            const { data: invoices, error: invoicesError } = await supabase
-              .from("invoices")
-              .select("class_breakdown, student_id")
-              .in("student_id", studentIds)
-              .eq("month", selectedMonth);
-
-            if (!invoicesError && invoices) {
-              // Sum only the amount for THIS specific class from each invoice's class_breakdown
-              invoices.forEach((inv) => {
-                const breakdown = inv.class_breakdown as Array<{ class_id: string; amount_vnd: number; net_amount_vnd?: number }> | null;
-                const classEntry = breakdown?.find(c => c.class_id === cls.id);
-                if (classEntry) {
-                  grossTuition += classEntry.amount_vnd || 0;
-                  // Use net_amount_vnd if available, otherwise fall back to amount_vnd
-                  netTuition += classEntry.net_amount_vnd ?? classEntry.amount_vnd ?? 0;
-                }
-              });
+        // Tuition from invoices
+        let grossTuition = 0;
+        let netTuition = 0;
+        for (const sid of classEnrollments) {
+          const studentInvoices = invoicesByStudent[sid] || [];
+          for (const inv of studentInvoices) {
+            const breakdown = inv.class_breakdown as Array<{ class_id: string; amount_vnd: number; net_amount_vnd?: number }> | null;
+            const entry = breakdown?.find((c) => c.class_id === cls.id);
+            if (entry) {
+              grossTuition += entry.amount_vnd || 0;
+              netTuition += entry.net_amount_vnd ?? entry.amount_vnd ?? 0;
             }
           }
+        }
 
-          // Calculate projected payroll for all sessions (Scheduled + Held)
-          let payroll = 0;
-          sessions?.forEach((session: any) => {
-            const [startHr, startMin] = session.start_time.split(':').map(Number);
-            const [endHr, endMin] = session.end_time.split(':').map(Number);
-            const minutes = (endHr * 60 + endMin) - (startHr * 60 + startMin);
-            const hours = minutes / 60;
-            const rate = session.teachers?.hourly_rate_vnd || 0;
-            payroll += hours * rate;
-          });
+        // Payroll
+        let payroll = 0;
+        for (const session of classSessions) {
+          const [startHr, startMin] = session.start_time.split(':').map(Number);
+          const [endHr, endMin] = session.end_time.split(':').map(Number);
+          const hours = ((endHr * 60 + endMin) - (startHr * 60 + startMin)) / 60;
+          const rate = (session.teachers as any)?.hourly_rate_vnd || 0;
+          payroll += hours * rate;
+        }
 
-          const discounts = grossTuition - netTuition;
-          const net = netTuition - payroll;
+        const discounts = grossTuition - netTuition;
+        const net = netTuition - payroll;
 
-          return {
-            id: cls.id,
-            name: cls.name,
-            sessionCount,
-            studentCount,
-            grossTuition: Math.round(grossTuition),
-            discounts: Math.round(discounts),
-            tuition: Math.round(netTuition), // This is now net tuition (post-discount)
-            payroll: Math.round(payroll),
-            net: Math.round(net),
-          };
-        })
-      );
-
-      return classData;
+        return {
+          id: cls.id,
+          name: cls.name,
+          sessionCount: classSessions.length,
+          studentCount,
+          grossTuition: Math.round(grossTuition),
+          discounts: Math.round(discounts),
+          tuition: Math.round(netTuition),
+          payroll: Math.round(payroll),
+          net: Math.round(net),
+        };
+      });
     },
   });
 
@@ -247,15 +234,13 @@ const ReportsTab = () => {
           </SelectTrigger>
           <SelectContent>
             {getMonthOptions().map(opt => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Cancelled Sessions & Lost Profit Summary */}
+      {/* Cancelled Sessions & Lost Profit */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -278,14 +263,10 @@ const ReportsTab = () => {
               <TrendingDown className="h-5 w-5 text-orange-600" />
               Lost Profit
             </CardTitle>
-            <CardDescription>
-              Potential profit lost from cancelled sessions
-            </CardDescription>
+            <CardDescription>Potential profit lost from cancelled sessions</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-orange-600">
-              {formatVND(lostRevenue?.lostProfit || 0)}
-            </div>
+            <div className="text-4xl font-bold text-orange-600">{formatVND(lostRevenue?.lostProfit || 0)}</div>
             <div className="text-sm text-muted-foreground mt-2 space-y-1">
               <p>Lost Tuition: {formatVND(lostRevenue?.lostTuition || 0)}</p>
               <p>Saved Payroll: {formatVND(lostRevenue?.savedPayroll || 0)}</p>
@@ -294,7 +275,7 @@ const ReportsTab = () => {
         </Card>
       </div>
 
-      {/* Excused Absences & Tuition Loss */}
+      {/* Excused Absences */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -302,7 +283,7 @@ const ReportsTab = () => {
             Excused Absences
           </CardTitle>
           <CardDescription>
-            Students excused from sessions — tuition lost: {formatVND(excusedData?.totalLoss || 0)} ({excusedData?.count || 0} absences)
+            Students excused — tuition lost: {formatVND(excusedData?.totalLoss || 0)} ({excusedData?.count || 0} absences)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -340,7 +321,7 @@ const ReportsTab = () => {
       {/* Family Payment Activity Log */}
       <FamilyPaymentActivityLog selectedMonth={selectedMonth} />
 
-      {/* Payment Details Section */}
+      {/* Payment Details */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -348,7 +329,7 @@ const ReportsTab = () => {
             Payment Details
           </CardTitle>
           <CardDescription>
-            All payments recorded for {getMonthOptions().find(o => o.value === selectedMonth)?.label}
+            All payments for {getMonthOptions().find(o => o.value === selectedMonth)?.label}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -393,7 +374,7 @@ const ReportsTab = () => {
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatVND(cls.tuition)}</TableCell>
                   <TableCell className="text-right">{formatVND(cls.payroll)}</TableCell>
-                  <TableCell className={`text-right font-semibold ${cls.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <TableCell className={`text-right font-semibold ${cls.net >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                     {formatVND(cls.net)}
                   </TableCell>
                 </TableRow>
@@ -408,7 +389,7 @@ const ReportsTab = () => {
                 </TableCell>
                 <TableCell className="text-right">{formatVND(totalTuition)}</TableCell>
                 <TableCell className="text-right">{formatVND(totalPayroll)}</TableCell>
-                <TableCell className={`text-right ${totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <TableCell className={`text-right ${totalNet >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                   {formatVND(totalNet)}
                 </TableCell>
               </TableRow>
