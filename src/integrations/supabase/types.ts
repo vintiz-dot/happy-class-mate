@@ -716,6 +716,42 @@ export type Database = {
           },
         ]
       }
+      feedback_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          student_id: string
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          student_id: string
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          student_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_reactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_reactions_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "homework_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       homework_files: {
         Row: {
           created_at: string | null

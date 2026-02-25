@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Heart } from "lucide-react";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { dayjs } from "@/lib/date";
+import { soundManager } from "@/lib/soundManager";
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
@@ -29,7 +30,42 @@ export default function HomeworkSubmission({
     existingSubmission?.submission_text || ""
   );
   const [file, setFile] = useState<File | null>(null);
+  const [thanked, setThanked] = useState(false);
   const queryClient = useQueryClient();
+
+  // Check if student already thanked
+  const { data: existingReaction } = useQuery({
+    queryKey: ["feedback-reaction", existingSubmission?.id, studentId],
+    queryFn: async () => {
+      if (!existingSubmission?.id) return null;
+      const { data } = await supabase
+        .from("feedback_reactions")
+        .select("id")
+        .eq("submission_id", existingSubmission.id)
+        .eq("student_id", studentId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!existingSubmission?.id && existingSubmission?.status === "graded",
+  });
+
+  const thankMutation = useMutation({
+    mutationFn: async () => {
+      if (!existingSubmission?.id) return;
+      await supabase.from("feedback_reactions").insert({
+        submission_id: existingSubmission.id,
+        student_id: studentId,
+      });
+    },
+    onSuccess: () => {
+      setThanked(true);
+      soundManager.play("success");
+      toast.success("💕 Thank you sent to your teacher!");
+    },
+    onError: () => {
+      toast.error("Could not send reaction");
+    },
+  });
 
   // Fetch homework details to check due date
   const { data: homework } = useQuery({
@@ -150,6 +186,7 @@ export default function HomeworkSubmission({
       }
     },
     onSuccess: () => {
+      soundManager.play("questComplete");
       toast.success("Homework submitted successfully");
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
@@ -275,11 +312,36 @@ export default function HomeworkSubmission({
           )}
           
           {existingSubmission.teacher_feedback && (
-            <div className="border-t pt-3">
-              <p className="text-sm font-semibold mb-2">Teacher Feedback:</p>
-              <p className="text-sm text-foreground whitespace-pre-wrap">
-                {existingSubmission.teacher_feedback}
-              </p>
+            <div className="relative border-t pt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">💬</span>
+                <p className="text-sm font-semibold">Teacher Feedback</p>
+              </div>
+              <div className="relative bg-primary/5 border border-primary/15 rounded-xl p-4 ml-2">
+                {/* Speech bubble triangle */}
+                <div className="absolute -left-2 top-4 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-primary/15 border-b-[6px] border-b-transparent" />
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                  {existingSubmission.teacher_feedback}
+                </p>
+              </div>
+              {/* Thank Teacher button */}
+              {!existingReaction && !thanked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 ml-2 gap-1.5 text-xs border-primary/20 hover:bg-primary/10 hover:text-primary"
+                  onClick={() => thankMutation.mutate()}
+                  disabled={thankMutation.isPending}
+                >
+                  <Heart className="h-3.5 w-3.5" />
+                  Thank you, Teacher!
+                </Button>
+              )}
+              {(existingReaction || thanked) && (
+                <p className="mt-2 ml-2 text-xs text-muted-foreground flex items-center gap-1">
+                  <Heart className="h-3 w-3 fill-primary text-primary" /> You thanked your teacher
+                </p>
+              )}
             </div>
           )}
         </div>

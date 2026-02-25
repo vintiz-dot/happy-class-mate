@@ -12,6 +12,7 @@ import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
 import { useLoginChallenge } from "@/hooks/useLoginChallenge";
+import { GradeCelebration } from "@/components/student/GradeCelebration";
 
 export default function StudentAssignments() {
   const { studentId } = useStudentProfile();
@@ -159,6 +160,7 @@ export default function StudentAssignments() {
 
   return (
     <Layout title="Assignments">
+      {studentId && <GradeCelebration studentId={studentId} />}
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Assignments</h1>

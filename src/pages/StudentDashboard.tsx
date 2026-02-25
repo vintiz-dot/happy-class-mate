@@ -26,6 +26,7 @@ import { QuestCard } from "@/components/student/QuestCard";
 import { CelebrationOverlay } from "@/components/student/CelebrationOverlay";
 import { HowToEarnXP } from "@/components/student/HowToEarnXP";
 import { AchievementBadges } from "@/components/student/AchievementBadges";
+import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 
 // Animation variants
 const containerVariants = {
@@ -504,10 +505,15 @@ export default function StudentDashboard() {
           </div>
         </motion.div>
 
+        {/* Weekly Progress Summary */}
+        <motion.div variants={itemVariants}>
+          <WeeklyProgressCard studentId={studentId} currentStreak={streakData.currentStreak} />
+        </motion.div>
+
         {/* Stats Row - Streak & Challenges */}
         <div className="grid gap-6 md:grid-cols-2">
           <motion.div variants={itemVariants}>
-            <DailyStreakCard 
+            <DailyStreakCard
               currentStreak={streakData.currentStreak}
               longestStreak={streakData.longestStreak}
               weekActivity={streakData.weekActivity}

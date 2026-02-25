@@ -3,6 +3,7 @@ import { Clock, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
 
 interface QuestCardProps {
   id: string;
@@ -29,6 +30,44 @@ const statusConfig = {
   overdue: { badge: "Overdue", variant: "destructive" as const },
 };
 
+function useCountdown(dueDate?: string) {
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
+
+  useEffect(() => {
+    if (!dueDate) return;
+
+    const update = () => {
+      const due = dayjs(dueDate + "T23:59:59");
+      const now = dayjs();
+      const diff = due.diff(now);
+
+      if (diff <= 0) {
+        setTimeLeft("");
+        setIsUrgent(false);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (hours < 24) {
+        setIsUrgent(true);
+        setTimeLeft(hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`);
+      } else {
+        setIsUrgent(false);
+        setTimeLeft("");
+      }
+    };
+
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [dueDate]);
+
+  return { timeLeft, isCountdownUrgent: isUrgent };
+}
+
 export function QuestCard({
   id,
   title,
@@ -42,11 +81,12 @@ export function QuestCard({
 }: QuestCardProps) {
   const { icon, label, color } = typeConfig[type];
   const { badge, variant } = statusConfig[status];
+  const { timeLeft, isCountdownUrgent } = useCountdown(status !== "completed" && status !== "overdue" ? dueDate : undefined);
   
   const isOverdue = status === "overdue";
   const isCompleted = status === "completed";
   const daysUntilDue = dueDate ? dayjs(dueDate).diff(dayjs(), 'day') : null;
-  const isUrgent = daysUntilDue !== null && daysUntilDue <= 1 && !isCompleted;
+  const isUrgent = isCountdownUrgent || (daysUntilDue !== null && daysUntilDue <= 1 && !isCompleted);
 
   return (
     <motion.div
@@ -121,6 +161,24 @@ export function QuestCard({
               </div>
             )}
           </div>
+
+          {/* Live countdown timer */}
+          {timeLeft && !isCompleted && (
+            <motion.div
+              className="flex items-center gap-1.5 mt-1"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+            >
+              <motion.div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/15 text-warning text-xs font-bold"
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Clock className="h-3 w-3" />
+                ⏰ {timeLeft}
+              </motion.div>
+            </motion.div>
+          )}
 
           {/* Progress bar for in-progress quests */}
           {status === "in_progress" && progress > 0 && (
