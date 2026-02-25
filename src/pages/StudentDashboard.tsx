@@ -890,7 +890,7 @@ export default function StudentDashboard() {
                   <p className="text-sm text-muted-foreground">Track your class attendance and streaks</p>
                 </div>
               </div>
-              <AttendanceHeatmap studentId={studentId} months={6} />
+              <AttendanceHeatmap studentId={studentId} />
             </motion.div>
           </TabsContent>
         </Tabs>
