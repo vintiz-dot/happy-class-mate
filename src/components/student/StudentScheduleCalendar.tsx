@@ -35,12 +35,20 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
     queryFn: async () => {
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("class_id")
+        .select("class_id, start_date, end_date")
         .eq("student_id", studentId);
 
       if (!enrollments?.length) return { byDate: {}, streak: 0, longestStreak: 0, xpTrend: [] };
 
-      const classIds = enrollments.map((e) => e.class_id);
+      // Helper: was student enrolled in this class on this date?
+      const wasEnrolled = (classId: string, date: string) =>
+        enrollments.some(e =>
+          e.class_id === classId &&
+          e.start_date <= date &&
+          (!e.end_date || e.end_date >= date)
+        );
+
+      const classIds = [...new Set(enrollments.map((e) => e.class_id))];
       const from = startDate.format("YYYY-MM-DD");
       const to = endDate.format("YYYY-MM-DD");
 
@@ -76,7 +84,7 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
         // Streak: last 90 days
         supabase
           .from("sessions")
-          .select("id, date")
+          .select("id, date, class_id")
           .in("class_id", classIds)
           .gte("date", dayjs().subtract(90, "day").format("YYYY-MM-DD"))
           .lte("date", dayjs().format("YYYY-MM-DD"))
@@ -87,6 +95,11 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
           .eq("student_id", studentId)
           .eq("status", "Present"),
       ]);
+
+      // Post-filter sessions and homeworks by enrollment dates
+      const filteredSessions = (sessionsRes.data || []).filter(s => wasEnrolled(s.class_id, s.date));
+      const filteredHomeworks = (homeworksRes.data || []).filter(hw => hw.due_date && wasEnrolled(hw.class_id, hw.due_date));
+      const filteredStreakSessions = (streakSessionsRes.data || []).filter(s => wasEnrolled(s.class_id, s.date));
 
       const presentSet = new Set(attendanceRes.data?.map((a) => a.session_id) || []);
       const submissionMap = new Map((submissionsRes.data || []).map(s => [s.homework_id, s]));
@@ -100,7 +113,7 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
 
       // Homeworks by due date
       const homeworksByDate: Record<string, Array<{ id: string; title: string; className: string; submission: any }>> = {};
-      for (const hw of homeworksRes.data || []) {
+      for (const hw of filteredHomeworks) {
         const d = hw.due_date;
         if (!d) continue;
         if (!homeworksByDate[d]) homeworksByDate[d] = [];
@@ -122,7 +135,7 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
       };
       const byDate: Record<string, DayInfo> = {};
 
-      for (const s of sessionsRes.data || []) {
+      for (const s of filteredSessions) {
         if (!byDate[s.date]) byDate[s.date] = { sessions: [], points: pointsByDate[s.date] || [], totalPoints: 0, attendedCount: 0, homeworks: homeworksByDate[s.date] || [] };
         const present = presentSet.has(s.id);
         if (present) byDate[s.date].attendedCount++;
@@ -146,7 +159,7 @@ export function StudentScheduleCalendar({ studentId }: StudentScheduleCalendarPr
       // Streak
       const streakPresentSet = new Set(streakAttendanceRes.data?.map((a) => a.session_id) || []);
       const streakByDate: Record<string, { total: number; present: number }> = {};
-      for (const s of streakSessionsRes.data || []) {
+      for (const s of filteredStreakSessions) {
         if (!streakByDate[s.date]) streakByDate[s.date] = { total: 0, present: 0 };
         streakByDate[s.date].total++;
         if (streakPresentSet.has(s.id)) streakByDate[s.date].present++;
