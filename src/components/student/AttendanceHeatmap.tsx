@@ -32,19 +32,27 @@ export function AttendanceHeatmap({ studentId }: AttendanceHeatmapProps) {
     queryFn: async () => {
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("class_id")
+        .select("class_id, start_date, end_date")
         .eq("student_id", studentId);
 
       if (!enrollments?.length) return { byDate: {}, streak: 0, longestStreak: 0, xpTrend: [] };
 
-      const classIds = enrollments.map((e) => e.class_id);
+      // Helper: was student enrolled in this class on this date?
+      const wasEnrolled = (classId: string, date: string) =>
+        enrollments.some(e =>
+          e.class_id === classId &&
+          e.start_date <= date &&
+          (!e.end_date || e.end_date >= date)
+        );
+
+      const classIds = [...new Set(enrollments.map((e) => e.class_id))];
       const from = startDate.format("YYYY-MM-DD");
       const to = endDate.format("YYYY-MM-DD");
 
       const [sessionsRes, attendanceRes, pointsRes, streakSessionsRes, streakAttendanceRes] = await Promise.all([
         supabase
           .from("sessions")
-          .select("id, date, start_time, status, class:classes(name)")
+          .select("id, date, start_time, status, class_id, class:classes(name)")
           .in("class_id", classIds)
           .gte("date", from)
           .lte("date", to)
@@ -63,7 +71,7 @@ export function AttendanceHeatmap({ studentId }: AttendanceHeatmapProps) {
         // For streak calc, fetch last 90 days
         supabase
           .from("sessions")
-          .select("id, date")
+          .select("id, date, class_id")
           .in("class_id", classIds)
           .gte("date", dayjs().subtract(90, "day").format("YYYY-MM-DD"))
           .lte("date", dayjs().format("YYYY-MM-DD"))
@@ -74,6 +82,10 @@ export function AttendanceHeatmap({ studentId }: AttendanceHeatmapProps) {
           .eq("student_id", studentId)
           .eq("status", "Present"),
       ]);
+
+      // Post-filter sessions by enrollment dates
+      const filteredSessions = (sessionsRes.data || []).filter(s => wasEnrolled(s.class_id, s.date));
+      const filteredStreakSessions = (streakSessionsRes.data || []).filter(s => wasEnrolled(s.class_id, s.date));
 
       const presentSet = new Set(attendanceRes.data?.map((a) => a.session_id) || []);
 
@@ -95,7 +107,7 @@ export function AttendanceHeatmap({ studentId }: AttendanceHeatmapProps) {
         }
       > = {};
 
-      for (const s of sessionsRes.data || []) {
+      for (const s of filteredSessions) {
         if (!byDate[s.date])
           byDate[s.date] = { count: 0, totalPoints: 0, sessions: [], points: pointsByDate[s.date] || [] };
         const present = presentSet.has(s.id);
@@ -111,7 +123,7 @@ export function AttendanceHeatmap({ studentId }: AttendanceHeatmapProps) {
       // Streak calculation from last 90 days
       const streakPresentSet = new Set(streakAttendanceRes.data?.map((a) => a.session_id) || []);
       const streakByDate: Record<string, { total: number; present: number }> = {};
-      for (const s of streakSessionsRes.data || []) {
+      for (const s of filteredStreakSessions) {
         if (!streakByDate[s.date]) streakByDate[s.date] = { total: 0, present: 0 };
         streakByDate[s.date].total++;
         if (streakPresentSet.has(s.id)) streakByDate[s.date].present++;
