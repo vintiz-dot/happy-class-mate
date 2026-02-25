@@ -1,108 +1,82 @@
 
 
-# Merge Schedule + Attendance into a Kid-Friendly "My Classes" Calendar
+# Clean Up Class Transfers — Stop Showing Old Class Data
 
 ## Problem
 
-Students currently have two separate views for related data:
-- **Schedule page** (`/schedule`) -- uses PremiumCalendar (complex, admin-oriented, 855 lines)
-- **Attendance tab** (`/student/dashboard?tab=attendance`) -- month-grid heatmap with XP trend
+When a student transfers from one class to another (e.g., Cherry moves from Venus to Jupiter), multiple components still show homework, sessions, and attendance from the **old class** because they query enrollments without respecting `end_date` or enrollment date ranges. This means:
 
-These serve overlapping purposes. A grade 3 student (~8 years old) shouldn't need to navigate between two calendars. The PremiumCalendar is powerful but not designed for young children.
+- The schedule calendar shows old class sessions and homework as "missed"
+- The assignments list only filters by `end_date IS NULL` (correct), but the calendar does not
+- The attendance heatmap shows old class data
+- Streak calculations include old class sessions
 
-## Plan
+## Affected Files and Fixes
 
-### 1. Create a new `StudentScheduleCalendar` component
+### 1. `src/components/student/StudentScheduleCalendar.tsx` (lines 36-39)
 
-**New file:** `src/components/student/StudentScheduleCalendar.tsx`
-
-A purpose-built, kid-friendly calendar that merges schedule + attendance into one view with:
-
-**Visual design for 8-year-olds:**
-- Large, rounded day cells with emoji indicators instead of tiny text
-- Color-coded days: 🟢 attended, 🔵 upcoming class, ⚪ no class, 🟡 homework due
-- Fun animated mascot-style header ("Your Class Calendar! 📅")
-- Big, tappable day cells (minimum 48px touch targets)
-- Friendly fonts, soft gradients, bouncy animations
-
-**Past days (on click popover):**
-- ✅ Attendance status with celebratory check marks
-- ⚡ XP points earned that day with breakdown by category
-- 📝 Homework that was due that day + submission status (submitted/graded/missed)
-- 📋 Recent homework assigned around that date
-
-**Future days (on click popover):**
-- 📅 Scheduled class name and time
-- 👩‍🏫 Teacher name with avatar
-- 📝 Homework due that day with countdown
-- Status badges ("Coming up!", "Tomorrow!")
-
-**Data fetching (single query):**
-- Sessions with class name, teacher name, status
-- Attendance records for the student
-- Point transactions for XP breakdown
-- Homeworks with due dates for enrolled classes
-- Homework submissions for the student
-
-**Month picker:** Reuse existing `MonthPicker` component, styled larger for kids
-
-**XP trend line chart:** Keep the recharts LineChart at the bottom, styled with fun colors
-
-**Streak display:** Keep the flame streak counter, make it bigger and more celebratory
-
-### 2. Update Student Navigation
-
-**Edit:** `src/components/student/StudentNavBar.tsx`
-- Remove the separate "Attendance" nav item
-- Keep "Schedule" as the merged destination, but route it to `/student/dashboard?tab=schedule` instead of `/schedule`
-
-### 3. Update StudentDashboard
-
-**Edit:** `src/pages/StudentDashboard.tsx`
-- Replace the "attendance" tab with a "schedule" tab
-- Render `StudentScheduleCalendar` in the schedule tab
-- Remove the old `AttendanceHeatmap` import (replaced by the new component)
-
-### 4. Route update
-
-**Edit:** `src/App.tsx`
-- No route changes needed; the `/schedule` route still exists for admin/teacher. Students access via dashboard tab.
-
-### 5. Kid-Friendly UX Additions
-
-- **Day cell indicators:** Small emoji dots (📝 for homework due, ✅ for attended, ⭐ for XP earned)
-- **"Today" highlight:** Extra-large pulsing ring with "TODAY!" label
-- **Empty state:** Friendly mascot saying "No classes this day! Time to play! 🎮"
-- **Streak celebration:** When streak >= 5, show fire animation 🔥
-- **Color legend:** Kid-friendly with emoji + simple words ("I was there! ✅", "Class coming! 🔵")
-
-### Technical Details
-
-**Data model (single useQuery):**
-```text
-sessions → class name, teacher, time, status
-attendance → student present/absent per session
-point_transactions → XP by date + category
-homeworks → title, due_date, class_id (for enrolled classes)
-homework_submissions → student's submission status per homework
+**Current:** Queries ALL enrollments regardless of dates:
+```ts
+.from("enrollments")
+.select("class_id")
+.eq("student_id", studentId);
 ```
 
-**Component structure:**
-```text
-StudentScheduleCalendar
-├── Header (streak stats + month picker)
-├── Calendar Grid (7-col, large cells)
-│   └── Day Cell → Popover on click
-│       ├── Past: attendance + XP + homework status
-│       └── Future: schedule + teacher + homework due
-├── Legend (emoji-based, kid-friendly)
-└── XP Trend Chart (recharts LineChart)
+**Fix:** Fetch enrollments with `start_date` and `end_date`, then for the selected month only use class IDs where the enrollment overlaps that month. Also filter sessions per-enrollment so a session from Venus only appears if Cherry was enrolled in Venus on that session's date. Same logic for homeworks — only show homework from a class if the student was enrolled when it was due.
+
+For streaks (lines 77-83), similarly scope to only active enrollments.
+
+### 2. `src/components/student/AttendanceHeatmap.tsx` (lines 33-36)
+
+**Same problem:** Queries all enrollments without date filtering. Apply the same overlap-based filtering.
+
+### 3. `src/components/student/StudentAttendanceTab.tsx` (lines 67-83)
+
+**Partially correct:** It already fetches `start_date, end_date` and filters sessions by enrollment dates. No changes needed here.
+
+### 4. `src/components/student/WeeklyProgressCard.tsx` (lines 20-25)
+
+**Current:** Uses `.is("end_date", null)` which is correct for showing only active classes. No change needed.
+
+### 5. `src/pages/StudentDashboard.tsx` (lines 149-153, 184-188)
+
+**Current:** Uses `.is("end_date", null)` for upcoming sessions and pending homework. Correct for future-looking queries. No change needed.
+
+## Implementation Approach
+
+For the two main files that need fixing (`StudentScheduleCalendar.tsx` and `AttendanceHeatmap.tsx`):
+
+1. Change the enrollment query to fetch `class_id, start_date, end_date` instead of just `class_id`
+2. For session/homework filtering, build a helper that checks whether a given date falls within any enrollment's active period for that class
+3. When building `classIds` for bulk queries, include all historically enrolled class IDs, but then post-filter each session/homework against the enrollment date range
+4. For homework specifically: only show homework as "missed" if the student was enrolled in that class on the homework's due date
+5. For streaks: only count sessions from classes the student was enrolled in on that session date
+
+### Technical Detail
+
+The key filtering logic:
+
+```typescript
+// Fetch enrollments with dates
+const { data: enrollments } = await supabase
+  .from("enrollments")
+  .select("class_id, start_date, end_date")
+  .eq("student_id", studentId);
+
+// Helper: was student enrolled in this class on this date?
+const wasEnrolled = (classId: string, date: string) =>
+  enrollments?.some(e =>
+    e.class_id === classId &&
+    e.start_date <= date &&
+    (!e.end_date || e.end_date >= date)
+  ) ?? false;
+
+// Filter sessions after fetching
+const filteredSessions = sessionsRes.data?.filter(s => wasEnrolled(s.class_id, s.date));
+
+// Filter homeworks after fetching
+const filteredHomeworks = homeworksRes.data?.filter(hw => wasEnrolled(hw.class_id, hw.due_date));
 ```
 
-**Files to create:**
-- `src/components/student/StudentScheduleCalendar.tsx`
-
-**Files to edit:**
-- `src/components/student/StudentNavBar.tsx` -- remove "Attendance" item, update "Schedule" path
-- `src/pages/StudentDashboard.tsx` -- replace attendance tab with schedule tab using new component
+No database changes needed. This is purely a client-side filtering fix in two component files.
 
