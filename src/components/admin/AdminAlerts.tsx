@@ -26,28 +26,35 @@ export function AdminAlerts() {
       const currentMonth = now.format("YYYY-MM");
       const results: Alert[] = [];
 
-      // 1. Overdue payments: students with unpaid invoices from past months
-      const { data: overdueInvoices } = await supabase
+      // 1. Overdue payments: compute net balance across ALL historical invoices per student
+      const { data: allInvoices } = await supabase
         .from("invoices")
-        .select("student_id, month, total_amount, paid_amount, recorded_payment, carry_out_debt, students:student_id(full_name)")
-        .lt("month", currentMonth)
-        .in("status", ["draft", "issued"])
-        .order("month", { ascending: true })
-        .limit(50);
+        .select("student_id, month, total_amount, recorded_payment, students:student_id(full_name)")
+        .lt("month", currentMonth);
 
       const overdueStudents = new Map<string, { name: string; totalOwed: number; months: string[] }>();
-      for (const inv of overdueInvoices || []) {
-        const owed = (inv.carry_out_debt ?? null) !== null
-          ? (inv.carry_out_debt || 0)
-          : (inv.total_amount || 0) - (inv.recorded_payment || inv.paid_amount || 0);
-        if (owed <= 0) continue;
-        const existing = overdueStudents.get(inv.student_id);
+      // Group by student and compute net balance: sum(total_amount) - sum(recorded_payment)
+      const studentTotals = new Map<string, { name: string; charged: number; paid: number; months: Set<string> }>();
+      for (const inv of allInvoices || []) {
         const name = (inv.students as any)?.full_name || "Unknown";
+        const existing = studentTotals.get(inv.student_id);
         if (existing) {
-          existing.totalOwed += owed;
-          existing.months.push(inv.month);
+          existing.charged += inv.total_amount || 0;
+          existing.paid += inv.recorded_payment || 0;
+          existing.months.add(inv.month);
         } else {
-          overdueStudents.set(inv.student_id, { name, totalOwed: owed, months: [inv.month] });
+          studentTotals.set(inv.student_id, {
+            name,
+            charged: inv.total_amount || 0,
+            paid: inv.recorded_payment || 0,
+            months: new Set([inv.month]),
+          });
+        }
+      }
+      for (const [sid, info] of studentTotals) {
+        const netDebt = info.charged - info.paid;
+        if (netDebt > 0) {
+          overdueStudents.set(sid, { name: info.name, totalOwed: netDebt, months: [...info.months] });
         }
       }
 

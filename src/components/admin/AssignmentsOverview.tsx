@@ -1,151 +1,77 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
+import { useAssignmentAnalytics } from "@/hooks/useAssignmentAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Calendar as CalendarIcon, ListChecks } from "lucide-react";
+import { BookOpen, School, GraduationCap, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AssignmentGlobalView } from "./assignments/AssignmentGlobalView";
+import { AssignmentByClassView } from "./assignments/AssignmentByClassView";
+import { AssignmentByTeacherView } from "./assignments/AssignmentByTeacherView";
+import { AssignmentByStudentView } from "./assignments/AssignmentByStudentView";
 
 export function AssignmentsOverview() {
-  const { data: assignments } = useQuery({
-    queryKey: ["admin-assignments-overview"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("homeworks")
-        .select(`
-          id,
-          title,
-          due_date,
-          class_id,
-          classes!inner(name),
-          homework_submissions(
-            id,
-            status,
-            student_id
-          )
-        `)
-        .order("due_date", { ascending: true })
-        .limit(50);
+  const { data, isLoading } = useAssignmentAnalytics();
 
-      if (error) throw error;
-      return data;
-    },
-  });
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <BookOpen className="h-6 w-6" /> Assignments Overview
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-[400px] rounded-xl" />
+      </div>
+    );
+  }
 
-  const getStats = () => {
-    if (!assignments) return { total: 0, pending: 0, graded: 0 };
-    
-    const total = assignments.length;
-    let totalSubmissions = 0;
-    let gradedSubmissions = 0;
-
-    assignments.forEach(hw => {
-      const subs = hw.homework_submissions || [];
-      totalSubmissions += subs.length;
-      gradedSubmissions += subs.filter((s: any) => s.status === "graded").length;
-    });
-
-    return {
-      total,
-      totalSubmissions,
-      gradedSubmissions,
-      pendingSubmissions: totalSubmissions - gradedSubmissions,
-    };
-  };
-
-  const stats = getStats();
+  if (!data) return null;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <BookOpen className="h-6 w-6" />
-          Assignments Overview
+          <BookOpen className="h-6 w-6" /> Assignments Overview
         </h2>
-        <p className="text-muted-foreground">Track all assignments across classes</p>
+        <p className="text-muted-foreground">Comprehensive assignment analytics across all classes</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="glass-sm p-4">
-          <div className="text-sm text-muted-foreground">Total Assignments</div>
-          <div className="text-2xl font-bold">{stats.total}</div>
-        </Card>
-        <Card className="glass-sm p-4">
-          <div className="text-sm text-muted-foreground">Total Submissions</div>
-          <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
-        </Card>
-        <Card className="glass-sm p-4">
-          <div className="text-sm text-muted-foreground">Graded</div>
-          <div className="text-2xl font-bold text-success">{stats.gradedSubmissions}</div>
-        </Card>
-        <Card className="glass-sm p-4">
-          <div className="text-sm text-muted-foreground">Pending Grading</div>
-          <div className="text-2xl font-bold text-warning">{stats.pendingSubmissions}</div>
-        </Card>
-      </div>
-
-      {/* Calendar and List View */}
-      <Tabs defaultValue="calendar" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="calendar" className="gap-2">
-            <CalendarIcon className="h-4 w-4" />
-            Calendar View
+      <Tabs defaultValue="global" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="global" className="gap-1.5">
+            <BookOpen className="h-4 w-4" /> Global
           </TabsTrigger>
-          <TabsTrigger value="list" className="gap-2">
-            <ListChecks className="h-4 w-4" />
-            List View
+          <TabsTrigger value="class" className="gap-1.5">
+            <School className="h-4 w-4" /> By Class
+          </TabsTrigger>
+          <TabsTrigger value="teacher" className="gap-1.5">
+            <GraduationCap className="h-4 w-4" /> By Teacher
+          </TabsTrigger>
+          <TabsTrigger value="student" className="gap-1.5">
+            <Users className="h-4 w-4" /> By Student
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendar" className="mt-4">
-          <AssignmentCalendar role="admin" />
+        <TabsContent value="global" className="mt-4">
+          <AssignmentGlobalView
+            global={data.global}
+            assignments={data.assignments}
+            gradeDistribution={data.gradeDistribution}
+            byClass={data.byClass}
+          />
         </TabsContent>
 
-        <TabsContent value="list" className="mt-4">
-          <Card className="glass-sm">
-            <ScrollArea className="h-[600px]">
-              <div className="p-4 space-y-3">
-                {assignments?.map((assignment) => {
-                  const submissions = assignment.homework_submissions || [];
-                  const gradedCount = submissions.filter((s: any) => s.status === "graded").length;
-                  const submittedCount = submissions.filter((s: any) => s.status === "submitted").length;
-                  
-                  return (
-                    <Card key={assignment.id} className="glass-sm p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{assignment.title}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {assignment.classes.name}
-                          </p>
-                          <div className="flex gap-2 mt-2 text-xs">
-                            <Badge variant="outline">
-                              Due: {assignment.due_date || "No date"}
-                            </Badge>
-                            <Badge variant="secondary">
-                              {submissions.length} submissions
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="text-right space-y-1">
-                          <div className="text-sm">
-                            <span className="text-success font-medium">{gradedCount}</span>
-                            <span className="text-muted-foreground"> graded</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-warning font-medium">{submittedCount}</span>
-                            <span className="text-muted-foreground"> pending</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </Card>
+        <TabsContent value="class" className="mt-4">
+          <AssignmentByClassView byClass={data.byClass} enrolledPerClass={data.enrolledPerClass} />
+        </TabsContent>
+
+        <TabsContent value="teacher" className="mt-4">
+          <AssignmentByTeacherView byTeacher={data.byTeacher} />
+        </TabsContent>
+
+        <TabsContent value="student" className="mt-4">
+          <AssignmentByStudentView byStudent={data.byStudent} />
         </TabsContent>
       </Tabs>
     </div>
