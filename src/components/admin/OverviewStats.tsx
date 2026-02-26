@@ -6,10 +6,12 @@ import { Users, UserCog, BookOpen, Calendar, TrendingUp, TrendingDown, Sparkles,
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { dayjs } from "@/lib/date";
+import { useFinanceSummary } from "@/hooks/useFinanceSummary";
 
 export function OverviewStats() {
   const queryClient = useQueryClient();
-
+  const currentMonth = dayjs().format("YYYY-MM");
+  const { data: financeSummary } = useFinanceSummary(currentMonth);
   useEffect(() => {
     const channels = ["students", "enrollments", "sessions", "teachers"].map((table) =>
       supabase
@@ -37,7 +39,6 @@ export function OverviewStats() {
         teachersRes,
         classesRes,
         upcomingRes,
-        invoicesRes,
       ] = await Promise.all([
         supabase
           .from("enrollments")
@@ -55,11 +56,6 @@ export function OverviewStats() {
           .select("id", { count: "exact", head: true })
           .eq("status", "Scheduled")
           .gte("date", now.format("YYYY-MM-DD")),
-        // Revenue snapshot: this month's invoices
-        supabase
-          .from("invoices")
-          .select("total_amount, paid_amount")
-          .eq("month", currentMonth),
       ]);
 
       const activeStudents = new Set(activeStudentsRes.data?.map((e) => e.student_id) || []).size;
@@ -69,20 +65,12 @@ export function OverviewStats() {
         ? Math.round(((activeStudents - lastMonthStudents) / lastMonthStudents) * 100)
         : 0;
 
-      // Revenue calculations
-      const totalInvoiced = (invoicesRes.data || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const totalPaid = (invoicesRes.data || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
-      const collectionRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0;
-
       return {
         students: activeStudents,
         studentDelta,
         teachers: teachersRes.count || 0,
         classes: classesRes.count || 0,
         upcomingSessions: upcomingRes.count || 0,
-        totalInvoiced,
-        totalPaid,
-        collectionRate,
       };
     },
   });
@@ -134,14 +122,14 @@ export function OverviewStats() {
     },
     {
       title: "Revenue This Month",
-      value: stats?.totalPaid || 0,
+      value: financeSummary?.totalCollected || 0,
       icon: DollarSign,
-      description: `${stats?.collectionRate || 0}% collected of ${((stats?.totalInvoiced || 0) / 1000000).toFixed(1)}M`,
+      description: `${financeSummary?.collectionRate || 0}% collected of ${((financeSummary?.totalTuition || 0) / 1000000).toFixed(1)}M billed`,
       gradient: "from-rose-500 to-pink-500",
       bgGlow: "bg-rose-500/20",
-      trend: stats?.collectionRate !== undefined ? `${stats.collectionRate}%` : null,
-      trendUp: stats?.collectionRate !== undefined ? (stats.collectionRate >= 80 ? true : stats.collectionRate < 50 ? false : null) : null,
-      displayValue: `${((stats?.totalPaid || 0) / 1000000).toFixed(1)}M`,
+      trend: financeSummary?.collectionRate !== undefined ? `${financeSummary.collectionRate}%` : null,
+      trendUp: financeSummary?.collectionRate !== undefined ? (financeSummary.collectionRate >= 80 ? true : financeSummary.collectionRate < 50 ? false : null) : null,
+      displayValue: `${((financeSummary?.totalCollected || 0) / 1000000).toFixed(1)}M`,
     },
   ];
 
