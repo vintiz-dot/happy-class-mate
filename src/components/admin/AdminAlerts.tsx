@@ -27,16 +27,28 @@ export function AdminAlerts() {
       const results: Alert[] = [];
 
       // 1. Overdue payments: compute net balance across ALL historical invoices per student
-      const { data: allInvoices } = await supabase
-        .from("invoices")
-        .select("student_id, month, total_amount, recorded_payment, students:student_id(full_name)")
-        .lt("month", currentMonth);
+      //    Then net within families so sibling overpayments offset debts.
+      const [{ data: allInvoices }, { data: allFamilies }] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("student_id, month, total_amount, recorded_payment, students:student_id(full_name, family_id)")
+          .lt("month", currentMonth),
+        supabase
+          .from("families")
+          .select("id, name"),
+      ]);
 
-      const overdueStudents = new Map<string, { name: string; totalOwed: number; months: string[] }>();
-      // Group by student and compute net balance: sum(total_amount) - sum(recorded_payment)
-      const studentTotals = new Map<string, { name: string; charged: number; paid: number; months: Set<string> }>();
+      const familyNameMap = new Map<string, string>();
+      for (const f of allFamilies || []) {
+        familyNameMap.set(f.id, f.name);
+      }
+
+      // Per-student totals
+      const studentTotals = new Map<string, { name: string; familyId: string | null; charged: number; paid: number; months: Set<string> }>();
       for (const inv of allInvoices || []) {
-        const name = (inv.students as any)?.full_name || "Unknown";
+        const student = inv.students as any;
+        const name = student?.full_name || "Unknown";
+        const familyId = student?.family_id || null;
         const existing = studentTotals.get(inv.student_id);
         if (existing) {
           existing.charged += inv.total_amount || 0;
@@ -45,28 +57,57 @@ export function AdminAlerts() {
         } else {
           studentTotals.set(inv.student_id, {
             name,
+            familyId,
             charged: inv.total_amount || 0,
             paid: inv.recorded_payment || 0,
             months: new Set([inv.month]),
           });
         }
       }
+
+      // Group by family, net balances within each family
+      const familyGroups = new Map<string, { students: { id: string; name: string; netDebt: number; months: Set<string> }[]; netBalance: number }>();
+
       for (const [sid, info] of studentTotals) {
         const netDebt = info.charged - info.paid;
-        if (netDebt > 0) {
-          overdueStudents.set(sid, { name: info.name, totalOwed: netDebt, months: [...info.months] });
+        if (info.familyId) {
+          const group = familyGroups.get(info.familyId) || { students: [], netBalance: 0 };
+          group.students.push({ id: sid, name: info.name, netDebt, months: info.months });
+          group.netBalance += netDebt; // negative if overpaid
+          familyGroups.set(info.familyId, group);
+        } else {
+          // No family — individual alert if they owe
+          if (netDebt > 0) {
+            results.push({
+              id: `overdue-${sid}`,
+              type: "overdue",
+              severity: info.months.size >= 2 ? "high" : "medium",
+              title: `${info.name} — overdue payment`,
+              detail: `${new Intl.NumberFormat("vi-VN").format(netDebt)}₫ across ${info.months.size} month(s)`,
+              icon: DollarSign,
+              link: `/students/${sid}`,
+            });
+          }
         }
       }
 
-      for (const [sid, info] of overdueStudents) {
+      // Family-level alerts (only when family net balance > 0)
+      for (const [familyId, group] of familyGroups) {
+        if (group.netBalance <= 0) continue; // balanced or overpaid
+        const familyName = familyNameMap.get(familyId) || "Family";
+        const owingStudents = group.students.filter((s) => s.netDebt > 0);
+        const allMonths = new Set(group.students.flatMap((s) => [...s.months]));
+        const detail = owingStudents.length > 0
+          ? `${owingStudents.map((s) => s.name).join(", ")} — net ${new Intl.NumberFormat("vi-VN").format(group.netBalance)}₫`
+          : `${new Intl.NumberFormat("vi-VN").format(group.netBalance)}₫ across ${allMonths.size} month(s)`;
         results.push({
-          id: `overdue-${sid}`,
+          id: `overdue-family-${familyId}`,
           type: "overdue",
-          severity: info.months.length >= 2 ? "high" : "medium",
-          title: `${info.name} — overdue payment`,
-          detail: `${new Intl.NumberFormat("vi-VN").format(info.totalOwed)}₫ across ${info.months.length} month(s)`,
+          severity: allMonths.size >= 2 ? "high" : "medium",
+          title: `${familyName} — overdue payment`,
+          detail,
           icon: DollarSign,
-          link: `/students/${sid}`,
+          link: `/families/${familyId}`,
         });
       }
 
