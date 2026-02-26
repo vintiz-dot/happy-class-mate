@@ -93,7 +93,7 @@ export default function TeacherClassDetail() {
         `)
         .eq("class_id", id)
         .gte("date", `${month}-01`)
-        .lte("date", `${month}-31`)
+        .lt("date", dayjs.tz(`${month}-01`).add(1, "month").format("YYYY-MM-DD"))
         .order("date", { ascending: true });
 
       if (error) throw error;

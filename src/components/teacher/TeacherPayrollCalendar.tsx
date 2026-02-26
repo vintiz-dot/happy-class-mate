@@ -1,10 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday, isSameDay, isPast, isBefore, startOfDay } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { dayjs } from "@/lib/date";
 import ClassSelector from "@/components/schedule/ClassSelector";
 
@@ -30,13 +28,11 @@ export default function TeacherPayrollCalendar({
   sessions,
   hourlyRate,
   month,
-  onMonthChange,
 }: TeacherPayrollCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showClassSelector, setShowClassSelector] = useState(false);
 
   const now = toZonedTime(new Date(), TIMEZONE);
-  const today = startOfDay(now);
 
   const days = eachDayOfInterval({
     start: startOfMonth(month),
@@ -57,16 +53,13 @@ export default function TeacherPayrollCalendar({
   };
 
   const getSessionStatus = (session: Session) => {
-    // Use unified session status logic
     const sessionDateTime = new Date(`${session.date}T${session.start_time}`);
     const nowBangkok = toZonedTime(new Date(), TIMEZONE);
     
-    // Future sessions always show as Scheduled
     if (sessionDateTime > nowBangkok) {
       return "Scheduled";
     }
     
-    // Past sessions: use actual status
     return session.status;
   };
 
@@ -76,7 +69,6 @@ export default function TeacherPayrollCalendar({
       setSelectedDate(date);
       setShowClassSelector(true);
     } else if (dateSessions.length === 1) {
-      // Navigate to schedule with this session
       window.location.href = `/schedule?date=${format(date, "yyyy-MM-dd")}`;
     }
   };
@@ -89,38 +81,16 @@ export default function TeacherPayrollCalendar({
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Calendar View</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onMonthChange(subMonths(month, 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-lg font-semibold min-w-[150px] text-center">
-                {format(month, "MMMM yyyy")}
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onMonthChange(addMonths(month, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <CardTitle>Calendar View</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
               <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                 {day}
               </div>
             ))}
             
-            {/* Pad to start on correct day */}
             {Array.from({ length: startOfMonth(month).getDay() }).map((_, idx) => (
               <div key={`pad-${idx}`} className="min-h-[80px]" />
             ))}

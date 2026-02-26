@@ -34,22 +34,15 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Fetch teacher and sessions in parallel
-      const [teacherResult, sessionsResult] = await Promise.all([
-        supabase.from("teachers").select("id").eq("user_id", user.id).single(),
-        supabase.from("sessions").select("class_id")
-      ]);
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
 
-      const teacher = teacherResult.data;
       if (!teacher) return [];
 
-      // Filter sessions by teacher (done after parallel fetch)
-      const teacherSessions = (sessionsResult.data || []).filter(s => 
-        // We need to re-fetch with teacher filter, but use distinct class_ids
-        true
-      );
-
-      // Get teacher's classes via a targeted query
+      // Single query: get distinct class_ids for this teacher
       const { data: teacherSessionsData } = await supabase
         .from("sessions")
         .select("class_id")

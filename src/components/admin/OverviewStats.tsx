@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserCog, BookOpen, Calendar, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { Users, UserCog, BookOpen, Calendar, TrendingUp, TrendingDown, Sparkles, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { dayjs } from "@/lib/date";
@@ -29,41 +29,39 @@ export function OverviewStats() {
       const thisMonthStart = now.startOf("month").format("YYYY-MM-DD");
       const lastMonthStart = now.subtract(1, "month").startOf("month").format("YYYY-MM-DD");
       const lastMonthEnd = now.subtract(1, "month").endOf("month").format("YYYY-MM-DD");
+      const currentMonth = now.format("YYYY-MM");
 
       const [
         activeStudentsRes,
         lastMonthStudentsRes,
         teachersRes,
-        lastMonthTeachersRes,
         classesRes,
         upcomingRes,
+        invoicesRes,
       ] = await Promise.all([
-        // Active students: have at least one enrollment with no end_date or end_date >= today
         supabase
           .from("enrollments")
           .select("student_id")
           .or(`end_date.is.null,end_date.gte.${now.format("YYYY-MM-DD")}`),
-        // Last month active students for comparison
         supabase
           .from("enrollments")
           .select("student_id")
           .lte("start_date", lastMonthEnd)
           .or(`end_date.is.null,end_date.gte.${lastMonthStart}`),
-        // Active teachers
         supabase.from("teachers").select("id", { count: "exact", head: true }).eq("is_active", true),
-        // Teachers last month (use same active filter since teacher activation doesn't change monthly usually)
-        supabase.from("teachers").select("id", { count: "exact", head: true }).eq("is_active", true),
-        // Active classes
         supabase.from("classes").select("id", { count: "exact", head: true }).eq("is_active", true),
-        // Upcoming sessions (today and forward)
         supabase
           .from("sessions")
           .select("id", { count: "exact", head: true })
           .eq("status", "Scheduled")
           .gte("date", now.format("YYYY-MM-DD")),
+        // Revenue snapshot: this month's invoices
+        supabase
+          .from("invoices")
+          .select("total_amount, paid_amount")
+          .eq("month", currentMonth),
       ]);
 
-      // Deduplicate student IDs
       const activeStudents = new Set(activeStudentsRes.data?.map((e) => e.student_id) || []).size;
       const lastMonthStudents = new Set(lastMonthStudentsRes.data?.map((e) => e.student_id) || []).size;
 
@@ -71,12 +69,20 @@ export function OverviewStats() {
         ? Math.round(((activeStudents - lastMonthStudents) / lastMonthStudents) * 100)
         : 0;
 
+      // Revenue calculations
+      const totalInvoiced = (invoicesRes.data || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const totalPaid = (invoicesRes.data || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+      const collectionRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0;
+
       return {
         students: activeStudents,
         studentDelta,
         teachers: teachersRes.count || 0,
         classes: classesRes.count || 0,
         upcomingSessions: upcomingRes.count || 0,
+        totalInvoiced,
+        totalPaid,
+        collectionRate,
       };
     },
   });
@@ -91,6 +97,7 @@ export function OverviewStats() {
       bgGlow: "bg-blue-500/20",
       trend: stats?.studentDelta !== undefined ? `${stats.studentDelta >= 0 ? "+" : ""}${stats.studentDelta}%` : "—",
       trendUp: stats?.studentDelta !== undefined ? (stats.studentDelta > 0 ? true : stats.studentDelta < 0 ? false : null) : null,
+      displayValue: null as string | null,
     },
     {
       title: "Active Teachers",
@@ -101,6 +108,7 @@ export function OverviewStats() {
       bgGlow: "bg-amber-500/20",
       trend: null,
       trendUp: null,
+      displayValue: null as string | null,
     },
     {
       title: "Active Classes",
@@ -111,6 +119,7 @@ export function OverviewStats() {
       bgGlow: "bg-emerald-500/20",
       trend: null,
       trendUp: null,
+      displayValue: null as string | null,
     },
     {
       title: "Upcoming Sessions",
@@ -121,13 +130,25 @@ export function OverviewStats() {
       bgGlow: "bg-violet-500/20",
       trend: null,
       trendUp: null,
+      displayValue: null as string | null,
+    },
+    {
+      title: "Revenue This Month",
+      value: stats?.totalPaid || 0,
+      icon: DollarSign,
+      description: `${stats?.collectionRate || 0}% collected of ${((stats?.totalInvoiced || 0) / 1000000).toFixed(1)}M`,
+      gradient: "from-rose-500 to-pink-500",
+      bgGlow: "bg-rose-500/20",
+      trend: stats?.collectionRate !== undefined ? `${stats.collectionRate}%` : null,
+      trendUp: stats?.collectionRate !== undefined ? (stats.collectionRate >= 80 ? true : stats.collectionRate < 50 ? false : null) : null,
+      displayValue: `${((stats?.totalPaid || 0) / 1000000).toFixed(1)}M`,
     },
   ];
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        {[...Array(5)].map((_, i) => (
           <Card key={i} className="relative overflow-hidden">
             <CardContent className="p-6">
               <div className="animate-pulse space-y-3">
@@ -146,7 +167,7 @@ export function OverviewStats() {
   }
 
   return (
-    <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         return (
@@ -169,7 +190,9 @@ export function OverviewStats() {
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold tracking-tight">{stat.value.toLocaleString()}</span>
+                      <span className="text-3xl font-bold tracking-tight">
+                        {stat.displayValue || stat.value.toLocaleString()}
+                      </span>
                       {stat.trend && stat.trendUp !== null && (
                         <span className={cn(
                           "flex items-center text-xs font-medium",

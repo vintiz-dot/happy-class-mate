@@ -328,10 +328,11 @@ const Layout = ({ children, title }: LayoutProps) => {
         {/* Desktop Header */}
         <header className="hidden md:flex sticky top-0 z-40 border-b bg-card/95 backdrop-blur shadow-sm px-6 py-4 items-center justify-between">
           <h1 className="text-xl font-bold">{title || "Dashboard"}</h1>
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <ChangePassword />
-          </div>
+            <div className="flex items-center gap-3">
+              <ProfileSwitcher />
+              <NotificationBell />
+              <ChangePassword />
+            </div>
         </header>
 
         {/* Main Content */}

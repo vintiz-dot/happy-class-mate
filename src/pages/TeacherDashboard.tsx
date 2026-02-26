@@ -22,7 +22,7 @@ import {
   Users,
   Zap
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import TeacherScheduleCalendar from "@/components/teacher/TeacherScheduleCalendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,9 +37,11 @@ import { Progress } from "@/components/ui/progress";
 
 export default function TeacherDashboard() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
 
+  // Single auth + teacher lookup, shared by all queries
   const { data: teacherProfile } = useQuery({
     queryKey: ["teacher-dashboard-profile"],
     queryFn: async () => {
@@ -56,20 +58,12 @@ export default function TeacherDashboard() {
     },
   });
 
+  const teacherId = teacherProfile?.id;
+
   const { data: todaySessions } = useQuery({
-    queryKey: ["teacher-today-sessions"],
+    queryKey: ["teacher-today-sessions", teacherId],
+    enabled: !!teacherId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!teacher) return [];
-
       const today = dayjs().format("YYYY-MM-DD");
 
       const { data } = await supabase
@@ -80,9 +74,9 @@ export default function TeacherDashboard() {
           start_time,
           end_time,
           status,
-          classes!inner(name)
+          classes!inner(name, id)
         `)
-        .eq("teacher_id", teacher.id)
+        .eq("teacher_id", teacherId!)
         .eq("date", today)
         .order("start_time", { ascending: true });
 
@@ -91,26 +85,16 @@ export default function TeacherDashboard() {
   });
 
   const { data: activeClasses } = useQuery({
-    queryKey: ["teacher-active-classes"],
+    queryKey: ["teacher-active-classes", teacherId],
+    enabled: !!teacherId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!teacher) return [];
-
       const { data } = await supabase
         .from("sessions")
         .select(`
           class_id,
           classes!inner(id, name)
         `)
-        .eq("teacher_id", teacher.id)
+        .eq("teacher_id", teacherId!)
         .gte("date", dayjs().format("YYYY-MM-DD"));
 
       const classMap = new Map();
@@ -126,25 +110,16 @@ export default function TeacherDashboard() {
   });
 
   const { data: pendingGrading } = useQuery({
-    queryKey: ["teacher-pending-grading"],
+    queryKey: ["teacher-pending-grading", teacherId],
+    enabled: !!teacherId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!teacher) return 0;
-
       const { data: sessions } = await supabase
         .from("sessions")
         .select("class_id")
-        .eq("teacher_id", teacher.id);
+        .eq("teacher_id", teacherId!);
 
       const classIds = [...new Set(sessions?.map(s => s.class_id))];
+      if (classIds.length === 0) return 0;
 
       const { data: homeworks } = await supabase
         .from("homeworks")
@@ -152,6 +127,7 @@ export default function TeacherDashboard() {
         .in("class_id", classIds);
 
       const homeworkIds = homeworks?.map(h => h.id) || [];
+      if (homeworkIds.length === 0) return 0;
 
       const { count } = await supabase
         .from("homework_submissions")
@@ -164,30 +140,20 @@ export default function TeacherDashboard() {
   });
 
   const { data: payrollData } = useQuery({
-    queryKey: ["teacher-payroll", currentMonth],
+    queryKey: ["teacher-payroll", currentMonth, teacherId],
+    enabled: !!teacherId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!teacher) return null;
-
       const { data, error } = await supabase.functions.invoke("calculate-payroll", {
-        body: { month: currentMonth, teacherId: teacher.id },
+        body: { month: currentMonth, teacherId: teacherId! },
       });
 
       if (error) throw error;
-      return { ...data?.payrollData?.[0], teacherId: teacher.id };
+      return { ...data?.payrollData?.[0], teacherId };
     },
   });
 
   useEffect(() => {
-    if (!payrollData?.teacherId) return;
+    if (!teacherId) return;
 
     const channel = supabase
       .channel('teacher-dashboard-sessions')
@@ -197,10 +163,10 @@ export default function TeacherDashboard() {
           event: '*',
           schema: 'public',
           table: 'sessions',
-          filter: `teacher_id=eq.${payrollData.teacherId}`,
+          filter: `teacher_id=eq.${teacherId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["teacher-payroll", currentMonth] });
+          queryClient.invalidateQueries({ queryKey: ["teacher-payroll", currentMonth, teacherId] });
         }
       )
       .subscribe();
@@ -208,7 +174,7 @@ export default function TeacherDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [payrollData?.teacherId, currentMonth]);
+  }, [teacherId, currentMonth]);
 
   const getTimeStatus = (startTime: string, endTime: string) => {
     const now = dayjs();
@@ -481,6 +447,7 @@ export default function TeacherDashboard() {
                   <div className="space-y-3">
                     {todaySessions.map((session: any, index: number) => {
                       const timeStatus = getTimeStatus(session.start_time, session.end_time);
+                      const classId = Array.isArray(session.classes) ? session.classes[0]?.id : session.classes?.id;
                       return (
                         <motion.div
                           key={session.id}
@@ -521,6 +488,22 @@ export default function TeacherDashboard() {
                             </p>
                           </div>
                           
+                          {/* Quick-Mark Attendance Button */}
+                          {(timeStatus === "ongoing" || timeStatus === "upcoming") && session.status === "Scheduled" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="shrink-0 gap-1 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/teacher/attendance?session=${session.id}`);
+                              }}
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              Attendance
+                            </Button>
+                          )}
+
                           {/* Status Badge */}
                           <Badge 
                             variant={session.status === "Held" ? "default" : "secondary"}
