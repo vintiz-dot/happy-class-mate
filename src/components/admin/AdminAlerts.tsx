@@ -29,7 +29,7 @@ export function AdminAlerts() {
       // 1. Overdue payments: students with unpaid invoices from past months
       const { data: overdueInvoices } = await supabase
         .from("invoices")
-        .select("student_id, month, total_amount, paid_amount, students:student_id(full_name)")
+        .select("student_id, month, total_amount, paid_amount, recorded_payment, carry_out_debt, students:student_id(full_name)")
         .lt("month", currentMonth)
         .in("status", ["draft", "issued"])
         .order("month", { ascending: true })
@@ -37,7 +37,9 @@ export function AdminAlerts() {
 
       const overdueStudents = new Map<string, { name: string; totalOwed: number; months: string[] }>();
       for (const inv of overdueInvoices || []) {
-        const owed = (inv.total_amount || 0) - (inv.paid_amount || 0);
+        const owed = (inv.carry_out_debt ?? null) !== null
+          ? (inv.carry_out_debt || 0)
+          : (inv.total_amount || 0) - (inv.recorded_payment || inv.paid_amount || 0);
         if (owed <= 0) continue;
         const existing = overdueStudents.get(inv.student_id);
         const name = (inv.students as any)?.full_name || "Unknown";
