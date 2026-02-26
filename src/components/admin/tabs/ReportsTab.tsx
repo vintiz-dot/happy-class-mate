@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, XCircle, TrendingDown, UserX } from "lucide-react";
+import { FileText, XCircle, TrendingDown, UserX, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { monthKey } from "@/lib/date";
 import { formatVND } from "@/lib/invoice/formatter";
@@ -33,7 +34,6 @@ const ReportsTab = () => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      // Bulk fetch cancelled sessions with class + teacher info
       const { data: cancelledSessions, error } = await supabase
         .from("sessions")
         .select(`id, date, start_time, end_time, class_id, classes(id, name, session_rate_vnd), teachers(id, hourly_rate_vnd)`)
@@ -44,7 +44,6 @@ const ReportsTab = () => {
       if (error) throw error;
       if (!cancelledSessions?.length) return { lostProfit: 0, lostTuition: 0, savedPayroll: 0, sessionCount: 0 };
 
-      // Bulk fetch all enrollments for affected classes
       const classIds = [...new Set(cancelledSessions.map(s => s.class_id))];
       const { data: allEnrollments } = await supabase
         .from("enrollments")
@@ -59,7 +58,6 @@ const ReportsTab = () => {
         const [endHr, endMin] = session.end_time.split(':').map(Number);
         const hours = ((endHr * 60 + endMin) - (startHr * 60 + startMin)) / 60;
 
-        // Count enrolled students on this session's date
         const studentCount = (allEnrollments || []).filter(e =>
           e.class_id === session.class_id &&
           e.start_date <= session.date &&
@@ -123,7 +121,6 @@ const ReportsTab = () => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      // 3 bulk queries instead of N*3
       const [classesRes, sessionsRes, enrollmentsRes, invoicesRes] = await Promise.all([
         supabase.from("classes").select("id, name, session_rate_vnd").eq("is_active", true),
         supabase
@@ -148,21 +145,18 @@ const ReportsTab = () => {
       const enrollments = enrollmentsRes.data || [];
       const invoices = invoicesRes.data || [];
 
-      // Group sessions by class
       const sessionsByClass: Record<string, typeof sessions> = {};
       for (const s of sessions) {
         if (!sessionsByClass[s.class_id]) sessionsByClass[s.class_id] = [];
         sessionsByClass[s.class_id].push(s);
       }
 
-      // Group enrollments by class
       const enrollmentsByClass: Record<string, Set<string>> = {};
       for (const e of enrollments) {
         if (!enrollmentsByClass[e.class_id]) enrollmentsByClass[e.class_id] = new Set();
         enrollmentsByClass[e.class_id].add(e.student_id);
       }
 
-      // Index invoices by student
       const invoicesByStudent: Record<string, typeof invoices> = {};
       for (const inv of invoices) {
         if (!invoicesByStudent[inv.student_id]) invoicesByStudent[inv.student_id] = [];
@@ -174,7 +168,6 @@ const ReportsTab = () => {
         const classEnrollments = enrollmentsByClass[cls.id] || new Set();
         const studentCount = classEnrollments.size;
 
-        // Tuition from invoices
         let grossTuition = 0;
         let netTuition = 0;
         for (const sid of classEnrollments) {
@@ -189,7 +182,6 @@ const ReportsTab = () => {
           }
         }
 
-        // Payroll
         let payroll = 0;
         for (const session of classSessions) {
           const [startHr, startMin] = session.start_time.split(':').map(Number);
@@ -222,6 +214,32 @@ const ReportsTab = () => {
   const totalTuition = classFinance?.reduce((sum, c) => sum + c.tuition, 0) || 0;
   const totalPayroll = classFinance?.reduce((sum, c) => sum + c.payroll, 0) || 0;
   const totalNet = classFinance?.reduce((sum, c) => sum + c.net, 0) || 0;
+
+  const exportClassFinanceCSV = () => {
+    if (!classFinance || classFinance.length === 0) return;
+    const csv = [
+      ["Class", "Sessions", "Students", "Gross Tuition", "Discounts", "Net Tuition", "Payroll", "Profit"].join(","),
+      ...classFinance.map(c => [
+        `"${c.name}"`,
+        c.sessionCount,
+        c.studentCount,
+        c.grossTuition,
+        c.discounts,
+        c.tuition,
+        c.payroll,
+        c.net,
+      ].join(",")),
+      ["TOTAL", "-", "-", totalGrossTuition, totalDiscounts, totalTuition, totalPayroll, totalNet].join(","),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `class-finance-${selectedMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -340,13 +358,21 @@ const ReportsTab = () => {
       {/* Class Finance Report */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingDown className="h-5 w-5" />
-            Class Finance Report
-          </CardTitle>
-          <CardDescription>
-            Financial breakdown by class for {getMonthOptions().find(o => o.value === selectedMonth)?.label}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingDown className="h-5 w-5" />
+                Class Finance Report
+              </CardTitle>
+              <CardDescription>
+                Financial breakdown by class for {getMonthOptions().find(o => o.value === selectedMonth)?.label}
+              </CardDescription>
+            </div>
+            <Button onClick={exportClassFinanceCSV} variant="outline" size="sm" disabled={!classFinance?.length}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

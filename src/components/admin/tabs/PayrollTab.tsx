@@ -22,61 +22,70 @@ export function PayrollTab() {
   const { data: payrollData, isLoading } = useQuery({
     queryKey: ["admin-payroll", selectedMonth],
     queryFn: async () => {
-      // Get all teachers
-      const { data: teachers } = await supabase
-        .from("teachers")
-        .select("id, full_name, hourly_rate_vnd, is_active")
-        .eq("is_active", true)
-        .order("full_name");
+      const monthStart = `${selectedMonth}-01`;
+      const monthEnd = dayjs(monthStart).add(1, "month").format("YYYY-MM-DD");
 
-      const teacherPayrolls = await Promise.all(
-        (teachers || []).map(async (teacher) => {
-          // Get both held and scheduled sessions
-          const { data: sessions } = await supabase
-            .from("sessions")
-            .select(`
-              id,
-              date,
-              start_time,
-              end_time,
-              status,
-              rate_override_vnd,
-              classes!inner(name, session_rate_vnd)
-            `)
-            .eq("teacher_id", teacher.id)
-            .gte("date", `${selectedMonth}-01`)
-            .lt("date", dayjs(`${selectedMonth}-01`).add(1, "month").format("YYYY-MM-DD"))
-            .in("status", ["Held", "Scheduled"])
-            .order("date", { ascending: true });
+      // Bulk fetch: all teachers + all sessions for this month in 2 queries
+      const [teachersRes, sessionsRes] = await Promise.all([
+        supabase
+          .from("teachers")
+          .select("id, full_name, hourly_rate_vnd, is_active")
+          .eq("is_active", true)
+          .order("full_name"),
+        supabase
+          .from("sessions")
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            status,
+            teacher_id,
+            rate_override_vnd,
+            classes!inner(name, session_rate_vnd)
+          `)
+          .gte("date", monthStart)
+          .lt("date", monthEnd)
+          .in("status", ["Held", "Scheduled"])
+          .order("date", { ascending: true }),
+      ]);
 
-          const heldSessions = sessions?.filter(s => s.status === "Held") || [];
-          const scheduledSessions = sessions?.filter(s => s.status === "Scheduled") || [];
+      const teachers = teachersRes.data || [];
+      const allSessions = sessionsRes.data || [];
 
-          const calculateAmount = (sessionsList: any[]) => {
-            return sessionsList.reduce((sum, s) => {
-              const start = dayjs(`${s.date} ${s.start_time}`);
-              const end = dayjs(`${s.date} ${s.end_time}`);
-              const hours = end.diff(start, "hour", true);
-              // Multiply hours by teacher's hourly rate
-              return sum + Math.round(hours * teacher.hourly_rate_vnd);
-            }, 0);
-          };
+      // Group sessions by teacher_id
+      const sessionsByTeacher: Record<string, typeof allSessions> = {};
+      for (const s of allSessions) {
+        if (!sessionsByTeacher[s.teacher_id]) sessionsByTeacher[s.teacher_id] = [];
+        sessionsByTeacher[s.teacher_id].push(s);
+      }
 
-          const totalHeld = calculateAmount(heldSessions);
-          const totalScheduled = calculateAmount(scheduledSessions);
+      return teachers.map((teacher) => {
+        const sessions = sessionsByTeacher[teacher.id] || [];
+        const heldSessions = sessions.filter(s => s.status === "Held");
+        const scheduledSessions = sessions.filter(s => s.status === "Scheduled");
 
-          return {
-            teacher,
-            heldSessions: heldSessions.length,
-            scheduledSessions: scheduledSessions.length,
-            totalEarned: totalHeld,
-            projectedEarnings: totalScheduled,
-            totalProjected: totalHeld + totalScheduled,
-          };
-        })
-      );
+        const calculateAmount = (sessionsList: typeof sessions) => {
+          return sessionsList.reduce((sum, s) => {
+            const start = dayjs(`${s.date} ${s.start_time}`);
+            const end = dayjs(`${s.date} ${s.end_time}`);
+            const hours = end.diff(start, "hour", true);
+            return sum + Math.round(hours * teacher.hourly_rate_vnd);
+          }, 0);
+        };
 
-      return teacherPayrolls;
+        const totalHeld = calculateAmount(heldSessions);
+        const totalScheduled = calculateAmount(scheduledSessions);
+
+        return {
+          teacher,
+          heldSessions: heldSessions.length,
+          scheduledSessions: scheduledSessions.length,
+          totalEarned: totalHeld,
+          projectedEarnings: totalScheduled,
+          totalProjected: totalHeld + totalScheduled,
+        };
+      });
     },
   });
 
