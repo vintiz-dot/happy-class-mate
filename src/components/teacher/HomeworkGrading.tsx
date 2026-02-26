@@ -8,9 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Undo } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import { sanitizeHtml } from "@/lib/sanitize";
+
+const GRADE_PRESETS = [
+  { label: "⭐ Superstar", value: "Superstar", minPoints: 90, maxPoints: 100 },
+  { label: "🌟 Amazing", value: "Amazing", minPoints: 80, maxPoints: 89 },
+  { label: "👍 Great Job", value: "Great Job", minPoints: 70, maxPoints: 79 },
+  { label: "👌 Good Try", value: "Good Try", minPoints: 60, maxPoints: 69 },
+  { label: "💪 Keep Trying", value: "Keep Trying", minPoints: 50, maxPoints: 59 },
+  { label: "🤝 Needs Help", value: "Needs Help", minPoints: 0, maxPoints: 49 },
+] as const;
 
 interface HomeworkGradingProps {
   homeworkId: string;
@@ -405,11 +415,34 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="grade">Grade</Label>
+                <Select
+                  value={GRADE_PRESETS.some(p => p.value === grade) ? grade : "__custom"}
+                  onValueChange={(val) => {
+                    if (val === "__custom") return;
+                    const preset = GRADE_PRESETS.find(p => p.value === val);
+                    setGrade(val);
+                    if (preset && !points) {
+                      setPoints(String(preset.minPoints));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a grade..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRADE_PRESETS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label} ({p.minPoints}-{p.maxPoints} pts)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   id="grade"
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  placeholder="e.g., A, 95/100, Excellent"
+                  placeholder="Or type a custom grade..."
+                  className="mt-1"
                 />
               </div>
 
