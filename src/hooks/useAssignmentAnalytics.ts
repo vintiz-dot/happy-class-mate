@@ -48,6 +48,8 @@ export interface TeacherStats {
   teacherId: string;
   teacherName: string;
   classCount: number;
+  classIds: string[];
+  classNames: string[];
   assignmentCount: number;
   totalSubmissions: number;
   gradedCount: number;
@@ -64,13 +66,20 @@ export interface StudentStats {
   gradedCount: number;
   submissionRate: number;
   grades: string[];
+  classIds: string[];
+}
+
+export interface PointBucket {
+  range: string;
+  count: number;
+  sortKey: number;
 }
 
 export function useAssignmentAnalytics() {
   return useQuery({
     queryKey: ["assignment-analytics"],
     queryFn: async () => {
-      const [homeworksRes, enrollmentsRes, teachersRes, studentsRes] = await Promise.all([
+      const [homeworksRes, enrollmentsRes, teachersRes, studentsRes, pointTxRes] = await Promise.all([
         supabase
           .from("homeworks")
           .select(`id, title, due_date, class_id, classes!inner(name, default_teacher_id), homework_submissions(id, status, student_id, submitted_at, graded_at, grade)`)
@@ -81,15 +90,41 @@ export function useAssignmentAnalytics() {
           .or("end_date.is.null,end_date.gte." + dayjs().subtract(6, "month").format("YYYY-MM-DD")),
         supabase.from("teachers").select("id, full_name, user_id").eq("is_active", true),
         supabase.from("students").select("id, full_name").eq("is_active", true),
+        supabase.from("point_transactions").select("points, student_id, homework_id").eq("type", "homework"),
       ]);
 
       const homeworks = homeworksRes.data || [];
       const enrollments = enrollmentsRes.data || [];
       const teachers = teachersRes.data || [];
       const students = studentsRes.data || [];
+      const pointTxs = pointTxRes.data || [];
 
       const teacherMap = new Map(teachers.map((t) => [t.id, t.full_name]));
       const studentMap = new Map(students.map((s) => [s.id, s.full_name]));
+
+      // Point buckets (groups of 10)
+      const bucketCounts = new Map<number, number>();
+      for (let i = 0; i <= 9; i++) bucketCounts.set(i, 0);
+      for (const tx of pointTxs) {
+        if (tx.points == null || tx.points < 0) continue;
+        const bucket = Math.min(Math.floor(tx.points / 10), 9);
+        bucketCounts.set(bucket, (bucketCounts.get(bucket) || 0) + 1);
+      }
+      const pointBuckets: PointBucket[] = [];
+      for (let i = 9; i >= 0; i--) {
+        const lo = i * 10;
+        const hi = i === 9 ? 100 : lo + 9;
+        pointBuckets.push({ range: `${hi}-${lo}`, count: bucketCounts.get(i) || 0, sortKey: i });
+      }
+
+      // Build homework→points map for student detail
+      const homeworkPointsMap = new Map<string, Map<string, number>>();
+      for (const tx of pointTxs) {
+        if (!tx.homework_id || !tx.student_id) continue;
+        const key = `${tx.student_id}__${tx.homework_id}`;
+        if (!homeworkPointsMap.has(tx.student_id)) homeworkPointsMap.set(tx.student_id, new Map());
+        homeworkPointsMap.get(tx.student_id)!.set(tx.homework_id, (homeworkPointsMap.get(tx.student_id)!.get(tx.homework_id) || 0) + tx.points);
+      }
 
       // enrolled students per class
       const enrolledPerClass = new Map<string, Set<string>>();
@@ -189,6 +224,8 @@ export function useAssignmentAnalytics() {
             teacherId: tid,
             teacherName: cs.teacherName,
             classCount: 0,
+            classIds: [],
+            classNames: [],
             assignmentCount: 0,
             totalSubmissions: 0,
             gradedCount: 0,
@@ -199,6 +236,8 @@ export function useAssignmentAnalytics() {
         }
         const ts = teacherStatsMap.get(tid)!;
         ts.classCount++;
+        ts.classIds.push(cs.classId);
+        ts.classNames.push(cs.className);
         ts.assignmentCount += cs.assignmentCount;
         ts.totalSubmissions += cs.actualSubmissions;
         ts.gradedCount += cs.gradedCount;
@@ -217,7 +256,6 @@ export function useAssignmentAnalytics() {
 
       // By student
       const studentStatsMap = new Map<string, StudentStats>();
-      // Find which classes each student is enrolled in
       const studentClasses = new Map<string, Set<string>>();
       for (const e of enrollments) {
         if (!studentClasses.has(e.student_id)) studentClasses.set(e.student_id, new Set());
@@ -240,10 +278,11 @@ export function useAssignmentAnalytics() {
           gradedCount: graded.length,
           submissionRate: relevantAssignments.length > 0 ? (submitted.length / relevantAssignments.length) * 100 : 0,
           grades: graded.map((s) => s.grade).filter(Boolean) as string[],
+          classIds: [...classes],
         });
       }
 
-      // Grade distribution
+      // Grade distribution (kept for backward compat)
       const allGrades: string[] = [];
       for (const a of assignments) {
         for (const s of a.submissions) {
@@ -263,6 +302,8 @@ export function useAssignmentAnalytics() {
         assignments,
         enrolledPerClass,
         gradeDistribution,
+        pointBuckets,
+        homeworkPointsMap,
         studentMap,
         teacherMap,
       };
