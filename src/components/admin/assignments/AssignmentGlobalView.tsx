@@ -12,7 +12,7 @@ interface Props {
   byClass: Map<string, { className: string; submissionRate: number }>;
 }
 
-export function AssignmentGlobalView({ global, assignments, pointBuckets, byClass }: Props) {
+export function AssignmentGlobalView({ global, assignments, pointBuckets = [], byClass }: Props) {
   const classChartData = [...byClass.values()]
     .map((c) => ({ name: c.className, rate: Math.round(c.submissionRate) }))
     .sort((a, b) => b.rate - a.rate);

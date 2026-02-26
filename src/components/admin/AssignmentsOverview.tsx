@@ -57,7 +57,7 @@ export function AssignmentsOverview() {
           <AssignmentGlobalView
             global={data.global}
             assignments={data.assignments}
-            pointBuckets={data.pointBuckets}
+            pointBuckets={data.pointBuckets || []}
             byClass={data.byClass}
           />
         </TabsContent>
@@ -71,7 +71,7 @@ export function AssignmentsOverview() {
         </TabsContent>
 
         <TabsContent value="student" className="mt-4">
-          <AssignmentByStudentView byStudent={data.byStudent} assignments={data.assignments} homeworkPointsMap={data.homeworkPointsMap} />
+          <AssignmentByStudentView byStudent={data.byStudent} assignments={data.assignments} homeworkPointsMap={data.homeworkPointsMap || new Map()} />
         </TabsContent>
       </Tabs>
     </div>
