@@ -6,14 +6,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus, LayoutGrid, CalendarDays } from "lucide-react";
 import AttendanceDrawer from "./AttendanceDrawer";
 import AddSessionModal from "@/components/admin/AddSessionModal";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+  subMonths,
+  isToday,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+} from "date-fns";
 
 interface EnhancedClassCalendarProps {
   classId: string;
 }
+
+type ViewMode = "cards" | "month";
 
 const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
   const [month, setMonth] = useState(new Date());
@@ -21,6 +35,7 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [studentSearch, setStudentSearch] = useState("");
   const [addSessionDate, setAddSessionDate] = useState<Date | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   const { data: sessions, refetch } = useQuery({
     queryKey: ["enhanced-class-sessions", classId, format(month, "yyyy-MM")],
@@ -120,6 +135,25 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
     return { color: "bg-muted border-muted", label: "Scheduled" };
   };
 
+  // Month grid days
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(month);
+    const monthEnd = endOfMonth(month);
+    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: calStart, end: calEnd });
+  }, [month]);
+
+  const sessionsByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    filteredSessions.forEach(s => {
+      const key = s.date;
+      if (!map[key]) map[key] = [];
+      map[key].push(s);
+    });
+    return map;
+  }, [filteredSessions]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -136,7 +170,29 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
           </Button>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* View toggle */}
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === "cards" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none h-8 px-3"
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Cards
+            </Button>
+            <Button
+              variant={viewMode === "month" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none h-8 px-3"
+              onClick={() => setViewMode("month")}
+            >
+              <CalendarDays className="h-4 w-4 mr-1" />
+              Month
+            </Button>
+          </div>
+
           <Card className="px-4 py-2">
             <div className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -187,7 +243,7 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Monthly Sessions</CardTitle>
+            <CardTitle>{viewMode === "cards" ? "Monthly Sessions" : format(month, "MMMM yyyy")}</CardTitle>
             <Button onClick={() => setAddSessionDate(new Date())} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Session
@@ -195,50 +251,122 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {filteredSessions?.map((session) => {
-              const status = getSessionStatus(session);
-              const enrolledCount = enrolledStudents?.length || 0;
+          {viewMode === "cards" ? (
+            /* ── Cards View ── */
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredSessions?.map((session) => {
+                  const status = getSessionStatus(session);
+                  const enrolledCount = enrolledStudents?.length || 0;
 
-              return (
-                <button
-                  key={session.id}
-                  onClick={() => setSelectedSession(session)}
-                  className={`p-4 rounded-lg border-2 text-left hover:shadow-md transition-all ${status.color}`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="text-sm font-semibold">
-                      {format(new Date(session.date), "EEE, MMM d")}
+                  return (
+                    <button
+                      key={session.id}
+                      onClick={() => setSelectedSession(session)}
+                      className={`p-4 rounded-lg border-2 text-left hover:shadow-md transition-all ${status.color}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="text-sm font-semibold">
+                          {format(new Date(session.date), "EEE, MMM d")}
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {status.label}
+                        </Badge>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          <span>{enrolledCount} students</span>
+                        </div>
+                        <span className="text-muted-foreground truncate ml-2">
+                          👤 {(session.teachers as any)?.full_name || "—"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {filteredSessions?.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No sessions found for this month
+                </div>
+              )}
+            </>
+          ) : (
+            /* ── Month Grid View ── */
+            <div>
+              {/* Day headers */}
+              <div className="grid grid-cols-7 mb-1">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                  <div key={d} className="text-xs font-medium text-muted-foreground text-center py-2">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day cells */}
+              <div className="grid grid-cols-7 border-t border-l">
+                {calendarDays.map(day => {
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const daySessions = sessionsByDate[dateStr] || [];
+                  const inMonth = isSameMonth(day, month);
+                  const today = isToday(day);
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`min-h-[80px] border-r border-b p-1 transition-colors ${
+                        !inMonth ? "bg-muted/30" : today ? "bg-amber-50 dark:bg-amber-950/30" : "bg-background"
+                      }`}
+                    >
+                      <div className={`text-xs font-medium mb-1 ${
+                        today ? "text-primary font-bold" : !inMonth ? "text-muted-foreground/50" : "text-foreground"
+                      }`}>
+                        {format(day, "d")}
+                      </div>
+
+                      <div className="space-y-0.5">
+                        {daySessions.map((s: any) => {
+                          const status = getSessionStatus(s);
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => setSelectedSession(s)}
+                              className={`w-full text-left px-1.5 py-0.5 rounded text-[10px] leading-tight truncate border ${status.color} hover:shadow-sm transition-shadow`}
+                            >
+                              <span className="font-medium">{s.start_time?.slice(0, 5)}</span>
+                              {" "}
+                              <span className="text-muted-foreground">
+                                {(s.teachers as any)?.full_name?.split(" ")[0] || "—"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Click empty day to add session */}
+                      {inMonth && daySessions.length === 0 && (
+                        <button
+                          onClick={() => setAddSessionDate(day)}
+                          className="w-full h-8 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                        >
+                          <Plus className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      )}
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {status.label}
-                    </Badge>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground mb-1">
-                    {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      <span>{enrolledCount} students</span>
-                    </div>
-                    <span className="text-muted-foreground truncate ml-2">
-                      👤 {(session.teachers as any)?.full_name || "—"}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {filteredSessions?.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              No sessions found for this month
+                  );
+                })}
+              </div>
             </div>
           )}
 
+          {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-6 text-xs">
             <span className="px-3 py-1 rounded bg-green-100 border border-green-300">Scheduled</span>
             <span className="px-3 py-1 rounded bg-amber-100 border border-amber-300">Today</span>
