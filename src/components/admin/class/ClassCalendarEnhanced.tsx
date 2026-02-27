@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus } from "lucide-react";
 import SessionDrawer from "./SessionDrawer";
 import SessionDetailDrawer from "./SessionDetailDrawer";
+import AttendanceDrawer from "./AttendanceDrawer";
 import AddSessionModal from "@/components/admin/AddSessionModal";
 import EditSessionModal from "./EditSessionModal";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from "date-fns";
@@ -41,6 +42,8 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
           status,
           teacher_id,
           rate_override_vnd,
+          notes,
+          classes (name),
           teachers (id, full_name),
           attendance (student_id, status)
         `)
@@ -260,11 +263,13 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
         </CardContent>
       </Card>
 
-      {selectedSession && enrolledStudents && (
-        <SessionDetailDrawer
+      {selectedSession && (
+        <AttendanceDrawer
           session={{
             ...selectedSession,
-            teacher: selectedSession.teachers
+            class_id: classId,
+            class_name: (selectedSession as any).classes?.name || "Session",
+            teacher: selectedSession.teachers,
           }}
           onClose={() => {
             setSelectedSession(null);
