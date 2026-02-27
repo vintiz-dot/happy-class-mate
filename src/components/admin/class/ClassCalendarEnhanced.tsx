@@ -1,18 +1,17 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus } from "lucide-react";
-import SessionDrawer from "./SessionDrawer";
-import SessionDetailDrawer from "./SessionDetailDrawer";
+import { ChevronLeft, ChevronRight, Users, DollarSign, Calendar as CalendarIcon, Plus, ArrowLeftRight } from "lucide-react";
 import AttendanceDrawer from "./AttendanceDrawer";
 import AddSessionModal from "@/components/admin/AddSessionModal";
 import EditSessionModal from "./EditSessionModal";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from "date-fns";
+import { toast } from "sonner";
 
 interface EnhancedClassCalendarProps {
   classId: string;
@@ -25,6 +24,8 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
   const [studentSearch, setStudentSearch] = useState("");
   const [addSessionDate, setAddSessionDate] = useState<Date | null>(null);
   const [editingSession, setEditingSession] = useState<any>(null);
+  const [swappingSessionId, setSwappingSessionId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: sessions, refetch } = useQuery({
     queryKey: ["enhanced-class-sessions", classId, format(month, "yyyy-MM")],
@@ -43,6 +44,7 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
           teacher_id,
           rate_override_vnd,
           notes,
+          class_id,
           classes (name),
           teachers (id, full_name),
           attendance (student_id, status)
@@ -76,6 +78,50 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
         full_name: e.students?.full_name,
         enrolled_since: e.start_date
       })) || [];
+    },
+  });
+
+  const { data: teachers } = useQuery({
+    queryKey: ["teachers-active-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const swapTeacherMutation = useMutation({
+    mutationFn: async ({ sessionId, teacherId }: { sessionId: string; teacherId: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("sessions")
+        .update({
+          teacher_id: teacherId,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.id,
+        })
+        .eq("id", sessionId);
+      if (error) throw error;
+
+      await supabase.from("audit_log").insert({
+        entity: "sessions",
+        action: "swap_teacher",
+        entity_id: sessionId,
+        actor_user_id: user?.id,
+        diff: { new_teacher_id: teacherId },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Teacher swapped");
+      refetch();
+      setSwappingSessionId(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to swap teacher");
     },
   });
 
@@ -121,6 +167,10 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
     if (session.status === "Held") return { color: "bg-gray-100 border-gray-300", label: "Held" };
     if (sessionDate > today) return { color: "bg-green-100 border-green-300", label: "Scheduled" };
     return { color: "bg-muted border-muted", label: "Scheduled" };
+  };
+
+  const handleSwapTeacher = (sessionId: string, newTeacherId: string) => {
+    swapTeacherMutation.mutate({ sessionId, teacherId: newTeacherId });
   };
 
   return (
@@ -218,31 +268,75 @@ const ClassCalendarEnhanced = ({ classId }: EnhancedClassCalendarProps) => {
             {filteredSessions?.map((session) => {
               const status = getSessionStatus(session);
               const enrolledCount = enrolledStudents?.length || 0;
+              const isSwapping = swappingSessionId === session.id;
 
               return (
-                <button
+                <div
                   key={session.id}
-                  onClick={() => setSelectedSession(session)}
                   className={`p-4 rounded-lg border-2 text-left hover:shadow-md transition-all ${status.color}`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="text-sm font-semibold">
-                      {format(new Date(session.date), "EEE, MMM d")}
+                  <button
+                    onClick={() => setSelectedSession(session)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-sm font-semibold">
+                        {format(new Date(session.date), "EEE, MMM d")}
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {status.label}
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {status.label}
-                    </Badge>
-                  </div>
 
-                  <div className="text-xs text-muted-foreground mb-2">
-                    {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
-                  </div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
+                    </div>
 
-                  <div className="flex items-center gap-1 text-xs">
-                    <Users className="h-3 w-3" />
-                    <span>{enrolledCount} students</span>
+                    <div className="flex items-center gap-1 text-xs mb-2">
+                      <Users className="h-3 w-3" />
+                      <span>{enrolledCount} students</span>
+                    </div>
+                  </button>
+
+                  {/* Teacher display + Quick Swap */}
+                  <div className="border-t border-border/50 pt-2 mt-1">
+                    {isSwapping ? (
+                      <Select
+                        value={session.teacher_id || ""}
+                        onValueChange={(val) => handleSwapTeacher(session.id, val)}
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select teacher" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teachers?.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground truncate">
+                          👤 {(session.teachers as any)?.full_name || "No teacher"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSwappingSessionId(session.id);
+                          }}
+                          title="Quick Swap Teacher"
+                        >
+                          <ArrowLeftRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
