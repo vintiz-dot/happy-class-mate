@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle } from "lucide-react";
@@ -25,8 +27,22 @@ interface EditSessionModalProps {
 export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionModalProps) => {
   const [startTime, setStartTime] = useState(session.start_time?.slice(0, 5) || "");
   const [endTime, setEndTime] = useState(session.end_time?.slice(0, 5) || "");
+  const [teacherId, setTeacherId] = useState(session.teacher_id || "");
   const [notes, setNotes] = useState(session.notes || "");
   const [processing, setProcessing] = useState(false);
+
+  const { data: teachers } = useQuery({
+    queryKey: ["teachers-active-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const isPast = new Date(session.date) < new Date();
 
@@ -44,6 +60,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
       const oldData = {
         start_time: session.start_time,
         end_time: session.end_time,
+        teacher_id: session.teacher_id,
         notes: session.notes,
       };
 
@@ -53,6 +70,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
         .update({
           start_time: `${startTime}:00`,
           end_time: `${endTime}:00`,
+          teacher_id: teacherId || session.teacher_id,
           notes: notes || null,
           updated_at: new Date().toISOString(),
           updated_by: user?.id,
@@ -72,6 +90,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
           after: {
             start_time: `${startTime}:00`,
             end_time: `${endTime}:00`,
+            teacher_id: teacherId || session.teacher_id,
             notes,
           },
           session_date: session.date,
@@ -112,6 +131,22 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
         )}
 
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Teacher</Label>
+            <Select value={teacherId} onValueChange={setTeacherId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers?.map((teacher) => (
+                  <SelectItem key={teacher.id} value={teacher.id}>
+                    {teacher.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="start-time">Start Time</Label>
