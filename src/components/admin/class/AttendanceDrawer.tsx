@@ -11,7 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Save, Award, Settings } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, Save, Award, Settings, ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 import { dayjs } from "@/lib/date";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +29,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   const [attendance, setAttendance] = useState<Record<string, string>>({});
   const [showParticipationPoints, setShowParticipationPoints] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [swappingTeacher, setSwappingTeacher] = useState(false);
   const queryClient = useQueryClient();
   const { role } = useAuth();
 
@@ -75,6 +77,19 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
     enabled: !!session?.id,
   });
 
+  const { data: teachers } = useQuery({
+    queryKey: ["teachers-active-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   useEffect(() => {
     if (students) {
       const attendanceMap: Record<string, string> = {};
@@ -103,6 +118,38 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to save attendance");
+    },
+  });
+
+  const swapTeacherMutation = useMutation({
+    mutationFn: async (newTeacherId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("sessions")
+        .update({
+          teacher_id: newTeacherId,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.id,
+        })
+        .eq("id", session.id);
+      if (error) throw error;
+
+      await supabase.from("audit_log").insert({
+        entity: "sessions",
+        action: "swap_teacher",
+        entity_id: session.id,
+        actor_user_id: user?.id,
+        diff: { old_teacher_id: session.teacher_id, new_teacher_id: newTeacherId },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Teacher swapped");
+      queryClient.invalidateQueries({ queryKey: ["calendar-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["enhanced-class-sessions"] });
+      setSwappingTeacher(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to swap teacher");
     },
   });
 
@@ -149,26 +196,80 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   
   const canEdit = role === "admin" || (role === "teacher" && canMarkAttendance);
 
+  const currentTeacherName = session.teachers?.full_name || session.teacher?.full_name || 
+    teachers?.find(t => t.id === session.teacher_id)?.full_name || "No teacher";
+
   return (
     <Sheet open={!!session} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Mark Attendance</SheetTitle>
           <SheetDescription>
-            {session.class_name || "Session"} • {dayjs(session.date).format("MMM D, YYYY")} • {session.start_time?.slice(0, 5)}
+            {session.class_name || session.classes?.name || "Session"} • {dayjs(session.date).format("MMM D, YYYY")} • {session.start_time?.slice(0, 5)}
           </SheetDescription>
-          {role === "admin" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowActions(true)}
-              className="mt-2 w-full"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Session Actions
-            </Button>
-          )}
         </SheetHeader>
+
+        {/* Quick Swap Teacher — admin only */}
+        {role === "admin" && (
+          <div className="mt-4 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Teacher:</span>
+                <span className="font-medium">{currentTeacherName}</span>
+              </div>
+              {!swappingTeacher && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSwappingTeacher(true)}
+                  className="h-7 text-xs gap-1"
+                >
+                  <ArrowLeftRight className="h-3 w-3" />
+                  Swap
+                </Button>
+              )}
+            </div>
+            {swappingTeacher && (
+              <div className="mt-2 flex gap-2">
+                <Select
+                  value=""
+                  onValueChange={(val) => swapTeacherMutation.mutate(val)}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Select new teacher..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers?.filter(t => t.id !== session.teacher_id).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setSwappingTeacher(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {role === "admin" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowActions(true)}
+            className="mt-3 w-full"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Session Actions
+          </Button>
+        )}
 
         {!canEdit && (
           <div className="my-4 p-3 bg-muted rounded-lg text-sm text-muted-foreground">
