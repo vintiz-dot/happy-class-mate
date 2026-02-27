@@ -41,7 +41,8 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
           enrollments(class_id, start_date, classes!inner(name, is_active))
         `)
         .eq("is_active", true)
-        .eq("enrollments.classes.is_active", true);
+        .eq("enrollments.classes.is_active", true)
+        .is("enrollments.end_date", null);
 
       // Apply class filter
       if (filterClass && filterClass !== "all") {
@@ -146,7 +147,7 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
                     </div>
                     {(student.enrollments as any)?.length > 0 && (
                       <p className="text-sm text-muted-foreground truncate">
-                        📚 {(student.enrollments as any).map((e: any) => e.classes?.name).filter(Boolean).join(", ")}
+                        📚 {[...new Set((student.enrollments as any).map((e: any) => e.classes?.name).filter(Boolean))].join(", ")}
                       </p>
                     )}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
