@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Trash2, Eye } from "lucide-react";
+import { GraduationCap, Trash2, Eye, RotateCcw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
@@ -29,9 +32,10 @@ interface StudentsListProps {
 export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClass = "all" }: StudentsListProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [showInactive, setShowInactive] = useState(false);
   
   const { data: students, isLoading } = useQuery({
-    queryKey: ["students-list", searchQuery, sortBy, filterClass],
+    queryKey: ["students-list", searchQuery, sortBy, filterClass, showInactive],
     queryFn: async () => {
       let query = supabase
         .from("students")
@@ -40,9 +44,14 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
           families:family_id(name),
           enrollments(class_id, start_date, classes!inner(name, is_active))
         `)
-        .eq("is_active", true)
         .eq("enrollments.classes.is_active", true)
         .is("enrollments.end_date", null);
+
+      if (showInactive) {
+        query = query.eq("is_active", false);
+      } else {
+        query = query.eq("is_active", true);
+      }
 
       // Apply class filter
       if (filterClass && filterClass !== "all") {
@@ -100,10 +109,27 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students-list"] });
-      toast.success("Student deleted successfully");
+      toast.success("Student deactivated successfully");
     },
     onError: (error) => {
-      toast.error("Failed to delete student: " + error.message);
+      toast.error("Failed to deactivate student: " + error.message);
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (studentId: string) => {
+      const { error } = await supabase
+        .from("students")
+        .update({ is_active: true })
+        .eq("id", studentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students-list"] });
+      toast.success("Student reactivated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to reactivate student: " + error.message);
     },
   });
 
@@ -114,11 +140,19 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <GraduationCap className="h-5 w-5" />
-          All Students ({students?.length || 0})
-        </CardTitle>
-        <CardDescription>Manage your student records</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5" />
+              {showInactive ? "Inactive" : "All"} Students ({students?.length || 0})
+            </CardTitle>
+            <CardDescription>Manage your student records</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="show-inactive" checked={showInactive} onCheckedChange={setShowInactive} />
+            <Label htmlFor="show-inactive" className="text-sm cursor-pointer">Show Inactive</Label>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {students?.length === 0 ? (
@@ -165,27 +199,34 @@ export function StudentsList({ searchQuery = "", sortBy = "name-asc", filterClas
                     <Eye className="h-4 w-4 mr-1" />
                     View
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Student</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete {student.full_name}? This will mark them as inactive.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteMutation.mutate(student.id)}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {showInactive ? (
+                    <Button variant="outline" size="sm" onClick={() => reactivateMutation.mutate(student.id)} disabled={reactivateMutation.isPending}>
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Reactivate
+                    </Button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Deactivate Student</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to deactivate {student.full_name}? They can be reactivated later.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate(student.id)}>
+                            Deactivate
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             ))}
