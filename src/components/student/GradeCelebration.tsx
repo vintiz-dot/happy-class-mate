@@ -53,8 +53,10 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
 
   useEffect(() => {
     if (newGrades?.length) {
-      setQueue(newGrades);
-      setCelebrationItem(newGrades[0]);
+      // Only show max 2 celebrations to avoid blocking
+      const limited = newGrades.slice(0, 2);
+      setQueue(limited);
+      setCelebrationItem(limited[0]);
       soundManager.play("success");
     }
   }, [newGrades]);

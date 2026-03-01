@@ -60,7 +60,7 @@ export function CelebrationOverlay({
       // Auto-dismiss after animation
       const timer = setTimeout(() => {
         onComplete?.();
-      }, 3000);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
@@ -70,7 +70,8 @@ export function CelebrationOverlay({
     <AnimatePresence>
       {show && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
+          onClick={() => onComplete?.()}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
