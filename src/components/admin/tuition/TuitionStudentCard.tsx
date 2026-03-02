@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, 
   CreditCard, 
-  ChevronDown, 
-  ChevronUp,
+  ChevronDown,
   Award,
   Percent
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getPaymentStatus, getTuitionStatusBadge, PaymentStatus } from "@/lib/tuitionStatus";
-import { motion, AnimatePresence } from "framer-motion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatars";
@@ -27,13 +25,7 @@ interface TuitionStudentCardProps {
   onToggleSelect?: (studentId: string) => void;
 }
 
-const formatVND = (amount: number) => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    minimumFractionDigits: 0,
-  }).format(amount);
-};
+const fmt = (n: number) => n.toLocaleString("vi-VN") + " ₫";
 
 export function TuitionStudentCard({
   item,
@@ -43,7 +35,7 @@ export function TuitionStudentCard({
   isSelected = false,
   onToggleSelect,
 }: TuitionStudentCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
   const status = getPaymentStatus({
@@ -53,183 +45,123 @@ export function TuitionStudentCard({
     monthPayments: item.recorded_payment ?? 0,
   });
 
-  const getStatusColor = (status: PaymentStatus) => {
-    switch (status) {
-      case 'overpaid': return 'border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20';
-      case 'settled': return 'border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20';
-      case 'underpaid': return 'border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20';
-      case 'unpaid': return 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20';
-      default: return 'border-l-gray-300';
-    }
+  const studentName = (item.students as any)?.full_name ?? "—";
+  const classNames = (item as any).classes?.map((c: any) => c.name).join(", ") || "No class";
+  const balance = item.balance ?? 0;
+  const priorNet = (item.carry_in_debt || 0) - (item.carry_in_credit || 0);
+
+  const borderColor: Record<string, string> = {
+    overpaid: 'border-l-blue-500',
+    settled: 'border-l-emerald-500',
+    underpaid: 'border-l-amber-500',
+    unpaid: 'border-l-destructive',
+    open: 'border-l-muted-foreground',
   };
 
-  const classes = (item as any).classes?.map((c: any) => c.name).join(", ") || "No class";
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      layout
-    >
-      <Card className={`border-l-4 transition-all duration-200 hover:shadow-md ${getStatusColor(status)} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}>
-        <CardContent className="p-4">
-          {/* Main Row */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Selection checkbox */}
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className={`border border-l-4 rounded-xl overflow-hidden bg-card transition-shadow hover:shadow-md ${borderColor[status] || ''} ${isSelected ? 'ring-2 ring-primary/50' : ''}`}>
+        {/* Clickable header */}
+        <CollapsibleTrigger asChild>
+          <button className="w-full text-left p-3 sm:p-4 flex items-center gap-3">
             {selectionMode && (
               <Checkbox
                 checked={isSelected}
-                onCheckedChange={() => onToggleSelect?.(item.student_id)}
+                onCheckedChange={(e) => {
+                  e; // prevent collapsible toggle
+                  onToggleSelect?.(item.student_id);
+                }}
+                onClick={(e) => e.stopPropagation()}
                 className="shrink-0"
               />
             )}
-            {/* Left: Avatar + Student Info */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm shrink-0">
-                <AvatarImage 
-                  src={getAvatarUrl((item.students as any)?.avatar_url) || undefined} 
-                  alt={(item.students as any)?.full_name}
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-medium text-sm">
-                  {(item.students as any)?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-base truncate">
-                    {(item.students as any)?.full_name}
-                  </h3>
-                  {getTuitionStatusBadge(status)}
-                  {item.hasDiscount && (
-                    <Badge variant="outline" className="gap-1 text-xs border-violet-300 text-violet-700 bg-violet-50 dark:bg-violet-950/30">
-                      <Percent className="h-3 w-3" />
-                      Discount
-                    </Badge>
-                  )}
-                  {item.hasSiblings && (
-                    <Badge variant="outline" className="gap-1 text-xs border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
-                      <Award className="h-3 w-3" />
-                      Sibling
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{classes}</p>
+
+            {/* Avatar */}
+            <Avatar className="h-9 w-9 ring-2 ring-background shadow-sm shrink-0">
+              <AvatarImage 
+                src={getAvatarUrl((item.students as any)?.avatar_url) || undefined} 
+                alt={studentName}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
+                {studentName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+
+            {/* Name + class + badges */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-sm truncate">{studentName}</span>
+                {getTuitionStatusBadge(status)}
+                {item.hasDiscount && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-violet-300 text-violet-700">
+                    <Percent className="h-2.5 w-2.5" /> Disc
+                  </Badge>
+                )}
+                {item.hasSiblings && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-amber-300 text-amber-700">
+                    <Award className="h-2.5 w-2.5" /> Sib
+                  </Badge>
+                )}
               </div>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{classNames}</p>
             </div>
 
-            {/* Center: Financial Summary */}
-            <div className="hidden md:flex items-center gap-6 text-sm">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Payable</p>
-                <p className="font-semibold">{formatVND(item.finalPayable)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Paid</p>
-                <p className="font-semibold text-emerald-600">
-                  {formatVND(item.recorded_payment ?? 0)}
-                </p>
-              </div>
-              {item.balance !== 0 && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Balance</p>
-                  <p className={`font-semibold ${item.balance > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                    {formatVND(Math.abs(item.balance))}
-                    {item.balance < 0 && ' CR'}
-                  </p>
-                </div>
-              )}
+            {/* Balance + chevron */}
+            <div className="text-right shrink-0">
+              <p className={`text-sm font-bold tabular-nums ${
+                balance > 0 ? "text-destructive" : balance < 0 ? "text-emerald-600" : "text-muted-foreground"
+              }`}>
+                {balance > 0 ? fmt(balance) : balance < 0 ? `+${fmt(Math.abs(balance))}` : "Settled"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Balance</p>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${open ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+
+        {/* Expanded finance breakdown */}
+        <CollapsibleContent>
+          <div className="border-t px-3 sm:px-4 py-3 space-y-3">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-3 gap-x-2 text-center">
+              <FinanceCell label="Base" value={fmt(item.base_amount)} />
+              <FinanceCell label="Discount" value={item.discount_amount > 0 ? `−${fmt(item.discount_amount)}` : "—"} accent={item.discount_amount > 0 ? "green" : undefined} />
+              <FinanceCell label="Prior Bal." value={priorNet === 0 ? "—" : priorNet > 0 ? fmt(priorNet) : `+${fmt(Math.abs(priorNet))}`} accent={priorNet > 0 ? "red" : priorNet < 0 ? "green" : undefined} />
+              <FinanceCell label="Payable" value={fmt(item.finalPayable)} bold />
+              <FinanceCell label="Paid" value={fmt(item.recorded_payment ?? 0)} accent="blue" />
+              <FinanceCell label="Balance" value={balance > 0 ? fmt(balance) : balance < 0 ? `+${fmt(Math.abs(balance))}` : "0 ₫"} accent={balance > 0 ? "red" : balance < 0 ? "green" : undefined} bold />
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRecordPay}
-                className="gap-1.5 hidden sm:flex"
-              >
-                <CreditCard className="h-4 w-4" />
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={onRecordPay} className="flex-1 sm:flex-none gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
                 Record Pay
               </Button>
-              <div className="hidden sm:block">
-                <InvoiceDownloadButton 
-                  studentId={item.student_id} 
-                  month={month}
-                  variant="ghost"
-                  size="sm"
-                />
-              </div>
-              <Button
-                variant="ghost"
+              <InvoiceDownloadButton 
+                studentId={item.student_id} 
+                month={month}
+                variant="outline"
                 size="sm"
-                onClick={() => navigate(`/students/${item.student_id}`)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="md:hidden"
-              >
-                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              />
+              <Button size="sm" variant="outline" onClick={() => navigate(`/students/${item.student_id}`)} className="gap-1.5">
+                <Eye className="h-3.5 w-3.5" />
+                View
               </Button>
             </div>
           </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
 
-          {/* Expanded Details (Mobile) */}
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Base</p>
-                    <p className="font-medium">{formatVND(item.base_amount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Discount</p>
-                    <p className="font-medium text-emerald-600">-{formatVND(item.discount_amount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Current Charges</p>
-                    <p className="font-medium">{formatVND(item.total_amount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Prior Balance</p>
-                    <p className={`font-medium ${item.priorBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {item.priorBalance >= 0 ? '+' : ''}{formatVND(item.priorBalance)}
-                    </p>
-                  </div>
-                  <div className="col-span-2 flex gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onRecordPay}
-                      className="flex-1 gap-1.5"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Record Payment
-                    </Button>
-                    <InvoiceDownloadButton 
-                      studentId={item.student_id} 
-                      month={month}
-                      variant="outline"
-                      size="sm"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
-      </Card>
-    </motion.div>
+function FinanceCell({ label, value, accent, bold }: { label: string; value: string; accent?: "green" | "red" | "blue"; bold?: boolean }) {
+  const color = accent === "green" ? "text-emerald-600" : accent === "red" ? "text-destructive" : accent === "blue" ? "text-blue-600" : "text-foreground";
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className={`text-xs sm:text-sm tabular-nums truncate ${color} ${bold ? "font-bold" : "font-medium"}`}>{value}</p>
+    </div>
   );
 }
