@@ -38,8 +38,9 @@ export interface InvoiceData {
   
   subtotal_vnd: number;
   total_due_vnd: number; // Current month charges only
-  paid_to_date_vnd: number; // Prior balance (prior payments - prior charges)
-  balance_vnd: number; // Final payable after current payments
+  paid_to_date_vnd: number; // Prior balance: credit positive, debt negative
+  final_payable_vnd: number; // Current charges + prior debt - prior credit (matches tuition page)
+  balance_vnd: number; // Outstanding after current payments (carryOut)
   recorded_payment_vnd?: number; // Current month recorded payment
   
   sessions: InvoiceSession[];

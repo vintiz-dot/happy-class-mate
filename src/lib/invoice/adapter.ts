@@ -12,15 +12,11 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
   // Generate invoice number from student ID and month
   const invoiceNumber = `INV-${upstream.month ?? new Date().toISOString().slice(0, 7)}-${(upstream.student_id ?? '').slice(0, 8)}`;
   
-  // Calculate carry-in balance (prior payments - prior charges)
+  // Direct passthrough — no recomputation, mirrors useLiveTuitionData exactly
   const carryInCredit = nv(upstream.carry?.carryInCredit, 0);
   const carryInDebt = nv(upstream.carry?.carryInDebt, 0);
-  const carryInBalance = carryInCredit - carryInDebt;
-  
-  // Final payable = current charges + carry-in debt - carry-in credit
-  const currentCharges = nv(upstream.totalAmount, 0);
-  const finalPayable = currentCharges + carryInDebt - carryInCredit;
-  
+  const totalAmount = nv(upstream.totalAmount, 0);
+
   return {
     invoice_number: nv(upstream.invoice_number, invoiceNumber),
     issue_date: nv(upstream.issue_date, new Date().toISOString()),
@@ -50,10 +46,11 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
     })),
     
     subtotal_vnd: nv(upstream.baseAmount, 0),
-    total_due_vnd: currentCharges,
-    paid_to_date_vnd: carryInBalance, // Now shows carry-in balance (prior payments - prior charges)
-    balance_vnd: nv(upstream.carry?.carryOutDebt, -(nv(upstream.carry?.carryOutCredit, 0))), // Same formula as tuition page
-    recorded_payment_vnd: nv(upstream.payments?.monthPayments, 0), // Current month recorded payment
+    total_due_vnd: totalAmount,
+    paid_to_date_vnd: carryInCredit > 0 ? carryInCredit : -carryInDebt, // credit positive, debt negative
+    final_payable_vnd: totalAmount + carryInDebt - carryInCredit, // same as useLiveTuitionData.finalPayable
+    balance_vnd: nv(upstream.carry?.carryOutDebt, -(nv(upstream.carry?.carryOutCredit, 0))),
+    recorded_payment_vnd: nv(upstream.payments?.monthPayments, 0),
     
     sessions: (upstream.sessionDetails ?? []).map((s: any) => ({
       date: nv(s.date, ''),
