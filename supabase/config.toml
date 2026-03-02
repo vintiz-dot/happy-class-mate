@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.smart-family-payment]
 verify_jwt = true
+
+[functions.calculate-tuition-bulk]
+verify_jwt = false

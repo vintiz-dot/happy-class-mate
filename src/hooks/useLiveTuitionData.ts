@@ -31,8 +31,8 @@ interface LiveTuitionItem {
 }
 
 /**
- * Hook to fetch live tuition data for all students using calculate-tuition edge function
- * This ensures we always display accurate, real-time financial status
+ * Hook to fetch live tuition data for all students using calculate-tuition-bulk edge function.
+ * Single call replaces N individual calls for massive performance improvement.
  */
 export function useLiveTuitionData(month: string) {
   return useQuery({
@@ -43,7 +43,7 @@ export function useLiveTuitionData(month: string) {
         .toISOString()
         .slice(0, 10);
 
-      // Fetch ALL active students first
+      // Fetch ALL active students
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
         .select("id, full_name, family_id, is_active, avatar_url")
@@ -54,7 +54,7 @@ export function useLiveTuitionData(month: string) {
 
       const allStudentIds = allStudents.map((s) => s.id);
 
-      // Fetch enrollments for ALL active students - only include active classes
+      // Fetch enrollments for active classes to filter students
       const { data: enrollments } = await supabase
         .from("enrollments")
         .select(`student_id, class_id, classes!inner(id, name, is_active)`)
@@ -77,6 +77,8 @@ export function useLiveTuitionData(month: string) {
       const studentsWithEnrollments = allStudents.filter(
         (student) => (studentClasses.get(student.id) || []).length > 0
       );
+
+      if (studentsWithEnrollments.length === 0) return [];
 
       // Fetch discount assignments for badges
       const { data: discounts } = await supabase
@@ -101,72 +103,54 @@ export function useLiveTuitionData(month: string) {
           .map((s) => s.id)
       );
 
-      // Fetch invoices for confirmation status
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("student_id, id, confirmation_status, status")
-        .eq("month", month)
-        .in("student_id", allStudentIds);
+      // Call bulk endpoint - single call instead of N calls
+      const studentIdsToProcess = studentsWithEnrollments.map((s) => s.id);
+      
+      const { data: bulkData, error: bulkError } = await supabase.functions.invoke(
+        "calculate-tuition-bulk",
+        { body: { studentIds: studentIdsToProcess, month } }
+      );
 
-      const invoiceMap = new Map(invoices?.map((inv) => [inv.student_id, inv]) || []);
+      if (bulkError) throw bulkError;
 
-      // Call calculate-tuition for each student in parallel batches
-      const batchSize = 10;
+      const bulkResults = bulkData?.results || [];
+      const resultMap = new Map<string, any>(bulkResults.map((r: any) => [r.studentId, r]));
+
+      // Map to LiveTuitionItem[]
       const results: LiveTuitionItem[] = [];
 
-      for (let i = 0; i < studentsWithEnrollments.length; i += batchSize) {
-        const batch = studentsWithEnrollments.slice(i, i + batchSize);
-        
-        const batchResults = await Promise.all(
-          batch.map(async (student) => {
-            try {
-              const { data, error } = await supabase.functions.invoke("calculate-tuition", {
-                body: { studentId: student.id, month },
-              });
+      for (const student of studentsWithEnrollments) {
+        const data: any = resultMap.get(student.id);
+        if (!data || data.error) continue;
 
-              if (error) {
-                console.error(`Error calculating tuition for ${student.id}:`, error);
-                return null;
-              }
-
-              const invoice = invoiceMap.get(student.id);
-
-              return {
-                id: invoice?.id || `live-${student.id}`,
-                student_id: student.id,
-                month,
-                base_amount: data.baseAmount ?? 0,
-                discount_amount: data.totalDiscount ?? 0,
-                total_amount: data.totalAmount ?? 0,
-                recorded_payment: data.payments?.monthPayments ?? 0,
-                finalPayable: data.totalAmount + (data.carry?.carryInDebt ?? 0) - (data.carry?.carryInCredit ?? 0),
-                balance: data.carry?.carryOutDebt ?? (-(data.carry?.carryOutCredit ?? 0)),
-                carry_out_credit: data.carry?.carryOutCredit ?? 0,
-                carry_out_debt: data.carry?.carryOutDebt ?? 0,
-                carry_in_credit: data.carry?.carryInCredit ?? 0,
-                carry_in_debt: data.carry?.carryInDebt ?? 0,
-                priorBalance: (data.carry?.carryInCredit ?? 0) - (data.carry?.carryInDebt ?? 0),
-                status: invoice?.status || "open",
-                confirmation_status: invoice?.confirmation_status || "needs_review",
-                students: student,
-                classes: studentClasses.get(student.id) || [],
-                hasDiscount: studentDiscounts.has(student.id),
-                hasSiblings: siblingStudents.has(student.id),
-                discounts: data.discounts ?? [],
-              } as LiveTuitionItem;
-            } catch (err) {
-              console.error(`Error calculating tuition for ${student.id}:`, err);
-              return null;
-            }
-          })
-        );
-
-        results.push(...batchResults.filter((r): r is LiveTuitionItem => r !== null));
+        results.push({
+          id: data.invoiceId || `live-${student.id}`,
+          student_id: student.id,
+          month,
+          base_amount: data.baseAmount ?? 0,
+          discount_amount: data.totalDiscount ?? 0,
+          total_amount: data.totalAmount ?? 0,
+          recorded_payment: data.payments?.monthPayments ?? 0,
+          finalPayable: data.totalAmount + (data.carry?.carryInDebt ?? 0) - (data.carry?.carryInCredit ?? 0),
+          balance: data.carry?.carryOutDebt ?? -(data.carry?.carryOutCredit ?? 0),
+          carry_out_credit: data.carry?.carryOutCredit ?? 0,
+          carry_out_debt: data.carry?.carryOutDebt ?? 0,
+          carry_in_credit: data.carry?.carryInCredit ?? 0,
+          carry_in_debt: data.carry?.carryInDebt ?? 0,
+          priorBalance: (data.carry?.carryInCredit ?? 0) - (data.carry?.carryInDebt ?? 0),
+          status: data.invoiceStatus || "open",
+          confirmation_status: data.confirmationStatus || "needs_review",
+          students: student,
+          classes: studentClasses.get(student.id) || [],
+          hasDiscount: studentDiscounts.has(student.id),
+          hasSiblings: siblingStudents.has(student.id),
+          discounts: [],
+        });
       }
 
       return results;
     },
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    staleTime: 30000,
     refetchOnWindowFocus: false,
   });
 }
