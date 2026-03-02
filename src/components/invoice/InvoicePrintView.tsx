@@ -128,7 +128,7 @@ export function InvoicePrintView({ invoice, bankInfo }: InvoicePrintViewProps) {
               <tr className="border-b-2 border-gray-400 bg-blue-50">
                 <td colSpan={2} className="py-3 px-2 font-bold text-lg">Final Payable</td>
                 <td className="text-right py-3 px-2 font-bold text-lg">
-                  {formatVND(invoice.total_due_vnd + invoice.paid_to_date_vnd)} ₫
+                  {formatVND(invoice.final_payable_vnd)} ₫
                 </td>
               </tr>
               <tr className="border-b border-gray-200 bg-green-50">
