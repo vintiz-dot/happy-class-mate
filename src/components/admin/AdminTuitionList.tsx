@@ -5,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TuitionPageFilters } from "@/components/admin/TuitionPageFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, DollarSign, ArrowUpDown, AlertCircle, CreditCard } from "lucide-react";
+import { Eye, DollarSign, ArrowUpDown, AlertCircle, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { dayjs } from "@/lib/date";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPaymentStatus, getTuitionStatusBadge } from "@/lib/tuitionStatus";
 import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+const fmt = (n: number) => n.toLocaleString("vi-VN") + " ₫";
 
 interface AdminTuitionListProps {
   month: string;
@@ -288,51 +291,26 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
             <p className="text-muted-foreground text-center py-8">No tuition records found</p>
           ) : (
             <div className="space-y-3">
-              {filteredAndSortedData.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{(item.students as any)?.full_name}</p>
-                      {getStatusBadge(item)}
-                      {item.hasDiscount && <Badge variant="outline">Discount</Badge>}
-                      {item.hasSiblings && <Badge variant="outline">Sibling</Badge>}
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      {(item as any).classes?.length > 0 && (
-                        <span className="font-medium">{(item as any).classes.map((c: any) => c.name).join(", ")}</span>
-                      )}
-                      <span>Base: {item.base_amount.toLocaleString()} ₫</span>
-                      <span>Discount: -{item.discount_amount.toLocaleString()} ₫</span>
-                      <span>Current: {item.total_amount.toLocaleString()} ₫</span>
-                      <span className={item.priorBalance >= 0 ? "text-success" : "text-destructive"}>
-                        Prior: {item.priorBalance >= 0 ? "+" : ""}{item.priorBalance.toLocaleString()} ₫
-                      </span>
-                      <span className="font-semibold text-primary">Payable: {item.finalPayable.toLocaleString()} ₫</span>
-                      <span>Paid: {(item.recorded_payment ?? item.paid_amount).toLocaleString()} ₫</span>
-                      {item.balance !== 0 && (
-                        <span className={item.balance > 0 ? "text-destructive" : "text-primary"}>
-                          Balance: {item.balance.toLocaleString()} ₫
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setPaymentItem(item)}
-                      className="gap-1"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Record Pay
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/students/${item.student_id}`)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              {filteredAndSortedData.map((item) => {
+                const statusResult = getPaymentStatus({
+                  carryOutDebt: item.carry_out_debt ?? 0,
+                  carryOutCredit: item.carry_out_credit ?? 0,
+                  totalAmount: item.total_amount ?? 0,
+                  monthPayments: item.recorded_payment ?? 0,
+                });
+                const priorNet = (item.carry_in_debt || 0) - (item.carry_in_credit || 0);
+
+                return (
+                  <TuitionStudentRow
+                    key={item.id}
+                    item={item}
+                    statusBadge={getStatusBadge(item)}
+                    priorNet={priorNet}
+                    onRecordPay={() => setPaymentItem(item)}
+                    onView={() => navigate(`/students/${item.student_id}`)}
+                  />
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -347,3 +325,114 @@ export const AdminTuitionList = ({ month }: AdminTuitionListProps) => {
     </>
   );
 };
+
+/* ── Individual student tuition card ── */
+function TuitionStudentRow({
+  item,
+  statusBadge,
+  priorNet,
+  onRecordPay,
+  onView,
+}: {
+  item: any;
+  statusBadge: React.ReactNode;
+  priorNet: number;
+  onRecordPay: () => void;
+  onView: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const studentName = (item.students as any)?.full_name ?? "—";
+  const classNames = (item as any).classes?.map((c: any) => c.name).join(", ") || "No class";
+  const balance = item.balance ?? 0;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="border rounded-xl overflow-hidden bg-card transition-shadow hover:shadow-md">
+        {/* ── Header row: always visible ── */}
+        <CollapsibleTrigger asChild>
+          <button className="w-full text-left p-3 sm:p-4 flex items-center gap-3 group">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm sm:text-base truncate">{studentName}</span>
+                {statusBadge}
+                {item.hasDiscount && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Discount</Badge>}
+                {item.hasSiblings && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Sibling</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{classNames}</p>
+            </div>
+            {/* Right side: balance + chevron */}
+            <div className="text-right shrink-0">
+              <p className={`text-sm font-bold tabular-nums ${
+                balance > 0 ? "text-destructive" : balance < 0 ? "text-emerald-600" : "text-muted-foreground"
+              }`}>
+                {balance > 0 ? fmt(balance) : balance < 0 ? `+${fmt(Math.abs(balance))}` : "Settled"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Balance</p>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${open ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+
+        {/* ── Expanded detail ── */}
+        <CollapsibleContent>
+          <div className="border-t px-3 sm:px-4 py-3 space-y-3">
+            {/* Finance breakdown grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-y-3 gap-x-2 text-center">
+              <FinanceCell label="Base" value={fmt(item.base_amount)} />
+              <FinanceCell label="Discount" value={item.discount_amount > 0 ? `−${fmt(item.discount_amount)}` : "—"} accent={item.discount_amount > 0 ? "green" : undefined} />
+              <FinanceCell label="Prior Bal." value={priorNet === 0 ? "—" : priorNet > 0 ? fmt(priorNet) : `+${fmt(Math.abs(priorNet))}`} accent={priorNet > 0 ? "red" : priorNet < 0 ? "green" : undefined} />
+              <FinanceCell label="Payable" value={fmt(item.finalPayable)} bold />
+              <FinanceCell label="Paid" value={fmt(item.recorded_payment ?? item.paid_amount)} accent="blue" />
+              <FinanceCell
+                label="Balance"
+                value={balance > 0 ? fmt(balance) : balance < 0 ? `+${fmt(Math.abs(balance))}` : "0 ₫"}
+                accent={balance > 0 ? "red" : balance < 0 ? "green" : undefined}
+                bold
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={onRecordPay} className="flex-1 sm:flex-none gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
+                Record Pay
+              </Button>
+              <Button size="sm" variant="outline" onClick={onView} className="flex-1 sm:flex-none gap-1.5">
+                <Eye className="h-3.5 w-3.5" />
+                View
+              </Button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+/* ── Tiny finance cell component ── */
+function FinanceCell({
+  label,
+  value,
+  accent,
+  bold,
+}: {
+  label: string;
+  value: string;
+  accent?: "green" | "red" | "blue";
+  bold?: boolean;
+}) {
+  const colorClass =
+    accent === "green" ? "text-emerald-600" :
+    accent === "red" ? "text-destructive" :
+    accent === "blue" ? "text-blue-600" :
+    "text-foreground";
+
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className={`text-xs sm:text-sm tabular-nums truncate ${colorClass} ${bold ? "font-bold" : "font-medium"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
