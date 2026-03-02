@@ -2,26 +2,35 @@
 
 ## Problem
 
-The invoice adapter (`adapter.ts`) recomputes `finalPayable` and `balance_vnd` from raw carry fields using its own formulas, while the tuition page (`useLiveTuitionData.ts`) computes them differently:
+The invoice PDF shows **wrong Final Payable** because `adapter.ts` and `InvoicePrintView.tsx` recompute financial values with inverted sign logic, instead of passing through the pre-computed values from the tuition edge function.
 
-- **Tuition page balance**: `carry.carryOutDebt ?? -(carry.carryOutCredit ?? 0)` (uses the backend's final carry-out values)
-- **Invoice adapter balance**: `finalPayable - monthPayments` (recomputes from intermediate values)
+**Concrete example from the screenshot:**
+- Current Month Charges: 1,890,000
+- Prior Balance (Debt): -997,500
+- Invoice shows Final Payable: 892,500 (wrong — subtracts debt)
+- Should show Final Payable: 2,887,500 (adds debt, matching tuition page)
+- Outstanding Balance: 2,887,500 (correct, from `carryOutDebt`)
 
-These formulas can diverge, causing mismatched numbers. The adapter file even says "Pure mapping adapter - no computation" but violates that by doing math.
+The bug: `InvoicePrintView` line 131 computes `total_due_vnd + paid_to_date_vnd` = `1,890,000 + (-997,500)` = `892,500`. Debt should **increase** payable, not decrease it.
 
-## Fix
+## Fix: Stop all computation, pass through upstream values
 
-Stop recomputing in the adapter. Pass through the same upstream fields the tuition page uses:
+### 1. `src/lib/invoice/types.ts`
+Add `final_payable_vnd` field to `InvoiceData`. This stores the pre-computed value identical to the tuition page's `finalPayable`.
 
-**`src/lib/invoice/adapter.ts`** changes:
-- `total_due_vnd` = `upstream.totalAmount` (current charges, already correct)
-- `paid_to_date_vnd` (prior balance) = `carryInDebt - carryInCredit` (keep as-is, this is just a sign flip for display)
-- `balance_vnd` = `upstream.carry.carryOutDebt ?? -(upstream.carry.carryOutCredit ?? 0)` -- same formula as tuition page
-- `recorded_payment_vnd` = `upstream.payments.monthPayments` (already correct)
-- Compute `finalPayable` the same way: `totalAmount + carryInDebt - carryInCredit` (this already matches the tuition page)
+### 2. `src/lib/invoice/adapter.ts`
+Remove all local math (`carryInBalance`, `finalPayable`, `currentCharges` computations). Replace with direct passthrough:
+- `total_due_vnd` = `upstream.totalAmount` (already correct)
+- `paid_to_date_vnd` = `upstream.carry.carryInCredit` (positive) or `-upstream.carry.carryInDebt` (negative) — display-only, matching user's preference for "debt negative"
+- `final_payable_vnd` = `upstream.totalAmount + upstream.carry.carryInDebt - upstream.carry.carryInCredit` — same formula as `useLiveTuitionData.ts` line for `finalPayable`
+- `balance_vnd` = `upstream.carry.carryOutDebt` or `-upstream.carry.carryOutCredit` — already fixed
+- `recorded_payment_vnd` = `upstream.payments.monthPayments` — already correct
 
-The key fix is **one line**: change `balance_vnd` from `finalPayable - monthPayments` to use `carryOutDebt / carryOutCredit` directly from upstream, matching the tuition page exactly.
+### 3. `src/components/invoice/InvoicePrintView.tsx`
+Line 131: Replace computed `invoice.total_due_vnd + invoice.paid_to_date_vnd` with `invoice.final_payable_vnd`.
 
-### File to modify
-- `src/lib/invoice/adapter.ts` (1 line change)
+### Files to modify
+- `src/lib/invoice/types.ts` — add 1 field
+- `src/lib/invoice/adapter.ts` — remove computation, pure passthrough
+- `src/components/invoice/InvoicePrintView.tsx` — use `final_payable_vnd` directly
 
