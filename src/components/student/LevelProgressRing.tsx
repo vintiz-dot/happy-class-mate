@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatars";
 import { Star, Zap } from "lucide-react";
+import { getLevelTitle } from "@/lib/levelUtils";
 
 interface LevelProgressRingProps {
   avatarUrl?: string | null;
@@ -148,6 +149,18 @@ export function LevelProgressRing({
       >
         <Star className="h-3.5 w-3.5 text-white fill-white" />
         <span className="font-black text-white">LV {level}</span>
+      </motion.div>
+
+      {/* Level Title */}
+      <motion.div
+        className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap"
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2 }}
+      >
+        <span className="text-xs font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          {getLevelTitle(level)}
+        </span>
       </motion.div>
 
       {/* Floating XP indicator */}

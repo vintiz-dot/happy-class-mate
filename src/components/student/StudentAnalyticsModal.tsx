@@ -31,27 +31,7 @@ interface StudentAnalyticsModalProps {
   selectedMonth: string; // YYYY-MM format
 }
 
-function calculateLevel(xp: number): { level: number; currentXp: number; nextLevelXp: number; progress: number } {
-  // XP thresholds: 0-100 = Lv1, 100-300 = Lv2, 300-600 = Lv3, etc.
-  const thresholds = [0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500];
-  
-  let level = 1;
-  for (let i = 1; i < thresholds.length; i++) {
-    if (xp >= thresholds[i]) {
-      level = i + 1;
-    } else {
-      break;
-    }
-  }
-  
-  const currentThreshold = thresholds[level - 1] ?? thresholds[thresholds.length - 1];
-  const nextThreshold = thresholds[level] ?? thresholds[thresholds.length - 1] + 1000;
-  const currentXp = xp - currentThreshold;
-  const nextLevelXp = nextThreshold - currentThreshold;
-  const progress = Math.min((currentXp / nextLevelXp) * 100, 100);
-  
-  return { level, currentXp, nextLevelXp, progress };
-}
+import { calculateLevel, getLevelTitle } from "@/lib/levelUtils";
 
 function getRankGlow(rank: number): string {
   switch (rank) {
@@ -194,7 +174,7 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
                     transition={{ delay: 0.3 }}
                   >
                     <Sparkles className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-bold text-primary">Level {levelInfo.level}</span>
+                    <span className="text-sm font-bold text-primary">Level {levelInfo.level} — {getLevelTitle(levelInfo.level)}</span>
                     <Sparkles className="h-4 w-4 text-primary" />
                   </motion.div>
 
