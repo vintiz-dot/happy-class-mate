@@ -17,9 +17,9 @@ export function mapUpstreamToInvoice(upstream: any): InvoiceData {
   const carryInDebt = nv(upstream.carry?.carryInDebt, 0);
   const carryInBalance = carryInCredit - carryInDebt;
   
-  // Final payable = current charges + carry-in balance (debt positive, credit negative)
+  // Final payable = current charges + carry-in debt - carry-in credit
   const currentCharges = nv(upstream.totalAmount, 0);
-  const finalPayable = currentCharges + carryInBalance;
+  const finalPayable = currentCharges + carryInDebt - carryInCredit;
   
   return {
     invoice_number: nv(upstream.invoice_number, invoiceNumber),
