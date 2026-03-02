@@ -1,48 +1,27 @@
 
 
-## Plan: Fix Sibling Discount Preview + Speed Up Tuition Page
+## Problem
 
-### Problem 1: Sibling Discount Preview Shows Non-Qualifying Families
-The `compute-sibling-discounts` edge function returns ALL families, including those with `status: 'none'` (< 2 students) and `status: 'pending'` (< 2 students with positive tuition). The preview dialog renders all of them.
+The invoice adapter (`adapter.ts`) recomputes `finalPayable` and `balance_vnd` from raw carry fields using its own formulas, while the tuition page (`useLiveTuitionData.ts`) computes them differently:
 
-**Fix (frontend only):**
-- In `SiblingDiscountCompute.tsx`, filter `previewResults` to exclude families with `status: 'none'` before displaying and before fetching family overrides.
-- Also skip fetching family override data for non-qualifying families (saves N sequential DB calls).
+- **Tuition page balance**: `carry.carryOutDebt ?? -(carry.carryOutCredit ?? 0)` (uses the backend's final carry-out values)
+- **Invoice adapter balance**: `finalPayable - monthPayments` (recomputes from intermediate values)
 
-### Problem 2: Tuition Page Extremely Slow
-`useLiveTuitionData` calls `calculate-tuition` edge function **individually for every student** (batches of 10). With 30+ students, that's 30+ sequential edge function invocations, each doing ~8 DB queries internally. This causes 60+ second load times.
+These formulas can diverge, causing mismatched numbers. The adapter file even says "Pure mapping adapter - no computation" but violates that by doing math.
 
-**Fix: Create a bulk `calculate-tuition-bulk` edge function**
+## Fix
 
-1. **New edge function `calculate-tuition-bulk/index.ts`** that accepts `{ studentIds: string[], month: string }` and performs all the same calculations but with bulk queries:
-   - Fetch ALL enrollments, sessions, attendance, discounts, invoices in single queries using `.in()` filters
-   - Process all students in-memory using the same logic as the single-student version
-   - Return an array of tuition results
-   - This reduces ~240 DB queries (30 students x 8 queries) down to ~8 bulk queries
+Stop recomputing in the adapter. Pass through the same upstream fields the tuition page uses:
 
-2. **Update `useLiveTuitionData.ts`** to call the new bulk endpoint instead of looping per-student:
-   - Single edge function call instead of 30+
-   - Remove the batch loop logic
-   - Map the bulk response to the same `LiveTuitionItem[]` shape
+**`src/lib/invoice/adapter.ts`** changes:
+- `total_due_vnd` = `upstream.totalAmount` (current charges, already correct)
+- `paid_to_date_vnd` (prior balance) = `carryInDebt - carryInCredit` (keep as-is, this is just a sign flip for display)
+- `balance_vnd` = `upstream.carry.carryOutDebt ?? -(upstream.carry.carryOutCredit ?? 0)` -- same formula as tuition page
+- `recorded_payment_vnd` = `upstream.payments.monthPayments` (already correct)
+- Compute `finalPayable` the same way: `totalAmount + carryInDebt - carryInCredit` (this already matches the tuition page)
 
-3. **Update `supabase/config.toml`** to register the new function with `verify_jwt = false`.
+The key fix is **one line**: change `balance_vnd` from `finalPayable - monthPayments` to use `carryOutDebt / carryOutCredit` directly from upstream, matching the tuition page exactly.
 
-### Technical Details
-
-**Bulk edge function query strategy:**
-- Single query for all students + families
-- Single query for all enrollments across all students
-- Single query for all sessions in the month for enrolled classes
-- Single query for all attendance records
-- Single query for all discount assignments
-- Single query for all invoices for the month
-- Single query for all sibling discount states
-- Process in-memory with Maps for O(1) lookups
-
-**Expected performance improvement:** From ~30-60 seconds down to ~2-3 seconds.
-
-### Files to Create/Modify
-- **Create:** `supabase/functions/calculate-tuition-bulk/index.ts`
-- **Modify:** `src/hooks/useLiveTuitionData.ts` - call bulk endpoint
-- **Modify:** `src/components/admin/SiblingDiscountCompute.tsx` - filter non-qualifying families from preview
+### File to modify
+- `src/lib/invoice/adapter.ts` (1 line change)
 
