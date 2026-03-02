@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -7,7 +7,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { POINT_OPTIONS } from "@/lib/skillConfig";
+import { Check } from "lucide-react";
 
 interface SkillButtonProps {
   icon: LucideIcon;
@@ -25,9 +27,12 @@ export function SkillButton({
   onTap 
 }: SkillButtonProps) {
   const [showPointOptions, setShowPointOptions] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = useCallback(() => {
     setShowPointOptions(true);
+    setCustomValue("");
     if (navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -36,6 +41,13 @@ export function SkillButton({
   const handlePointSelect = (points: number) => {
     onTap(skill, points);
     setShowPointOptions(false);
+  };
+
+  const handleCustomSubmit = () => {
+    const val = parseInt(customValue, 10);
+    if (!isNaN(val) && val > 0 && val <= 100) {
+      handlePointSelect(val);
+    }
   };
 
   const baseClasses = cn(
@@ -58,7 +70,7 @@ export function SkillButton({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" side="top" align="center">
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           {POINT_OPTIONS.map((pts) => (
             <Button
               key={pts}
@@ -70,6 +82,28 @@ export function SkillButton({
               +{pts}
             </Button>
           ))}
+          <div className="flex items-center gap-0.5 ml-1">
+            <Input
+              ref={inputRef}
+              type="number"
+              min={1}
+              max={100}
+              placeholder="#"
+              value={customValue}
+              onChange={(e) => setCustomValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCustomSubmit(); }}
+              className="w-12 h-10 text-center text-sm font-bold p-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-8 h-10 p-0"
+              disabled={!customValue || isNaN(parseInt(customValue)) || parseInt(customValue) < 1}
+              onClick={handleCustomSubmit}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
