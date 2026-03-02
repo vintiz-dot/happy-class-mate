@@ -77,23 +77,32 @@ export function SiblingDiscountCompute() {
 
       if (error) throw error;
 
-      const results = data.results || [];
-      setPreviewResults(results);
+      const allResults = data.results || [];
+      // Filter out non-qualifying families (status 'none' = <2 students)
+      const qualifyingResults = allResults.filter(
+        (r: PreviewResult) => r.status === 'assigned' || r.status === 'pending'
+      );
+      setPreviewResults(qualifyingResults);
       
-      // Initialize overrides from current family settings
+      // Batch fetch family overrides for qualifying families only
+      const qualifyingFamilyIds = qualifyingResults.map((r: PreviewResult) => r.family_id);
       const overrides: Record<string, FamilyOverride> = {};
-      for (const result of results) {
-        // Fetch current family override from DB
-        const { data: familyData } = await supabase
+      
+      if (qualifyingFamilyIds.length > 0) {
+        const { data: familiesData } = await supabase
           .from('families')
-          .select('sibling_percent_override')
-          .eq('id', result.family_id)
-          .single();
+          .select('id, sibling_percent_override')
+          .in('id', qualifyingFamilyIds);
         
-        overrides[result.family_id] = {
-          percent: result.discount_percent || familyData?.sibling_percent_override || 5,
-          disabled: (familyData?.sibling_percent_override === 0),
-        };
+        const familyMap = new Map(familiesData?.map(f => [f.id, f]) || []);
+        
+        for (const result of qualifyingResults) {
+          const familyData = familyMap.get(result.family_id);
+          overrides[result.family_id] = {
+            percent: result.discount_percent || familyData?.sibling_percent_override || 5,
+            disabled: (familyData?.sibling_percent_override === 0),
+          };
+        }
       }
       setFamilyOverrides(overrides);
       setShowPreview(true);
