@@ -28,6 +28,7 @@ import { HowToEarnXP } from "@/components/student/HowToEarnXP";
 import { AchievementBadges } from "@/components/student/AchievementBadges";
 import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
+import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 
 // Animation variants
 const containerVariants = {
@@ -48,27 +49,7 @@ const itemVariants = {
   }
 };
 
-// Level calculation
-function calculateLevel(xp: number): { level: number; currentXp: number; nextLevelXp: number; progress: number } {
-  const thresholds = [0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500];
-  
-  let level = 1;
-  for (let i = 1; i < thresholds.length; i++) {
-    if (xp >= thresholds[i]) {
-      level = i + 1;
-    } else {
-      break;
-    }
-  }
-  
-  const currentThreshold = thresholds[level - 1] ?? thresholds[thresholds.length - 1];
-  const nextThreshold = thresholds[level] ?? thresholds[thresholds.length - 1] + 1000;
-  const currentXp = xp - currentThreshold;
-  const nextLevelXp = nextThreshold - currentThreshold;
-  const progress = Math.min((currentXp / nextLevelXp) * 100, 100);
-  
-  return { level, currentXp, nextLevelXp, progress };
-}
+import { calculateLevel, getLevelTitle } from "@/lib/levelUtils";
 
 // Time-based greeting with kid-friendly messages
 function getGreeting(): { text: string; emoji: string; subtext: string } {
@@ -86,6 +67,9 @@ export default function StudentDashboard() {
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [featuredBadgeId, setFeaturedBadgeId] = useState<string | null>(() => {
+    try { return localStorage.getItem("featured_badge_id"); } catch { return null; }
+  });
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "dashboard");
   const greeting = useMemo(() => getGreeting(), []);
@@ -117,6 +101,7 @@ export default function StudentDashboard() {
           date_of_birth,
           avatar_url,
           is_active,
+          status_message,
           family:families(name),
           updated_at
         `)
@@ -447,6 +432,13 @@ export default function StudentDashboard() {
                     {studentProfile.full_name.split(' ')[0]}!
                   </h1>
 
+                  {/* Status Message */}
+                  {(studentProfile as any).status_message && (
+                    <p className="text-sm italic text-muted-foreground/80">
+                      "{(studentProfile as any).status_message}"
+                    </p>
+                  )}
+
                   <p className="text-sm text-muted-foreground">{greeting.subtext}</p>
                 </div>
               </div>
@@ -487,7 +479,7 @@ export default function StudentDashboard() {
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-warning" />
-                  <span className="font-medium">Level {levelInfo.level}</span>
+                  <span className="font-medium">{getLevelTitle(levelInfo.level)} — Level {levelInfo.level}</span>
                 </div>
                 <span className="text-muted-foreground">
                   {levelInfo.currentXp}/{levelInfo.nextLevelXp} XP to Level {levelInfo.level + 1}
@@ -536,6 +528,12 @@ export default function StudentDashboard() {
             currentStreak={streakData.currentStreak}
             longestStreak={streakData.longestStreak}
             classesAttended={achievementData?.classesAttended || 0}
+            featuredBadgeId={featuredBadgeId ?? undefined}
+            onFeatureBadge={(id) => {
+              setFeaturedBadgeId(id);
+              if (id) localStorage.setItem("featured_badge_id", id);
+              else localStorage.removeItem("featured_badge_id");
+            }}
           />
         </motion.div>
 
@@ -860,8 +858,31 @@ export default function StudentDashboard() {
                   currentStreak={streakData.currentStreak}
                   longestStreak={streakData.longestStreak}
                   classesAttended={achievementData?.classesAttended || 0}
+                  featuredBadgeId={featuredBadgeId ?? undefined}
+                  onFeatureBadge={(id) => {
+                    setFeaturedBadgeId(id);
+                    if (id) localStorage.setItem("featured_badge_id", id);
+                    else localStorage.removeItem("featured_badge_id");
+                  }}
+                />
+                <p className="text-xs text-muted-foreground mt-2 text-center">Tap an earned badge to feature it! ⭐</p>
+              </div>
+              
+              {/* Shareable Profile Card */}
+              <div className="glass-lg border-0 shadow-xl rounded-2xl p-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <span>📸</span> Your Profile Card
+                </h3>
+                <ProfileShareCard
+                  name={studentProfile.full_name}
+                  avatarUrl={studentProfile.avatar_url}
+                  level={levelInfo.level}
+                  totalXp={totalPoints || 0}
+                  currentStreak={streakData.currentStreak}
+                  statusMessage={(studentProfile as any).status_message}
                 />
               </div>
+
               <div className="glass-lg border-0 shadow-xl rounded-2xl p-6">
                 <HowToEarnXP />
               </div>

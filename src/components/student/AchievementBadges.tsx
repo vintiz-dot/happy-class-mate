@@ -21,6 +21,8 @@ interface AchievementBadgesProps {
   currentStreak: number;
   longestStreak: number;
   classesAttended: number;
+  featuredBadgeId?: string;
+  onFeatureBadge?: (badgeId: string | null) => void;
 }
 
 const badgeDefinitions: Omit<Badge, "earned" | "earnedAt">[] = [
@@ -74,6 +76,8 @@ export function AchievementBadges({
   currentStreak,
   longestStreak,
   classesAttended,
+  featuredBadgeId,
+  onFeatureBadge,
 }: AchievementBadgesProps) {
   // Calculate which badges are earned
   const badges: Badge[] = badgeDefinitions.map((def) => {
@@ -137,12 +141,19 @@ export function AchievementBadges({
                       ${badge.earned 
                         ? `bg-gradient-to-br ${rarityColors[badge.rarity]} shadow-lg ${rarityGlow[badge.rarity]}` 
                         : 'bg-muted/50 border border-border/50'
-                      }`}
+                      }
+                      ${featuredBadgeId === badge.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}
+                    `}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
                     whileHover={{ scale: 1.1, y: -4 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      if (badge.earned && onFeatureBadge) {
+                        onFeatureBadge(featuredBadgeId === badge.id ? null : badge.id);
+                      }
+                    }}
                   >
                     {badge.earned ? (
                       <span className="text-2xl">{badge.icon}</span>

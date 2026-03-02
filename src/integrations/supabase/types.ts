@@ -2260,6 +2260,7 @@ export type Database = {
           linked_user_id: string | null
           notes: string | null
           phone: string | null
+          status_message: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -2276,6 +2277,7 @@ export type Database = {
           linked_user_id?: string | null
           notes?: string | null
           phone?: string | null
+          status_message?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -2292,6 +2294,7 @@ export type Database = {
           linked_user_id?: string | null
           notes?: string | null
           phone?: string | null
+          status_message?: string | null
           updated_at?: string
           updated_by?: string | null
         }

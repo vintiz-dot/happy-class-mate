@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, User, Mail, Phone, Calendar } from "lucide-react";
+import { Loader2, Save, User, Mail, Phone, Calendar, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
@@ -35,18 +35,20 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
     email: student?.email || "",
     phone: student?.phone || "",
     date_of_birth: student?.date_of_birth || "",
+    status_message: (student as any)?.status_message || "",
   });
 
   // Update form when student data loads
-  useState(() => {
+  useEffect(() => {
     if (student) {
       setFormData({
         email: student.email || "",
         phone: student.phone || "",
         date_of_birth: student.date_of_birth || "",
+        status_message: (student as any)?.status_message || "",
       });
     }
-  });
+  }, [student]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -56,7 +58,8 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
           email: data.email || null,
           phone: data.phone || null,
           date_of_birth: data.date_of_birth || null,
-        })
+          status_message: data.status_message || null,
+        } as any)
         .eq("id", studentId);
 
       if (error) throw error;
@@ -143,6 +146,32 @@ export function StudentProfileEdit({ studentId }: StudentProfileEditProps) {
             currentAvatarUrl={student?.avatar_url}
             studentName={student?.full_name || "Student"}
           />
+        </CardContent>
+      </Card>
+
+      {/* Status Message Section */}
+      <Card className="glass-lg border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            Status Message
+          </CardTitle>
+          <CardDescription>Set a fun status for your profile! (max 50 characters)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Input
+              value={formData.status_message}
+              onChange={(e) => {
+                if (e.target.value.length <= 50) {
+                  setFormData({ ...formData, status_message: e.target.value });
+                }
+              }}
+              placeholder="On a 🔥 streak!"
+              maxLength={50}
+            />
+            <p className="text-xs text-muted-foreground text-right">{formData.status_message.length}/50</p>
+          </div>
         </CardContent>
       </Card>
 
