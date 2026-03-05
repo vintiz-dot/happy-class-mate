@@ -59,7 +59,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <div className="space-y-3">
             <DialogTitle className="text-lg sm:text-xl leading-tight break-words">{homework.title}</DialogTitle>
@@ -105,12 +105,12 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
 
         <div className="space-y-4 sm:space-y-6">
           {homework.body && (
-            <div className="bg-primary/5 border-2 border-primary/20 p-3 sm:p-6 rounded-lg">
+            <div className="bg-primary/5 border-2 border-primary/20 p-3 sm:p-6 rounded-lg overflow-hidden">
               <h2 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 text-primary flex items-center gap-2">
                 📋 Assignment Instructions
               </h2>
               <div 
-                className="prose prose-sm max-w-none break-words overflow-hidden [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_p]:break-words [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground [&_img]:max-w-full [&_img]:h-auto [&_a]:break-all [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:break-all"
+                className="prose prose-sm max-w-none w-full min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [word-break:break-word] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_p]:break-words [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground [&_img]:max-w-full [&_img]:h-auto [&_a]:break-all [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:break-all"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(homework.body) }}
               />
             </div>
