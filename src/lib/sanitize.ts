@@ -11,6 +11,6 @@ export const sanitizeHtml = (html: string): string => {
       'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'span', 'div', 'sub', 'sup'
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
-    ALLOWED_STYLE: ['color', 'background-color']
+    ALLOW_DATA_ATTR: false,
   });
 };
