@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { FileText, Star, CheckCircle2, Clock, Send, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
+import HomeworkStreakCard from "@/components/student/HomeworkStreakCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
 import { useLoginChallenge } from "@/hooks/useLoginChallenge";
 import { GradeCelebration } from "@/components/student/GradeCelebration";
 import { getHomeworkStatus, statusConfig, getCountdown, type HomeworkStatus } from "@/lib/homeworkStatus";
+import { motion } from "framer-motion";
 
 const statusIcons: Record<HomeworkStatus, React.ReactNode> = {
   overdue: <AlertTriangle className="h-4 w-4 text-red-500" />,
@@ -31,7 +33,12 @@ function SubmissionPipeline({ status }: { status: HomeworkStatus }) {
     <div className="flex items-center gap-1 mt-1">
       {steps.map((step, i) => (
         <div key={step} className="flex items-center gap-1">
-          <div className={`h-1.5 w-6 rounded-full transition-colors ${i <= activeIdx ? "bg-emerald-500" : "bg-muted"}`} />
+          <motion.div
+            className={`h-1.5 w-6 rounded-full transition-colors ${i <= activeIdx ? "bg-emerald-500" : "bg-muted"}`}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: i * 0.15, duration: 0.3 }}
+          />
           {i < steps.length - 1 && <div className="h-px w-1 bg-muted" />}
         </div>
       ))}
@@ -40,68 +47,103 @@ function SubmissionPipeline({ status }: { status: HomeworkStatus }) {
   );
 }
 
-function AssignmentCard({ assignment, onClick }: { assignment: any; onClick: () => void }) {
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.97 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      delay: i * 0.06,
+      duration: 0.4,
+      ease: "easeOut" as const,
+    },
+  }),
+};
+
+function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; onClick: () => void; index?: number }) {
   const status = getHomeworkStatus(assignment);
   const config = statusConfig[status];
   const countdown = getCountdown(assignment.due_date);
+  const isOverdue = status === "overdue";
 
   return (
-    <Card
-      className={`cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200 ${config.cardClass} ${config.borderColor}`}
-      onClick={onClick}
+    <motion.div
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ scale: 1.015, y: -2 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <CardHeader className="p-3 sm:p-5">
-        <div className="space-y-2">
-          <div className="flex items-start gap-2">
-            <span className="mt-0.5 shrink-0">{statusIcons[status]}</span>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base sm:text-lg leading-tight break-words">
-                {assignment.title}
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm mt-0.5">
-                {assignment.classes.name}
-              </CardDescription>
-            </div>
-            {status === "graded" && assignment.submission?.grade && (
-              <div className="shrink-0 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 rounded-xl px-3 py-1.5">
-                <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
-                <span className="font-bold text-base text-emerald-700 dark:text-emerald-400">
-                  {assignment.submission.grade}
-                </span>
+      <Card
+        className={`cursor-pointer hover:shadow-lg transition-shadow duration-200 ${config.cardClass} ${config.borderColor} ${isOverdue ? "animate-[pulse_3s_ease-in-out_infinite]" : ""}`}
+        onClick={onClick}
+      >
+        <CardHeader className="p-3 sm:p-5">
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <motion.span
+                className="mt-0.5 shrink-0"
+                animate={isOverdue ? { rotate: [0, -10, 10, -10, 0] } : {}}
+                transition={{ repeat: Infinity, duration: 2, repeatDelay: 3 }}
+              >
+                {statusIcons[status]}
+              </motion.span>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base sm:text-lg leading-tight break-words">
+                  {assignment.title}
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm mt-0.5">
+                  {assignment.classes.name}
+                </CardDescription>
               </div>
+              {status === "graded" && assignment.submission?.grade && (
+                <motion.div
+                  className="shrink-0 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 rounded-xl px-3 py-1.5"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 300, delay: 0.3 }}
+                >
+                  <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
+                  <span className="font-bold text-base text-emerald-700 dark:text-emerald-400">
+                    {assignment.submission.grade}
+                  </span>
+                </motion.div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge className={`text-[10px] sm:text-xs ${config.badgeClass}`}>
+                {config.icon} {config.label}
+              </Badge>
+              {countdown && (
+                <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} ${isOverdue || status === "due-today" ? "animate-pulse" : ""}`}>
+                  {countdown}
+                </Badge>
+              )}
+              {assignment.due_date && (
+                <Badge variant="outline" className="text-[10px] sm:text-xs">
+                  Due {new Date(assignment.due_date).toLocaleDateString()}
+                </Badge>
+              )}
+            </div>
+
+            {(status === "submitted" || status === "graded") && (
+              <SubmissionPipeline status={status} />
             )}
           </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge className={`text-[10px] sm:text-xs ${config.badgeClass}`}>
-              {config.icon} {config.label}
-            </Badge>
-            {countdown && (
-              <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} ${status === "overdue" || status === "due-today" ? "animate-pulse" : ""}`}>
-                {countdown}
-              </Badge>
-            )}
-            {assignment.due_date && (
-              <Badge variant="outline" className="text-[10px] sm:text-xs">
-                Due {new Date(assignment.due_date).toLocaleDateString()}
-              </Badge>
-            )}
-          </div>
-
-          {(status === "submitted" || status === "graded") && (
-            <SubmissionPipeline status={status} />
-          )}
-        </div>
-      </CardHeader>
-      {assignment.body && status !== "graded" && (
-        <CardContent className="px-3 pb-3 sm:px-5 sm:pb-4 pt-0">
-          <div
-            className="text-sm prose prose-sm max-w-none line-clamp-2 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
-          />
-        </CardContent>
-      )}
-    </Card>
+        </CardHeader>
+        {assignment.body && status !== "graded" && (
+          <CardContent className="px-3 pb-3 sm:px-5 sm:pb-4 pt-0">
+            <div
+              className="text-sm prose prose-sm max-w-none line-clamp-2 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
+            />
+          </CardContent>
+        )}
+      </Card>
+    </motion.div>
   );
 }
 
@@ -174,19 +216,30 @@ export default function StudentAssignments() {
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
       <div className="space-y-6">
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
           <h1 className="text-3xl font-bold">📚 Assignments</h1>
           <p className="text-muted-foreground">Track your homework, earn XP, level up!</p>
-        </div>
+        </motion.div>
+
+        {/* Homework Streak Tracker */}
+        {assignments.length > 0 && studentId && (
+          <HomeworkStreakCard studentId={studentId} assignments={assignments} />
+        )}
 
         {assignments.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No assignments yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Your teachers haven&apos;t posted any assignments</p>
-            </CardContent>
-          </Card>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No assignments yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Your teachers haven&apos;t posted any assignments</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         ) : (
           <Tabs defaultValue="list" className="w-full">
             <TabsList className="w-full grid grid-cols-3 h-auto">
@@ -200,8 +253,8 @@ export default function StudentAssignments() {
                 <div className="space-y-3">
                   <h2 className="text-lg font-semibold flex items-center gap-2">🎯 Current & Upcoming</h2>
                   <div className="grid gap-3">
-                    {upcomingAssignments.map((a: any) => (
-                      <AssignmentCard key={a.id} assignment={a} onClick={() => setSelectedHomework(a)} />
+                    {upcomingAssignments.map((a: any, i: number) => (
+                      <AssignmentCard key={a.id} assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
                     ))}
                   </div>
                 </div>
@@ -210,12 +263,12 @@ export default function StudentAssignments() {
                 <div className="space-y-3">
                   <h2 className="text-lg font-semibold flex items-center gap-2">📁 Past Assignments</h2>
                   <div className="grid gap-3">
-                    {pastAssignments.map((a: any) => {
+                    {pastAssignments.map((a: any, i: number) => {
                       const st = getHomeworkStatus(a);
                       const isOverdueNotSubmitted = st === "overdue";
                       return (
                         <div key={a.id} className={isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-90 transition-opacity"}>
-                          <AssignmentCard assignment={a} onClick={() => setSelectedHomework(a)} />
+                          <AssignmentCard assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
                         </div>
                       );
                     })}
@@ -239,8 +292,8 @@ export default function StudentAssignments() {
                 <Card><CardContent className="py-12 text-center"><FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">No upcoming assignments</p></CardContent></Card>
               ) : (
                 <div className="grid gap-3">
-                  {upcomingAssignments.map((a: any) => (
-                    <AssignmentCard key={a.id} assignment={a} onClick={() => setSelectedHomework(a)} />
+                  {upcomingAssignments.map((a: any, i: number) => (
+                    <AssignmentCard key={a.id} assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
                   ))}
                 </div>
               )}

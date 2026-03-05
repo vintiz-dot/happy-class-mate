@@ -12,6 +12,8 @@ import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { dayjs } from "@/lib/date";
 import { soundManager } from "@/lib/soundManager";
+import { motion, AnimatePresence } from "framer-motion";
+import { SubmitCheckmark } from "./SubmitCheckmark";
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
@@ -31,6 +33,7 @@ export default function HomeworkSubmission({
   );
   const [file, setFile] = useState<File | null>(null);
   const [thanked, setThanked] = useState(false);
+  const [showCheckmark, setShowCheckmark] = useState(false);
   const queryClient = useQueryClient();
 
   // Check if student already thanked
@@ -86,23 +89,18 @@ export default function HomeworkSubmission({
       let fileName = existingSubmission?.file_name;
       let fileSize = existingSubmission?.file_size;
 
-      // Upload file if provided
       if (file) {
         if (file.size > 5 * 1024 * 1024) {
           throw new Error("File size must be less than 5MB");
         }
 
-        const fileExt = file.name.split(".").pop();
         const timestamp = Date.now();
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
         const filePath = `submissions/${homeworkId}/${studentId}/${timestamp}-${sanitizedFileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("homework")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+          .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
         if (uploadError) {
           console.error("Storage upload error:", uploadError);
@@ -114,14 +112,12 @@ export default function HomeworkSubmission({
         fileSize = file.size;
       }
 
-      // Get homework instructions to store with submission
       const { data: homeworkData } = await supabase
         .from("homeworks")
         .select("body")
         .eq("id", homeworkId)
         .single();
 
-      // Upsert submission
       const { error } = await supabase.from("homework_submissions").upsert({
         id: existingSubmission?.id,
         homework_id: homeworkId,
@@ -137,12 +133,11 @@ export default function HomeworkSubmission({
 
       if (error) throw error;
 
-      // Check for early submission bonus (only for first-time submissions)
+      // Early submission bonus
       const isFirstSubmission = !existingSubmission?.submitted_at;
       const isEarly = homework?.due_date && new Date() < new Date(homework.due_date + 'T23:59:59');
       
       if (isFirstSubmission && isEarly && homework?.class_id) {
-        // Check if already received early bonus
         const { data: existingBonus } = await supabase
           .from("early_submission_rewards")
           .select("id")
@@ -154,7 +149,6 @@ export default function HomeworkSubmission({
           const effectiveDate = homework.due_date || dayjs().format("YYYY-MM-DD");
           const month = effectiveDate.slice(0, 7);
 
-          // Insert point transaction for early submission
           const { data: pointTx } = await supabase
             .from("point_transactions")
             .insert({
@@ -171,7 +165,6 @@ export default function HomeworkSubmission({
             .select("id")
             .single();
 
-          // Track the early submission reward
           await supabase
             .from("early_submission_rewards")
             .insert({
@@ -186,20 +179,19 @@ export default function HomeworkSubmission({
       }
     },
     onSuccess: () => {
+      // Show checkmark animation
+      setShowCheckmark(true);
       soundManager.play("questComplete");
       toast.success("Homework submitted successfully");
-      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["student-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["homework-submission", homeworkId, studentId] });
       queryClient.invalidateQueries({ queryKey: ["homework-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["student-total-points", studentId] });
       setFile(null);
-      onSuccess?.();
     },
     onError: (error: any) => {
       console.error("Homework submission error:", error);
       const errorMessage = error.message || "Failed to submit homework";
-      
       if (errorMessage.includes("policy")) {
         toast.error("Permission denied. Please make sure you're logged in as a student.");
       } else if (errorMessage.includes("storage")) {
@@ -223,16 +215,10 @@ export default function HomeworkSubmission({
 
   const downloadFile = async () => {
     if (!existingSubmission?.storage_key) return;
-
     const { data, error } = await supabase.storage
       .from("homework")
       .download(existingSubmission.storage_key);
-
-    if (error) {
-      toast.error("Failed to download file");
-      return;
-    }
-
+    if (error) { toast.error("Failed to download file"); return; }
     const url = URL.createObjectURL(data);
     const a = document.createElement("a");
     a.href = url;
@@ -242,151 +228,183 @@ export default function HomeworkSubmission({
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div>
-        <Label htmlFor="submission-text">Your Response</Label>
-        <ReactQuill
-          theme="snow"
-          value={submissionText}
-          onChange={setSubmissionText}
-          placeholder="Write your answer here..."
-          readOnly={existingSubmission?.status === "graded"}
-          modules={{
-            toolbar: [
-              [{ header: [1, 2, 3, false] }],
-              ["bold", "italic", "underline", "strike"],
-              [{ color: [] }, { background: [] }],
-              [{ list: "ordered" }, { list: "bullet" }],
-              ["link"],
-              ["clean"],
-            ],
-          }}
-        />
-      </div>
+    <>
+      <SubmitCheckmark
+        show={showCheckmark}
+        onComplete={() => {
+          setShowCheckmark(false);
+          onSuccess?.();
+        }}
+      />
+      <motion.div
+        className="space-y-4 p-4 border rounded-lg"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div>
+          <Label htmlFor="submission-text">Your Response</Label>
+          <ReactQuill
+            theme="snow"
+            value={submissionText}
+            onChange={setSubmissionText}
+            placeholder="Write your answer here..."
+            readOnly={existingSubmission?.status === "graded"}
+            modules={{
+              toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ["bold", "italic", "underline", "strike"],
+                [{ color: [] }, { background: [] }],
+                [{ list: "ordered" }, { list: "bullet" }],
+                ["link"],
+                ["clean"],
+              ],
+            }}
+          />
+        </div>
 
-      <div>
-        <Label htmlFor="submission-file">Attach File (max 5MB)</Label>
-        <Input
-          id="submission-file"
-          type="file"
-          onChange={handleFileChange}
-          disabled={existingSubmission?.status === "graded"}
-        />
-        {file && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
-          </p>
+        <div>
+          <Label htmlFor="submission-file">Attach File (max 5MB)</Label>
+          <Input
+            id="submission-file"
+            type="file"
+            onChange={handleFileChange}
+            disabled={existingSubmission?.status === "graded"}
+          />
+          {file && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            </p>
+          )}
+        </div>
+
+        {existingSubmission?.file_name && (
+          <Button variant="outline" size="sm" onClick={downloadFile}>
+            <FileText className="h-4 w-4 mr-2" />
+            {existingSubmission.file_name}
+          </Button>
         )}
-      </div>
 
-      {existingSubmission?.file_name && (
-        <Button variant="outline" size="sm" onClick={downloadFile}>
-          <FileText className="h-4 w-4 mr-2" />
-          {existingSubmission.file_name}
-        </Button>
-      )}
-
-      {existingSubmission?.status === "graded" && (
-        <div className="rounded-xl overflow-hidden border border-emerald-500/30">
-          {/* Gradient header */}
-          <div className="bg-gradient-to-r from-emerald-500/20 to-sky-500/10 px-4 py-3 flex items-center justify-between">
-            <span className="font-semibold text-sm flex items-center gap-1.5">✅ Graded</span>
-            {existingSubmission.graded_at && (
-              <span className="text-[10px] text-muted-foreground">
-                {format(new Date(existingSubmission.graded_at), "MMM d, yyyy")}
-              </span>
-            )}
-          </div>
-
-          <div className="p-4 space-y-4">
-            {/* Grade circle */}
-            {existingSubmission.grade && (
-              <div className="flex justify-center py-2">
-                <div className="relative w-20 h-20 flex items-center justify-center">
-                  <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500/20" strokeWidth="4" />
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500" strokeWidth="4" strokeDasharray="226" strokeDashoffset="0" strokeLinecap="round" />
-                  </svg>
-                  <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{existingSubmission.grade}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Submission timeline */}
-            <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
-              {existingSubmission.submitted_at && (
-                <span>📤 Submitted {format(new Date(existingSubmission.submitted_at), "MMM d")}</span>
-              )}
-              {existingSubmission.submitted_at && existingSubmission.graded_at && <span>→</span>}
+        {existingSubmission?.status === "graded" && (
+          <motion.div
+            className="rounded-xl overflow-hidden border border-emerald-500/30"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+          >
+            {/* Gradient header */}
+            <div className="bg-gradient-to-r from-emerald-500/20 to-sky-500/10 px-4 py-3 flex items-center justify-between">
+              <span className="font-semibold text-sm flex items-center gap-1.5">✅ Graded</span>
               {existingSubmission.graded_at && (
-                <span>📝 Graded {format(new Date(existingSubmission.graded_at), "MMM d")}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {format(new Date(existingSubmission.graded_at), "MMM d, yyyy")}
+                </span>
               )}
             </div>
 
-            {existingSubmission.assignment_instructions && (
-              <div className="border-t pt-3">
-                <p className="text-sm font-semibold mb-2">Assignment Instructions:</p>
-                <div
-                  className="prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.assignment_instructions) }}
-                />
-              </div>
-            )}
-
-            {existingSubmission.submission_text && (
-              <div className="border-t pt-3">
-                <p className="text-sm font-semibold mb-2">Your Submission:</p>
-                <div
-                  className="prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
-                />
-              </div>
-            )}
-
-            {existingSubmission.teacher_feedback && (
-              <div className="relative border-t pt-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">👩‍🏫</div>
-                  <p className="text-sm font-semibold">Teacher Feedback</p>
-                </div>
-                <div className="relative bg-primary/5 border border-primary/15 rounded-xl p-4 ml-10">
-                  <div className="absolute -left-2 top-4 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-primary/15 border-b-[6px] border-b-transparent" />
-                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {existingSubmission.teacher_feedback}
-                  </p>
-                </div>
-                {!existingReaction && !thanked && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 ml-10 gap-1.5 text-xs border-primary/20 hover:bg-primary/10 hover:text-primary"
-                    onClick={() => thankMutation.mutate()}
-                    disabled={thankMutation.isPending}
+            <div className="p-4 space-y-4">
+              {existingSubmission.grade && (
+                <div className="flex justify-center py-2">
+                  <motion.div
+                    className="relative w-20 h-20 flex items-center justify-center"
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
                   >
-                    <Heart className="h-3.5 w-3.5" />
-                    Thank you, Teacher!
-                  </Button>
+                    <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500/20" strokeWidth="4" />
+                      <motion.circle
+                        cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500" strokeWidth="4"
+                        strokeDasharray="226"
+                        initial={{ strokeDashoffset: 226 }}
+                        animate={{ strokeDashoffset: 0 }}
+                        transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 }}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{existingSubmission.grade}</span>
+                  </motion.div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+                {existingSubmission.submitted_at && (
+                  <span>📤 Submitted {format(new Date(existingSubmission.submitted_at), "MMM d")}</span>
                 )}
-                {(existingReaction || thanked) && (
-                  <p className="mt-2 ml-10 text-xs text-muted-foreground flex items-center gap-1">
-                    <Heart className="h-3 w-3 fill-primary text-primary" /> You thanked your teacher
-                  </p>
+                {existingSubmission.submitted_at && existingSubmission.graded_at && <span>→</span>}
+                {existingSubmission.graded_at && (
+                  <span>📝 Graded {format(new Date(existingSubmission.graded_at), "MMM d")}</span>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {existingSubmission?.status !== "graded" && (
-        <Button
-          onClick={() => uploadMutation.mutate()}
-          disabled={uploadMutation.isPending || (!submissionText && !file)}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          {uploadMutation.isPending ? "Submitting..." : "Submit Homework"}
-        </Button>
-      )}
-    </div>
+              {existingSubmission.assignment_instructions && (
+                <div className="border-t pt-3">
+                  <p className="text-sm font-semibold mb-2">Assignment Instructions:</p>
+                  <div
+                    className="prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.assignment_instructions) }}
+                  />
+                </div>
+              )}
+
+              {existingSubmission.submission_text && (
+                <div className="border-t pt-3">
+                  <p className="text-sm font-semibold mb-2">Your Submission:</p>
+                  <div
+                    className="prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
+                  />
+                </div>
+              )}
+
+              {existingSubmission.teacher_feedback && (
+                <div className="relative border-t pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">👩‍🏫</div>
+                    <p className="text-sm font-semibold">Teacher Feedback</p>
+                  </div>
+                  <div className="relative bg-primary/5 border border-primary/15 rounded-xl p-4 ml-10">
+                    <div className="absolute -left-2 top-4 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-primary/15 border-b-[6px] border-b-transparent" />
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                      {existingSubmission.teacher_feedback}
+                    </p>
+                  </div>
+                  {!existingReaction && !thanked && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 ml-10 gap-1.5 text-xs border-primary/20 hover:bg-primary/10 hover:text-primary"
+                      onClick={() => thankMutation.mutate()}
+                      disabled={thankMutation.isPending}
+                    >
+                      <Heart className="h-3.5 w-3.5" />
+                      Thank you, Teacher!
+                    </Button>
+                  )}
+                  {(existingReaction || thanked) && (
+                    <p className="mt-2 ml-10 text-xs text-muted-foreground flex items-center gap-1">
+                      <Heart className="h-3 w-3 fill-primary text-primary" /> You thanked your teacher
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {existingSubmission?.status !== "graded" && (
+          <motion.div whileTap={{ scale: 0.97 }}>
+            <Button
+              onClick={() => uploadMutation.mutate()}
+              disabled={uploadMutation.isPending || (!submissionText && !file)}
+              className="w-full sm:w-auto"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {uploadMutation.isPending ? "Submitting..." : "Submit Homework"}
+            </Button>
+          </motion.div>
+        )}
+      </motion.div>
+    </>
   );
 }
