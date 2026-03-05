@@ -100,7 +100,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
     due_date: "",
   });
   const [file, setFile] = useState<File | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0);
+  const [formKey, setFormKey] = useState(0);
   const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
   const [gradingHomeworkId, setGradingHomeworkId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -181,7 +181,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
       // Reset form completely
       setFormData({ class_id: "", title: "", description: "", due_date: "" });
       setFile(null);
-      setFileInputKey(prev => prev + 1); // Force file input to reset
+      setFormKey(prev => prev + 1);
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -241,7 +241,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
           <CardDescription>Create a new assignment for your students</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="class">Class *</Label>
               <Select
@@ -304,7 +304,6 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
             <div className="space-y-2">
               <Label htmlFor="file">Attachment (max 5MB)</Label>
               <Input
-                key={fileInputKey}
                 id="file"
                 type="file"
                 onChange={handleFileChange}
