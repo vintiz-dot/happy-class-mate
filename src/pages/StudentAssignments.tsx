@@ -202,32 +202,30 @@ export default function StudentAssignments() {
                       className={`cursor-pointer hover:shadow-lg transition-shadow ${getCardStatusClass(assignment)}`}
                       onClick={() => setSelectedHomework(assignment)}
                     >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle>{assignment.title}</CardTitle>
-                            <CardDescription>
-                              {assignment.classes.name}
-                              {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
+                      <CardHeader className="p-3 sm:p-6">
+                        <div className="space-y-2">
+                          <CardTitle className="text-base sm:text-lg leading-tight break-words">{assignment.title}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">
+                            {assignment.classes.name}
+                            {assignment.created_at && ` • ${new Date(assignment.created_at).toLocaleDateString()}`}
+                          </CardDescription>
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {assignment.submission?.status === "graded" && assignment.submission.grade && (
-                              <Badge variant="default" className="bg-emerald-600">
+                              <Badge variant="default" className="bg-emerald-600 text-xs">
                                 {assignment.submission.grade}
                               </Badge>
                             )}
                             {assignment.submission?.status === "graded" && (
-                              <Badge className="bg-green-100 text-green-800">Graded</Badge>
+                              <Badge className="bg-green-100 text-green-800 text-xs">Graded</Badge>
                             )}
                             {assignment.submission?.status === "submitted" && (
-                              <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">Submitted</Badge>
                             )}
                             {!assignment.submission && (
-                              <Badge variant="outline">Not Submitted</Badge>
+                              <Badge variant="outline" className="text-xs">Not Submitted</Badge>
                             )}
                             {assignment.due_date && (
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="text-xs">
                                 Due {new Date(assignment.due_date).toLocaleDateString()}
                               </Badge>
                             )}
@@ -235,9 +233,9 @@ export default function StudentAssignments() {
                         </div>
                       </CardHeader>
                       {assignment.body && (
-                        <CardContent>
+                        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 pt-0">
                           <div 
-                            className="text-sm prose prose-sm max-w-none line-clamp-3"
+                            className="text-sm prose prose-sm max-w-none line-clamp-3 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
                             dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
                           />
                         </CardContent>
@@ -262,32 +260,30 @@ export default function StudentAssignments() {
                       className={`cursor-pointer transition-opacity ${cardOpacity} ${getCardStatusClass(assignment)}`}
                       onClick={() => setSelectedHomework(assignment)}
                     >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle>{assignment.title}</CardTitle>
-                            <CardDescription>
-                              {assignment.classes.name}
-                              {assignment.created_at && ` • Created ${new Date(assignment.created_at).toLocaleDateString()}`}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
+                      <CardHeader className="p-3 sm:p-6">
+                        <div className="space-y-2">
+                          <CardTitle className="text-base sm:text-lg leading-tight break-words">{assignment.title}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">
+                            {assignment.classes.name}
+                            {assignment.created_at && ` • ${new Date(assignment.created_at).toLocaleDateString()}`}
+                          </CardDescription>
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {assignment.submission?.status === "graded" && assignment.submission.grade && (
-                              <Badge variant="default" className="bg-emerald-600">
+                              <Badge variant="default" className="bg-emerald-600 text-xs">
                                 {assignment.submission.grade}
                               </Badge>
                             )}
                             {assignment.submission?.status === "graded" && (
-                              <Badge className="bg-green-100 text-green-800">Graded</Badge>
+                              <Badge className="bg-green-100 text-green-800 text-xs">Graded</Badge>
                             )}
                             {assignment.submission?.status === "submitted" && (
-                              <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">Submitted</Badge>
                             )}
                             {!assignment.submission && (
-                              <Badge variant="destructive">Not Submitted</Badge>
+                              <Badge variant="destructive" className="text-xs">Not Submitted</Badge>
                             )}
                             {assignment.due_date && (
-                              <Badge variant="secondary">
+                              <Badge variant="secondary" className="text-xs">
                                 Due {new Date(assignment.due_date).toLocaleDateString()}
                               </Badge>
                             )}
