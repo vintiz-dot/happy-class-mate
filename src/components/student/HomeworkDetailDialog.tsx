@@ -59,38 +59,58 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <DialogTitle>{homework.title}</DialogTitle>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{homework.classes.name}</span>
-                {homework.created_at && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>Created {format(new Date(homework.created_at), "MMM d, yyyy")}</span>
-                  </div>
-                )}
-              </div>
+          <div className="space-y-3">
+            <DialogTitle className="text-lg sm:text-xl leading-tight break-words">{homework.title}</DialogTitle>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="secondary" className="text-xs">{homework.classes.name}</Badge>
+              {homework.created_at && (
+                <span className="flex items-center gap-1 text-xs">
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  {format(new Date(homework.created_at), "MMM d, yyyy")}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {getStatusBadge()}
               {homework.due_date && (
-                <Badge variant="outline">
+                <Badge variant="outline" className="text-xs">
                   Due {format(new Date(homework.due_date), "MMM d, yyyy")}
                 </Badge>
               )}
+              {homework.due_date && (() => {
+                const now = new Date();
+                const due = new Date(homework.due_date);
+                const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (diff > 0 && diff <= 7 && !submission) {
+                  return (
+                    <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs animate-pulse">
+                      ⏰ {diff} day{diff > 1 ? "s" : ""} left
+                    </Badge>
+                  );
+                }
+                if (diff <= 0 && !submission) {
+                  return (
+                    <Badge variant="destructive" className="text-xs">
+                      ⚠️ Overdue
+                    </Badge>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {homework.body && (
-            <div className="bg-primary/5 border-2 border-primary/20 p-6 rounded-lg">
-              <h2 className="text-xl font-bold mb-4 text-primary">Assignment Instructions</h2>
+            <div className="bg-primary/5 border-2 border-primary/20 p-3 sm:p-6 rounded-lg">
+              <h2 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 text-primary flex items-center gap-2">
+                📋 Assignment Instructions
+              </h2>
               <div 
-                className="prose prose-sm max-w-none [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
+                className="prose prose-sm max-w-none break-words overflow-hidden [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_p]:break-words [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground [&_img]:max-w-full [&_img]:h-auto [&_a]:break-all [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:break-all"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(homework.body) }}
               />
             </div>
@@ -98,7 +118,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
 
           {homework.homework_files?.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-2">Teacher's Attachments</h3>
+              <h3 className="font-semibold mb-2 flex items-center gap-2">📎 Attachments</h3>
               <div className="space-y-1">
                 {homework.homework_files.map((file: any) => (
                   <Button
@@ -106,10 +126,10 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
                     variant="outline"
                     size="sm"
                     onClick={() => downloadFile(file.storage_key, file.file_name)}
-                    className="w-full justify-start"
+                    className="w-full justify-start text-xs sm:text-sm"
                   >
-                    <Download className="h-4 w-4 mr-2" />
-                    {file.file_name}
+                    <Download className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate">{file.file_name}</span>
                   </Button>
                 ))}
               </div>
