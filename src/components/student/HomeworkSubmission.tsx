@@ -287,64 +287,94 @@ export default function HomeworkSubmission({
       )}
 
       {existingSubmission?.status === "graded" && (
-        <div className="p-4 bg-muted rounded-lg space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-base font-bold">Grade: {existingSubmission.grade}</p>
+        <div className="rounded-xl overflow-hidden border border-emerald-500/30">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-r from-emerald-500/20 to-sky-500/10 px-4 py-3 flex items-center justify-between">
+            <span className="font-semibold text-sm flex items-center gap-1.5">✅ Graded</span>
+            {existingSubmission.graded_at && (
+              <span className="text-[10px] text-muted-foreground">
+                {format(new Date(existingSubmission.graded_at), "MMM d, yyyy")}
+              </span>
+            )}
           </div>
-          
-          {existingSubmission.assignment_instructions && (
-            <div className="border-t pt-3">
-              <p className="text-sm font-semibold mb-2">Assignment Instructions:</p>
-              <div 
-                className="prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.assignment_instructions) }}
-              />
-            </div>
-          )}
-          
-          {existingSubmission.submission_text && (
-            <div className="border-t pt-3">
-              <p className="text-sm font-semibold mb-2">Your Submission:</p>
-              <div 
-                className="prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
-              />
-            </div>
-          )}
-          
-          {existingSubmission.teacher_feedback && (
-            <div className="relative border-t pt-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">💬</span>
-                <p className="text-sm font-semibold">Teacher Feedback</p>
+
+          <div className="p-4 space-y-4">
+            {/* Grade circle */}
+            {existingSubmission.grade && (
+              <div className="flex justify-center py-2">
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500/20" strokeWidth="4" />
+                    <circle cx="40" cy="40" r="36" fill="none" stroke="currentColor" className="text-emerald-500" strokeWidth="4" strokeDasharray="226" strokeDashoffset="0" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{existingSubmission.grade}</span>
+                </div>
               </div>
-              <div className="relative bg-primary/5 border border-primary/15 rounded-xl p-4 ml-2">
-                {/* Speech bubble triangle */}
-                <div className="absolute -left-2 top-4 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-primary/15 border-b-[6px] border-b-transparent" />
-                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                  {existingSubmission.teacher_feedback}
-                </p>
-              </div>
-              {/* Thank Teacher button */}
-              {!existingReaction && !thanked && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 ml-2 gap-1.5 text-xs border-primary/20 hover:bg-primary/10 hover:text-primary"
-                  onClick={() => thankMutation.mutate()}
-                  disabled={thankMutation.isPending}
-                >
-                  <Heart className="h-3.5 w-3.5" />
-                  Thank you, Teacher!
-                </Button>
+            )}
+
+            {/* Submission timeline */}
+            <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+              {existingSubmission.submitted_at && (
+                <span>📤 Submitted {format(new Date(existingSubmission.submitted_at), "MMM d")}</span>
               )}
-              {(existingReaction || thanked) && (
-                <p className="mt-2 ml-2 text-xs text-muted-foreground flex items-center gap-1">
-                  <Heart className="h-3 w-3 fill-primary text-primary" /> You thanked your teacher
-                </p>
+              {existingSubmission.submitted_at && existingSubmission.graded_at && <span>→</span>}
+              {existingSubmission.graded_at && (
+                <span>📝 Graded {format(new Date(existingSubmission.graded_at), "MMM d")}</span>
               )}
             </div>
-          )}
+
+            {existingSubmission.assignment_instructions && (
+              <div className="border-t pt-3">
+                <p className="text-sm font-semibold mb-2">Assignment Instructions:</p>
+                <div
+                  className="prose prose-sm max-w-none [&_p]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-muted-foreground [&_ol]:text-muted-foreground [&_li]:text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.assignment_instructions) }}
+                />
+              </div>
+            )}
+
+            {existingSubmission.submission_text && (
+              <div className="border-t pt-3">
+                <p className="text-sm font-semibold mb-2">Your Submission:</p>
+                <div
+                  className="prose prose-sm max-w-none [&_p]:text-foreground [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(existingSubmission.submission_text) }}
+                />
+              </div>
+            )}
+
+            {existingSubmission.teacher_feedback && (
+              <div className="relative border-t pt-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">👩‍🏫</div>
+                  <p className="text-sm font-semibold">Teacher Feedback</p>
+                </div>
+                <div className="relative bg-primary/5 border border-primary/15 rounded-xl p-4 ml-10">
+                  <div className="absolute -left-2 top-4 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-primary/15 border-b-[6px] border-b-transparent" />
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {existingSubmission.teacher_feedback}
+                  </p>
+                </div>
+                {!existingReaction && !thanked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 ml-10 gap-1.5 text-xs border-primary/20 hover:bg-primary/10 hover:text-primary"
+                    onClick={() => thankMutation.mutate()}
+                    disabled={thankMutation.isPending}
+                  >
+                    <Heart className="h-3.5 w-3.5" />
+                    Thank you, Teacher!
+                  </Button>
+                )}
+                {(existingReaction || thanked) && (
+                  <p className="mt-2 ml-10 text-xs text-muted-foreground flex items-center gap-1">
+                    <Heart className="h-3 w-3 fill-primary text-primary" /> You thanked your teacher
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

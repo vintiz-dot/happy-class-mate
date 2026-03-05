@@ -93,38 +93,26 @@ export default function AssignmentsList({ studentId }: AssignmentsListProps) {
     );
   }
 
-  // Helper function to get card background color based on status
   const getCardStatusClass = (assignment: any) => {
     const now = new Date();
     const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
     const submission = assignment.submission;
     
-    // Graded - golden green
     if (submission?.status === "graded") {
-      return "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800";
+      return "bg-emerald-500/15 dark:bg-emerald-500/10 border-l-4 border-l-emerald-500 border-emerald-500/30";
     }
-    
-    // Submitted but not graded - lemon green
-    if (submission && submission.status === "submitted") {
-      return "bg-lime-50 dark:bg-lime-950/20 border-lime-200 dark:border-lime-800";
+    if (submission?.status === "submitted") {
+      return "bg-sky-500/15 dark:bg-sky-500/10 border-l-4 border-l-sky-400 border-sky-400/30";
     }
-    
-    // Not submitted - check due date
     if (dueDate) {
-      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Overdue - red
-      if (daysUntilDue < 0) {
-        return "bg-red-500/20 dark:bg-red-500/15 border-red-500/50 dark:border-red-500/40";
-      }
-      
-      // 1 day left - amber
-      if (daysUntilDue <= 1) {
-        return "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800";
-      }
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const diffDays = Math.ceil((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return "bg-red-500/20 dark:bg-red-500/15 border-l-4 border-l-red-500 border-red-500/40";
+      if (diffDays === 0) return "bg-amber-500/20 dark:bg-amber-500/15 border-l-4 border-l-amber-500 border-amber-500/40";
+      if (diffDays <= 2) return "bg-amber-400/10 dark:bg-amber-400/10 border-l-4 border-l-amber-400 border-amber-400/30";
     }
-    
-    return "";
+    return "border-l-4 border-l-muted-foreground/20";
   };
 
   return (

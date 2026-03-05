@@ -6,27 +6,114 @@ import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download } from "lucide-react";
+import { FileText, Star, CheckCircle2, Clock, Send, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssignmentCalendar } from "@/components/assignments/AssignmentCalendar";
 import { useLoginChallenge } from "@/hooks/useLoginChallenge";
 import { GradeCelebration } from "@/components/student/GradeCelebration";
+import { getHomeworkStatus, statusConfig, getCountdown, type HomeworkStatus } from "@/lib/homeworkStatus";
+
+const statusIcons: Record<HomeworkStatus, React.ReactNode> = {
+  overdue: <AlertTriangle className="h-4 w-4 text-red-500" />,
+  "due-today": <Clock className="h-4 w-4 text-amber-500" />,
+  "due-soon": <Clock className="h-4 w-4 text-amber-400" />,
+  submitted: <Send className="h-4 w-4 text-sky-500" />,
+  graded: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+  upcoming: <FileText className="h-4 w-4 text-muted-foreground" />,
+};
+
+function SubmissionPipeline({ status }: { status: HomeworkStatus }) {
+  const steps = ["To Do", "Submitted", "Graded"];
+  const activeIdx = status === "graded" ? 2 : status === "submitted" ? 1 : 0;
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      {steps.map((step, i) => (
+        <div key={step} className="flex items-center gap-1">
+          <div className={`h-1.5 w-6 rounded-full transition-colors ${i <= activeIdx ? "bg-emerald-500" : "bg-muted"}`} />
+          {i < steps.length - 1 && <div className="h-px w-1 bg-muted" />}
+        </div>
+      ))}
+      <span className="text-[10px] ml-1 text-muted-foreground">{steps[activeIdx]}</span>
+    </div>
+  );
+}
+
+function AssignmentCard({ assignment, onClick }: { assignment: any; onClick: () => void }) {
+  const status = getHomeworkStatus(assignment);
+  const config = statusConfig[status];
+  const countdown = getCountdown(assignment.due_date);
+
+  return (
+    <Card
+      className={`cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200 ${config.cardClass} ${config.borderColor}`}
+      onClick={onClick}
+    >
+      <CardHeader className="p-3 sm:p-5">
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 shrink-0">{statusIcons[status]}</span>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base sm:text-lg leading-tight break-words">
+                {assignment.title}
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm mt-0.5">
+                {assignment.classes.name}
+              </CardDescription>
+            </div>
+            {status === "graded" && assignment.submission?.grade && (
+              <div className="shrink-0 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 rounded-xl px-3 py-1.5">
+                <Star className="h-4 w-4 text-emerald-500 fill-emerald-500" />
+                <span className="font-bold text-base text-emerald-700 dark:text-emerald-400">
+                  {assignment.submission.grade}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge className={`text-[10px] sm:text-xs ${config.badgeClass}`}>
+              {config.icon} {config.label}
+            </Badge>
+            {countdown && (
+              <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} ${status === "overdue" || status === "due-today" ? "animate-pulse" : ""}`}>
+                {countdown}
+              </Badge>
+            )}
+            {assignment.due_date && (
+              <Badge variant="outline" className="text-[10px] sm:text-xs">
+                Due {new Date(assignment.due_date).toLocaleDateString()}
+              </Badge>
+            )}
+          </div>
+
+          {(status === "submitted" || status === "graded") && (
+            <SubmissionPipeline status={status} />
+          )}
+        </div>
+      </CardHeader>
+      {assignment.body && status !== "graded" && (
+        <CardContent className="px-3 pb-3 sm:px-5 sm:pb-4 pt-0">
+          <div
+            className="text-sm prose prose-sm max-w-none line-clamp-2 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
+          />
+        </CardContent>
+      )}
+    </Card>
+  );
+}
 
 export default function StudentAssignments() {
   const { studentId } = useStudentProfile();
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
   const { recordHomeworkVisit } = useLoginChallenge(studentId);
 
-  // Auto-award daily XP when student visits assignments page
   useEffect(() => {
-    if (studentId) {
-      recordHomeworkVisit();
-    }
+    if (studentId) recordHomeworkVisit();
   }, [studentId]);
 
-  // Separate query for enrollments with longer cache time (rarely changes)
   const { data: enrollments } = useQuery({
     queryKey: ["student-enrollments", studentId],
     queryFn: async () => {
@@ -39,7 +126,7 @@ export default function StudentAssignments() {
       return data || [];
     },
     enabled: !!studentId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - enrollments rarely change
+    staleTime: 10 * 60 * 1000,
   });
 
   const classIds = enrollments?.map(e => e.class_id) || [];
@@ -48,123 +135,48 @@ export default function StudentAssignments() {
     queryKey: ["student-assignments", studentId, classIds.join(",")],
     queryFn: async () => {
       if (!studentId || classIds.length === 0) return [];
-
-      // Fetch homeworks and submissions in parallel (fixes N+1 query problem)
       const [homeworksResult, submissionsResult] = await Promise.all([
         supabase
           .from("homeworks")
-          .select(`
-            *,
-            classes!inner(name),
-            homework_files(*)
-          `)
+          .select(`*, classes!inner(name), homework_files(*)`)
           .in("class_id", classIds)
           .order("created_at", { ascending: false })
-          .limit(100), // Pagination: limit to 100 most recent
+          .limit(100),
         supabase
           .from("homework_submissions")
           .select("*")
-          .eq("student_id", studentId)
+          .eq("student_id", studentId),
       ]);
-
       const homeworks = homeworksResult.data || [];
       const submissions = submissionsResult.data || [];
-
-      // Create a map for O(1) lookups instead of N queries
       const submissionMap = new Map(submissions.map(s => [s.homework_id, s]));
-
-      // Merge homeworks with their submissions
-      return homeworks.map(hw => ({
-        ...hw,
-        submission: submissionMap.get(hw.id) || null
-      }));
+      return homeworks.map(hw => ({ ...hw, submission: submissionMap.get(hw.id) || null }));
     },
     enabled: !!studentId && classIds.length > 0,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
   });
-
-  // Helper function to get card background color based on status
-  const getCardStatusClass = (assignment: any) => {
-    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null;
-    const submission = assignment.submission;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Not submitted and late - HOT RED (check this FIRST before graded status)
-    if (!submission && dueDate) {
-      const dueDay = new Date(dueDate);
-      dueDay.setHours(0, 0, 0, 0);
-      
-      if (dueDay < today) {
-        return "bg-red-500/20 dark:bg-red-500/15 border-red-500/50 dark:border-red-500/40 backdrop-blur-sm";
-      }
-      
-      // Due today - AMBER
-      if (dueDay.getTime() === today.getTime()) {
-        return "bg-amber-500/20 dark:bg-amber-500/15 border-amber-500/50 dark:border-amber-500/40 backdrop-blur-sm";
-      }
-    }
-    
-    // Graded - green
-    if (submission?.status === "graded") {
-      return "bg-success/10 dark:bg-success/5 border-success/30 dark:border-success/20 backdrop-blur-sm";
-    }
-    
-    // Submitted but not graded
-    if (submission?.status === "submitted") {
-      return "bg-primary/5 dark:bg-primary/5 border-primary/20 dark:border-primary/20 backdrop-blur-sm";
-    }
-    
-    // Future assignments - no background color
-    return "glass-sm";
-  };
-
-  const downloadFile = async (storageKey: string, fileName: string) => {
-    const { data } = await supabase.storage
-      .from("homework")
-      .download(storageKey);
-
-    if (data) {
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
 
   if (!studentId) {
     return (
       <Layout title="Assignments">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Please select a student profile</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="py-12 text-center"><p className="text-muted-foreground">Please select a student profile</p></CardContent></Card>
       </Layout>
     );
   }
 
-  if (isLoading) {
-    return <Layout title="Assignments">Loading...</Layout>;
-  }
+  if (isLoading) return <Layout title="Assignments">Loading...</Layout>;
 
   const now = new Date();
-  const upcomingAssignments = assignments.filter((a: any) => 
-    !a.due_date || new Date(a.due_date) >= now
-  );
-  const pastAssignments = assignments.filter((a: any) => 
-    a.due_date && new Date(a.due_date) < now
-  );
+  const upcomingAssignments = assignments.filter((a: any) => !a.due_date || new Date(a.due_date) >= now);
+  const pastAssignments = assignments.filter((a: any) => a.due_date && new Date(a.due_date) < now);
 
   return (
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Assignments</h1>
-          <p className="text-muted-foreground">View your class assignments</p>
+          <h1 className="text-3xl font-bold">📚 Assignments</h1>
+          <p className="text-muted-foreground">Track your homework, earn XP, level up!</p>
         </div>
 
         {assignments.length === 0 ? (
@@ -172,134 +184,48 @@ export default function StudentAssignments() {
             <CardContent className="py-12 text-center">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No assignments yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your teachers haven't posted any assignments
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Your teachers haven&apos;t posted any assignments</p>
             </CardContent>
           </Card>
         ) : (
           <Tabs defaultValue="list" className="w-full">
             <TabsList className="w-full grid grid-cols-3 h-auto">
-              <TabsTrigger value="list" className="text-xs sm:text-sm py-3">
-                List View
-              </TabsTrigger>
-              <TabsTrigger value="calendar" className="text-xs sm:text-sm py-3">
-                Calendar
-              </TabsTrigger>
-              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-3">
-                Upcoming
-              </TabsTrigger>
+              <TabsTrigger value="list" className="text-xs sm:text-sm py-3">📋 List</TabsTrigger>
+              <TabsTrigger value="calendar" className="text-xs sm:text-sm py-3">📅 Calendar</TabsTrigger>
+              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-3">🔜 Upcoming</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="list" className="space-y-4 md:space-y-6 mt-4">
+            <TabsContent value="list" className="space-y-6 mt-4">
               {upcomingAssignments.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Current & Upcoming</h2>
-                <div className="grid gap-4">
-                  {upcomingAssignments.map((assignment: any) => (
-                    <Card 
-                      key={assignment.id} 
-                      className={`cursor-pointer hover:shadow-lg transition-shadow ${getCardStatusClass(assignment)}`}
-                      onClick={() => setSelectedHomework(assignment)}
-                    >
-                      <CardHeader className="p-3 sm:p-6">
-                        <div className="space-y-2">
-                          <CardTitle className="text-base sm:text-lg leading-tight break-words">{assignment.title}</CardTitle>
-                          <CardDescription className="text-xs sm:text-sm">
-                            {assignment.classes.name}
-                            {assignment.created_at && ` • ${new Date(assignment.created_at).toLocaleDateString()}`}
-                          </CardDescription>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
-                              <Badge variant="default" className="bg-emerald-600 text-xs">
-                                {assignment.submission.grade}
-                              </Badge>
-                            )}
-                            {assignment.submission?.status === "graded" && (
-                              <Badge className="bg-green-100 text-green-800 text-xs">Graded</Badge>
-                            )}
-                            {assignment.submission?.status === "submitted" && (
-                              <Badge className="bg-blue-100 text-blue-800 text-xs">Submitted</Badge>
-                            )}
-                            {!assignment.submission && (
-                              <Badge variant="outline" className="text-xs">Not Submitted</Badge>
-                            )}
-                            {assignment.due_date && (
-                              <Badge variant="outline" className="text-xs">
-                                Due {new Date(assignment.due_date).toLocaleDateString()}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      {assignment.body && (
-                        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 pt-0">
-                          <div 
-                            className="text-sm prose prose-sm max-w-none line-clamp-3 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
-                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
-                          />
-                        </CardContent>
-                      )}
-                    </Card>
-                  ))}
+                <div className="space-y-3">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">🎯 Current & Upcoming</h2>
+                  <div className="grid gap-3">
+                    {upcomingAssignments.map((a: any) => (
+                      <AssignmentCard key={a.id} assignment={a} onClick={() => setSelectedHomework(a)} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {pastAssignments.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Past Assignments</h2>
-                <div className="grid gap-4">
-                  {pastAssignments.map((assignment: any) => {
-                    const isOverdueNotSubmitted = !assignment.submission && assignment.due_date && new Date(assignment.due_date) < new Date();
-                    const cardOpacity = isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-80";
-                    
-                    return (
-                    <Card 
-                      key={assignment.id} 
-                      className={`cursor-pointer transition-opacity ${cardOpacity} ${getCardStatusClass(assignment)}`}
-                      onClick={() => setSelectedHomework(assignment)}
-                    >
-                      <CardHeader className="p-3 sm:p-6">
-                        <div className="space-y-2">
-                          <CardTitle className="text-base sm:text-lg leading-tight break-words">{assignment.title}</CardTitle>
-                          <CardDescription className="text-xs sm:text-sm">
-                            {assignment.classes.name}
-                            {assignment.created_at && ` • ${new Date(assignment.created_at).toLocaleDateString()}`}
-                          </CardDescription>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
-                              <Badge variant="default" className="bg-emerald-600 text-xs">
-                                {assignment.submission.grade}
-                              </Badge>
-                            )}
-                            {assignment.submission?.status === "graded" && (
-                              <Badge className="bg-green-100 text-green-800 text-xs">Graded</Badge>
-                            )}
-                            {assignment.submission?.status === "submitted" && (
-                              <Badge className="bg-blue-100 text-blue-800 text-xs">Submitted</Badge>
-                            )}
-                            {!assignment.submission && (
-                              <Badge variant="destructive" className="text-xs">Not Submitted</Badge>
-                            )}
-                            {assignment.due_date && (
-                              <Badge variant="secondary" className="text-xs">
-                                Due {new Date(assignment.due_date).toLocaleDateString()}
-                              </Badge>
-                            )}
-                          </div>
+              )}
+              {pastAssignments.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">📁 Past Assignments</h2>
+                  <div className="grid gap-3">
+                    {pastAssignments.map((a: any) => {
+                      const st = getHomeworkStatus(a);
+                      const isOverdueNotSubmitted = st === "overdue";
+                      return (
+                        <div key={a.id} className={isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-90 transition-opacity"}>
+                          <AssignmentCard assignment={a} onClick={() => setSelectedHomework(a)} />
                         </div>
-                      </CardHeader>
-                    </Card>
-                  );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             </TabsContent>
 
-            <TabsContent value="calendar" className="space-y-4 md:space-y-6 mt-4">
-              <AssignmentCalendar 
+            <TabsContent value="calendar" className="mt-4">
+              <AssignmentCalendar
                 role="student"
                 onSelectAssignment={(assignment) => {
                   const hw = assignments.find((h: any) => h.id === assignment.id);
@@ -308,54 +234,13 @@ export default function StudentAssignments() {
               />
             </TabsContent>
 
-            <TabsContent value="upcoming" className="space-y-4 md:space-y-6 mt-4">
+            <TabsContent value="upcoming" className="mt-4">
               {upcomingAssignments.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No upcoming assignments</p>
-                  </CardContent>
-                </Card>
+                <Card><CardContent className="py-12 text-center"><FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">No upcoming assignments</p></CardContent></Card>
               ) : (
-                <div className="grid gap-4">
-                  {upcomingAssignments.map((assignment: any) => (
-                    <Card 
-                      key={assignment.id} 
-                      className={`cursor-pointer hover:shadow-lg transition-shadow ${getCardStatusClass(assignment)}`}
-                      onClick={() => setSelectedHomework(assignment)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle>{assignment.title}</CardTitle>
-                            <CardDescription>
-                              {assignment.classes.name}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {assignment.submission?.status === "graded" && assignment.submission.grade && (
-                              <Badge variant="default" className="bg-success">
-                                {assignment.submission.grade}
-                              </Badge>
-                            )}
-                            {assignment.submission?.status === "graded" && (
-                              <Badge className="bg-success text-success-foreground">Graded</Badge>
-                            )}
-                            {assignment.submission?.status === "submitted" && (
-                              <Badge className="bg-primary text-primary-foreground">Submitted</Badge>
-                            )}
-                            {!assignment.submission && (
-                              <Badge variant="outline">Not Submitted</Badge>
-                            )}
-                            {assignment.due_date && (
-                              <Badge variant="outline">
-                                Due {new Date(assignment.due_date).toLocaleDateString()}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </Card>
+                <div className="grid gap-3">
+                  {upcomingAssignments.map((a: any) => (
+                    <AssignmentCard key={a.id} assignment={a} onClick={() => setSelectedHomework(a)} />
                   ))}
                 </div>
               )}
@@ -365,11 +250,7 @@ export default function StudentAssignments() {
       </div>
 
       {selectedHomework && studentId && (
-        <HomeworkDetailDialog
-          homework={selectedHomework}
-          studentId={studentId}
-          onClose={() => setSelectedHomework(null)}
-        />
+        <HomeworkDetailDialog homework={selectedHomework} studentId={studentId} onClose={() => setSelectedHomework(null)} />
       )}
     </Layout>
   );
