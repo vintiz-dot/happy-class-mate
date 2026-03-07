@@ -16,11 +16,6 @@ import { EditHomeworkDialog } from "./EditHomeworkDialog";
 import { GradeOfflineDialog } from "./GradeOfflineDialog";
 
 const ReactQuill = lazy(() => import("react-quill-new"));
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { EditHomeworkDialog } from "./EditHomeworkDialog";
-import { GradeOfflineDialog } from "./GradeOfflineDialog";
 
 interface Class {
   id: string;
