@@ -245,23 +245,25 @@ export default function HomeworkSubmission({
       >
         <div>
           <Label htmlFor="submission-text">Your Response</Label>
-          <ReactQuill
-            theme="snow"
-            value={submissionText}
-            onChange={setSubmissionText}
-            placeholder="Write your answer here..."
-            readOnly={existingSubmission?.status === "graded"}
-            modules={{
-              toolbar: [
-                [{ header: [1, 2, 3, false] }],
-                ["bold", "italic", "underline", "strike"],
-                [{ color: [] }, { background: [] }],
-                [{ list: "ordered" }, { list: "bullet" }],
-                ["link"],
-                ["clean"],
-              ],
-            }}
-          />
+          <Suspense fallback={<div className="h-32 border rounded-md flex items-center justify-center text-muted-foreground">Loading editor...</div>}>
+            <ReactQuill
+              theme="snow"
+              value={submissionText}
+              onChange={setSubmissionText}
+              placeholder="Write your answer here..."
+              readOnly={existingSubmission?.status === "graded"}
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, 3, false] }],
+                  ["bold", "italic", "underline", "strike"],
+                  [{ color: [] }, { background: [] }],
+                  [{ list: "ordered" }, { list: "bullet" }],
+                  ["link"],
+                  ["clean"],
+                ],
+              }}
+            />
+          </Suspense>
         </div>
 
         <div>
