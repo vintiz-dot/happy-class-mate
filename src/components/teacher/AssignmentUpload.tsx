@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Eye, Calendar, FileText, Edit, Users, Loader2 } from "lucide-react";
-import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { EditHomeworkDialog } from "./EditHomeworkDialog";
 import { GradeOfflineDialog } from "./GradeOfflineDialog";
+
+const ReactQuill = lazy(() => import("react-quill-new"));
 
 interface Class {
   id: string;
@@ -274,24 +275,26 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <ReactQuill
-                theme="snow"
-                value={formData.description}
-                onChange={(value) => setFormData({ ...formData, description: value })}
-                placeholder="Assignment instructions and details..."
-                modules={{
-                  toolbar: [
-                    [{ header: [1, 2, 3, false] }],
-                    ["bold", "italic", "underline", "strike"],
-                    [{ color: [] }, { background: [] }],
-                    [{ list: "ordered" }, { list: "bullet" }],
-                    [{ script: "sub" }, { script: "super" }],
-                    [{ align: [] }],
-                    ["link", "image"],
-                    ["clean"],
-                  ],
-                }}
-              />
+              <Suspense fallback={<div className="h-40 border rounded-md flex items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Loading editor...</div>}>
+                <ReactQuill
+                  theme="snow"
+                  value={formData.description}
+                  onChange={(value) => setFormData({ ...formData, description: value })}
+                  placeholder="Assignment instructions and details..."
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ color: [] }, { background: [] }],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      [{ script: "sub" }, { script: "super" }],
+                      [{ align: [] }],
+                      ["link", "image"],
+                      ["clean"],
+                    ],
+                  }}
+                />
+              </Suspense>
             </div>
 
             <div className="space-y-2">

@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { Loader2 } from "lucide-react";
+
+const ReactQuill = lazy(() => import("react-quill-new"));
 
 interface EditHomeworkDialogProps {
   homeworkId: string | null;
@@ -158,24 +159,26 @@ export function EditHomeworkDialog({ homeworkId, isOpen, onClose, onSuccess }: E
 
             <div className="space-y-2">
               <Label htmlFor="edit-description">Description</Label>
-              <ReactQuill
-                theme="snow"
-                value={body}
-                onChange={setBody}
-                placeholder="Assignment instructions and details..."
-                modules={{
-                  toolbar: [
-                    [{ header: [1, 2, 3, false] }],
-                    ["bold", "italic", "underline", "strike"],
-                    [{ color: [] }, { background: [] }],
-                    [{ list: "ordered" }, { list: "bullet" }],
-                    [{ script: "sub" }, { script: "super" }],
-                    [{ align: [] }],
-                    ["link", "image"],
-                    ["clean"],
-                  ],
-                }}
-              />
+              <Suspense fallback={<div className="h-40 border rounded-md flex items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Loading editor...</div>}>
+                <ReactQuill
+                  theme="snow"
+                  value={body}
+                  onChange={setBody}
+                  placeholder="Assignment instructions and details..."
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ color: [] }, { background: [] }],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      [{ script: "sub" }, { script: "super" }],
+                      [{ align: [] }],
+                      ["link", "image"],
+                      ["clean"],
+                    ],
+                  }}
+                />
+              </Suspense>
             </div>
 
             <div className="space-y-2">
