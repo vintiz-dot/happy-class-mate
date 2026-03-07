@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, FileText, Heart } from "lucide-react";
-import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -14,6 +13,8 @@ import { dayjs } from "@/lib/date";
 import { soundManager } from "@/lib/soundManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { SubmitCheckmark } from "./SubmitCheckmark";
+
+const ReactQuill = lazy(() => import("react-quill-new"));
 
 interface HomeworkSubmissionProps {
   homeworkId: string;
