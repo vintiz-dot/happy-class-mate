@@ -72,8 +72,20 @@ export default function TeacherLeaderboards() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Auto-select first class when loaded
-  const displayClassId = selectedClassId || activeClasses?.[0]?.id;
+  // Auto-select class with active session, or first class
+  const activeSessionClass = useMemo(() => {
+    if (!activeClasses?.length) return null;
+    return activeSessions.find(s => activeClasses.some((c: any) => c.id === s.class_id));
+  }, [activeSessions, activeClasses]);
+
+  const displayClassId = selectedClassId || activeSessionClass?.class_id || activeClasses?.[0]?.id;
+
+  // Auto-switch to live mode on initial load if there's an active session
+  useEffect(() => {
+    if (activeSessionClass && !selectedClassId) {
+      setViewMode("live");
+    }
+  }, [activeSessionClass, selectedClassId]);
   
   // Check if selected class has an active session
   const activeSessionForClass = useMemo(() => 
