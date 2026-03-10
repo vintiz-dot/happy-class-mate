@@ -87,7 +87,7 @@ export function TeacherScheduleTransfer() {
         .eq("teacher_id", targetTeacherId)
         .gte("date", dateFrom)
         .lte("date", dateTo)
-        .in("status", ["Scheduled", "Today"])
+        .in("status", ["Scheduled"])
         .order("date")
         .order("start_time");
       if (error) throw error;
