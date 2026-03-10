@@ -5,6 +5,7 @@ import { TeachersList } from "@/components/admin/TeachersList";
 import { AdminUsersManager } from "@/components/admin/AdminUsersManager";
 import { ManualPointAdjustment } from "@/components/admin/ManualPointAdjustment";
 import { LeaderboardResetControl } from "@/components/admin/LeaderboardResetControl";
+import { TeacherScheduleTransfer } from "@/components/admin/TeacherScheduleTransfer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Teachers = () => {
@@ -19,16 +20,21 @@ const Teachers = () => {
         </div>
 
         <Tabs defaultValue="teachers" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="teachers">Teachers</TabsTrigger>
+            <TabsTrigger value="transfer">Schedule Transfer</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
-            <TabsTrigger value="points">Point Management</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard Reset</TabsTrigger>
+            <TabsTrigger value="points">Points</TabsTrigger>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
 
           <TabsContent value="teachers" className="space-y-6">
             <TeacherForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["teachers"] })} />
             <TeachersList />
+          </TabsContent>
+
+          <TabsContent value="transfer">
+            <TeacherScheduleTransfer />
           </TabsContent>
 
           <TabsContent value="admins">
