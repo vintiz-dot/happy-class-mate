@@ -79,6 +79,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role check: only admin or teacher can access financial data
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", claims.user.id);
+    const isAuthorized = roleData?.some((r: any) => ["admin", "teacher"].includes(r.role));
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const InputSchema = z.object({
       studentIds: z.array(z.string().uuid()).min(1).max(200),
       month: z.string().regex(/^\d{4}-\d{2}$/),
