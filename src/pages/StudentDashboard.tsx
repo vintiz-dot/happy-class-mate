@@ -396,55 +396,42 @@ export default function StudentDashboard() {
 
       {/* Premium Immersive Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5" />
+        <div className={`absolute inset-0 ${isMonitor ? 'bg-gradient-to-br from-background via-warning/5 to-background' : 'bg-gradient-to-br from-background via-primary/5 to-accent/5'}`} />
         
         {/* Animated nebula effects */}
         <motion.div 
-          className="absolute top-20 left-20 w-[40rem] h-[40rem] bg-primary/10 rounded-full blur-[120px]"
-          animate={{ 
-            scale: [1, 1.1, 1],
-            opacity: [0.1, 0.15, 0.1]
-          }}
+          className={`absolute top-20 left-20 w-[40rem] h-[40rem] ${isMonitor ? 'bg-warning/12' : 'bg-primary/10'} rounded-full blur-[120px]`}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.15, 0.1] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div 
-          className="absolute bottom-20 right-20 w-[35rem] h-[35rem] bg-accent/10 rounded-full blur-[120px]"
-          animate={{ 
-            scale: [1, 1.15, 1],
-            opacity: [0.1, 0.12, 0.1]
-          }}
+          className={`absolute bottom-20 right-20 w-[35rem] h-[35rem] ${isMonitor ? 'bg-warning/8' : 'bg-accent/10'} rounded-full blur-[120px]`}
+          animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.12, 0.1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
-        <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-warning/5 rounded-full blur-[100px]"
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.08, 0.12, 0.08]
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-        />
+        {isMonitor && (
+          <motion.div 
+            className="absolute top-1/3 right-1/4 w-[25rem] h-[25rem] rounded-full blur-[100px]"
+            style={{ background: "hsl(var(--monitor-gold) / 0.08)" }}
+            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.12, 0.05] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
 
         {/* Starfield */}
         <div className="starfield">
-          {Array.from({ length: 40 }).map((_, i) => (
+          {Array.from({ length: isMonitor ? 50 : 40 }).map((_, i) => (
             <motion.div
               key={i}
-              className="absolute rounded-full bg-foreground/20"
+              className={`absolute rounded-full ${isMonitor ? 'bg-warning/30' : 'bg-foreground/20'}`}
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
                 width: `${Math.random() * 2 + 1}px`,
                 height: `${Math.random() * 2 + 1}px`,
               }}
-              animate={{
-                opacity: [0.2, 0.8, 0.2],
-                scale: [1, 1.2, 1],
-              }}
-              transition={{
-                duration: Math.random() * 3 + 2,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
+              animate={{ opacity: [0.2, 0.8, 0.2], scale: [1, 1.2, 1] }}
+              transition={{ duration: Math.random() * 3 + 2, repeat: Infinity, delay: Math.random() * 2 }}
             />
           ))}
         </div>
