@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LevelProgressRing } from "./LevelProgressRing";
 import { ClassCatalog } from "./ClassCatalog";
+import { WelcomeTour } from "./WelcomeTour";
 import {
   Sparkles, Trophy, BookOpen, Zap, Star, Target, Calendar,
   Clock, Rocket, Users, TrendingUp, Shield, ChevronRight, Lock,
