@@ -100,7 +100,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
         <div className="p-8 md:p-10 relative flex flex-col md:flex-row items-center gap-8">
           {/* Level ring with demo data */}
           <LevelProgressRing
-            avatarUrl={student.avatar_url}
+            avatarUrl={student?.avatar_url ?? null}
             name={student.full_name}
             level={1}
             currentXp={0}
