@@ -212,6 +212,24 @@ export default function StudentDashboard() {
 
   const { data: tuitionData } = useStudentMonthFinance(studentId, currentMonth);
 
+  // Check enrollment status for inactive landing
+  const { data: enrollmentStatus } = useQuery({
+    queryKey: ["student-enrollment-status", studentId],
+    queryFn: async () => {
+      if (!studentId) return { hasActive: false, hasAny: false };
+      const { data: allEnrollments } = await supabase
+        .from("enrollments")
+        .select("id, end_date")
+        .eq("student_id", studentId);
+      const rows = allEnrollments || [];
+      return {
+        hasActive: rows.some(e => e.end_date === null),
+        hasAny: rows.length > 0,
+      };
+    },
+    enabled: !!studentId,
+  });
+
   const { data: enrolledClasses } = useQuery({
     queryKey: ["student-enrolled-classes", studentId],
     queryFn: async () => {
