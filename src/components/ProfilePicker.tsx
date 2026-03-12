@@ -9,6 +9,7 @@ export default function ProfilePicker() {
   const { studentId, setStudentId } = useStudentProfile();
   const [students, setStudents] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdminOrTeacher, setIsAdminOrTeacher] = useState(false);
   const hasAutoSelectedRef = useRef(false);
   const queryClient = useQueryClient();
 
