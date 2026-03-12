@@ -200,6 +200,8 @@ export const AnnouncementManager = () => {
       is_active: form.is_active,
       is_dismissible: form.is_dismissible,
       style_config: styleConfig,
+      target_class_ids: (form.target_audience === "students" || form.target_audience === "paying_students") && form.class_scope === "specific" ? form.target_class_ids : [],
+      target_student_ids: (form.target_audience === "students" || form.target_audience === "paying_students") && form.student_scope === "specific" ? form.target_student_ids : [],
     };
 
     try {
