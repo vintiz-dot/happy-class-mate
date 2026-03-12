@@ -238,8 +238,12 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       relative p-3 rounded-2xl border-2 bg-gradient-to-br ${getRankGradient(actualRank)} ${getRankBorder(actualRank)}
                       backdrop-blur-sm shadow-lg transition-shadow hover:shadow-xl
                       ${isFirst ? 'w-28' : 'w-24'}
-                      ${isMonitor(entry.student_id) ? 'ring-2 ring-warning/40 ring-offset-1 ring-offset-background' : ''}
-                    `}>
+                      ${isMonitor(entry.student_id) ? 'ring-2 ring-offset-1 ring-offset-background shadow-xl' : ''}
+                    `}
+                    style={isMonitor(entry.student_id) ? {
+                      boxShadow: '0 0 25px hsl(45 100% 60% / 0.35), 0 8px 30px rgba(0,0,0,0.12)',
+                    } : undefined}
+                    >
                       {/* Glow effect for current user */}
                       {isCurrentUser && (
                         <div className="absolute inset-0 rounded-2xl bg-primary/20 animate-pulse" />
@@ -273,16 +277,31 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                         {entry.student_name}
                       </p>
                       
-                      {/* Monitor badge */}
+                      {/* Monitor badge - Royal Edition */}
                       {isMonitor(entry.student_id) && (
                         <div className="flex justify-center mt-1">
                           <motion.div
-                            animate={{ scale: [1, 1.1, 1] }}
+                            animate={{ scale: [1, 1.15, 1], rotate: [0, 2, -2, 0] }}
                             transition={{ duration: 2, repeat: Infinity }}
+                            className="relative"
                           >
-                            <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shadow-sm">
-                              <Shield className="h-2.5 w-2.5 mr-0.5" />
-                              Monitor
+                            {/* Glow ring behind badge */}
+                            <motion.div
+                              className="absolute inset-0 rounded-full blur-sm"
+                              style={{ background: "hsl(var(--monitor-glow))" }}
+                              animate={{ opacity: [0.4, 0.8, 0.4] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                            />
+                            <Badge 
+                              className="relative text-[9px] px-2 py-0.5 font-bold border-2 shadow-lg"
+                              style={{
+                                background: "linear-gradient(135deg, hsl(var(--monitor-gold)), hsl(var(--monitor-crown)))",
+                                borderColor: "hsl(var(--monitor-gold-light) / 0.8)",
+                                color: "white",
+                                textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                              }}
+                            >
+                              👑 Royal
                             </Badge>
                           </motion.div>
                         </div>
@@ -376,11 +395,25 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                             {isMonitor(entry.student_id) && (
                               <motion.div
                                 animate={{ scale: [1, 1.15, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="relative shrink-0"
                               >
-                                <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shrink-0">
-                                  <Shield className="h-2.5 w-2.5 mr-0.5" />
-                                  Monitor
+                                <motion.div
+                                  className="absolute inset-0 rounded-full blur-sm"
+                                  style={{ background: "hsl(var(--monitor-glow))" }}
+                                  animate={{ opacity: [0.3, 0.7, 0.3] }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
+                                />
+                                <Badge 
+                                  className="relative text-[9px] px-2 py-0.5 font-bold border-2 shadow-lg"
+                                  style={{
+                                    background: "linear-gradient(135deg, hsl(var(--monitor-gold)), hsl(var(--monitor-crown)))",
+                                    borderColor: "hsl(var(--monitor-gold-light) / 0.8)",
+                                    color: "white",
+                                    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                                  }}
+                                >
+                                  👑 Royal
                                 </Badge>
                               </motion.div>
                             )}
