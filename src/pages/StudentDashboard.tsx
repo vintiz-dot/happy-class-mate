@@ -450,8 +450,11 @@ export default function StudentDashboard() {
         {/* Hero Section with Mascot */}
         <motion.div 
           variants={itemVariants}
-          className={`glass-lg shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl ${isMonitor ? 'border-2 border-warning/40 ring-1 ring-warning/20' : 'border-0'}`}
-        >
+          className={`glass-lg shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl ${isMonitor ? 'border-2 ring-1 ring-offset-0' : 'border-0'}`}
+          style={isMonitor ? {
+            borderColor: 'hsl(var(--monitor-border) / 0.6)',
+            boxShadow: '0 0 40px hsl(var(--monitor-glow)), 0 20px 50px rgba(0,0,0,0.1)',
+          } : undefined}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
           
           <div className="p-6 md:p-8 relative">
