@@ -147,7 +147,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       </motion.div>
 
       {/* Stats Preview Row */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <motion.div id="demo-stats" variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { icon: Zap, label: "Total XP", value: "0", color: "text-warning", bg: "from-warning/15 to-warning/5" },
           { icon: Trophy, label: "Rank", value: "—", color: "text-accent", bg: "from-accent/15 to-accent/5" },
