@@ -20,6 +20,8 @@ export interface Announcement {
   created_by: string;
   created_at: string;
   updated_at: string;
+  target_class_ids: string[];
+  target_student_ids: string[];
 }
 
 export function useAnnouncements() {
