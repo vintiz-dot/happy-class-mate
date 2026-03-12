@@ -101,7 +101,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
           {/* Level ring with demo data */}
           <LevelProgressRing
             avatarUrl={student?.avatar_url ?? null}
-            name={student.full_name}
+            name={student?.full_name || "Student"}
             level={1}
             currentXp={0}
             nextLevelXp={100}
