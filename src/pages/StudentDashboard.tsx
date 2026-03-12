@@ -330,6 +330,19 @@ export default function StudentDashboard() {
     ];
   }, [pendingHomework, upcomingSessions, streakData]);
 
+  // New student-role user with no student record at all → show DemoDashboard
+  if (!studentId && isHydrated && role === "student") {
+    const fallbackName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Student";
+    return (
+      <Layout title="Dashboard">
+        <DemoDashboard
+          student={{ id: "", full_name: fallbackName, avatar_url: null }}
+          studentId=""
+        />
+      </Layout>
+    );
+  }
+
   if (!studentId || !studentProfile) {
     return (
       <Layout title="Dashboard">
