@@ -90,6 +90,9 @@ export default function StudentDashboard() {
   // Login challenge hook for real streak data
   const { streakData } = useLoginChallenge(studentId);
 
+  const { data: monitorClasses } = useStudentMonitorClasses(studentId);
+  const isMonitor = (monitorClasses?.length || 0) > 0;
+
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
     queryFn: async () => {
