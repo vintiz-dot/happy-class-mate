@@ -537,6 +537,13 @@ export default function StudentDashboard() {
           </div>
         </motion.div>
 
+        {/* Monitor Status Card */}
+        {isMonitor && (
+          <motion.div variants={itemVariants}>
+            <MonitorStatusCard classNames={monitorClasses!.map(c => c.className)} />
+          </motion.div>
+        )}
+
         {/* Weekly Progress Summary */}
         <motion.div variants={itemVariants}>
           <WeeklyProgressCard studentId={studentId} currentStreak={streakData.currentStreak} />
