@@ -301,7 +301,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                                 textShadow: "0 1px 2px rgba(0,0,0,0.3)",
                               }}
                             >
-                              👑 Royal
+                                👑 Class Monitor
                             </Badge>
                           </motion.div>
                         </div>
@@ -413,7 +413,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                                     textShadow: "0 1px 2px rgba(0,0,0,0.3)",
                                   }}
                                 >
-                                  👑 Royal
+                                  👑 Class Monitor
                                 </Badge>
                               </motion.div>
                             )}
