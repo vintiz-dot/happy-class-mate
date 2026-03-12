@@ -390,6 +390,85 @@ export const AnnouncementManager = () => {
               </div>
             </div>
 
+            {/* Class & Student targeting — shown for student audiences */}
+            {(form.target_audience === "students" || form.target_audience === "paying_students") && (
+              <div className="space-y-4 rounded-lg border border-border/60 bg-muted/30 p-4">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Users className="h-4 w-4" /> Targeting Options
+                </p>
+
+                {/* Class scope */}
+                <div>
+                  <Label>Class Filter</Label>
+                  <Select value={form.class_scope} onValueChange={(v) => setForm({ ...form, class_scope: v as "all" | "specific", target_class_ids: [], target_student_ids: [], student_scope: "all" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Classes</SelectItem>
+                      <SelectItem value="specific">Specific Classes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {form.class_scope === "specific" && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto rounded border border-border/40 p-2">
+                    {allClasses.map((cls) => (
+                      <label key={cls.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox
+                          checked={form.target_class_ids.includes(cls.id)}
+                          onCheckedChange={(checked) => {
+                            setForm((f) => ({
+                              ...f,
+                              target_class_ids: checked
+                                ? [...f.target_class_ids, cls.id]
+                                : f.target_class_ids.filter((id) => id !== cls.id),
+                              target_student_ids: [],
+                              student_scope: "all",
+                            }));
+                          }}
+                        />
+                        {cls.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {/* Student scope */}
+                <div>
+                  <Label>Student Filter</Label>
+                  <Select value={form.student_scope} onValueChange={(v) => setForm({ ...form, student_scope: v as "all" | "specific", target_student_ids: [] })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Students{form.class_scope === "specific" ? " (in selected classes)" : ""}</SelectItem>
+                      <SelectItem value="specific">Specific Students</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {form.student_scope === "specific" && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto rounded border border-border/40 p-2">
+                    {allStudents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2 text-center">No students found</p>
+                    ) : allStudents.map((s: any) => (
+                      <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox
+                          checked={form.target_student_ids.includes(s.id)}
+                          onCheckedChange={(checked) => {
+                            setForm((f) => ({
+                              ...f,
+                              target_student_ids: checked
+                                ? [...f.target_student_ids, s.id]
+                                : f.target_student_ids.filter((id) => id !== s.id),
+                            }));
+                          }}
+                        />
+                        {s.full_name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Starts At (optional)</Label>
