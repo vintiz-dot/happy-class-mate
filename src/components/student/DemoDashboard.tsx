@@ -291,7 +291,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       </motion.div>
 
       {/* Class Catalog — Real enrollment action */}
-      <motion.div variants={itemVariants} className="space-y-4">
+      <motion.div id="demo-enroll" variants={itemVariants} className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
             <Rocket className="h-6 w-6 text-primary" />
