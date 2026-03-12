@@ -59,6 +59,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       initial="hidden"
       animate="visible"
     >
+      <WelcomeTour />
       {/* Immersive background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5" />
