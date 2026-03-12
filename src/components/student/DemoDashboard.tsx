@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LevelProgressRing } from "./LevelProgressRing";
 import { ClassCatalog } from "./ClassCatalog";
+import { WelcomeTour } from "./WelcomeTour";
 import {
   Sparkles, Trophy, BookOpen, Zap, Star, Target, Calendar,
   Clock, Rocket, Users, TrendingUp, Shield, ChevronRight, Lock,
@@ -44,12 +45,12 @@ interface DemoDashboardProps {
     id: string;
     full_name: string;
     avatar_url: string | null;
-  };
+  } | null;
   studentId: string;
 }
 
 export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
-  const firstName = student.full_name.split(" ")[0];
+  const firstName = student?.full_name?.split(" ")[0] || "Student";
 
   return (
     <motion.div
@@ -58,6 +59,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       initial="hidden"
       animate="visible"
     >
+      <WelcomeTour />
       {/* Immersive background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-accent/5" />
@@ -90,6 +92,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
 
       {/* Hero Welcome */}
       <motion.div
+        id="demo-hero"
         variants={itemVariants}
         className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden relative"
       >
@@ -97,8 +100,8 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
         <div className="p-8 md:p-10 relative flex flex-col md:flex-row items-center gap-8">
           {/* Level ring with demo data */}
           <LevelProgressRing
-            avatarUrl={student.avatar_url}
-            name={student.full_name}
+            avatarUrl={student?.avatar_url ?? null}
+            name={student?.full_name || "Student"}
             level={1}
             currentXp={0}
             nextLevelXp={100}
@@ -144,7 +147,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       </motion.div>
 
       {/* Stats Preview Row */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <motion.div id="demo-stats" variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { icon: Zap, label: "Total XP", value: "0", color: "text-warning", bg: "from-warning/15 to-warning/5" },
           { icon: Trophy, label: "Rank", value: "—", color: "text-accent", bg: "from-accent/15 to-accent/5" },
@@ -164,7 +167,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       {/* Two-column layout: Leaderboard + Challenges */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Mock Leaderboard */}
-        <motion.div variants={itemVariants}>
+        <motion.div id="demo-leaderboard" variants={itemVariants}>
           <Card className="border-0 shadow-xl overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
             <CardContent className="p-6 relative space-y-4">
@@ -208,7 +211,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
         </motion.div>
 
         {/* Mock Daily Challenges */}
-        <motion.div variants={itemVariants}>
+        <motion.div id="demo-challenges" variants={itemVariants}>
           <Card className="border-0 shadow-xl overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             <CardContent className="p-6 relative space-y-4">
@@ -288,7 +291,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       </motion.div>
 
       {/* Class Catalog — Real enrollment action */}
-      <motion.div variants={itemVariants} className="space-y-4">
+      <motion.div id="demo-enroll" variants={itemVariants} className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
             <Rocket className="h-6 w-6 text-primary" />

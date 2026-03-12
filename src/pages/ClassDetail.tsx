@@ -11,6 +11,7 @@ import ClassHomework from "@/components/admin/class/ClassHomework";
 import ClassSettings from "@/components/admin/class/ClassSettings";
 import RecurringSessionsManager from "@/components/admin/class/RecurringSessionsManager";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { ClassMonitorCard } from "@/components/admin/class/ClassMonitorCard";
 
 const ClassDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -76,9 +77,14 @@ const ClassDetail = () => {
             <ClassLeaderboard classId={id} />
           </TabsContent>
           <TabsContent value="settings" className="mt-6">
-            <div className="space-y-6">
-              <ClassSettings classId={id} />
-              <RecurringSessionsManager classId={id} />
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-6">
+                <ClassSettings classId={id} />
+                <RecurringSessionsManager classId={id} />
+              </div>
+              <div>
+                <ClassMonitorCard classId={id} />
+              </div>
             </div>
           </TabsContent>
         </Tabs>
