@@ -21,6 +21,17 @@ export default function ProfilePicker() {
           return;
         }
 
+        // Skip for admin/teacher roles — they don't have student profiles
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+        const roleNames = roles?.map(r => r.role) || [];
+        if (roleNames.includes("admin") || roleNames.includes("teacher")) {
+          setLoading(false);
+          return;
+        }
+
         // Get students linked to user or in their family
         const { data: familyData } = await supabase
           .from("families")
