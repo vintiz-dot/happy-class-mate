@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAdminAnnouncements, type Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +59,10 @@ interface FormState {
   style_bg: string;
   style_text: string;
   style_animation: string;
+  class_scope: "all" | "specific";
+  target_class_ids: string[];
+  student_scope: "all" | "specific";
+  target_student_ids: string[];
 }
 
 const defaultForm: FormState = {
@@ -74,6 +80,10 @@ const defaultForm: FormState = {
   style_bg: "",
   style_text: "",
   style_animation: "",
+  class_scope: "all",
+  target_class_ids: [],
+  student_scope: "all",
+  target_student_ids: [],
 };
 
 export const AnnouncementManager = () => {
