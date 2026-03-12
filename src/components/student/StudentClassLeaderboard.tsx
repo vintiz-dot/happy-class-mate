@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Sparkles, Star, Zap, Crown } from "lucide-react";
+import { Trophy, Sparkles, Star, Zap, Crown, Shield } from "lucide-react";
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StudentAnalyticsModal } from "@/components/student/StudentAnalyticsModal";
+import { useClassMonitor } from "@/hooks/useClassMonitor";
 
 interface StudentClassLeaderboardProps {
   classId: string;
