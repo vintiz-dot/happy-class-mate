@@ -29,6 +29,7 @@ import { AchievementBadges } from "@/components/student/AchievementBadges";
 import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
+import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
 
 // Animation variants
 const containerVariants = {

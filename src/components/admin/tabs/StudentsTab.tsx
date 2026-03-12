@@ -3,6 +3,7 @@ import { StudentsList } from "@/components/admin/StudentsList";
 import { StudentForm } from "@/components/admin/StudentForm";
 import { FamilyForm } from "@/components/admin/FamilyForm";
 import { StudentsPageFilters } from "@/components/admin/StudentsPageFilters";
+import { EnrollmentRequestsManager } from "@/components/admin/EnrollmentRequestsManager";
 import { useQueryClient } from "@tanstack/react-query";
 
 const StudentsTab = () => {
@@ -13,6 +14,7 @@ const StudentsTab = () => {
 
   return (
     <div className="space-y-8">
+      <EnrollmentRequestsManager />
       <FamilyForm onSuccess={() => {
         queryClient.invalidateQueries({ queryKey: ["families"] });
         queryClient.invalidateQueries({ queryKey: ["students"] });
