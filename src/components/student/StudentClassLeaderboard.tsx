@@ -42,6 +42,8 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
   } | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState<string>(selectedMonth);
 
+  const { data: monitorStudentId } = useClassMonitor(classId);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
@@ -56,6 +58,8 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
       return response.data as { leaderboard: LeaderboardEntry[]; currentStudentId: string | null };
     },
   });
+
+  const isMonitor = (studentId: string) => monitorStudentId === studentId;
 
   const leaderboard = data?.leaderboard || [];
   const top3 = leaderboard.slice(0, 3);
