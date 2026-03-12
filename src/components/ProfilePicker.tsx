@@ -93,6 +93,7 @@ export default function ProfilePicker() {
       if (event === 'SIGNED_OUT') {
         setStudents(null);
         setLoading(false);
+        setIsAdminOrTeacher(false);
         hasAutoSelectedRef.current = false;
       } else if (event === 'SIGNED_IN') {
         loadStudents();
