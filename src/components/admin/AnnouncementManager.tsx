@@ -95,6 +95,32 @@ export const AnnouncementManager = () => {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [uploading, setUploading] = useState(false);
 
+  // Fetch classes and students for targeting
+  const { data: allClasses = [] } = useQuery({
+    queryKey: ["admin-all-classes"],
+    queryFn: async () => {
+      const { data } = await supabase.from("classes").select("id, name").eq("is_active", true).order("name");
+      return data ?? [];
+    },
+  });
+
+  const { data: allStudents = [] } = useQuery({
+    queryKey: ["admin-all-students-for-announcements", form.target_class_ids],
+    queryFn: async () => {
+      let query = supabase.from("students").select("id, full_name, enrollments(class_id)").eq("is_active", true).order("full_name");
+      const { data } = await query;
+      if (!data) return [];
+      // If specific classes selected, filter students enrolled in those classes
+      if (form.class_scope === "specific" && form.target_class_ids.length > 0) {
+        return data.filter((s: any) =>
+          (s.enrollments ?? []).some((e: any) => form.target_class_ids.includes(e.class_id))
+        );
+      }
+      return data;
+    },
+    enabled: form.target_audience === "students" || form.target_audience === "paying_students",
+  });
+
   const resetForm = () => {
     setForm(defaultForm);
     setEditingId(null);
