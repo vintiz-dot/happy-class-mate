@@ -107,6 +107,8 @@ export const AnnouncementManager = () => {
 
   const openEdit = (a: Announcement) => {
     setEditingId(a.id);
+    const classIds = a.target_class_ids ?? [];
+    const studentIds = a.target_student_ids ?? [];
     setForm({
       title: a.title,
       body: a.body,
@@ -122,6 +124,10 @@ export const AnnouncementManager = () => {
       style_bg: a.style_config?.bg || "",
       style_text: a.style_config?.text || "",
       style_animation: a.style_config?.animation || "",
+      class_scope: classIds.length > 0 ? "specific" : "all",
+      target_class_ids: classIds,
+      student_scope: studentIds.length > 0 ? "specific" : "all",
+      target_student_ids: studentIds,
     });
     setDialogOpen(true);
   };
