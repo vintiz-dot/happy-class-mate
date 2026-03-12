@@ -238,6 +238,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       relative p-3 rounded-2xl border-2 bg-gradient-to-br ${getRankGradient(actualRank)} ${getRankBorder(actualRank)}
                       backdrop-blur-sm shadow-lg transition-shadow hover:shadow-xl
                       ${isFirst ? 'w-28' : 'w-24'}
+                      ${isMonitor(entry.student_id) ? 'ring-2 ring-warning/40 ring-offset-1 ring-offset-background' : ''}
                     `}>
                       {/* Glow effect for current user */}
                       {isCurrentUser && (
