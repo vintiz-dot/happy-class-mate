@@ -332,7 +332,9 @@ export default function StudentDashboard() {
             className="text-center glass-lg rounded-3xl p-12"
           >
             <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse" />
-            <p className="text-xl text-muted-foreground">Please select a student profile.</p>
+            <p className="text-xl text-muted-foreground">
+              {studentId ? "Loading your profile…" : "Please select a student profile."}
+            </p>
           </motion.div>
         </div>
       </Layout>
