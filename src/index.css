@@ -118,6 +118,15 @@ All colors MUST be HSL.
     --leaderboard-glass-border: 0 0% 85%;
     --leaderboard-gradient-start: 45 100% 55%;
     --leaderboard-gradient-end: 38 100% 60%;
+
+    /* Royal Monitor Theme — gold / amber royalty */
+    --monitor-gold: 45 100% 55%;
+    --monitor-gold-dark: 38 90% 45%;
+    --monitor-gold-light: 48 100% 70%;
+    --monitor-crown: 35 95% 50%;
+    --monitor-glow: 45 100% 60% / 0.35;
+    --monitor-bg: 45 60% 97%;
+    --monitor-border: 42 80% 55%;
   
   /* Space theme animations */
   @keyframes float-gentle {
