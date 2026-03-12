@@ -14,6 +14,7 @@ export default function ProfilePicker() {
 
   useEffect(() => {
     async function loadStudents() {
+      hasAutoSelectedRef.current = false;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
