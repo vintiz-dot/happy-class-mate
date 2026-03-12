@@ -238,7 +238,13 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       relative p-3 rounded-2xl border-2 bg-gradient-to-br ${getRankGradient(actualRank)} ${getRankBorder(actualRank)}
                       backdrop-blur-sm shadow-lg transition-shadow hover:shadow-xl
                       ${isFirst ? 'w-28' : 'w-24'}
-                      ${isMonitor(entry.student_id) ? 'ring-2 ring-warning/40 ring-offset-1 ring-offset-background' : ''}
+                      ${isMonitor(entry.student_id) ? 'ring-2 ring-offset-1 ring-offset-background shadow-xl' : ''}
+                    `}
+                    style={isMonitor(entry.student_id) ? {
+                      ringColor: 'hsl(var(--monitor-gold))',
+                      boxShadow: '0 0 25px hsl(var(--monitor-glow)), 0 8px 30px rgba(0,0,0,0.12)',
+                    } : undefined}
+                    >
                     `}>
                       {/* Glow effect for current user */}
                       {isCurrentUser && (
