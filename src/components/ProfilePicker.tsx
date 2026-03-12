@@ -9,6 +9,7 @@ export default function ProfilePicker() {
   const { studentId, setStudentId } = useStudentProfile();
   const [students, setStudents] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdminOrTeacher, setIsAdminOrTeacher] = useState(false);
   const hasAutoSelectedRef = useRef(false);
   const queryClient = useQueryClient();
 
@@ -29,6 +30,7 @@ export default function ProfilePicker() {
           .eq("user_id", user.id);
         const roleNames = roles?.map(r => r.role) || [];
         if (roleNames.includes("admin") || roleNames.includes("teacher")) {
+          setIsAdminOrTeacher(true);
           setLoading(false);
           return;
         }
@@ -91,6 +93,7 @@ export default function ProfilePicker() {
       if (event === 'SIGNED_OUT') {
         setStudents(null);
         setLoading(false);
+        setIsAdminOrTeacher(false);
         hasAutoSelectedRef.current = false;
       } else if (event === 'SIGNED_IN') {
         loadStudents();
@@ -103,6 +106,9 @@ export default function ProfilePicker() {
   }, []);
 
   if (loading) return null;
+
+  // Skip for admin/teacher users
+  if (isAdminOrTeacher) return null;
 
   // No linked students — show "pending setup" message
   if (!students || students.length === 0) {
