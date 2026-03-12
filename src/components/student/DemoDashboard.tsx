@@ -92,6 +92,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
 
       {/* Hero Welcome */}
       <motion.div
+        id="demo-hero"
         variants={itemVariants}
         className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden relative"
       >
