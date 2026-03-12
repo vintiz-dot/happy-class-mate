@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
+import { SetMonitorControl } from "@/components/teacher/SetMonitorControl";
 
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -214,7 +215,8 @@ export default function TeacherClassDetail() {
                 {roster.length} {roster.length === 1 ? "student" : "students"} enrolled
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <SetMonitorControl classId={id!} roster={roster} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {roster.map((student: any) => (
                   <div key={student.id} className="border rounded-lg px-3 py-2">

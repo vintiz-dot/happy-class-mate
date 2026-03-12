@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Sparkles, Star, Zap, Crown } from "lucide-react";
+import { Trophy, Sparkles, Star, Zap, Crown, Shield } from "lucide-react";
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { getAvatarUrl, getRandomAvatarUrl } from "@/lib/avatars";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StudentAnalyticsModal } from "@/components/student/StudentAnalyticsModal";
+import { useClassMonitor } from "@/hooks/useClassMonitor";
 
 interface StudentClassLeaderboardProps {
   classId: string;
@@ -41,6 +42,8 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
   } | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState<string>(selectedMonth);
 
+  const { data: monitorStudentId } = useClassMonitor(classId);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-class-leaderboard", classId, selectedMonth],
     queryFn: async () => {
@@ -55,6 +58,8 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
       return response.data as { leaderboard: LeaderboardEntry[]; currentStudentId: string | null };
     },
   });
+
+  const isMonitor = (studentId: string) => monitorStudentId === studentId;
 
   const leaderboard = data?.leaderboard || [];
   const top3 = leaderboard.slice(0, 3);
@@ -233,6 +238,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       relative p-3 rounded-2xl border-2 bg-gradient-to-br ${getRankGradient(actualRank)} ${getRankBorder(actualRank)}
                       backdrop-blur-sm shadow-lg transition-shadow hover:shadow-xl
                       ${isFirst ? 'w-28' : 'w-24'}
+                      ${isMonitor(entry.student_id) ? 'ring-2 ring-warning/40 ring-offset-1 ring-offset-background' : ''}
                     `}>
                       {/* Glow effect for current user */}
                       {isCurrentUser && (
@@ -266,6 +272,21 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       <p className={`text-center font-bold text-foreground leading-tight ${isFirst ? 'text-sm' : 'text-xs'} line-clamp-2`}>
                         {entry.student_name}
                       </p>
+                      
+                      {/* Monitor badge */}
+                      {isMonitor(entry.student_id) && (
+                        <div className="flex justify-center mt-1">
+                          <motion.div
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shadow-sm">
+                              <Shield className="h-2.5 w-2.5 mr-0.5" />
+                              Monitor
+                            </Badge>
+                          </motion.div>
+                        </div>
+                      )}
                       
                       {/* You badge */}
                       {isCurrentUser && (
@@ -348,9 +369,22 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
 
                         {/* Name */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-foreground truncate">
-                            {entry.student_name}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-sm text-foreground truncate">
+                              {entry.student_name}
+                            </p>
+                            {isMonitor(entry.student_id) && (
+                              <motion.div
+                                animate={{ scale: [1, 1.15, 1] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                              >
+                                <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shrink-0">
+                                  <Shield className="h-2.5 w-2.5 mr-0.5" />
+                                  Monitor
+                                </Badge>
+                              </motion.div>
+                            )}
+                          </div>
                           {isCurrentUser && (
                             <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border-0">
                               That's you! 🌟

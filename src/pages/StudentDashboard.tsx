@@ -30,6 +30,8 @@ import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
+import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
+import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
 
 // Animation variants
 const containerVariants = {
@@ -87,6 +89,9 @@ export default function StudentDashboard() {
 
   // Login challenge hook for real streak data
   const { streakData } = useLoginChallenge(studentId);
+
+  const { data: monitorClasses } = useStudentMonitorClasses(studentId);
+  const isMonitor = (monitorClasses?.length || 0) > 0;
 
   const { data: studentProfile } = useQuery({
     queryKey: ["student-profile", studentId],
@@ -434,7 +439,7 @@ export default function StudentDashboard() {
         {/* Hero Section with Mascot */}
         <motion.div 
           variants={itemVariants}
-          className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl"
+          className={`glass-lg shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl ${isMonitor ? 'border-2 border-warning/40 ring-1 ring-warning/20' : 'border-0'}`}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
           
@@ -531,6 +536,13 @@ export default function StudentDashboard() {
             </motion.div>
           </div>
         </motion.div>
+
+        {/* Monitor Status Card */}
+        {isMonitor && (
+          <motion.div variants={itemVariants}>
+            <MonitorStatusCard classNames={monitorClasses!.map(c => c.className)} />
+          </motion.div>
+        )}
 
         {/* Weekly Progress Summary */}
         <motion.div variants={itemVariants}>

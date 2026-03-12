@@ -244,6 +244,45 @@ export type Database = {
         }
         Relationships: []
       }
+      class_monitors: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          class_id: string
+          id: string
+          student_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          class_id: string
+          id?: string
+          student_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          class_id?: string
+          id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_monitors_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_monitors_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           allow_teacher_override: boolean

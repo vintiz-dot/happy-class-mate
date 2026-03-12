@@ -14,6 +14,7 @@ export default function ProfilePicker() {
 
   useEffect(() => {
     async function loadStudents() {
+      hasAutoSelectedRef.current = false;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -84,6 +85,21 @@ export default function ProfilePicker() {
     }
 
     loadStudents();
+
+    // Listen for auth state changes to reset on logout
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setStudents(null);
+        setLoading(false);
+        hasAutoSelectedRef.current = false;
+      } else if (event === 'SIGNED_IN') {
+        loadStudents();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) return null;
