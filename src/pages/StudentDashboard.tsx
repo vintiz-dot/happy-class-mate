@@ -54,6 +54,7 @@ const itemVariants = {
 };
 
 import { calculateLevel, getLevelTitle } from "@/lib/levelUtils";
+import { useAuth } from "@/hooks/useAuth";
 
 // Time-based greeting with kid-friendly messages
 function getGreeting(): { text: string; emoji: string; subtext: string } {
