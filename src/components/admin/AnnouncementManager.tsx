@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAdminAnnouncements, type Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +59,10 @@ interface FormState {
   style_bg: string;
   style_text: string;
   style_animation: string;
+  class_scope: "all" | "specific";
+  target_class_ids: string[];
+  student_scope: "all" | "specific";
+  target_student_ids: string[];
 }
 
 const defaultForm: FormState = {
@@ -74,6 +80,10 @@ const defaultForm: FormState = {
   style_bg: "",
   style_text: "",
   style_animation: "",
+  class_scope: "all",
+  target_class_ids: [],
+  student_scope: "all",
+  target_student_ids: [],
 };
 
 export const AnnouncementManager = () => {
@@ -84,6 +94,32 @@ export const AnnouncementManager = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [uploading, setUploading] = useState(false);
+
+  // Fetch classes and students for targeting
+  const { data: allClasses = [] } = useQuery({
+    queryKey: ["admin-all-classes"],
+    queryFn: async () => {
+      const { data } = await supabase.from("classes").select("id, name").eq("is_active", true).order("name");
+      return data ?? [];
+    },
+  });
+
+  const { data: allStudents = [] } = useQuery({
+    queryKey: ["admin-all-students-for-announcements", form.target_class_ids],
+    queryFn: async () => {
+      let query = supabase.from("students").select("id, full_name, enrollments(class_id)").eq("is_active", true).order("full_name");
+      const { data } = await query;
+      if (!data) return [];
+      // If specific classes selected, filter students enrolled in those classes
+      if (form.class_scope === "specific" && form.target_class_ids.length > 0) {
+        return data.filter((s: any) =>
+          (s.enrollments ?? []).some((e: any) => form.target_class_ids.includes(e.class_id))
+        );
+      }
+      return data;
+    },
+    enabled: form.target_audience === "students" || form.target_audience === "paying_students",
+  });
 
   const resetForm = () => {
     setForm(defaultForm);
@@ -97,6 +133,8 @@ export const AnnouncementManager = () => {
 
   const openEdit = (a: Announcement) => {
     setEditingId(a.id);
+    const classIds = a.target_class_ids ?? [];
+    const studentIds = a.target_student_ids ?? [];
     setForm({
       title: a.title,
       body: a.body,
@@ -112,6 +150,10 @@ export const AnnouncementManager = () => {
       style_bg: a.style_config?.bg || "",
       style_text: a.style_config?.text || "",
       style_animation: a.style_config?.animation || "",
+      class_scope: classIds.length > 0 ? "specific" : "all",
+      target_class_ids: classIds,
+      student_scope: studentIds.length > 0 ? "specific" : "all",
+      target_student_ids: studentIds,
     });
     setDialogOpen(true);
   };
@@ -158,6 +200,8 @@ export const AnnouncementManager = () => {
       is_active: form.is_active,
       is_dismissible: form.is_dismissible,
       style_config: styleConfig,
+      target_class_ids: (form.target_audience === "students" || form.target_audience === "paying_students") && form.class_scope === "specific" ? form.target_class_ids : [],
+      target_student_ids: (form.target_audience === "students" || form.target_audience === "paying_students") && form.student_scope === "specific" ? form.target_student_ids : [],
     };
 
     try {
@@ -345,6 +389,85 @@ export const AnnouncementManager = () => {
                 </Select>
               </div>
             </div>
+
+            {/* Class & Student targeting — shown for student audiences */}
+            {(form.target_audience === "students" || form.target_audience === "paying_students") && (
+              <div className="space-y-4 rounded-lg border border-border/60 bg-muted/30 p-4">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Users className="h-4 w-4" /> Targeting Options
+                </p>
+
+                {/* Class scope */}
+                <div>
+                  <Label>Class Filter</Label>
+                  <Select value={form.class_scope} onValueChange={(v) => setForm({ ...form, class_scope: v as "all" | "specific", target_class_ids: [], target_student_ids: [], student_scope: "all" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Classes</SelectItem>
+                      <SelectItem value="specific">Specific Classes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {form.class_scope === "specific" && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto rounded border border-border/40 p-2">
+                    {allClasses.map((cls) => (
+                      <label key={cls.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox
+                          checked={form.target_class_ids.includes(cls.id)}
+                          onCheckedChange={(checked) => {
+                            setForm((f) => ({
+                              ...f,
+                              target_class_ids: checked
+                                ? [...f.target_class_ids, cls.id]
+                                : f.target_class_ids.filter((id) => id !== cls.id),
+                              target_student_ids: [],
+                              student_scope: "all",
+                            }));
+                          }}
+                        />
+                        {cls.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {/* Student scope */}
+                <div>
+                  <Label>Student Filter</Label>
+                  <Select value={form.student_scope} onValueChange={(v) => setForm({ ...form, student_scope: v as "all" | "specific", target_student_ids: [] })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Students{form.class_scope === "specific" ? " (in selected classes)" : ""}</SelectItem>
+                      <SelectItem value="specific">Specific Students</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {form.student_scope === "specific" && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto rounded border border-border/40 p-2">
+                    {allStudents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2 text-center">No students found</p>
+                    ) : allStudents.map((s: any) => (
+                      <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox
+                          checked={form.target_student_ids.includes(s.id)}
+                          onCheckedChange={(checked) => {
+                            setForm((f) => ({
+                              ...f,
+                              target_student_ids: checked
+                                ? [...f.target_student_ids, s.id]
+                                : f.target_student_ids.filter((id) => id !== s.id),
+                            }));
+                          }}
+                        />
+                        {s.full_name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

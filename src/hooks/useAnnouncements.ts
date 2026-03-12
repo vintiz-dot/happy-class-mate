@@ -20,6 +20,8 @@ export interface Announcement {
   created_by: string;
   created_at: string;
   updated_at: string;
+  target_class_ids: string[];
+  target_student_ids: string[];
 }
 
 export function useAnnouncements() {
@@ -77,6 +79,22 @@ export function useAnnouncements() {
     [dismissMutation]
   );
 
+  // Fetch student profile for class/student-level filtering
+  const { data: studentProfile } = useQuery({
+    queryKey: ["announcement_student_profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from("students")
+        .select("id, enrollments(class_id)")
+        .eq("linked_user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const filtered = useMemo(() => {
     const now = new Date();
     return announcements.filter((a) => {
@@ -95,15 +113,31 @@ export function useAnnouncements() {
       if (a.target_audience === "everyone") return true;
       if (a.target_audience === "authenticated") return isLoggedIn;
       if (!isLoggedIn) return false;
-      if (a.target_audience === "students") return role === "student";
       if (a.target_audience === "teachers") return role === "teacher";
       if (a.target_audience === "families") return role === "family";
-      // paying_students handled on server side, show to all students client-side
-      if (a.target_audience === "paying_students") return role === "student";
+
+      if (a.target_audience === "students" || a.target_audience === "paying_students") {
+        if (role !== "student") return false;
+
+        // Class-level filter
+        const classIds = a.target_class_ids ?? [];
+        if (classIds.length > 0 && studentProfile) {
+          const enrolledClassIds = (studentProfile.enrollments ?? []).map((e: any) => e.class_id);
+          if (!classIds.some((cid) => enrolledClassIds.includes(cid))) return false;
+        }
+
+        // Student-level filter
+        const studentIds = a.target_student_ids ?? [];
+        if (studentIds.length > 0 && studentProfile) {
+          if (!studentIds.includes(studentProfile.id)) return false;
+        }
+
+        return true;
+      }
 
       return true;
     });
-  }, [announcements, dismissals, localDismissals, user, role]);
+  }, [announcements, dismissals, localDismissals, user, role, studentProfile]);
 
   return { announcements: filtered, isLoading, dismiss };
 }
