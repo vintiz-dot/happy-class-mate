@@ -167,7 +167,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
       {/* Two-column layout: Leaderboard + Challenges */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Mock Leaderboard */}
-        <motion.div variants={itemVariants}>
+        <motion.div id="demo-leaderboard" variants={itemVariants}>
           <Card className="border-0 shadow-xl overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
             <CardContent className="p-6 relative space-y-4">
