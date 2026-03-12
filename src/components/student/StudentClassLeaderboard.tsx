@@ -369,9 +369,22 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
 
                         {/* Name */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-foreground truncate">
-                            {entry.student_name}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-sm text-foreground truncate">
+                              {entry.student_name}
+                            </p>
+                            {isMonitor(entry.student_id) && (
+                              <motion.div
+                                animate={{ scale: [1, 1.15, 1] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                              >
+                                <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shrink-0">
+                                  <Shield className="h-2.5 w-2.5 mr-0.5" />
+                                  Monitor
+                                </Badge>
+                              </motion.div>
+                            )}
+                          </div>
                           {isCurrentUser && (
                             <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border-0">
                               That's you! 🌟
