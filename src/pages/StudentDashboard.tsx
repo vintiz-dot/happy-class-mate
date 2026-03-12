@@ -349,6 +349,14 @@ export default function StudentDashboard() {
 
   // Show inactive/unenrolled landing page
   if (enrollmentStatus && !enrollmentStatus.hasActive) {
+    // New students get a premium demo dashboard; returning students see the re-enrollment landing
+    if (!enrollmentStatus.hasAny) {
+      return (
+        <Layout title="Dashboard">
+          <DemoDashboard student={studentProfile} studentId={studentId} />
+        </Layout>
+      );
+    }
     return (
       <Layout title="Dashboard">
         <InactiveStudentLanding
