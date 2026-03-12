@@ -75,7 +75,27 @@ export default function ProfilePicker() {
     loadStudents();
   }, []);
 
-  if (loading || !students || students.length < 2 || studentId) {
+  if (loading) return null;
+
+  // No linked students — show "pending setup" message
+  if (!students || students.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <Card className="w-[420px]">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 text-4xl">🔗</div>
+            <CardTitle>Account Not Linked Yet</CardTitle>
+            <CardDescription>
+              Your account hasn't been connected to a student profile yet. Please contact the administrator to get set up — it only takes a moment!
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Single student or already selected — hide picker
+  if (students.length < 2 || studentId) {
     return null;
   }
 
