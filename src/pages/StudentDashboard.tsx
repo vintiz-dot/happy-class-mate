@@ -339,6 +339,19 @@ export default function StudentDashboard() {
     );
   }
 
+  // Show inactive/unenrolled landing page
+  if (enrollmentStatus && !enrollmentStatus.hasActive) {
+    return (
+      <Layout title="Dashboard">
+        <InactiveStudentLanding
+          student={studentProfile}
+          isReturning={enrollmentStatus.hasAny}
+          studentId={studentId}
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Dashboard">
       {/* Celebration Overlay */}
