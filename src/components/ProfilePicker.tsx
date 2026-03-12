@@ -107,6 +107,9 @@ export default function ProfilePicker() {
 
   if (loading) return null;
 
+  // Skip for admin/teacher users
+  if (isAdminOrTeacher) return null;
+
   // No linked students — show "pending setup" message
   if (!students || students.length === 0) {
     return (
