@@ -29,6 +29,7 @@ import { AchievementBadges } from "@/components/student/AchievementBadges";
 import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
+import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
 
 // Animation variants
 const containerVariants = {
@@ -211,6 +212,24 @@ export default function StudentDashboard() {
 
   const { data: tuitionData } = useStudentMonthFinance(studentId, currentMonth);
 
+  // Check enrollment status for inactive landing
+  const { data: enrollmentStatus } = useQuery({
+    queryKey: ["student-enrollment-status", studentId],
+    queryFn: async () => {
+      if (!studentId) return { hasActive: false, hasAny: false };
+      const { data: allEnrollments } = await supabase
+        .from("enrollments")
+        .select("id, end_date")
+        .eq("student_id", studentId);
+      const rows = allEnrollments || [];
+      return {
+        hasActive: rows.some(e => e.end_date === null),
+        hasAny: rows.length > 0,
+      };
+    },
+    enabled: !!studentId,
+  });
+
   const { data: enrolledClasses } = useQuery({
     queryKey: ["student-enrolled-classes", studentId],
     queryFn: async () => {
@@ -316,6 +335,19 @@ export default function StudentDashboard() {
             <p className="text-xl text-muted-foreground">Please select a student profile.</p>
           </motion.div>
         </div>
+      </Layout>
+    );
+  }
+
+  // Show inactive/unenrolled landing page
+  if (enrollmentStatus && !enrollmentStatus.hasActive) {
+    return (
+      <Layout title="Dashboard">
+        <InactiveStudentLanding
+          student={studentProfile}
+          isReturning={enrollmentStatus.hasAny}
+          studentId={studentId}
+        />
       </Layout>
     );
   }
