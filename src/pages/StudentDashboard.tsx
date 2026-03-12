@@ -30,6 +30,7 @@ import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
+import { DemoDashboard } from "@/components/student/DemoDashboard";
 import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
 import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
 
@@ -348,6 +349,14 @@ export default function StudentDashboard() {
 
   // Show inactive/unenrolled landing page
   if (enrollmentStatus && !enrollmentStatus.hasActive) {
+    // New students get a premium demo dashboard; returning students see the re-enrollment landing
+    if (!enrollmentStatus.hasAny) {
+      return (
+        <Layout title="Dashboard">
+          <DemoDashboard student={studentProfile} studentId={studentId} />
+        </Layout>
+      );
+    }
     return (
       <Layout title="Dashboard">
         <InactiveStudentLanding
