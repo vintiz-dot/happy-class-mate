@@ -286,7 +286,6 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                           </motion.div>
                         </div>
                       )}
-                      </p>
                       
                       {/* You badge */}
                       {isCurrentUser && (
