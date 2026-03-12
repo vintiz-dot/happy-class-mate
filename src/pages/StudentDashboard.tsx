@@ -439,7 +439,7 @@ export default function StudentDashboard() {
         {/* Hero Section with Mascot */}
         <motion.div 
           variants={itemVariants}
-          className="glass-lg border-0 shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl"
+          className={`glass-lg shadow-2xl rounded-3xl overflow-hidden backdrop-blur-xl ${isMonitor ? 'border-2 border-warning/40 ring-1 ring-warning/20' : 'border-0'}`}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
           
