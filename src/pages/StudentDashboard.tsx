@@ -65,7 +65,8 @@ function getGreeting(): { text: string; emoji: string; subtext: string } {
 }
 
 export default function StudentDashboard() {
-  const { studentId } = useStudentProfile();
+  const { studentId, isHydrated } = useStudentProfile();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const currentMonth = dayjs().format("YYYY-MM");
