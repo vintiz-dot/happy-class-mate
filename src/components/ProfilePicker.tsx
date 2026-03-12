@@ -30,6 +30,7 @@ export default function ProfilePicker() {
           .eq("user_id", user.id);
         const roleNames = roles?.map(r => r.role) || [];
         if (roleNames.includes("admin") || roleNames.includes("teacher")) {
+          setIsAdminOrTeacher(true);
           setLoading(false);
           return;
         }
