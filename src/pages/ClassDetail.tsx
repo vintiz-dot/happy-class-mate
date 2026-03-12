@@ -11,6 +11,7 @@ import ClassHomework from "@/components/admin/class/ClassHomework";
 import ClassSettings from "@/components/admin/class/ClassSettings";
 import RecurringSessionsManager from "@/components/admin/class/RecurringSessionsManager";
 import { ClassLeaderboard } from "@/components/admin/ClassLeaderboard";
+import { ClassMonitorCard } from "@/components/admin/class/ClassMonitorCard";
 
 const ClassDetail = () => {
   const { id } = useParams<{ id: string }>();
