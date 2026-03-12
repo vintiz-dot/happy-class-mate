@@ -211,7 +211,7 @@ export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
         </motion.div>
 
         {/* Mock Daily Challenges */}
-        <motion.div variants={itemVariants}>
+        <motion.div id="demo-challenges" variants={itemVariants}>
           <Card className="border-0 shadow-xl overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             <CardContent className="p-6 relative space-y-4">
