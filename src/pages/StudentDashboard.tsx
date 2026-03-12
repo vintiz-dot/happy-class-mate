@@ -30,6 +30,8 @@ import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
+import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
+import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
 
 // Animation variants
 const containerVariants = {
