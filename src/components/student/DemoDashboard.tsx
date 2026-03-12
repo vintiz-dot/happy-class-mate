@@ -50,7 +50,7 @@ interface DemoDashboardProps {
 }
 
 export function DemoDashboard({ student, studentId }: DemoDashboardProps) {
-  const firstName = student.full_name.split(" ")[0];
+  const firstName = student?.full_name?.split(" ")[0] || "Student";
 
   return (
     <motion.div
