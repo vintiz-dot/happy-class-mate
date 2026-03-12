@@ -273,16 +273,31 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                         {entry.student_name}
                       </p>
                       
-                      {/* Monitor badge */}
+                      {/* Monitor badge - Royal Edition */}
                       {isMonitor(entry.student_id) && (
                         <div className="flex justify-center mt-1">
                           <motion.div
-                            animate={{ scale: [1, 1.1, 1] }}
+                            animate={{ scale: [1, 1.15, 1], rotate: [0, 2, -2, 0] }}
                             transition={{ duration: 2, repeat: Infinity }}
+                            className="relative"
                           >
-                            <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shadow-sm">
-                              <Shield className="h-2.5 w-2.5 mr-0.5" />
-                              Monitor
+                            {/* Glow ring behind badge */}
+                            <motion.div
+                              className="absolute inset-0 rounded-full blur-sm"
+                              style={{ background: "hsl(var(--monitor-glow))" }}
+                              animate={{ opacity: [0.4, 0.8, 0.4] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                            />
+                            <Badge 
+                              className="relative text-[9px] px-2 py-0.5 font-bold border-2 shadow-lg"
+                              style={{
+                                background: "linear-gradient(135deg, hsl(var(--monitor-gold)), hsl(var(--monitor-crown)))",
+                                borderColor: "hsl(var(--monitor-gold-light) / 0.8)",
+                                color: "white",
+                                textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                              }}
+                            >
+                              👑 Royal
                             </Badge>
                           </motion.div>
                         </div>
