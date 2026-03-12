@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function ProfilePicker() {
@@ -110,21 +110,9 @@ export default function ProfilePicker() {
   // Skip for admin/teacher users
   if (isAdminOrTeacher) return null;
 
-  // No linked students — show "pending setup" message
+  // No linked students — don't block the page; contextual messages handle this
   if (!students || students.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-        <Card className="w-[420px]">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-2 text-4xl">🔗</div>
-            <CardTitle>Account Not Linked Yet</CardTitle>
-            <CardDescription>
-              Your account hasn't been connected to a student profile yet. Please contact the administrator to get set up — it only takes a moment!
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
   // Single student or already selected — hide picker
