@@ -272,6 +272,22 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                         {entry.student_name}
                       </p>
                       
+                      {/* Monitor badge */}
+                      {isMonitor(entry.student_id) && (
+                        <div className="flex justify-center mt-1">
+                          <motion.div
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shadow-sm">
+                              <Shield className="h-2.5 w-2.5 mr-0.5" />
+                              Monitor
+                            </Badge>
+                          </motion.div>
+                        </div>
+                      )}
+                      </p>
+                      
                       {/* You badge */}
                       {isCurrentUser && (
                         <div className="flex justify-center mt-1">
