@@ -151,10 +151,25 @@ Deno.serve(async (req) => {
     const { month, teacherId } = validationResult.data;
     const { startDate, nextMonthStart } = monthRange(month);
 
-    // Teachers
+    // Teachers — scope non-admin teachers to their own data only
     let tq = supabase.from("teachers").select("id, full_name, hourly_rate_vnd, user_id").eq("is_active", true);
 
-    if (teacherId) tq = tq.eq("id", teacherId);
+    if (isTeacher && !isAdmin) {
+      const { data: ownTeacher } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      if (!ownTeacher) {
+        return new Response(JSON.stringify({ error: "Teacher profile not found" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      tq = tq.eq("id", ownTeacher.id);
+    } else if (teacherId) {
+      tq = tq.eq("id", teacherId);
+    }
 
     const { data: teachers, error: teachersError } = await tq;
     if (teachersError) throw teachersError;
