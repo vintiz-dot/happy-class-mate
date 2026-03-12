@@ -241,8 +241,7 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                       ${isMonitor(entry.student_id) ? 'ring-2 ring-offset-1 ring-offset-background shadow-xl' : ''}
                     `}
                     style={isMonitor(entry.student_id) ? {
-                      ringColor: 'hsl(var(--monitor-gold))',
-                      boxShadow: '0 0 25px hsl(var(--monitor-glow)), 0 8px 30px rgba(0,0,0,0.12)',
+                      boxShadow: '0 0 25px hsl(45 100% 60% / 0.35), 0 8px 30px rgba(0,0,0,0.12)',
                     } : undefined}
                     >
                       {/* Glow effect for current user */}
