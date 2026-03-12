@@ -2085,6 +2085,8 @@ export type Database = {
           starts_at: string | null
           style_config: Json
           target_audience: string
+          target_class_ids: string[] | null
+          target_student_ids: string[] | null
           title: string
           updated_at: string
         }
@@ -2103,6 +2105,8 @@ export type Database = {
           starts_at?: string | null
           style_config?: Json
           target_audience?: string
+          target_class_ids?: string[] | null
+          target_student_ids?: string[] | null
           title: string
           updated_at?: string
         }
@@ -2121,6 +2125,8 @@ export type Database = {
           starts_at?: string | null
           style_config?: Json
           target_audience?: string
+          target_class_ids?: string[] | null
+          target_student_ids?: string[] | null
           title?: string
           updated_at?: string
         }
