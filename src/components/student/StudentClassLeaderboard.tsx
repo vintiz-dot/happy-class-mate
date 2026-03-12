@@ -391,11 +391,25 @@ export function StudentClassLeaderboard({ classId, className, currentStudentId }
                             {isMonitor(entry.student_id) && (
                               <motion.div
                                 animate={{ scale: [1, 1.15, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="relative shrink-0"
                               >
-                                <Badge className="text-[9px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30 shrink-0">
-                                  <Shield className="h-2.5 w-2.5 mr-0.5" />
-                                  Monitor
+                                <motion.div
+                                  className="absolute inset-0 rounded-full blur-sm"
+                                  style={{ background: "hsl(var(--monitor-glow))" }}
+                                  animate={{ opacity: [0.3, 0.7, 0.3] }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
+                                />
+                                <Badge 
+                                  className="relative text-[9px] px-2 py-0.5 font-bold border-2 shadow-lg"
+                                  style={{
+                                    background: "linear-gradient(135deg, hsl(var(--monitor-gold)), hsl(var(--monitor-crown)))",
+                                    borderColor: "hsl(var(--monitor-gold-light) / 0.8)",
+                                    color: "white",
+                                    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                                  }}
+                                >
+                                  👑 Royal
                                 </Badge>
                               </motion.div>
                             )}
