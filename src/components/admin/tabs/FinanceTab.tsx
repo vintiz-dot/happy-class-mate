@@ -22,6 +22,7 @@ const FinanceTab = () => {
   return (
     <>
       <SmartFamilyPaymentModal open={smartPaymentOpen} onClose={() => setSmartPaymentOpen(false)} />
+      <BatchFamilyPaymentModal open={batchPaymentOpen} onClose={() => setBatchPaymentOpen(false)} />
       
       <Tabs defaultValue="summary" className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -35,10 +36,16 @@ const FinanceTab = () => {
             <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
           </TabsList>
           
-          <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
-            <Wallet className="h-4 w-4" />
-            Smart Family Payment
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
+              <Wallet className="h-4 w-4" />
+              Single Family
+            </Button>
+            <Button onClick={() => setBatchPaymentOpen(true)} variant="outline" className="gap-2">
+              <Users className="h-4 w-4" />
+              Batch Payment
+            </Button>
+          </div>
         </div>
 
       <TabsContent value="summary" className="space-y-4">
