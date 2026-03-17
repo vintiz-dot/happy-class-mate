@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { CreditCard, Loader2, Zap, Users, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -199,8 +199,8 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Batch Record Payment
@@ -208,17 +208,17 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          {/* Global controls */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <div className="flex-1 overflow-hidden flex flex-col gap-3 min-h-0">
+          {/* Global controls - collapsible row */}
+          <div className="shrink-0 grid grid-cols-2 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs">Date</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs">Method</Label>
               <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
@@ -229,29 +229,30 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs">Shared Note (optional)</Label>
             <Textarea
               placeholder="E.g. Monthly batch collection..."
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
-              rows={2}
+              rows={1}
+              className="min-h-[36px]"
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="shrink-0 flex items-center justify-between">
             <span className="text-sm font-medium">Student Amounts</span>
-            <Button variant="outline" size="sm" onClick={handlePayFullAll} className="gap-1">
+            <Button variant="outline" size="sm" onClick={handlePayFullAll} className="gap-1 h-7 text-xs">
               <Zap className="h-3 w-3" />
               Pay Full All
             </Button>
           </div>
 
-          <Separator />
+          <Separator className="shrink-0" />
 
-          {/* Student list */}
-          <ScrollArea className="flex-1 -mx-2 px-2" style={{ maxHeight: "40vh" }}>
-            <div className="space-y-3">
+          {/* Student list - takes remaining space */}
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2 pb-1">
+            <div className="space-y-2">
               {items.map((item) => {
                 const studentName = item.students?.full_name || "Student";
                 const outstanding = getOutstanding(item);
@@ -267,25 +268,25 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
                 return (
                   <div
                     key={item.student_id}
-                    className={`rounded-lg border p-3 space-y-2 transition-colors ${
+                    className={`rounded-lg border p-2.5 space-y-1.5 transition-colors ${
                       isCompleted ? "bg-green-50 dark:bg-green-950/20 border-green-200" : ""
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7 shrink-0">
+                      <Avatar className="h-6 w-6 shrink-0">
                         <AvatarImage
                           src={getAvatarUrl(item.students?.avatar_url) || undefined}
                           alt={studentName}
                           className="object-cover"
                         />
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                           {studentName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm truncate">{studentName}</span>
-                          {isCompleted && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                          {isCompleted && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
                         </div>
                         <div className="flex gap-3 text-xs text-muted-foreground">
                           <span>Payable: {fmt(item.finalPayable ?? 0)}</span>
@@ -301,14 +302,14 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
                         placeholder="0"
                         value={entries[item.student_id] || ""}
                         onChange={(e) => handleAmountChange(item.student_id, e.target.value)}
-                        className="flex-1 h-8 text-sm"
+                        className="flex-1 h-7 text-sm"
                         disabled={saving}
                       />
                       {outstanding > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 text-xs gap-1 shrink-0"
+                          className="h-7 text-xs gap-1 shrink-0"
                           onClick={() => handlePayFull(item.student_id, outstanding)}
                           disabled={saving}
                         >
@@ -331,11 +332,11 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
                 );
               })}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Summary bar */}
           {totalPayment > 0 && (
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 flex items-center justify-between">
+            <div className="shrink-0 rounded-lg bg-primary/5 border border-primary/20 p-2.5 flex items-center justify-between">
               <span className="text-sm font-medium">
                 Total: <span className="text-primary font-bold">{fmt(totalPayment)}</span>
               </span>
@@ -346,7 +347,7 @@ export const BatchPaymentDialog = ({ open, onClose, items, month, onSuccess }: B
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={handleClose} disabled={saving}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || validEntries.length === 0} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
