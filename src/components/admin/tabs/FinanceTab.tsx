@@ -10,16 +10,19 @@ import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManage
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
 import { Button } from "@/components/ui/button";
-import { Wallet } from "lucide-react";
+import { Wallet, Users } from "lucide-react";
 import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
+import { BatchFamilyPaymentModal } from "@/components/admin/BatchFamilyPaymentModal";
 
 const FinanceTab = () => {
   const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
+  const [batchPaymentOpen, setBatchPaymentOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
 
   return (
     <>
       <SmartFamilyPaymentModal open={smartPaymentOpen} onClose={() => setSmartPaymentOpen(false)} />
+      <BatchFamilyPaymentModal open={batchPaymentOpen} onClose={() => setBatchPaymentOpen(false)} />
       
       <Tabs defaultValue="summary" className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -33,10 +36,16 @@ const FinanceTab = () => {
             <TabsTrigger value="sibling">Sibling Discounts</TabsTrigger>
           </TabsList>
           
-          <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
-            <Wallet className="h-4 w-4" />
-            Smart Family Payment
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setSmartPaymentOpen(true)} className="gap-2">
+              <Wallet className="h-4 w-4" />
+              Single Family
+            </Button>
+            <Button onClick={() => setBatchPaymentOpen(true)} variant="outline" className="gap-2">
+              <Users className="h-4 w-4" />
+              Batch Payment
+            </Button>
+          </div>
         </div>
 
       <TabsContent value="summary" className="space-y-4">
