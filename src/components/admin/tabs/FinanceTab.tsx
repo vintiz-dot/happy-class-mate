@@ -10,11 +10,13 @@ import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManage
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
 import { Button } from "@/components/ui/button";
-import { Wallet } from "lucide-react";
+import { Wallet, Users } from "lucide-react";
 import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
+import { BatchFamilyPaymentModal } from "@/components/admin/BatchFamilyPaymentModal";
 
 const FinanceTab = () => {
   const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
+  const [batchPaymentOpen, setBatchPaymentOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
 
   return (
