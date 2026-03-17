@@ -375,7 +375,7 @@ export function BatchFamilyPaymentModal({ open, onClose }: BatchFamilyPaymentMod
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
               ) : (
-                <div className="border rounded-lg divide-y max-h-[40vh] overflow-y-auto">
+                <div className="border rounded-lg divide-y max-h-[35vh] overflow-y-auto pb-1">
                   {families.map(family => (
                     <label
                       key={family.id}
