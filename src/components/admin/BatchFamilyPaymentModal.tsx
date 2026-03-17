@@ -354,7 +354,7 @@ export function BatchFamilyPaymentModal({ open, onClose }: BatchFamilyPaymentMod
 
         <Separator />
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="flex-1 pr-4" style={{ minHeight: 0 }}>
           {/* STEP 1: SELECT FAMILIES */}
           {step === "select" && (
             <div className="space-y-4 py-2">
@@ -375,7 +375,7 @@ export function BatchFamilyPaymentModal({ open, onClose }: BatchFamilyPaymentMod
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
               ) : (
-                <div className="border rounded-lg divide-y max-h-[40vh] overflow-y-auto">
+                <div className="border rounded-lg divide-y max-h-[35vh] overflow-y-auto pb-1">
                   {families.map(family => (
                     <label
                       key={family.id}
