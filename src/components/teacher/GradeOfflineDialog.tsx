@@ -59,7 +59,8 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
       const { data: enrollments, error: enrollError } = await supabase
         .from("enrollments")
         .select("student_id, students(id, full_name, avatar_url)")
-        .eq("class_id", homework.class_id);
+        .eq("class_id", homework.class_id)
+        .is("end_date", null);
 
       if (enrollError) throw enrollError;
 
@@ -73,10 +74,16 @@ export function GradeOfflineDialog({ homeworkId, isOpen, onClose, onSuccess }: G
 
       const submittedStudentIds = new Set(submissions?.map((s) => s.student_id) || []);
 
-      // Filter out students who have already submitted
-      const studentsWithoutSubmission =
-        enrollments?.map((e) => e.students).filter((s): s is Student => s !== null && !submittedStudentIds.has(s.id)) ||
-        [];
+      // Deduplicate by student_id and filter out already-submitted
+      const seen = new Set<string>();
+      const studentsWithoutSubmission: Student[] = [];
+      for (const e of enrollments || []) {
+        const s = e.students as unknown as Student | null;
+        if (s && !submittedStudentIds.has(s.id) && !seen.has(s.id)) {
+          seen.add(s.id);
+          studentsWithoutSubmission.push(s);
+        }
+      }
 
       setStudents(studentsWithoutSubmission);
     } catch (error: any) {

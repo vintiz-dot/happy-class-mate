@@ -97,7 +97,16 @@ export function AttendanceMarking() {
         e.start_date <= sessionData.date && (!e.end_date || e.end_date >= sessionData.date)
       );
       
-      const studentsList = (validEnrollments?.map((e: any) => e.students).filter(Boolean) as Student[]) || [];
+      // Deduplicate by student id
+      const seen = new Set<string>();
+      const studentsList: Student[] = [];
+      for (const e of validEnrollments) {
+        const s = (e as any).students;
+        if (s && !seen.has(s.id)) {
+          seen.add(s.id);
+          studentsList.push(s);
+        }
+      }
       setStudents(studentsList);
 
       // Load existing attendance
