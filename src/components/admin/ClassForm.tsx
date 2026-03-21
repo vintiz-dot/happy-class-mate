@@ -166,6 +166,35 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
           </div>
 
           <div className="space-y-2">
+            <Label>Description (optional)</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief class description..."
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Curriculum (optional)</Label>
+              <Input
+                value={curriculum}
+                onChange={(e) => setCurriculum(e.target.value)}
+                placeholder="e.g. Oxford Discover 2"
+              />
+            </div>
+            <div>
+              <Label>Age Range (optional)</Label>
+              <Input
+                value={ageRange}
+                onChange={(e) => setAgeRange(e.target.value)}
+                placeholder="e.g. 9-12"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Weekly Schedule</Label>
               <Button type="button" onClick={addSlot} size="sm" variant="outline">
