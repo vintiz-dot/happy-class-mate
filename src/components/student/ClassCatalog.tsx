@@ -132,6 +132,22 @@ export function ClassCatalog({ studentId }: ClassCatalogProps) {
                         {cls.teacherName}
                       </p>
                     )}
+                    {cls.teacherBio && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cls.teacherBio}</p>
+                    )}
+                  </div>
+
+                  {/* Class metadata */}
+                  {(cls.showDescription && (cls as any).description) && (
+                    <p className="text-sm text-muted-foreground">{(cls as any).description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {cls.showCurriculum && (cls as any).curriculum && (
+                      <Badge variant="secondary" className="text-xs">📚 {(cls as any).curriculum}</Badge>
+                    )}
+                    {cls.showAgeRange && (cls as any).age_range && (
+                      <Badge variant="secondary" className="text-xs">👥 Ages {(cls as any).age_range}</Badge>
+                    )}
                   </div>
 
                   {/* Schedule */}
