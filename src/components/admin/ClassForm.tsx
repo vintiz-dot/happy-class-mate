@@ -88,6 +88,9 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
         default_teacher_id: teacherId,
         session_rate_vnd: sessionRate,
         schedule_template: { weeklySlots } as any,
+        description: description || null,
+        curriculum: curriculum || null,
+        age_range: ageRange || null,
       }]);
 
       if (error) throw error;
