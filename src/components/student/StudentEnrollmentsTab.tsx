@@ -17,6 +17,7 @@ interface StudentEnrollmentsTabProps {
 export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps) {
   const { user, role } = useAuth();
   const [modifyingEnrollment, setModifyingEnrollment] = useState<any>(null);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
 
   const { data: enrollments, refetch } = useQuery({
     queryKey: ["student-enrollments", studentId],
