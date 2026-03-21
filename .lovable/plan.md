@@ -1,123 +1,145 @@
+## Plan: Multi-Feature Enhancement
 
-
-# Student Profile Forensic Review & Upgrade Suggestions
-
-## Current State Summary
-
-The student profile is already well-built with gamification (XP, levels, streaks, badges, mascot, celebrations, quests, leaderboards, avatar system). Here's what exists and what's missing for a 9-16 year old audience.
+This request contains 9 distinct features. Here is the implementation plan organized by priority and complexity.
 
 ---
 
-## What's Working Well
-- Level/XP system with animated progress ring
-- Daily streak with weekly calendar visualization
-- Achievement badges with rarity tiers (common/rare/epic/legendary)
-- Mascot companion with contextual messages
-- Quest-style homework cards with countdown timers
-- Class leaderboards with analytics modal
-- Premium avatar unlock via top-3 ranking
-- Celebration overlay for milestones
+### 1. Fix Duplicate Students in Homework Offline Grading
+
+**Problem**: The enrollment query in `GradeOfflineDialog.tsx` (line 59-62) fetches enrollments without filtering `end_date IS NULL`, so students with multiple enrollments (past + active) appear multiple times.
+
+**Fix**: 
+
+- Add `.is("end_date", null)` to the enrollments query
+- Deduplicate results by `student_id` using a `Map` before setting state
+- Apply the same deduplication pattern across all enrollment-based student lists (search for similar patterns in `HomeworkGrading.tsx`, `HomeworkGradingList.tsx`, `AttendanceMarking.tsx`, `LiveAssessmentGrid.tsx`)
 
 ---
 
-## Issues Found
+### 2. Enroll Student from Admin Student Profile
 
-### 1. Bug: `useState` used as `useEffect` in `StudentProfileEdit.tsx`
-Lines 41-49 use `useState(() => {...})` as an initializer to sync form data when `student` loads. This runs only once (on mount), so the form stays empty until a remount. Should be `useEffect`.
+**Problem**: Admin must navigate to the class page to enroll a student. The `StudentEnrollmentsTab` only shows existing enrollments with no "Add" action.
 
-### 2. Profile Edit Modal is boring for kids
-The edit profile dialog opens a standard form with email/phone/date-of-birth fields. A 9-year-old doesn't care about email or phone. The avatar picker and profile picture upload are buried in separate cards.
+**Fix**:
 
-### 3. No "About Me" / personality expression
-Kids aged 9-16 want to express themselves. There's no bio, favorite subject, nickname, or "status message" field.
-
-### 4. No level titles or rank names
-The level system shows "LV 1", "LV 5" etc. but there are no fun titles like "Rookie Explorer", "Knowledge Knight", "Wisdom Wizard". These matter enormously for engagement in this age group.
-
-### 5. Achievement badges are computed client-side, not persisted
-Badges are recalculated every render from raw counts. There's no "newly earned" notification, no timestamp of when earned, and no way to show off a "favorite badge."
-
-### 6. No profile card / shareable view
-Kids in this age range love showing off. There's no profile card they can screenshot or share with classmates.
-
-### 7. `calculateLevel` is duplicated
-The same function exists in both `StudentDashboard.tsx` (line 52) and `StudentAnalyticsModal.tsx` (line 34).
-
-### 8. Weekly progress card has no goal-setting
-The weekly card shows stats but doesn't let the student set personal goals (e.g., "I want to earn 50 XP this week").
+- Add an "Enroll in Class" button to `StudentEnrollmentsTab.tsx`
+- Create a simple modal/dialog with a class picker (active classes not already enrolled), start date field, and confirm button
+- Inserts directly into the `enrollments` table
 
 ---
 
-## Proposed Upgrades (prioritized for 9-16 year olds)
+### 3. Centralized School-Wide Past Calendar
 
-### Upgrade 1: Level Titles
-Add kid-friendly level titles that change as they level up. Zero database changes needed.
+**Problem**: The existing `Schedule` page (`GlobalCalendar`) shows all classes in one calendar but only for the current month context. Admin needs a dedicated way to browse past months across all classes.
 
-```text
-Lv 1  → "Rookie Explorer"
-Lv 2  → "Rising Star"  
-Lv 3  → "Knowledge Seeker"
-Lv 4  → "Quiz Warrior"
-Lv 5  → "Scholar Knight"
-Lv 6  → "Brain Master"
-Lv 7  → "Wisdom Wizard"
-Lv 8  → "Grand Champion"
-Lv 9  → "Elite Legend"
-Lv 10 → "Supreme Scholar"
-```
+**Fix**:
 
-Display below the level badge on the progress ring and in the hero section.
-
-**Files**: `src/pages/StudentDashboard.tsx`, `src/components/student/LevelProgressRing.tsx`
-
-### Upgrade 2: Profile "Status Message" / Bio
-Add a short text field (max 50 chars) where kids can set a fun status like "On a 🔥 streak!" or "Homework machine 💪". Stored in a new `status_message` column on `students` table.
-
-**Files**: DB migration (add column), `src/components/student/StudentProfileEdit.tsx`, `src/pages/StudentDashboard.tsx`
-
-### Upgrade 3: Shareable Profile Card
-A compact, beautifully styled card showing avatar, name, level title, total XP, current streak, and top 3 earned badges. Include a "Share" button that captures it as an image (html2canvas is already installed).
-
-**Files**: New `src/components/student/ProfileShareCard.tsx`, integrate into `StudentDashboard.tsx`
-
-### Upgrade 4: "Favorite Badge" Showcase
-Let students pick one earned badge to feature prominently next to their name/avatar. Stored as `featured_badge_id` on students or in localStorage for simplicity.
-
-**Files**: `src/components/student/AchievementBadges.tsx`, `src/pages/StudentDashboard.tsx`
-
-### Upgrade 5: Fix `useState` bug in `StudentProfileEdit`
-Replace the misused `useState(() => {...})` on line 41 with a proper `useEffect` to sync form data when student query resolves.
-
-**Files**: `src/components/student/StudentProfileEdit.tsx`
-
-### Upgrade 6: Extract shared `calculateLevel` utility
-Move the duplicated `calculateLevel` function to `src/lib/levelUtils.ts` and import from both files.
-
-**Files**: New `src/lib/levelUtils.ts`, update `StudentDashboard.tsx` and `StudentAnalyticsModal.tsx`
+- The `GlobalCalendar` component already supports month navigation via the `PremiumCalendar` component. Verify it correctly loads past months' sessions (it queries by `month.startOf/endOf`).
+- If month navigation is already functional, no changes needed. If not, ensure the month picker in PremiumCalendar allows backward navigation without restrictions.
+- Add a "School Calendar" link in the admin sidebar if not already present, pointing to `/schedule`.
 
 ---
 
-## Technical Details
+### 4. Cancelled Sessions → Attendance = Excused
 
-### Database migration (for Upgrade 2)
+**Problem**: When a session is cancelled, student attendance remains "Present" instead of being switched to "Excused". No need to change the tuition calculation function as it correctly ignores cancelled classes.
+
+**Fix**:
+
+- Create a database trigger: when `sessions.status` is updated to `'Canceled'`, automatically update all related `attendance` rows to `status = 'Excused'`.
+- Migration SQL:
+  ```sql
+  CREATE OR REPLACE FUNCTION set_attendance_excused_on_cancel()
+  RETURNS trigger AS $$
+  BEGIN
+    IF NEW.status = 'Canceled' AND OLD.status != 'Canceled' THEN
+      UPDATE attendance SET status = 'Excused'
+      WHERE session_id = NEW.id AND status = 'Present';
+    END IF;
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+  CREATE TRIGGER trg_cancel_session_excused
+  AFTER UPDATE ON sessions
+  FOR EACH ROW EXECUTE FUNCTION set_attendance_excused_on_cancel();
+  ```
+
+---
+
+### 5. Smart Tuition Difference Flagging
+
+**Problem**: When a student's final payable differs from base tuition (due to cancelled sessions, discounts, excused absences), there's no explanation.
+
+**Fix**:
+
+- Enhance the tuition display components (`TuitionStudentCard.tsx`, `StudentTuitionTab.tsx`) to show a breakdown tooltip/expandable section
+- Pull data from the `calculate-tuition` edge function response (which already returns session counts, cancelled counts, discount info)
+- Display flags like: "2 sessions cancelled (-420,000₫)", "Sibling discount 10% (-42,000₫)", "1 excused absence (-210,000₫)" also include the dates of the cancelled or excussed classes with reasons if possible.
+- Use color-coded badges: green for credits, orange for adjustments
+
+---
+
+### 6. Class Metadata Fields (Curriculum, Age Range, etc.)
+
+**Database Migration**: Add new columns to the `classes` table:
+
 ```sql
-ALTER TABLE public.students ADD COLUMN status_message text DEFAULT NULL;
--- Constraint: max 50 characters enforced via validation trigger
+ALTER TABLE classes ADD COLUMN curriculum text;
+ALTER TABLE classes ADD COLUMN age_range text;
+ALTER TABLE classes ADD COLUMN description text;
+ALTER TABLE classes ADD COLUMN max_students integer;
+ALTER TABLE classes ADD COLUMN visibility_settings jsonb DEFAULT '{"curriculum": true, "age_range": true, "description": true, "teacher_info": true}'::jsonb;
 ```
 
-### Files to create
-- `src/lib/levelUtils.ts` — shared level calculation + title mapping
-- `src/components/student/ProfileShareCard.tsx` — shareable profile card component
+**UI Changes**:
 
-### Files to modify
-- `src/pages/StudentDashboard.tsx` — integrate level titles, profile card, featured badge
-- `src/components/student/LevelProgressRing.tsx` — show level title
-- `src/components/student/StudentProfileEdit.tsx` — fix useState bug, add status message field
-- `src/components/student/AchievementBadges.tsx` — add "feature this badge" interaction
-- `src/components/student/StudentAnalyticsModal.tsx` — use shared calculateLevel
+- **ClassSettings.tsx**: Add input fields for curriculum, age range, description, max students
+- **ClassSettings.tsx**: Add toggle switches for each field's public visibility (`visibility_settings` JSON)
+- **ClassForm.tsx**: Add optional fields during class creation
 
-### No changes needed
-- No new dependencies required (html2canvas already installed)
-- No RLS policy changes (status_message follows existing students table policies)
-- No edge function changes
+---
 
+### 7. Class Info Display for Students
+
+**Fix**:
+
+- **ClassCatalog.tsx** (new/demo students): Show curriculum, age range, description, teacher bio based on `visibility_settings`
+- **StudentEnrollmentsTab / StudentOverviewTab**: For enrolled students, show their class info (curriculum, schedule, teacher name/bio) in a card
+- **Student Dashboard**: Show class details card for each enrolled class
+
+---
+
+### 8. Privacy Toggles in Class Settings
+
+Already covered in item 6 — the `visibility_settings` JSONB column with toggle UI in ClassSettings.
+
+---
+
+### 9. Teacher Info Visibility
+
+**Fix**:
+
+- **For enrolled students**: Show teacher name and basic info on their class cards (already partially done via enrollment queries)
+- **For new/prospective students**: Create a "Meet Our Teachers" section in the demo dashboard or class catalog, fetching from `teachers` table (name, bio fields)
+- **Teacher bio**: Check if `teachers` table has a bio column. If not, add one via migration.
+
+---
+
+### Implementation Order
+
+1. **Database migration** — Add class metadata columns, teacher bio column, cancel→excused trigger (single migration)
+2. **Fix duplicates** — Quick query fixes across grading/attendance components
+3. **Enroll from profile** — New dialog in StudentEnrollmentsTab
+4. **Class settings UI** — Add new fields and visibility toggles
+5. **Tuition flagging** — Enhance tuition display with breakdown explanations
+6. **Student-facing class info** — Update ClassCatalog and student views
+7. **Teacher info** — Add teacher showcase for prospective students
+8. **Calendar verification** — Ensure past month navigation works school-wide
+
+### Technical Details
+
+- **Files to create**: ~2 new components (EnrollStudentDialog, TuitionBreakdownFlags)
+- **Files to modify**: ~10 existing files
+- **Database changes**: 1 migration (new columns + trigger)
+- **No new edge functions needed** — all changes use existing client-side queries and the existing `calculate-tuition` response data
