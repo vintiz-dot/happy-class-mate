@@ -9,7 +9,7 @@ import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
 import { StudentClassLeaderboard } from "./StudentClassLeaderboard";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { PointsBreakdownChart } from "./PointsBreakdownChart";
-import { Users } from "lucide-react";
+import { Users, BookOpen, User, Clock } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
