@@ -36,18 +36,43 @@ export function StudentOverviewTab({ student }: { student: any }) {
     enabled: !!student.family_id,
   });
 
-  // Fetch student's enrolled classes
+  // Fetch student's enrolled classes with metadata
   const { data: enrolledClasses } = useQuery({
     queryKey: ["student-enrolled-classes", student.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enrollments")
-        .select("class_id, classes(id, name)")
+        .select("class_id, classes(id, name, curriculum, age_range, description, default_teacher_id, visibility_settings, schedule_template, default_session_length_minutes)")
         .eq("student_id", student.id)
-        .not("end_date", "lt", new Date().toISOString().split("T")[0]);
+        .is("end_date", null);
 
       if (error) throw error;
-      return data?.map(e => e.classes).filter(Boolean) || [];
+
+      const classes = data?.map(e => e.classes).filter(Boolean) || [];
+
+      // Fetch teacher names for classes with default_teacher_id
+      const teacherIds = [...new Set(classes.filter((c: any) => c.default_teacher_id).map((c: any) => c.default_teacher_id))];
+      let teacherMap: Record<string, { name: string; bio: string | null }> = {};
+      if (teacherIds.length > 0) {
+        const { data: teachers } = await supabase
+          .from("teachers")
+          .select("id, full_name, bio")
+          .in("id", teacherIds);
+        teacherMap = Object.fromEntries((teachers || []).map(t => [t.id, { name: t.full_name, bio: t.bio }]));
+      }
+
+      return classes.map((c: any) => {
+        const vis = c.visibility_settings || { curriculum: true, age_range: true, description: true, teacher_info: true };
+        const teacher = c.default_teacher_id ? teacherMap[c.default_teacher_id] : null;
+        return {
+          ...c,
+          teacherName: vis.teacher_info ? (teacher?.name || null) : null,
+          teacherBio: vis.teacher_info ? (teacher?.bio || null) : null,
+          showCurriculum: vis.curriculum,
+          showAgeRange: vis.age_range,
+          showDescription: vis.description,
+        };
+      });
     },
   });
 
