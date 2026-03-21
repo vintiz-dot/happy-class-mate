@@ -134,6 +134,9 @@ export function TuitionStudentCard({
               <FinanceCell label="Balance" value={balance > 0 ? fmt(balance) : balance < 0 ? `+${fmt(Math.abs(balance))}` : "0 ₫"} accent={balance > 0 ? "red" : balance < 0 ? "green" : undefined} bold />
             </div>
 
+            {/* Smart Tuition Flags */}
+            <TuitionFlags item={item} />
+
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={onRecordPay} className="flex-1 sm:flex-none gap-1.5">
