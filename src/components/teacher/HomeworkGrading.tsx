@@ -57,7 +57,16 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
         .is("end_date", null);
 
       if (error) throw error;
-      return data?.map((e) => e.students).filter(Boolean) || [];
+      // Deduplicate by student_id
+      const seen = new Set<string>();
+      return (data || []).reduce((acc: any[], e) => {
+        const s = e.students;
+        if (s && !seen.has((s as any).id)) {
+          seen.add((s as any).id);
+          acc.push(s);
+        }
+        return acc;
+      }, []);
     },
     enabled: !!homework?.classes?.id,
   });

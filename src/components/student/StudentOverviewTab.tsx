@@ -9,7 +9,7 @@ import { StudentEditDrawer } from "@/components/admin/StudentEditDrawer";
 import { StudentClassLeaderboard } from "./StudentClassLeaderboard";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { PointsBreakdownChart } from "./PointsBreakdownChart";
-import { Users } from "lucide-react";
+import { Users, BookOpen, User, Clock } from "lucide-react";
 
 export function StudentOverviewTab({ student }: { student: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -36,18 +36,43 @@ export function StudentOverviewTab({ student }: { student: any }) {
     enabled: !!student.family_id,
   });
 
-  // Fetch student's enrolled classes
+  // Fetch student's enrolled classes with metadata
   const { data: enrolledClasses } = useQuery({
     queryKey: ["student-enrolled-classes", student.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("enrollments")
-        .select("class_id, classes(id, name)")
+        .select("class_id, classes(id, name, curriculum, age_range, description, default_teacher_id, visibility_settings, schedule_template, default_session_length_minutes)")
         .eq("student_id", student.id)
-        .not("end_date", "lt", new Date().toISOString().split("T")[0]);
+        .is("end_date", null);
 
       if (error) throw error;
-      return data?.map(e => e.classes).filter(Boolean) || [];
+
+      const classes = data?.map(e => e.classes).filter(Boolean) || [];
+
+      // Fetch teacher names for classes with default_teacher_id
+      const teacherIds = [...new Set(classes.filter((c: any) => c.default_teacher_id).map((c: any) => c.default_teacher_id))];
+      let teacherMap: Record<string, { name: string; bio: string | null }> = {};
+      if (teacherIds.length > 0) {
+        const { data: teachers } = await supabase
+          .from("teachers")
+          .select("id, full_name, bio")
+          .in("id", teacherIds);
+        teacherMap = Object.fromEntries((teachers || []).map(t => [t.id, { name: t.full_name, bio: t.bio }]));
+      }
+
+      return classes.map((c: any) => {
+        const vis = c.visibility_settings || { curriculum: true, age_range: true, description: true, teacher_info: true };
+        const teacher = c.default_teacher_id ? teacherMap[c.default_teacher_id] : null;
+        return {
+          ...c,
+          teacherName: vis.teacher_info ? (teacher?.name || null) : null,
+          teacherBio: vis.teacher_info ? (teacher?.bio || null) : null,
+          showCurriculum: vis.curriculum,
+          showAgeRange: vis.age_range,
+          showDescription: vis.description,
+        };
+      });
     },
   });
 
@@ -67,10 +92,51 @@ export function StudentOverviewTab({ student }: { student: any }) {
           <h2 className="text-2xl font-bold">My Classes</h2>
           {enrolledClasses.map((cls: any) => (
             <div key={cls.id} className="space-y-4">
-              <div className="border-l-4 border-primary pl-4">
-                <h3 className="text-xl font-semibold">{cls.name}</h3>
-                <p className="text-sm text-muted-foreground">Class Performance</p>
-              </div>
+              <Card className="border-l-4 border-l-primary">
+                <CardContent className="p-4 space-y-3">
+                  <div>
+                    <h3 className="text-xl font-semibold">{cls.name}</h3>
+                    {cls.teacherName && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                        <User className="h-3.5 w-3.5" />
+                        {cls.teacherName}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Class metadata */}
+                  {cls.showDescription && cls.description && (
+                    <p className="text-sm text-muted-foreground">{cls.description}</p>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {cls.showCurriculum && cls.curriculum && (
+                      <Badge variant="secondary" className="text-xs">
+                        <BookOpen className="h-3 w-3 mr-1" />
+                        {cls.curriculum}
+                      </Badge>
+                    )}
+                    {cls.showAgeRange && cls.age_range && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Users className="h-3 w-3 mr-1" />
+                        Ages {cls.age_range}
+                      </Badge>
+                    )}
+                    {cls.default_session_length_minutes && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {cls.default_session_length_minutes} min
+                      </Badge>
+                    )}
+                  </div>
+
+                  {cls.teacherBio && (
+                    <p className="text-xs text-muted-foreground italic border-l-2 border-muted pl-2">
+                      {cls.teacherBio}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
               
               {/* Points breakdown for this specific class */}
               <PointsBreakdownChart studentId={student.id} classId={cls.id} />
