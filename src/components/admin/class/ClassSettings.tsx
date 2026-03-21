@@ -91,6 +91,11 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         default_teacher_id: defaultTeacherId || null,
         session_rate_vnd: sessionRate,
         default_session_length_minutes: defaultSessionLength,
+        curriculum: curriculum || null,
+        age_range: ageRange || null,
+        description: description || null,
+        max_students: maxStudents || null,
+        visibility_settings: visibilitySettings,
       };
 
       if (defaultStartTime) {
