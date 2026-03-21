@@ -5,8 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { PastAttendanceEditor } from "@/components/admin/PastAttendanceEditor";
 
@@ -16,6 +19,16 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   const [defaultStartTime, setDefaultStartTime] = useState("");
   const [defaultEndTime, setDefaultEndTime] = useState("");
   const [defaultSessionLength, setDefaultSessionLength] = useState(90);
+  const [curriculum, setCurriculum] = useState("");
+  const [ageRange, setAgeRange] = useState("");
+  const [description, setDescription] = useState("");
+  const [maxStudents, setMaxStudents] = useState<number | "">("");
+  const [visibilitySettings, setVisibilitySettings] = useState({
+    curriculum: true,
+    age_range: true,
+    description: true,
+    teacher_info: true,
+  });
   const [saving, setSaving] = useState(false);
 
   const { data: classData } = useQuery({
@@ -49,6 +62,19 @@ const ClassSettings = ({ classId }: { classId: string }) => {
       setDefaultTeacherId(classData.default_teacher_id || "");
       setSessionRate(classData.session_rate_vnd || 0);
       setDefaultSessionLength(classData.default_session_length_minutes || 90);
+      setCurriculum((classData as any).curriculum || "");
+      setAgeRange((classData as any).age_range || "");
+      setDescription((classData as any).description || "");
+      setMaxStudents((classData as any).max_students || "");
+      if ((classData as any).visibility_settings) {
+        setVisibilitySettings({
+          curriculum: true,
+          age_range: true,
+          description: true,
+          teacher_info: true,
+          ...((classData as any).visibility_settings as Record<string, boolean>),
+        });
+      }
       
       // Parse typical start times if available
       if (classData.typical_start_times && Array.isArray(classData.typical_start_times)) {
@@ -65,6 +91,11 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         default_teacher_id: defaultTeacherId || null,
         session_rate_vnd: sessionRate,
         default_session_length_minutes: defaultSessionLength,
+        curriculum: curriculum || null,
+        age_range: ageRange || null,
+        description: description || null,
+        max_students: maxStudents || null,
+        visibility_settings: visibilitySettings,
       };
 
       if (defaultStartTime) {
@@ -192,6 +223,79 @@ const ClassSettings = ({ classId }: { classId: string }) => {
 
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving ? "Saving..." : "Save Settings"}
+              </Button>
+
+              <Separator className="my-4" />
+
+              {/* Class Metadata */}
+              <h3 className="text-lg font-semibold">Class Information</h3>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of the class..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Curriculum</Label>
+                  <Input
+                    value={curriculum}
+                    onChange={(e) => setCurriculum(e.target.value)}
+                    placeholder="e.g. Oxford Discover 2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Age Range</Label>
+                  <Input
+                    value={ageRange}
+                    onChange={(e) => setAgeRange(e.target.value)}
+                    placeholder="e.g. 9-12"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Max Students</Label>
+                <Input
+                  type="number"
+                  value={maxStudents}
+                  onChange={(e) => setMaxStudents(e.target.value ? Number(e.target.value) : "")}
+                  placeholder="No limit"
+                />
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Visibility Toggles */}
+              <h3 className="text-lg font-semibold">Public Visibility</h3>
+              <p className="text-sm text-muted-foreground">Control what prospective students can see</p>
+
+              <div className="space-y-3">
+                {[
+                  { key: "curriculum" as const, label: "Curriculum" },
+                  { key: "age_range" as const, label: "Age Range" },
+                  { key: "description" as const, label: "Description" },
+                  { key: "teacher_info" as const, label: "Teacher Info" },
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <Label>{label}</Label>
+                    <Switch
+                      checked={visibilitySettings[key]}
+                      onCheckedChange={(checked) =>
+                        setVisibilitySettings((prev) => ({ ...prev, [key]: checked }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <Button onClick={handleSave} disabled={saving} className="w-full">
+                {saving ? "Saving..." : "Save All Settings"}
               </Button>
             </CardContent>
           </Card>

@@ -285,14 +285,18 @@ export type Database = {
       }
       classes: {
         Row: {
+          age_range: string | null
           allow_teacher_override: boolean
           class_notes: string | null
           created_at: string
           created_by: string | null
+          curriculum: string | null
           default_session_length_minutes: number
           default_teacher_id: string | null
+          description: string | null
           id: string
           is_active: boolean
+          max_students: number | null
           name: string
           schedule_template: Json
           session_rate_vnd: number
@@ -300,16 +304,21 @@ export type Database = {
           typical_start_times: Json | null
           updated_at: string
           updated_by: string | null
+          visibility_settings: Json | null
         }
         Insert: {
+          age_range?: string | null
           allow_teacher_override?: boolean
           class_notes?: string | null
           created_at?: string
           created_by?: string | null
+          curriculum?: string | null
           default_session_length_minutes?: number
           default_teacher_id?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean
+          max_students?: number | null
           name: string
           schedule_template?: Json
           session_rate_vnd?: number
@@ -317,16 +326,21 @@ export type Database = {
           typical_start_times?: Json | null
           updated_at?: string
           updated_by?: string | null
+          visibility_settings?: Json | null
         }
         Update: {
+          age_range?: string | null
           allow_teacher_override?: boolean
           class_notes?: string | null
           created_at?: string
           created_by?: string | null
+          curriculum?: string | null
           default_session_length_minutes?: number
           default_teacher_id?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean
+          max_students?: number | null
           name?: string
           schedule_template?: Json
           session_rate_vnd?: number
@@ -334,6 +348,7 @@ export type Database = {
           typical_start_times?: Json | null
           updated_at?: string
           updated_by?: string | null
+          visibility_settings?: Json | null
         }
         Relationships: [
           {

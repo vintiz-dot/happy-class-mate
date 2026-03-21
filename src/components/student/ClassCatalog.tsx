@@ -28,28 +28,36 @@ export function ClassCatalog({ studentId }: ClassCatalogProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from("classes")
-        .select("id, name, schedule_template, default_teacher_id, default_session_length_minutes")
+        .select("id, name, schedule_template, default_teacher_id, default_session_length_minutes, curriculum, age_range, description, visibility_settings")
         .eq("is_active", true)
         .order("name");
 
       if (!data) return [];
 
-      // Fetch teacher names for classes that have default teachers
+      // Fetch teacher names + bios for classes that have default teachers
       const teacherIds = [...new Set(data.filter(c => c.default_teacher_id).map(c => c.default_teacher_id!))];
-      let teacherMap: Record<string, string> = {};
+      let teacherMap: Record<string, { name: string; bio: string | null }> = {};
       if (teacherIds.length > 0) {
         const { data: teachers } = await supabase
           .from("teachers")
-          .select("id, full_name")
+          .select("id, full_name, bio")
           .in("id", teacherIds);
-        teacherMap = Object.fromEntries((teachers || []).map(t => [t.id, t.full_name]));
+        teacherMap = Object.fromEntries((teachers || []).map(t => [t.id, { name: t.full_name, bio: t.bio }]));
       }
 
-      return data.map(c => ({
-        ...c,
-        teacherName: c.default_teacher_id ? teacherMap[c.default_teacher_id] : null,
-        slots: (c.schedule_template as any)?.weeklySlots || [],
-      }));
+      return data.map(c => {
+        const vis = (c as any).visibility_settings || { curriculum: true, age_range: true, description: true, teacher_info: true };
+        const teacher = c.default_teacher_id ? teacherMap[c.default_teacher_id] : null;
+        return {
+          ...c,
+          teacherName: teacher?.name || null,
+          teacherBio: vis.teacher_info ? (teacher?.bio || null) : null,
+          showCurriculum: vis.curriculum,
+          showAgeRange: vis.age_range,
+          showDescription: vis.description,
+          slots: (c.schedule_template as any)?.weeklySlots || [],
+        };
+      });
     },
   });
 
@@ -123,6 +131,22 @@ export function ClassCatalog({ studentId }: ClassCatalogProps) {
                         <User className="h-3.5 w-3.5" />
                         {cls.teacherName}
                       </p>
+                    )}
+                    {cls.teacherBio && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cls.teacherBio}</p>
+                    )}
+                  </div>
+
+                  {/* Class metadata */}
+                  {(cls.showDescription && (cls as any).description) && (
+                    <p className="text-sm text-muted-foreground">{(cls as any).description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {cls.showCurriculum && (cls as any).curriculum && (
+                      <Badge variant="secondary" className="text-xs">📚 {(cls as any).curriculum}</Badge>
+                    )}
+                    {cls.showAgeRange && (cls as any).age_range && (
+                      <Badge variant="secondary" className="text-xs">👥 Ages {(cls as any).age_range}</Badge>
                     )}
                   </div>
 

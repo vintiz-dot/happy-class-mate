@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,9 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
   const [teacherId, setTeacherId] = useState("");
   const [sessionRate, setSessionRate] = useState(210000);
   const [weeklySlots, setWeeklySlots] = useState<WeeklySlot[]>([]);
+  const [description, setDescription] = useState("");
+  const [curriculum, setCurriculum] = useState("");
+  const [ageRange, setAgeRange] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: teachers } = useQuery({
@@ -84,6 +88,9 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
         default_teacher_id: teacherId,
         session_rate_vnd: sessionRate,
         schedule_template: { weeklySlots } as any,
+        description: description || null,
+        curriculum: curriculum || null,
+        age_range: ageRange || null,
       }]);
 
       if (error) throw error;
@@ -156,6 +163,35 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Description (optional)</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief class description..."
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Curriculum (optional)</Label>
+              <Input
+                value={curriculum}
+                onChange={(e) => setCurriculum(e.target.value)}
+                placeholder="e.g. Oxford Discover 2"
+              />
+            </div>
+            <div>
+              <Label>Age Range (optional)</Label>
+              <Input
+                value={ageRange}
+                onChange={(e) => setAgeRange(e.target.value)}
+                placeholder="e.g. 9-12"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Calendar } from "lucide-react";
+import { Settings, Calendar, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ModifyEnrollmentModal } from "@/components/admin/ModifyEnrollmentModal";
+import { EnrollStudentDialog } from "@/components/admin/EnrollStudentDialog";
 import { useAuth } from "@/hooks/useAuth";
 
 interface StudentEnrollmentsTabProps {
@@ -16,6 +17,7 @@ interface StudentEnrollmentsTabProps {
 export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps) {
   const { user, role } = useAuth();
   const [modifyingEnrollment, setModifyingEnrollment] = useState<any>(null);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
 
   const { data: enrollments, refetch } = useQuery({
     queryKey: ["student-enrollments", studentId],
@@ -58,9 +60,17 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Active Enrollments
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Active Enrollments
+            </span>
+            {isAdmin && (
+              <Button size="sm" onClick={() => setEnrollDialogOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Enroll in Class
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -162,6 +172,16 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
             }
           }}
           enrollment={modifyingEnrollment}
+        />
+      )}
+
+      {isAdmin && (
+        <EnrollStudentDialog
+          open={enrollDialogOpen}
+          onOpenChange={setEnrollDialogOpen}
+          studentId={studentId}
+          existingClassIds={enrollments?.filter(e => !e.end_date).map(e => e.class_id) || []}
+          onSuccess={() => refetch()}
         />
       )}
     </div>
