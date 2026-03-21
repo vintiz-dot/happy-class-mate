@@ -170,3 +170,98 @@ function FinanceCell({ label, value, accent, bold }: { label: string; value: str
     </div>
   );
 }
+
+function TuitionFlags({ item }: { item: any }) {
+  const flags: { label: string; detail: string; color: "green" | "orange" | "blue" }[] = [];
+  
+  // Check discount
+  if (item.discount_amount > 0) {
+    flags.push({
+      label: `Discount: −${fmt(item.discount_amount)}`,
+      detail: item.discountReasons?.join(", ") || "Enrollment or student discount applied",
+      color: "green",
+    });
+  }
+
+  // Check review_flags from invoice
+  const reviewFlags = item.review_flags as any[] | null;
+  if (reviewFlags && reviewFlags.length > 0) {
+    for (const flag of reviewFlags) {
+      if (flag.type === "tuition_adjustment") {
+        const diff = flag.details?.difference;
+        if (diff && diff !== 0) {
+          flags.push({
+            label: `Adjusted: ${diff > 0 ? "−" : "+"}${fmt(Math.abs(diff))}`,
+            detail: flag.details?.reasons?.join(", ") || "Rate adjustment or cancelled sessions",
+            color: diff > 0 ? "green" : "orange",
+          });
+        }
+      }
+    }
+  }
+
+  // Check carry-in credit
+  const carryInCredit = item.carry_in_credit ?? 0;
+  if (carryInCredit > 0) {
+    flags.push({
+      label: `Prior credit: +${fmt(carryInCredit)}`,
+      detail: "Credit carried forward from previous month",
+      color: "green",
+    });
+  }
+
+  // Check carry-in debt
+  const carryInDebt = item.carry_in_debt ?? 0;
+  if (carryInDebt > 0) {
+    flags.push({
+      label: `Prior debt: ${fmt(carryInDebt)}`,
+      detail: "Unpaid balance from previous month",
+      color: "orange",
+    });
+  }
+
+  // Check class breakdown for cancelled/excused sessions
+  const classBreakdown = item.class_breakdown as any[] | null;
+  if (classBreakdown) {
+    for (const cb of classBreakdown) {
+      if (cb.cancelled_count && cb.cancelled_count > 0) {
+        flags.push({
+          label: `${cb.class_name}: ${cb.cancelled_count} cancelled`,
+          detail: `Sessions cancelled in ${cb.class_name}`,
+          color: "green",
+        });
+      }
+    }
+  }
+
+  if (flags.length === 0) return null;
+
+  return (
+    <TooltipProvider>
+      <div className="flex flex-wrap gap-1.5">
+        {flags.map((flag, i) => (
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
+                  flag.color === "green"
+                    ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                    : flag.color === "orange"
+                    ? "border-amber-300 text-amber-700 bg-amber-50"
+                    : "border-blue-300 text-blue-700 bg-blue-50"
+                }`}
+              >
+                <Info className="h-2.5 w-2.5" />
+                {flag.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-[200px]">{flag.detail}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
+  );
+}
