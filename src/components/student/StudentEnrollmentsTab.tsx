@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Calendar } from "lucide-react";
+import { Settings, Calendar, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ModifyEnrollmentModal } from "@/components/admin/ModifyEnrollmentModal";
+import { EnrollStudentDialog } from "@/components/admin/EnrollStudentDialog";
 import { useAuth } from "@/hooks/useAuth";
 
 interface StudentEnrollmentsTabProps {
