@@ -16,6 +16,16 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   const [defaultStartTime, setDefaultStartTime] = useState("");
   const [defaultEndTime, setDefaultEndTime] = useState("");
   const [defaultSessionLength, setDefaultSessionLength] = useState(90);
+  const [curriculum, setCurriculum] = useState("");
+  const [ageRange, setAgeRange] = useState("");
+  const [description, setDescription] = useState("");
+  const [maxStudents, setMaxStudents] = useState<number | "">("");
+  const [visibilitySettings, setVisibilitySettings] = useState({
+    curriculum: true,
+    age_range: true,
+    description: true,
+    teacher_info: true,
+  });
   const [saving, setSaving] = useState(false);
 
   const { data: classData } = useQuery({
