@@ -60,9 +60,17 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Active Enrollments
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Active Enrollments
+            </span>
+            {isAdmin && (
+              <Button size="sm" onClick={() => setEnrollDialogOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Enroll in Class
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
