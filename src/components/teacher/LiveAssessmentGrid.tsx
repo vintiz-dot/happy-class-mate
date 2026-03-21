@@ -103,16 +103,22 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
         pointsMap.set(pt.student_id, (pointsMap.get(pt.student_id) || 0) + pt.points);
       });
 
-      return enrollments?.map(e => {
+      // Deduplicate by student_id
+      const seen = new Set<string>();
+      return (enrollments || []).reduce((acc: StudentCard[], e) => {
         const student = Array.isArray(e.students) ? e.students[0] : e.students;
-        return {
-          id: student.id,
-          full_name: student.full_name,
-          avatar_url: student.avatar_url,
-          todayPoints: pointsMap.get(student.id) || 0,
-          attendanceStatus: attendanceMap.get(student.id) || null,
-        };
-      }) || [];
+        if (student && !seen.has(student.id)) {
+          seen.add(student.id);
+          acc.push({
+            id: student.id,
+            full_name: student.full_name,
+            avatar_url: student.avatar_url,
+            todayPoints: pointsMap.get(student.id) || 0,
+            attendanceStatus: attendanceMap.get(student.id) || null,
+          });
+        }
+        return acc;
+      }, []);
     },
   });
 
