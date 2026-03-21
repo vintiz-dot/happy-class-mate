@@ -7,7 +7,8 @@ import {
   CreditCard, 
   ChevronDown,
   Award,
-  Percent
+  Percent,
+  Info
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getPaymentStatus, getTuitionStatusBadge, PaymentStatus } from "@/lib/tuitionStatus";
@@ -15,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { InvoiceDownloadButton } from "@/components/invoice/InvoiceDownloadButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatars";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TuitionStudentCardProps {
   item: any;
