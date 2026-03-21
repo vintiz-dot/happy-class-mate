@@ -37,6 +37,9 @@ export function ClassForm({ onSuccess }: { onSuccess?: () => void }) {
   const [teacherId, setTeacherId] = useState("");
   const [sessionRate, setSessionRate] = useState(210000);
   const [weeklySlots, setWeeklySlots] = useState<WeeklySlot[]>([]);
+  const [description, setDescription] = useState("");
+  const [curriculum, setCurriculum] = useState("");
+  const [ageRange, setAgeRange] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: teachers } = useQuery({
