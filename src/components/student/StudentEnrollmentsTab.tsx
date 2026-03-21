@@ -174,6 +174,16 @@ export function StudentEnrollmentsTab({ studentId }: StudentEnrollmentsTabProps)
           enrollment={modifyingEnrollment}
         />
       )}
+
+      {isAdmin && (
+        <EnrollStudentDialog
+          open={enrollDialogOpen}
+          onOpenChange={setEnrollDialogOpen}
+          studentId={studentId}
+          existingClassIds={enrollments?.filter(e => !e.end_date).map(e => e.class_id) || []}
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }
