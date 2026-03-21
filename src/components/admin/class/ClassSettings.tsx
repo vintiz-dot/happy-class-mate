@@ -62,6 +62,19 @@ const ClassSettings = ({ classId }: { classId: string }) => {
       setDefaultTeacherId(classData.default_teacher_id || "");
       setSessionRate(classData.session_rate_vnd || 0);
       setDefaultSessionLength(classData.default_session_length_minutes || 90);
+      setCurriculum((classData as any).curriculum || "");
+      setAgeRange((classData as any).age_range || "");
+      setDescription((classData as any).description || "");
+      setMaxStudents((classData as any).max_students || "");
+      if ((classData as any).visibility_settings) {
+        setVisibilitySettings({
+          curriculum: true,
+          age_range: true,
+          description: true,
+          teacher_info: true,
+          ...((classData as any).visibility_settings as Record<string, boolean>),
+        });
+      }
       
       // Parse typical start times if available
       if (classData.typical_start_times && Array.isArray(classData.typical_start_times)) {
