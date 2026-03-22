@@ -233,7 +233,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
                 <span className="font-medium">{currentTeacherName}</span>
               </div>
               {!swappingTeacher && (
-                <Button
+               <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSwappingTeacher(true)}
@@ -243,6 +243,18 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
                   Swap
                 </Button>
               )}
+            </div>
+            {/* Show assigned TAs */}
+            {sessionTAs && sessionTAs.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className="text-xs text-muted-foreground mr-1">TAs:</span>
+                {sessionTAs.map((p: any) => (
+                  <Badge key={p.teaching_assistant_id} variant="outline" className="text-xs">
+                    {p.teaching_assistants?.full_name || "Unknown"}
+                  </Badge>
+                ))}
+              </div>
+            )}
             </div>
             {swappingTeacher && (
               <div className="mt-2 flex gap-2">
