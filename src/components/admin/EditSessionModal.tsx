@@ -186,6 +186,8 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
             </Select>
           </div>
 
+          <SessionTASelector selectedTAIds={selectedTAIds} onChange={setSelectedTAIds} />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="start-time">Start Time</Label>
