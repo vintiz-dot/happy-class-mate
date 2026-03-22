@@ -199,6 +199,21 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
   const currentTeacherName = session.teachers?.full_name || session.teacher?.full_name || 
     teachers?.find(t => t.id === session.teacher_id)?.full_name || "No teacher";
 
+  // Load session TAs
+  const { data: sessionTAs } = useQuery({
+    queryKey: ["session-tas", session?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("session_participants")
+        .select("teaching_assistant_id, teaching_assistants(full_name)")
+        .eq("session_id", session.id)
+        .eq("participant_type", "teaching_assistant");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!session?.id,
+  });
+
   return (
     <Sheet open={!!session} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
