@@ -173,6 +173,8 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
             )}
           </div>
 
+          <SessionTASelector selectedTAIds={selectedTAIds} onChange={setSelectedTAIds} />
+
           <div className="space-y-2">
             <Label htmlFor="rate">Price Override (VND)</Label>
             <Input
