@@ -46,6 +46,26 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
     },
   });
 
+  // Load existing session participants (TAs)
+  const { data: existingParticipants } = useQuery({
+    queryKey: ["session-participants", session.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("session_participants")
+        .select("teaching_assistant_id")
+        .eq("session_id", session.id)
+        .eq("participant_type", "teaching_assistant");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  useEffect(() => {
+    if (existingParticipants) {
+      setSelectedTAIds(existingParticipants.map(p => p.teaching_assistant_id).filter(Boolean) as string[]);
+    }
+  }, [existingParticipants]);
+
   const isPast = new Date(session.date) < new Date();
 
   const handleSave = async () => {
