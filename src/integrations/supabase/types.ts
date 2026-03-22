@@ -1892,6 +1892,58 @@ export type Database = {
           },
         ]
       }
+      session_participants: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          participant_type: string
+          session_id: string
+          teacher_id: string | null
+          teaching_assistant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          participant_type?: string
+          session_id: string
+          teacher_id?: string | null
+          teaching_assistant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          participant_type?: string
+          session_id?: string
+          teacher_id?: string | null
+          teaching_assistant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_participants_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_participants_teaching_assistant_id_fkey"
+            columns: ["teaching_assistant_id"]
+            isOneToOne: false
+            referencedRelation: "teaching_assistants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           canceled_at: string | null
@@ -2556,6 +2608,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teaching_assistants: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          hourly_rate_vnd: number
+          id: string
+          is_active: boolean
+          phone: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          hourly_rate_vnd?: number
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          hourly_rate_vnd?: number
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       tuition_review_sessions: {
         Row: {

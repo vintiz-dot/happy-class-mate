@@ -188,6 +188,7 @@ Deno.serve(async (req) => {
       totalAmountProjected: number;
       sessionDetailsActual: ReturnType<typeof computeTotals>["perSession"];
       sessionDetailsProjected: ReturnType<typeof computeTotals>["perSession"];
+      staffType?: string;
     }> = [];
 
     for (const t of teachers ?? []) {
@@ -230,6 +231,7 @@ Deno.serve(async (req) => {
         totalAmountProjected: future.totalAmount,
         sessionDetailsActual: actual.perSession,
         sessionDetailsProjected: future.perSession,
+        staffType: "teacher",
       });
 
       // Upsert monthly summary for actuals (schema-safe)
@@ -244,6 +246,66 @@ Deno.serve(async (req) => {
         { onConflict: "teacher_id,month", ignoreDuplicates: false },
       );
       if (upErr) throw upErr;
+    }
+
+    // Also calculate payroll for Teaching Assistants
+    if (isAdmin) {
+      const { data: assistants } = await supabase
+        .from("teaching_assistants")
+        .select("id, full_name, hourly_rate_vnd")
+        .eq("is_active", true);
+
+      for (const ta of assistants ?? []) {
+        // Get sessions where this TA is a participant
+        const { data: participations } = await supabase
+          .from("session_participants")
+          .select("session_id")
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant");
+
+        const sessionIds = (participations || []).map(p => p.session_id);
+        if (sessionIds.length === 0) continue;
+
+        // Actual = Held sessions
+        const { data: held } = await supabase
+          .from("sessions")
+          .select("id, date, start_time, end_time, status, class_id, classes(name)")
+          .in("id", sessionIds)
+          .eq("status", "Held")
+          .gte("date", startDate)
+          .lt("date", nextMonthStart);
+
+        // Projected = Held + Scheduled
+        const { data: projected } = await supabase
+          .from("sessions")
+          .select("id, date, start_time, end_time, status, class_id, classes(name)")
+          .in("id", sessionIds)
+          .in("status", ["Held", "Scheduled"])
+          .gte("date", startDate)
+          .lt("date", nextMonthStart);
+
+        const actual = computeTotals(held ?? [], ta.hourly_rate_vnd);
+        const future = computeTotals(projected ?? [], ta.hourly_rate_vnd);
+
+        if (actual.totalMinutes > 0 || future.totalMinutes > 0) {
+          results.push({
+            teacherId: ta.id,
+            teacherName: `${ta.full_name} (TA)`,
+            hourlyRate: ta.hourly_rate_vnd,
+            sessionsCountActual: held?.length ?? 0,
+            sessionsCountProjected: projected?.length ?? 0,
+            totalMinutesActual: actual.totalMinutes,
+            totalHoursActual: actual.totalHours,
+            totalAmountActual: actual.totalAmount,
+            totalMinutesProjected: future.totalMinutes,
+            totalHoursProjected: future.totalHours,
+            totalAmountProjected: future.totalAmount,
+            sessionDetailsActual: actual.perSession,
+            sessionDetailsProjected: future.perSession,
+            staffType: "teaching_assistant",
+          });
+        }
+      }
     }
 
     const body = {

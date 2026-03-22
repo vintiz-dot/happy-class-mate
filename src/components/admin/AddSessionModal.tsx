@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { SessionTASelector } from "@/components/admin/SessionTASelector";
 
 interface AddSessionModalProps {
   classId: string;
@@ -31,6 +32,7 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
   const [useDefaultTeacher, setUseDefaultTeacher] = useState(true);
   const [rateOverride, setRateOverride] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedTAIds, setSelectedTAIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const { data: teachers = [] } = useQuery({
@@ -94,6 +96,16 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
       });
 
       if (error) throw error;
+
+      // Add TAs as session participants
+      if (selectedTAIds.length > 0 && data?.session?.id) {
+        const participants = selectedTAIds.map(taId => ({
+          session_id: data.session.id,
+          participant_type: 'teaching_assistant',
+          teaching_assistant_id: taId,
+        }));
+        await supabase.from("session_participants").insert(participants);
+      }
 
       toast.success("Session created successfully");
       onSuccess();
@@ -160,6 +172,8 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
               </p>
             )}
           </div>
+
+          <SessionTASelector selectedTAIds={selectedTAIds} onChange={setSelectedTAIds} />
 
           <div className="space-y-2">
             <Label htmlFor="rate">Price Override (VND)</Label>

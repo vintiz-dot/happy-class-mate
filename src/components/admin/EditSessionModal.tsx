@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle } from "lucide-react";
+import { SessionTASelector } from "@/components/admin/SessionTASelector";
 
 interface EditSessionModalProps {
   session: any;
@@ -29,6 +30,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
   const [endTime, setEndTime] = useState(session.end_time?.slice(0, 5) || "");
   const [teacherId, setTeacherId] = useState(session.teacher_id || "");
   const [notes, setNotes] = useState(session.notes || "");
+  const [selectedTAIds, setSelectedTAIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
 
   const { data: teachers } = useQuery({
@@ -43,6 +45,26 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
       return data;
     },
   });
+
+  // Load existing session participants (TAs)
+  const { data: existingParticipants } = useQuery({
+    queryKey: ["session-participants", session.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("session_participants")
+        .select("teaching_assistant_id")
+        .eq("session_id", session.id)
+        .eq("participant_type", "teaching_assistant");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  useEffect(() => {
+    if (existingParticipants) {
+      setSelectedTAIds(existingParticipants.map(p => p.teaching_assistant_id).filter(Boolean) as string[]);
+    }
+  }, [existingParticipants]);
 
   const isPast = new Date(session.date) < new Date();
 
@@ -79,6 +101,22 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
 
       if (error) throw error;
 
+      // Update session participants (TAs)
+      await supabase.from("session_participants")
+        .delete()
+        .eq("session_id", session.id)
+        .eq("participant_type", "teaching_assistant");
+
+      if (selectedTAIds.length > 0) {
+        const participants = selectedTAIds.map(taId => ({
+          session_id: session.id,
+          participant_type: 'teaching_assistant',
+          teaching_assistant_id: taId,
+          created_by: user?.id,
+        }));
+        await supabase.from("session_participants").insert(participants);
+      }
+
       // Audit log
       await supabase.from("audit_log").insert({
         entity: "sessions",
@@ -92,6 +130,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
             end_time: `${endTime}:00`,
             teacher_id: teacherId || session.teacher_id,
             notes,
+            teaching_assistants: selectedTAIds,
           },
           session_date: session.date,
           class_id: session.class_id,
@@ -146,6 +185,8 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
               </SelectContent>
             </Select>
           </div>
+
+          <SessionTASelector selectedTAIds={selectedTAIds} onChange={setSelectedTAIds} />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
