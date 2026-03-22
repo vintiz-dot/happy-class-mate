@@ -97,6 +97,16 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
 
       if (error) throw error;
 
+      // Add TAs as session participants
+      if (selectedTAIds.length > 0 && data?.session?.id) {
+        const participants = selectedTAIds.map(taId => ({
+          session_id: data.session.id,
+          participant_type: 'teaching_assistant',
+          teaching_assistant_id: taId,
+        }));
+        await supabase.from("session_participants").insert(participants);
+      }
+
       toast.success("Session created successfully");
       onSuccess();
       onClose();
