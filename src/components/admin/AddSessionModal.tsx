@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { SessionTASelector } from "@/components/admin/SessionTASelector";
 
 interface AddSessionModalProps {
   classId: string;
