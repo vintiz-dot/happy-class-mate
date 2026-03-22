@@ -255,7 +255,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
                 ))}
               </div>
             )}
-            </div>
+          </div>
             {swappingTeacher && (
               <div className="mt-2 flex gap-2">
                 <Select
