@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle } from "lucide-react";
+import { SessionTASelector } from "@/components/admin/SessionTASelector";
 
 interface EditSessionModalProps {
   session: any;
@@ -29,6 +30,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
   const [endTime, setEndTime] = useState(session.end_time?.slice(0, 5) || "");
   const [teacherId, setTeacherId] = useState(session.teacher_id || "");
   const [notes, setNotes] = useState(session.notes || "");
+  const [selectedTAIds, setSelectedTAIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
 
   const { data: teachers } = useQuery({
