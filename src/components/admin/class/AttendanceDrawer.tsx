@@ -233,7 +233,7 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
                 <span className="font-medium">{currentTeacherName}</span>
               </div>
               {!swappingTeacher && (
-               <Button
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSwappingTeacher(true)}
@@ -255,7 +255,6 @@ const AttendanceDrawer = ({ session, onClose }: AttendanceDrawerProps) => {
                 ))}
               </div>
             )}
-          </div>
             {swappingTeacher && (
               <div className="mt-2 flex gap-2">
                 <Select
