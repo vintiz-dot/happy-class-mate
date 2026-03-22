@@ -101,6 +101,22 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
 
       if (error) throw error;
 
+      // Update session participants (TAs)
+      await supabase.from("session_participants")
+        .delete()
+        .eq("session_id", session.id)
+        .eq("participant_type", "teaching_assistant");
+
+      if (selectedTAIds.length > 0) {
+        const participants = selectedTAIds.map(taId => ({
+          session_id: session.id,
+          participant_type: 'teaching_assistant',
+          teaching_assistant_id: taId,
+          created_by: user?.id,
+        }));
+        await supabase.from("session_participants").insert(participants);
+      }
+
       // Audit log
       await supabase.from("audit_log").insert({
         entity: "sessions",
@@ -114,6 +130,7 @@ export const EditSessionModal = ({ session, onClose, onSuccess }: EditSessionMod
             end_time: `${endTime}:00`,
             teacher_id: teacherId || session.teacher_id,
             notes,
+            teaching_assistants: selectedTAIds,
           },
           session_date: session.date,
           class_id: session.class_id,
