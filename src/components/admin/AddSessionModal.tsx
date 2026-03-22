@@ -32,6 +32,7 @@ const AddSessionModal = ({ classId, date, open, onClose, onSuccess }: AddSession
   const [useDefaultTeacher, setUseDefaultTeacher] = useState(true);
   const [rateOverride, setRateOverride] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedTAIds, setSelectedTAIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const { data: teachers = [] } = useQuery({
