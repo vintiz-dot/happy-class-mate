@@ -1,0 +1,1 @@
+ALTER TABLE public.session_participants ADD CONSTRAINT uq_session_ta UNIQUE (session_id, teaching_assistant_id);
