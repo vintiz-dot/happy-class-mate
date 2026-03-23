@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, ToggleLeft, ToggleRight } from "lucide-react";
 import { toast } from "sonner";
+import { TAProfileDrawer } from "./ta/TAProfileDrawer";
 
 export function TeachingAssistantsList() {
   const queryClient = useQueryClient();
+  const [selectedTA, setSelectedTA] = useState<any>(null);
 
   const { data: assistants, isLoading } = useQuery({
     queryKey: ["teaching-assistants"],
@@ -41,50 +44,60 @@ export function TeachingAssistantsList() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <GraduationCap className="h-5 w-5" />
-          All Teaching Assistants
-        </CardTitle>
-        <CardDescription>Manage your teaching assistant staff</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {assistants?.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">No teaching assistants found</p>
-        ) : (
-          <div className="space-y-3">
-            {assistants?.map((ta) => (
-              <div key={ta.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{ta.full_name}</p>
-                    <Badge variant={ta.is_active ? "default" : "secondary"}>
-                      {ta.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                    {ta.user_id && (
-                      <Badge variant="outline" className="text-xs">Has Account</Badge>
-                    )}
-                  </div>
-                  {ta.email && <p className="text-sm text-muted-foreground">{ta.email}</p>}
-                  {ta.phone && <p className="text-sm text-muted-foreground">📱 {ta.phone}</p>}
-                  <p className="text-sm font-medium text-primary">
-                    {(ta.hourly_rate_vnd || 0).toLocaleString()} VND/hour
-                  </p>
-                  {ta.bio && <p className="text-xs text-muted-foreground line-clamp-1">{ta.bio}</p>}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleActive.mutate({ id: ta.id, isActive: ta.is_active })}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            All Teaching Assistants
+          </CardTitle>
+          <CardDescription>Click a teaching assistant to view profile & assign to classes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assistants?.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No teaching assistants found</p>
+          ) : (
+            <div className="space-y-3">
+              {assistants?.map((ta) => (
+                <div
+                  key={ta.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => setSelectedTA(ta)}
                 >
-                  {ta.is_active ? <ToggleRight className="h-5 w-5 text-green-600" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{ta.full_name}</p>
+                      <Badge variant={ta.is_active ? "default" : "secondary"}>
+                        {ta.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      {ta.user_id && (
+                        <Badge variant="outline" className="text-xs">Has Account</Badge>
+                      )}
+                    </div>
+                    {ta.email && <p className="text-sm text-muted-foreground">{ta.email}</p>}
+                    {ta.phone && <p className="text-sm text-muted-foreground">📱 {ta.phone}</p>}
+                    <p className="text-sm font-medium text-primary">
+                      {(ta.hourly_rate_vnd || 0).toLocaleString()} VND/hour
+                    </p>
+                    {ta.bio && <p className="text-xs text-muted-foreground line-clamp-1">{ta.bio}</p>}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); toggleActive.mutate({ id: ta.id, isActive: ta.is_active }); }}
+                  >
+                    {ta.is_active ? <ToggleRight className="h-5 w-5 text-green-600" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedTA && (
+        <TAProfileDrawer ta={selectedTA} onClose={() => setSelectedTA(null)} />
+      )}
+    </>
   );
 }
