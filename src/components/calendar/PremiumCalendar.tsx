@@ -483,9 +483,10 @@ export default function PremiumCalendar({
   onSelectDay,
   onSelectEvent,
   onRescheduleEvent,
+  onMonthChange,
   isAdmin = false,
   className,
-}: PremiumCalendarProps & { onMonthChange?: (month: string) => void }) {
+}: PremiumCalendarProps) {
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(() => dayjs());
   const [view, setView] = useState<CalendarViewType>("month");
