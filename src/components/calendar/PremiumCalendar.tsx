@@ -541,16 +541,29 @@ export default function PremiumCalendar({
     return { totalSessions, scheduledCount };
   }, [events, currentDate]);
 
-  const goToToday = useCallback(() => setCurrentDate(dayjs()), []);
-  const goToPrevMonth = useCallback(() => setCurrentDate(m => m.subtract(1, "month")), []);
-  const goToNextMonth = useCallback(() => setCurrentDate(m => m.add(1, "month")), []);
+  const goToToday = useCallback(() => {
+    const today = dayjs();
+    setCurrentDate(today);
+    onMonthChange?.(today.format("YYYY-MM"));
+  }, [onMonthChange]);
+  const goToPrevMonth = useCallback(() => setCurrentDate(m => {
+    const next = m.subtract(1, "month");
+    onMonthChange?.(next.format("YYYY-MM"));
+    return next;
+  }), [onMonthChange]);
+  const goToNextMonth = useCallback(() => setCurrentDate(m => {
+    const next = m.add(1, "month");
+    onMonthChange?.(next.format("YYYY-MM"));
+    return next;
+  }), [onMonthChange]);
 
   const handleMiniCalendarSelect = useCallback((dateStr: string) => {
     setSelectedDate(dateStr);
     setCurrentDate(dayjs(dateStr));
+    onMonthChange?.(dayjs(dateStr).format("YYYY-MM"));
     onSelectDay?.(dateStr);
     setShowMiniCalendar(false);
-  }, [onSelectDay]);
+  }, [onSelectDay, onMonthChange]);
 
   const handleDaySelect = useCallback((dateStr: string) => {
     setSelectedDate(dateStr);
