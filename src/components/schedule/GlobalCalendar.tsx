@@ -188,6 +188,7 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         onSelectDay={handleSelectDay}
         onSelectEvent={handleSelectEvent}
         onRescheduleEvent={role === "admin" ? handleRescheduleEvent : undefined}
+        onMonthChange={(m) => setMonth(dayjs(m))}
         isAdmin={role === "admin"}
       />
 
