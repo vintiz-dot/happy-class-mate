@@ -72,22 +72,28 @@ export default function TeacherDashboard() {
 
   const teacherId = teacherProfile?.id;
 
+  const isTA = teacherProfile?.staffType === "teaching_assistant";
+
   const { data: todaySessions } = useQuery({
-    queryKey: ["teacher-today-sessions", teacherId],
+    queryKey: ["teacher-today-sessions", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
       const today = dayjs().format("YYYY-MM-DD");
 
+      if (isTA) {
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(id, date, start_time, end_time, status, classes!inner(name, id))`)
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant")
+          .eq("sessions.date", today);
+
+        return (data || []).map((sp: any) => sp.sessions);
+      }
+
       const { data } = await supabase
         .from("sessions")
-        .select(`
-          id,
-          date,
-          start_time,
-          end_time,
-          status,
-          classes!inner(name, id)
-        `)
+        .select(`id, date, start_time, end_time, status, classes!inner(name, id)`)
         .eq("teacher_id", teacherId!)
         .eq("date", today)
         .order("start_time", { ascending: true });
