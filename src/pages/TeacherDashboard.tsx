@@ -143,15 +143,24 @@ export default function TeacherDashboard() {
   });
 
   const { data: pendingGrading } = useQuery({
-    queryKey: ["teacher-pending-grading", teacherId],
+    queryKey: ["teacher-pending-grading", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacherId!);
-
-      const classIds = [...new Set(sessions?.map(s => s.class_id))];
+      let classIds: string[] = [];
+      if (isTA) {
+        const { data: spData } = await supabase
+          .from("session_participants")
+          .select("sessions!inner(class_id)")
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant");
+        classIds = [...new Set((spData || []).map((sp: any) => sp.sessions?.class_id).filter(Boolean))];
+      } else {
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacherId!);
+        classIds = [...new Set(sessions?.map(s => s.class_id))];
+      }
       if (classIds.length === 0) return 0;
 
       const { data: homeworks } = await supabase
