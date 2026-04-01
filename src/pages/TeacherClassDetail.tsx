@@ -47,24 +47,44 @@ export default function TeacherClassDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!teacher) throw new Error("Not a teacher");
+      let hasAccess = false;
 
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select("id")
-        .eq("class_id", id)
-        .eq("teacher_id", teacher.id)
-        .limit(1);
+      if (teacher) {
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("id")
+          .eq("class_id", id)
+          .eq("teacher_id", teacher.id)
+          .limit(1);
+        hasAccess = !!(sessions && sessions.length > 0);
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (!sessions || sessions.length === 0) {
-        return null;
+        if (ta) {
+          const { data: sp } = await supabase
+            .from("session_participants")
+            .select("id, sessions!inner(class_id)")
+            .eq("teaching_assistant_id", ta.id)
+            .eq("participant_type", "teaching_assistant")
+            .eq("sessions.class_id", id!)
+            .limit(1);
+          hasAccess = !!(sp && sp.length > 0);
+        }
       }
+
+      if (!hasAccess) return null;
 
       const { data: classInfo, error } = await supabase
         .from("classes")
