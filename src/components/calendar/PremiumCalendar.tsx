@@ -485,7 +485,7 @@ export default function PremiumCalendar({
   onRescheduleEvent,
   isAdmin = false,
   className,
-}: PremiumCalendarProps) {
+}: PremiumCalendarProps & { onMonthChange?: (month: string) => void }) {
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(() => dayjs());
   const [view, setView] = useState<CalendarViewType>("month");
