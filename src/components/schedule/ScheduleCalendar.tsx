@@ -29,17 +29,39 @@ export function ScheduleCalendar({ role }: { role: string }) {
         .order("date")
         .order("start_time");
 
-      // Filter for teachers
+      // Filter for teachers/TAs
       if (role === "teacher") {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: teacher } = await supabase
           .from("teachers")
           .select("id")
           .eq("user_id", user?.id)
-          .single();
+          .maybeSingle();
         
         if (teacher) {
           query = query.eq("teacher_id", teacher.id);
+        } else {
+          // Try TA
+          const { data: ta } = await supabase
+            .from("teaching_assistants")
+            .select("id")
+            .eq("user_id", user?.id)
+            .maybeSingle();
+          
+          if (ta) {
+            const { data: spData } = await supabase
+              .from("session_participants")
+              .select("session_id")
+              .eq("teaching_assistant_id", ta.id)
+              .eq("participant_type", "teaching_assistant");
+            
+            const sessionIds = spData?.map(sp => sp.session_id) || [];
+            if (sessionIds.length > 0) {
+              query = query.in("id", sessionIds);
+            } else {
+              return [];
+            }
+          }
         }
       }
 

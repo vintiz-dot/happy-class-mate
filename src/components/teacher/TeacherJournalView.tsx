@@ -41,34 +41,24 @@ export function TeacherJournalView() {
   }, []);
 
   const loadStudents = async () => {
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id")
-      .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-      .single();
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) return;
 
-    if (!teacherData) return;
+    const classIds = await getStaffClassIdsForUser(userId);
+    if (classIds.length === 0) return;
+
+    const { data: enrollmentData } = await supabase
+      .from("enrollments")
+      .select("student_id")
+      .in("class_id", classIds);
+
+    const studentIds = [...new Set(enrollmentData?.map(e => e.student_id) || [])];
+    if (studentIds.length === 0) return;
 
     const { data, error } = await supabase
       .from("students")
       .select("id, full_name")
-      .in(
-        "id",
-        (
-          await supabase
-            .from("enrollments")
-            .select("student_id")
-            .in(
-              "class_id",
-              (
-                await supabase
-                  .from("sessions")
-                  .select("class_id")
-                  .eq("teacher_id", teacherData.id)
-              ).data?.map((s) => s.class_id) || []
-            )
-        ).data?.map((e) => e.student_id) || []
-      )
+      .in("id", studentIds)
       .order("full_name");
 
     if (error) {
