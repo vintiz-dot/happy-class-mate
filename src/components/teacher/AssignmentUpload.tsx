@@ -37,46 +37,65 @@ interface AssignmentUploadProps {
   classFilter?: string;
 }
 
-// Single query to get teacher data and classes
+// Single query to get teacher/TA data and classes
 async function fetchTeacherData() {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error("Not authenticated");
 
+  // Try teacher first
   const { data: teacher } = await supabase
     .from("teachers")
     .select("id")
     .eq("user_id", user.user.id)
     .maybeSingle();
 
-  if (!teacher) throw new Error("Teacher not found");
+  if (teacher) {
+    // Get classes where teacher is the default teacher OR has sessions
+    const [defaultClassesRes, sessionClassesRes] = await Promise.all([
+      supabase
+        .from("classes")
+        .select("id, name")
+        .eq("default_teacher_id", teacher.id)
+        .eq("is_active", true),
+      supabase
+        .from("sessions")
+        .select("class_id, classes(id, name)")
+        .eq("teacher_id", teacher.id)
+    ]);
 
-  // Get classes where teacher is the default teacher OR has sessions
-  const [defaultClassesRes, sessionClassesRes] = await Promise.all([
-    supabase
-      .from("classes")
-      .select("id, name")
-      .eq("default_teacher_id", teacher.id)
-      .eq("is_active", true),
-    supabase
-      .from("sessions")
-      .select("class_id, classes(id, name)")
-      .eq("teacher_id", teacher.id)
-  ]);
+    const classMap = new Map<string, Class>();
+    defaultClassesRes.data?.forEach(cls => {
+      if (cls.id) classMap.set(cls.id, cls);
+    });
+    sessionClassesRes.data?.forEach(s => {
+      if (s.classes?.id) classMap.set(s.classes.id, s.classes as Class);
+    });
 
-  // Merge both sources of classes
+    return { teacherId: teacher.id, classes: Array.from(classMap.values()) };
+  }
+
+  // Try TA
+  const { data: ta } = await supabase
+    .from("teaching_assistants")
+    .select("id")
+    .eq("user_id", user.user.id)
+    .maybeSingle();
+
+  if (!ta) throw new Error("Staff profile not found");
+
+  const { data: spData } = await supabase
+    .from("session_participants")
+    .select("sessions!inner(class_id, classes!inner(id, name))")
+    .eq("teaching_assistant_id", ta.id)
+    .eq("participant_type", "teaching_assistant");
+
   const classMap = new Map<string, Class>();
-  
-  // Add default classes
-  defaultClassesRes.data?.forEach(cls => {
-    if (cls.id) classMap.set(cls.id, cls);
-  });
-  
-  // Add session-based classes
-  sessionClassesRes.data?.forEach(s => {
-    if (s.classes?.id) classMap.set(s.classes.id, s.classes as Class);
+  (spData || []).forEach((sp: any) => {
+    const cls = sp.sessions?.classes;
+    if (cls?.id) classMap.set(cls.id, cls);
   });
 
-  return { teacherId: teacher.id, classes: Array.from(classMap.values()) };
+  return { teacherId: ta.id, classes: Array.from(classMap.values()) };
 }
 
 // Fetch homeworks for teacher's classes

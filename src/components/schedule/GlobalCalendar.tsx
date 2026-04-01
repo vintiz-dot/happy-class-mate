@@ -54,6 +54,8 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         query = query.eq("class_id", classId);
       } else if (role === "teacher") {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Try teacher first
         const { data: teacher } = await supabase
           .from("teachers")
           .select("id")
@@ -63,7 +65,29 @@ const GlobalCalendar = ({ role, classId, onAddSession, onEditSession }: GlobalCa
         if (teacher) {
           query = query.eq("teacher_id", teacher.id);
         } else {
-          return [];
+          // Try TA - get session IDs from session_participants
+          const { data: ta } = await supabase
+            .from("teaching_assistants")
+            .select("id")
+            .eq("user_id", user?.id)
+            .maybeSingle();
+          
+          if (ta) {
+            const { data: spData } = await supabase
+              .from("session_participants")
+              .select("session_id")
+              .eq("teaching_assistant_id", ta.id)
+              .eq("participant_type", "teaching_assistant");
+            
+            const sessionIds = spData?.map(sp => sp.session_id) || [];
+            if (sessionIds.length > 0) {
+              query = query.in("id", sessionIds);
+            } else {
+              return [];
+            }
+          } else {
+            return [];
+          }
         }
       } else if (role === "student") {
         let activeStudentId = studentId;
