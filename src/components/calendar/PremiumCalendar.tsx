@@ -44,6 +44,7 @@ interface PremiumCalendarProps {
   onSelectDay?: (date: string) => void;
   onSelectEvent?: (event: CalendarEvent) => void;
   onRescheduleEvent?: (eventId: string, newDate: string) => void;
+  onMonthChange?: (month: string) => void;
   isAdmin?: boolean;
   className?: string;
 }
