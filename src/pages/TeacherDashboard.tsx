@@ -48,13 +48,25 @@ export default function TeacherDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      return teacher;
+      if (teacher) return { ...teacher, staffType: "teacher" as const };
+
+      // Try teaching assistant
+      const { data: ta } = await supabase
+        .from("teaching_assistants")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (ta) return { ...ta, staffType: "teaching_assistant" as const };
+
+      return null;
     },
   });
 
