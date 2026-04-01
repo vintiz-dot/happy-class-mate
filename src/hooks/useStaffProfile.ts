@@ -118,3 +118,33 @@ export async function getStaffSessions(
     return (data || []).map((sp: any) => sp.sessions).filter(Boolean);
   }
 }
+
+/**
+ * Resolve class IDs for the current user (teacher or TA) by user_id.
+ * Useful in imperative code where the staff profile isn't already loaded.
+ */
+export async function getStaffClassIdsForUser(userId: string): Promise<string[]> {
+  // Try teacher
+  const { data: teacher } = await supabase
+    .from("teachers")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (teacher) {
+    return getStaffClassIds(teacher.id, "teacher");
+  }
+
+  // Try TA
+  const { data: ta } = await supabase
+    .from("teaching_assistants")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (ta) {
+    return getStaffClassIds(ta.id, "teaching_assistant");
+  }
+
+  return [];
+}
