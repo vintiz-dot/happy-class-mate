@@ -104,23 +104,9 @@ export function TeacherJournalViewEnhanced() {
   const loadClasses = async () => {
     if (!user) return;
 
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const classIds = await getStaffClassIdsForUser(user.id);
+    if (classIds.length === 0) return;
 
-    if (!teacherData) return;
-
-    // Get class IDs for this teacher
-    const { data: sessionData } = await supabase
-      .from("sessions")
-      .select("class_id")
-      .eq("teacher_id", teacherData.id);
-
-    if (!sessionData) return;
-
-    const classIds = [...new Set(sessionData.map(s => s.class_id))];
 
     const { data, error } = await supabase
       .from("classes")
