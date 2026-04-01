@@ -103,15 +103,30 @@ export default function TeacherDashboard() {
   });
 
   const { data: activeClasses } = useQuery({
-    queryKey: ["teacher-active-classes", teacherId],
+    queryKey: ["teacher-active-classes", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
+      if (isTA) {
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(class_id, date, classes!inner(id, name))`)
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant")
+          .gte("sessions.date", dayjs().format("YYYY-MM-DD"));
+
+        const classMap = new Map();
+        data?.forEach((sp: any) => {
+          const classData = sp.sessions?.classes;
+          if (classData && !classMap.has(classData.id)) {
+            classMap.set(classData.id, classData);
+          }
+        });
+        return Array.from(classMap.values());
+      }
+
       const { data } = await supabase
         .from("sessions")
-        .select(`
-          class_id,
-          classes!inner(id, name)
-        `)
+        .select(`class_id, classes!inner(id, name)`)
         .eq("teacher_id", teacherId!)
         .gte("date", dayjs().format("YYYY-MM-DD"));
 
