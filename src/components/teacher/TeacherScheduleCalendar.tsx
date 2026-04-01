@@ -16,33 +16,48 @@ export default function TeacherScheduleCalendar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
+      const [year, monthNum] = month.split("-");
+      const startDate = `${year}-${monthNum}-01`;
+      const endDate = dayjs(startDate).add(1, "month").format("YYYY-MM-DD");
+
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!teacher) return [];
+      let rawSessions: any[] = [];
 
-      const [year, monthNum] = month.split("-");
-      const startDate = `${year}-${monthNum}-01`;
-      const endDate = dayjs(startDate).add(1, "month").format("YYYY-MM-DD");
+      if (teacher) {
+        const { data } = await supabase
+          .from("sessions")
+          .select(`id, date, start_time, end_time, status, classes!inner(name)`)
+          .eq("teacher_id", teacher.id)
+          .gte("date", startDate)
+          .lt("date", endDate);
+        rawSessions = data || [];
+      } else {
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      const { data } = await supabase
-        .from("sessions")
-        .select(`
-          id,
-          date,
-          start_time,
-          end_time,
-          status,
-          classes!inner(name)
-        `)
-        .eq("teacher_id", teacher.id)
-        .gte("date", startDate)
-        .lt("date", endDate);
+        if (!ta) return [];
 
-      return (data || []).map((s: any) => ({
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(id, date, start_time, end_time, status, classes!inner(name))`)
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant")
+          .gte("sessions.date", startDate)
+          .lt("sessions.date", endDate);
+
+        rawSessions = (data || []).map((sp: any) => sp.sessions);
+      }
+
+      return rawSessions.map((s: any) => ({
         id: s.id,
         date: s.date,
         start_time: s.start_time,

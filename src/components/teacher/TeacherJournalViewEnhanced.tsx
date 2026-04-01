@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { getStaffClassIdsForUser } from "@/hooks/useStaffProfile";
 import { useToast } from "@/hooks/use-toast";
 import { JournalEditor } from "@/components/journal/JournalEditor";
 import { JournalList } from "@/components/journal/JournalList";
@@ -54,24 +55,8 @@ export function TeacherJournalViewEnhanced() {
   const loadStudents = async () => {
     if (!user) return;
     
-    // Get students enrolled in classes taught by this teacher
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!teacherData) return;
-
-    // Get class IDs for this teacher
-    const { data: sessionData } = await supabase
-      .from("sessions")
-      .select("class_id")
-      .eq("teacher_id", teacherData.id);
-
-    if (!sessionData) return;
-
-    const classIds = [...new Set(sessionData.map(s => s.class_id))];
+    const classIds = await getStaffClassIdsForUser(user.id);
+    if (classIds.length === 0) return;
 
     // Get students enrolled in those classes
     const { data: enrollmentData } = await supabase
@@ -104,23 +89,9 @@ export function TeacherJournalViewEnhanced() {
   const loadClasses = async () => {
     if (!user) return;
 
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    const classIds = await getStaffClassIdsForUser(user.id);
+    if (classIds.length === 0) return;
 
-    if (!teacherData) return;
-
-    // Get class IDs for this teacher
-    const { data: sessionData } = await supabase
-      .from("sessions")
-      .select("class_id")
-      .eq("teacher_id", teacherData.id);
-
-    if (!sessionData) return;
-
-    const classIds = [...new Set(sessionData.map(s => s.class_id))];
 
     const { data, error } = await supabase
       .from("classes")

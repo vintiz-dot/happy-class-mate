@@ -44,24 +44,47 @@ export function AttendanceMarking() {
 
   const loadTodaySessions = async () => {
     try {
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!teacher) return;
+        .eq("user_id", userId)
+        .maybeSingle();
 
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data, error } = await supabase
-        .from("sessions")
-        .select("*, classes(name)")
-        .eq("teacher_id", teacher.id)
-        .eq("date", today)
-        .order("start_time");
 
-      if (error) throw error;
-      setSessions(data || []);
+      if (teacher) {
+        const { data, error } = await supabase
+          .from("sessions")
+          .select("*, classes(name)")
+          .eq("teacher_id", teacher.id)
+          .eq("date", today)
+          .order("start_time");
+
+        if (error) throw error;
+        setSessions(data || []);
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!ta) return;
+
+        const { data: spData, error } = await supabase
+          .from("session_participants")
+          .select("sessions!inner(*, classes(name))")
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant")
+          .eq("sessions.date", today);
+
+        if (error) throw error;
+        setSessions((spData || []).map((sp: any) => sp.sessions));
+      }
     } catch (error: any) {
       toast({
         title: "Error",

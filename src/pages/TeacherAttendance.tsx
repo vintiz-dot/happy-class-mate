@@ -21,45 +21,51 @@ export default function TeacherAttendance() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).maybeSingle();
-
-      if (!teacher) throw new Error("Not a teacher");
-
       const startDate = `${month}-01`;
       const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
         .toISOString()
         .slice(0, 10);
 
-      const { data } = await supabase
-        .from("sessions")
-        .select(
-          `
-          id,
-          date,
-          start_time,
-          end_time,
-          status,
-          notes,
-          classes!inner(id, name)
-        `,
-        )
-        .eq("teacher_id", teacher.id)
-        .gte("date", startDate)
-        .lte("date", monthEnd)
-        .order("date", { ascending: true });
+      // Try teacher first
+      const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).maybeSingle();
 
-      return (
-        data?.map((s) => ({
-          id: s.id,
-          date: s.date,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          status: s.status,
-          notes: s.notes,
-          class_name: (s.classes as any).name,
-          class_id: (s.classes as any).id,
-        })) || []
-      );
+      let rawSessions: any[] = [];
+
+      if (teacher) {
+        const { data } = await supabase
+          .from("sessions")
+          .select(`id, date, start_time, end_time, status, notes, classes!inner(id, name)`)
+          .eq("teacher_id", teacher.id)
+          .gte("date", startDate)
+          .lte("date", monthEnd)
+          .order("date", { ascending: true });
+        rawSessions = data || [];
+      } else {
+        // Try TA
+        const { data: ta } = await supabase.from("teaching_assistants").select("id").eq("user_id", user.id).maybeSingle();
+        if (!ta) throw new Error("Not a teacher or TA");
+
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(id, date, start_time, end_time, status, notes, classes!inner(id, name))`)
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant")
+          .gte("sessions.date", startDate)
+          .lte("sessions.date", monthEnd);
+
+        rawSessions = (data || []).map((sp: any) => sp.sessions);
+      }
+
+      return rawSessions.map((s: any) => ({
+        id: s.id,
+        date: s.date,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        status: s.status,
+        notes: s.notes,
+        class_name: (s.classes as any).name,
+        class_id: (s.classes as any).id,
+      }));
     },
   });
 

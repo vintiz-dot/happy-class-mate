@@ -48,34 +48,52 @@ export default function TeacherDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      return teacher;
+      if (teacher) return { ...teacher, staffType: "teacher" as const };
+
+      // Try teaching assistant
+      const { data: ta } = await supabase
+        .from("teaching_assistants")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (ta) return { ...ta, staffType: "teaching_assistant" as const };
+
+      return null;
     },
   });
 
   const teacherId = teacherProfile?.id;
 
+  const isTA = teacherProfile?.staffType === "teaching_assistant";
+
   const { data: todaySessions } = useQuery({
-    queryKey: ["teacher-today-sessions", teacherId],
+    queryKey: ["teacher-today-sessions", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
       const today = dayjs().format("YYYY-MM-DD");
 
+      if (isTA) {
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(id, date, start_time, end_time, status, classes!inner(name, id))`)
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant")
+          .eq("sessions.date", today);
+
+        return (data || []).map((sp: any) => sp.sessions);
+      }
+
       const { data } = await supabase
         .from("sessions")
-        .select(`
-          id,
-          date,
-          start_time,
-          end_time,
-          status,
-          classes!inner(name, id)
-        `)
+        .select(`id, date, start_time, end_time, status, classes!inner(name, id)`)
         .eq("teacher_id", teacherId!)
         .eq("date", today)
         .order("start_time", { ascending: true });
@@ -85,15 +103,30 @@ export default function TeacherDashboard() {
   });
 
   const { data: activeClasses } = useQuery({
-    queryKey: ["teacher-active-classes", teacherId],
+    queryKey: ["teacher-active-classes", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
+      if (isTA) {
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(class_id, date, classes!inner(id, name))`)
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant")
+          .gte("sessions.date", dayjs().format("YYYY-MM-DD"));
+
+        const classMap = new Map();
+        data?.forEach((sp: any) => {
+          const classData = sp.sessions?.classes;
+          if (classData && !classMap.has(classData.id)) {
+            classMap.set(classData.id, classData);
+          }
+        });
+        return Array.from(classMap.values());
+      }
+
       const { data } = await supabase
         .from("sessions")
-        .select(`
-          class_id,
-          classes!inner(id, name)
-        `)
+        .select(`class_id, classes!inner(id, name)`)
         .eq("teacher_id", teacherId!)
         .gte("date", dayjs().format("YYYY-MM-DD"));
 
@@ -110,15 +143,24 @@ export default function TeacherDashboard() {
   });
 
   const { data: pendingGrading } = useQuery({
-    queryKey: ["teacher-pending-grading", teacherId],
+    queryKey: ["teacher-pending-grading", teacherId, isTA],
     enabled: !!teacherId,
     queryFn: async () => {
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacherId!);
-
-      const classIds = [...new Set(sessions?.map(s => s.class_id))];
+      let classIds: string[] = [];
+      if (isTA) {
+        const { data: spData } = await supabase
+          .from("session_participants")
+          .select("sessions!inner(class_id)")
+          .eq("teaching_assistant_id", teacherId!)
+          .eq("participant_type", "teaching_assistant");
+        classIds = [...new Set((spData || []).map((sp: any) => sp.sessions?.class_id).filter(Boolean))];
+      } else {
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacherId!);
+        classIds = [...new Set(sessions?.map(s => s.class_id))];
+      }
       if (classIds.length === 0) return 0;
 
       const { data: homeworks } = await supabase

@@ -25,26 +25,48 @@ export default function TeacherLeaderboards() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!teacher) return [];
+      let sessionData: any[] = [];
 
-      const { data } = await supabase
-        .from("sessions")
-        .select(`
-          class_id,
-          classes!inner(id, name)
-        `)
-        .eq("teacher_id", teacher.id)
-        .gte("date", dayjs().subtract(3, "month").format("YYYY-MM-DD"));
+      if (teacher) {
+        const { data } = await supabase
+          .from("sessions")
+          .select(`class_id, classes!inner(id, name)`)
+          .eq("teacher_id", teacher.id)
+          .gte("date", dayjs().subtract(3, "month").format("YYYY-MM-DD"));
+        sessionData = data || [];
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!ta) return [];
+
+        const { data } = await supabase
+          .from("session_participants")
+          .select(`sessions!inner(class_id, date, classes!inner(id, name))`)
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant")
+          .gte("sessions.date", dayjs().subtract(3, "month").format("YYYY-MM-DD"));
+
+        sessionData = (data || []).map((sp: any) => ({
+          class_id: sp.sessions?.class_id,
+          classes: sp.sessions?.classes,
+        }));
+      }
 
       // Get unique classes
       const classMap = new Map();
-      data?.forEach(s => {
+      sessionData.forEach(s => {
         const classData = Array.isArray(s.classes) ? s.classes[0] : s.classes;
         if (classData && !classMap.has(classData.id)) {
           classMap.set(classData.id, classData);

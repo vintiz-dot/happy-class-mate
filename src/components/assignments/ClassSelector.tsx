@@ -21,26 +21,43 @@ export function ClassSelector({ value, onChange }: ClassSelectorProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return [];
 
-      // Get teacher ID
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", session.user.id)
-        .single();
+        .maybeSingle();
 
-      if (!teacher) return [];
+      let classIds: string[] = [];
 
-      // Get unique class IDs where this teacher has sessions
-      const { data: sessions } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacher.id);
+      if (teacher) {
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacher.id);
 
-      if (!sessions || sessions.length === 0) return [];
+        classIds = [...new Set(sessions?.map(s => s.class_id) || [])];
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
 
-      const classIds = [...new Set(sessions.map(s => s.class_id))];
+        if (!ta) return [];
 
-      // Get class details for only those classes
+        const { data: spData } = await supabase
+          .from("session_participants")
+          .select("sessions!inner(class_id)")
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant");
+
+        classIds = [...new Set((spData || []).map((sp: any) => sp.sessions?.class_id).filter(Boolean))];
+      }
+
+      if (classIds.length === 0) return [];
+
       const { data: classes } = await supabase
         .from("classes")
         .select("id, name")

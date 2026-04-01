@@ -34,21 +34,40 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!teacher) return [];
+      let classIds: string[] = [];
 
-      // Single query: get distinct class_ids for this teacher
-      const { data: teacherSessionsData } = await supabase
-        .from("sessions")
-        .select("class_id")
-        .eq("teacher_id", teacher.id);
+      if (teacher) {
+        const { data: teacherSessionsData } = await supabase
+          .from("sessions")
+          .select("class_id")
+          .eq("teacher_id", teacher.id);
+        classIds = Array.from(new Set(teacherSessionsData?.map((s) => s.class_id) || []));
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      const classIds = Array.from(new Set(teacherSessionsData?.map((s) => s.class_id) || []));
+        if (!ta) return [];
+
+        const { data: spData } = await supabase
+          .from("session_participants")
+          .select("sessions!inner(class_id)")
+          .eq("teaching_assistant_id", ta.id)
+          .eq("participant_type", "teaching_assistant");
+
+        classIds = Array.from(new Set((spData || []).map((sp: any) => sp.sessions?.class_id).filter(Boolean)));
+      }
+
       if (classIds.length === 0) return [];
 
       // Get all submissions for teacher's classes in one query (no need for separate homeworks query)

@@ -71,24 +71,17 @@ Deno.serve(async (req) => {
         notes: s.notes,
       }));
     } else if (userRole.role === "teacher") {
+      // Try teacher first
       const { data: teacher } = await supabase
         .from("teachers")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (teacher) {
         const { data, error } = await supabase
           .from("sessions")
-          .select(`
-            id,
-            date,
-            start_time,
-            end_time,
-            status,
-            notes,
-            classes!inner(name)
-          `)
+          .select(`id, date, start_time, end_time, status, notes, classes!inner(name)`)
           .eq("teacher_id", teacher.id)
           .gte("date", `${month}-01`)
           .lte("date", `${month}-31`)
@@ -96,14 +89,33 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
         events = (data || []).map((s: any) => ({
-          id: s.id,
-          date: s.date,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          class_name: s.classes.name,
-          status: s.status,
-          notes: s.notes,
+          id: s.id, date: s.date, start_time: s.start_time, end_time: s.end_time,
+          class_name: s.classes.name, status: s.status, notes: s.notes,
         }));
+      } else {
+        // Try TA
+        const { data: ta } = await supabase
+          .from("teaching_assistants")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (ta) {
+          const { data, error } = await supabase
+            .from("session_participants")
+            .select(`sessions!inner(id, date, start_time, end_time, status, notes, classes!inner(name))`)
+            .eq("teaching_assistant_id", ta.id)
+            .eq("participant_type", "teaching_assistant")
+            .gte("sessions.date", `${month}-01`)
+            .lte("sessions.date", `${month}-31`);
+
+          if (error) throw error;
+          events = (data || []).map((sp: any) => ({
+            id: sp.sessions.id, date: sp.sessions.date, start_time: sp.sessions.start_time,
+            end_time: sp.sessions.end_time, class_name: sp.sessions.classes.name,
+            status: sp.sessions.status, notes: sp.sessions.notes,
+          }));
+        }
       }
     } else if (userRole.role === "student") {
       const { data: students } = await supabase
