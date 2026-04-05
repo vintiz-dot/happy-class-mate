@@ -20,7 +20,6 @@ serve(async (req) => {
 
     console.log("Reset points request:", { targetMonth, scope, classId, studentId });
 
-    // Validate input
     if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
       throw new Error("Invalid month format. Use YYYY-MM");
     }
@@ -37,6 +36,34 @@ serve(async (req) => {
       throw new Error("studentId is required when scope is 'student'");
     }
 
+    // Check if the target class has economy_mode enabled
+    if (scope === "class" && classId) {
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("economy_mode")
+        .eq("id", classId)
+        .single();
+      if (cls?.economy_mode) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Cannot reset points for a class with Economy Mode enabled. Points accumulate indefinitely in economy mode.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // For "all" scope, exclude economy-mode classes
+    let economyClassIds: string[] = [];
+    if (scope === "all") {
+      const { data: economyClasses } = await supabase
+        .from("classes")
+        .select("id")
+        .eq("economy_mode", true);
+      economyClassIds = (economyClasses || []).map((c: any) => c.id);
+    }
+
     // Build delete query for point_transactions
     let deleteTransactionsQuery = supabase
       .from("point_transactions")
@@ -47,6 +74,14 @@ serve(async (req) => {
       deleteTransactionsQuery = deleteTransactionsQuery.eq("class_id", classId);
     } else if (scope === "student") {
       deleteTransactionsQuery = deleteTransactionsQuery.eq("student_id", studentId);
+    }
+
+    // Exclude economy classes for "all" scope
+    if (scope === "all" && economyClassIds.length > 0) {
+      // We need to use not.in filter
+      for (const ecId of economyClassIds) {
+        deleteTransactionsQuery = deleteTransactionsQuery.neq("class_id", ecId);
+      }
     }
 
     const { error: deleteError, count: deletedCount } = await deleteTransactionsQuery;
@@ -62,7 +97,6 @@ serve(async (req) => {
       .update({
         homework_points: 0,
         participation_points: 0,
-        // total_points is a generated column, it will auto-update
       })
       .eq("month", targetMonth);
 
@@ -72,6 +106,12 @@ serve(async (req) => {
       resetPointsQuery = resetPointsQuery.eq("student_id", studentId);
     }
 
+    if (scope === "all" && economyClassIds.length > 0) {
+      for (const ecId of economyClassIds) {
+        resetPointsQuery = resetPointsQuery.neq("class_id", ecId);
+      }
+    }
+
     const { error: resetError, count: resetCount } = await resetPointsQuery;
 
     if (resetError) {
@@ -79,13 +119,14 @@ serve(async (req) => {
       throw resetError;
     }
 
-    console.log(`Reset complete: deleted ${deletedCount} transactions, reset ${resetCount} student_points records`);
+    console.log(`Reset complete: deleted ${deletedCount} transactions, reset ${resetCount} student_points records (skipped ${economyClassIds.length} economy classes)`);
 
     return new Response(
       JSON.stringify({
         success: true,
         deleted: deletedCount || 0,
         reset: resetCount || 0,
+        economySkipped: economyClassIds.length,
         message: `Successfully reset points for ${targetMonth}`,
       }),
       {

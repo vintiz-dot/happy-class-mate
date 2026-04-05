@@ -294,10 +294,12 @@ export type Database = {
           default_session_length_minutes: number
           default_teacher_id: string | null
           description: string | null
+          economy_mode: boolean
           id: string
           is_active: boolean
           max_students: number | null
           name: string
+          points_to_cash_rate: number
           schedule_template: Json
           session_rate_vnd: number
           teacher_lock_window_hours: number
@@ -316,10 +318,12 @@ export type Database = {
           default_session_length_minutes?: number
           default_teacher_id?: string | null
           description?: string | null
+          economy_mode?: boolean
           id?: string
           is_active?: boolean
           max_students?: number | null
           name: string
+          points_to_cash_rate?: number
           schedule_template?: Json
           session_rate_vnd?: number
           teacher_lock_window_hours?: number
@@ -338,10 +342,12 @@ export type Database = {
           default_session_length_minutes?: number
           default_teacher_id?: string | null
           description?: string | null
+          economy_mode?: boolean
           id?: string
           is_active?: boolean
           max_students?: number | null
           name?: string
+          points_to_cash_rate?: number
           schedule_template?: Json
           session_rate_vnd?: number
           teacher_lock_window_hours?: number
@@ -594,6 +600,63 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "homework_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      economy_transactions: {
+        Row: {
+          cash_impact: number
+          class_id: string
+          created_at: string
+          id: string
+          note: string | null
+          points_impact: number
+          processed_by: string | null
+          status: Database["public"]["Enums"]["economy_tx_status"]
+          student_id: string
+          type: Database["public"]["Enums"]["economy_tx_type"]
+          updated_at: string
+        }
+        Insert: {
+          cash_impact?: number
+          class_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          points_impact?: number
+          processed_by?: string | null
+          status?: Database["public"]["Enums"]["economy_tx_status"]
+          student_id: string
+          type: Database["public"]["Enums"]["economy_tx_type"]
+          updated_at?: string
+        }
+        Update: {
+          cash_impact?: number
+          class_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          points_impact?: number
+          processed_by?: string | null
+          status?: Database["public"]["Enums"]["economy_tx_status"]
+          student_id?: string
+          type?: Database["public"]["Enums"]["economy_tx_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "economy_transactions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "economy_transactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -2409,6 +2472,7 @@ export type Database = {
       students: {
         Row: {
           avatar_url: string | null
+          cash_on_hand: number
           created_at: string
           created_by: string | null
           date_of_birth: string | null
@@ -2426,6 +2490,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cash_on_hand?: number
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
@@ -2443,6 +2508,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cash_on_hand?: number
           created_at?: string
           created_by?: string | null
           date_of_birth?: string | null
@@ -2897,6 +2963,8 @@ export type Database = {
       app_role: "admin" | "teacher" | "family" | "student"
       discount_cadence: "once" | "monthly"
       discount_type: "percent" | "amount"
+      economy_tx_status: "pending" | "approved" | "rejected"
+      economy_tx_type: "convert_to_cash" | "spend_cash" | "deposit_cash"
       invoice_status: "draft" | "issued" | "paid" | "partial" | "credit"
       journal_action:
         | "create"
@@ -3040,6 +3108,8 @@ export const Constants = {
       app_role: ["admin", "teacher", "family", "student"],
       discount_cadence: ["once", "monthly"],
       discount_type: ["percent", "amount"],
+      economy_tx_status: ["pending", "approved", "rejected"],
+      economy_tx_type: ["convert_to_cash", "spend_cash", "deposit_cash"],
       invoice_status: ["draft", "issued", "paid", "partial", "credit"],
       journal_action: [
         "create",

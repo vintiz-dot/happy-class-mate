@@ -1,0 +1,120 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ArrowDownToLine, Coins, Banknote, ArrowRight, Loader2 } from "lucide-react";
+
+interface WithdrawModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  studentId: string;
+  classId: string;
+  totalPoints: number;
+  pointsToCashRate: number;
+  onSuccess: () => void;
+}
+
+export function WithdrawModal({ open, onOpenChange, studentId, classId, totalPoints, pointsToCashRate, onSuccess }: WithdrawModalProps) {
+  const [cashAmount, setCashAmount] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+
+  const maxCash = Math.floor(totalPoints / pointsToCashRate);
+  const pointsCost = cashAmount * pointsToCashRate;
+  const isValid = cashAmount >= 1 && cashAmount <= maxCash;
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    setSubmitting(true);
+    try {
+      // Deduct points immediately from student_points
+      // Create pending transaction for teacher approval
+      const { error } = await supabase
+        .from("economy_transactions")
+        .insert({
+          student_id: studentId,
+          class_id: classId,
+          type: "convert_to_cash" as any,
+          points_impact: -pointsCost,
+          cash_impact: cashAmount,
+          status: "pending" as any,
+          note: `Withdraw ${cashAmount} cash for ${pointsCost} points`,
+        });
+
+      if (error) throw error;
+
+      toast.success("Withdrawal request sent!", {
+        description: "Your teacher will review and hand you the cash.",
+      });
+      onSuccess();
+      onOpenChange(false);
+      setCashAmount(1);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit request");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowDownToLine className="h-5 w-5 text-primary" />
+            Withdraw to Cash
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="text-center space-y-1">
+            <p className="text-sm text-muted-foreground">Your Points Balance</p>
+            <p className="text-3xl font-black text-primary">{totalPoints}</p>
+            <p className="text-xs text-muted-foreground">{pointsToCashRate} pts = 1 cash unit</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Cash to withdraw</Label>
+            <Input
+              type="number"
+              min={1}
+              max={maxCash}
+              value={cashAmount}
+              onChange={(e) => setCashAmount(Math.max(1, Math.min(maxCash, parseInt(e.target.value) || 1)))}
+            />
+            <p className="text-xs text-muted-foreground">Max: {maxCash} cash units</p>
+          </div>
+
+          {/* Visual conversion */}
+          <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-muted/50">
+            <div className="text-center">
+              <Coins className="h-5 w-5 mx-auto text-amber-500 mb-1" />
+              <p className="font-bold text-red-500">-{pointsCost}</p>
+              <p className="text-[10px] text-muted-foreground">Points</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <div className="text-center">
+              <Banknote className="h-5 w-5 mx-auto text-green-500 mb-1" />
+              <p className="font-bold text-green-600">+{cashAmount}</p>
+              <p className="text-[10px] text-muted-foreground">Cash</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-center text-muted-foreground">
+            Your teacher will approve this and hand you the cash in class.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!isValid || submitting}>
+            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Request Withdrawal
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

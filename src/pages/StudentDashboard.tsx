@@ -5,7 +5,7 @@ import { dayjs } from "@/lib/date";
 import Layout from "@/components/Layout";
 import { CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight, HelpCircle } from "lucide-react";
+import { Calendar, FileText, DollarSign, Clock, Phone, Trophy, BookOpen, Edit, Mail, Sparkles, Star, Zap, Rocket, Target, ChevronRight, HelpCircle, Wallet } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StudentClassLeaderboard } from "@/components/student/StudentClassLeaderboard";
@@ -30,6 +30,7 @@ import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
+import { StudentWallet } from "@/components/student/StudentWallet";
 import { DemoDashboard } from "@/components/student/DemoDashboard";
 import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
 import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
@@ -248,7 +249,7 @@ export default function StudentDashboard() {
         .select(`
           id,
           class_id,
-          classes(id, name)
+          classes(id, name, economy_mode, points_to_cash_rate)
         `)
         .eq("student_id", studentId)
         .is("end_date", null);
@@ -847,19 +848,33 @@ export default function StudentDashboard() {
                 
                 if (!classData?.id) return null;
                 
+                const classEconomy = (classData as any);
+                
                 return (
                   <motion.div 
                     key={enrollment.id} 
-                    className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden"
+                    className="space-y-4"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <StudentClassLeaderboard 
-                      classId={classData.id} 
-                      className={classData.name}
-                      currentStudentId={studentId}
-                    />
+                    {classEconomy?.economy_mode && (
+                      <StudentWallet
+                        studentId={studentId}
+                        classId={classData.id}
+                        className={classData.name}
+                        totalPoints={totalPoints || 0}
+                        economyMode={classEconomy.economy_mode}
+                        pointsToCashRate={classEconomy.points_to_cash_rate || 50}
+                      />
+                    )}
+                    <div className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden">
+                      <StudentClassLeaderboard 
+                        classId={classData.id} 
+                        className={classData.name}
+                        currentStudentId={studentId}
+                      />
+                    </div>
                   </motion.div>
                 );
               }).filter(Boolean)}

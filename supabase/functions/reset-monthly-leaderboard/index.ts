@@ -6,7 +6,6 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,16 +15,24 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get target month from request or default to previous month
     const { targetMonth } = await req.json().catch(() => ({}));
     
     const monthToArchive = targetMonth || (() => {
       const now = new Date();
       now.setMonth(now.getMonth() - 1);
-      return now.toISOString().slice(0, 7); // YYYY-MM format
+      return now.toISOString().slice(0, 7);
     })();
 
     console.log(`Starting monthly leaderboard reset for month: ${monthToArchive}`);
+
+    // Get classes with economy_mode enabled — these skip the reset
+    const { data: economyClasses } = await supabase
+      .from("classes")
+      .select("id")
+      .eq("economy_mode", true);
+
+    const economyClassIds = (economyClasses || []).map((c: any) => c.id);
+    console.log(`Skipping ${economyClassIds.length} classes with economy_mode enabled`);
 
     // Call the database function to archive and reset
     const { data, error } = await supabase.rpc('archive_and_reset_monthly_leaderboard', {
@@ -37,14 +44,41 @@ Deno.serve(async (req) => {
       throw error;
     }
 
-    console.log(`Successfully archived ${data?.[0]?.archived_count || 0} records and reset ${data?.[0]?.reset_count || 0} student points`);
+    // If there are economy classes, restore their points (re-set them back)
+    let economyRestored = 0;
+    if (economyClassIds.length > 0) {
+      // Restore student_points for economy classes that were just zeroed
+      const { data: archivedRows } = await supabase
+        .from("archived_leaderboards")
+        .select("student_id, class_id, homework_points, participation_points")
+        .eq("month", monthToArchive)
+        .in("class_id", economyClassIds);
+
+      if (archivedRows && archivedRows.length > 0) {
+        for (const row of archivedRows) {
+          await supabase
+            .from("student_points")
+            .upsert({
+              student_id: row.student_id,
+              class_id: row.class_id,
+              month: monthToArchive,
+              homework_points: row.homework_points,
+              participation_points: row.participation_points,
+            }, { onConflict: 'student_id,class_id,month' });
+          economyRestored++;
+        }
+      }
+    }
+
+    console.log(`Successfully archived ${data?.[0]?.archived_count || 0} records and reset ${data?.[0]?.reset_count || 0} student points. Restored ${economyRestored} economy-mode records.`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `Monthly leaderboard reset complete for ${monthToArchive}`,
         archived: data?.[0]?.archived_count || 0,
-        reset: data?.[0]?.reset_count || 0
+        reset: data?.[0]?.reset_count || 0,
+        economySkipped: economyRestored,
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

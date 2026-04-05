@@ -23,6 +23,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   const [ageRange, setAgeRange] = useState("");
   const [description, setDescription] = useState("");
   const [maxStudents, setMaxStudents] = useState<number | "">("");
+  const [economyMode, setEconomyMode] = useState(false);
+  const [pointsToCashRate, setPointsToCashRate] = useState(50);
   const [visibilitySettings, setVisibilitySettings] = useState({
     curriculum: true,
     age_range: true,
@@ -66,6 +68,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
       setAgeRange((classData as any).age_range || "");
       setDescription((classData as any).description || "");
       setMaxStudents((classData as any).max_students || "");
+      setEconomyMode((classData as any).economy_mode || false);
+      setPointsToCashRate((classData as any).points_to_cash_rate || 50);
       if ((classData as any).visibility_settings) {
         setVisibilitySettings({
           curriculum: true,
@@ -76,7 +80,6 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         });
       }
       
-      // Parse typical start times if available
       if (classData.typical_start_times && Array.isArray(classData.typical_start_times)) {
         const firstTime = classData.typical_start_times[0];
         setDefaultStartTime(typeof firstTime === 'string' ? firstTime : "");
@@ -96,6 +99,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         description: description || null,
         max_students: maxStudents || null,
         visibility_settings: visibilitySettings,
+        economy_mode: economyMode,
+        points_to_cash_rate: pointsToCashRate,
       };
 
       if (defaultStartTime) {
@@ -268,6 +273,39 @@ const ClassSettings = ({ classId }: { classId: string }) => {
                   placeholder="No limit"
                 />
               </div>
+
+              <Separator className="my-4" />
+
+              {/* Economy Mode */}
+              <h3 className="text-lg font-semibold">🏦 Classroom Economy</h3>
+              <p className="text-sm text-muted-foreground">Enable banking and currency system for this class</p>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Economy Mode</Label>
+                  <p className="text-xs text-muted-foreground">Points accumulate indefinitely (no monthly reset)</p>
+                </div>
+                <Switch
+                  checked={economyMode}
+                  onCheckedChange={setEconomyMode}
+                />
+              </div>
+
+              {economyMode && (
+                <div className="space-y-2">
+                  <Label>Points to Cash Rate</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={pointsToCashRate}
+                    onChange={(e) => setPointsToCashRate(Number(e.target.value) || 50)}
+                    placeholder="50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    How many points = 1 physical cash unit (e.g., 50 pts = 1 unit)
+                  </p>
+                </div>
+              )}
 
               <Separator className="my-4" />
 
