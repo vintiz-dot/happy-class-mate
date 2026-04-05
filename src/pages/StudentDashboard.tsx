@@ -848,19 +848,33 @@ export default function StudentDashboard() {
                 
                 if (!classData?.id) return null;
                 
+                const classEconomy = (classData as any);
+                
                 return (
                   <motion.div 
                     key={enrollment.id} 
-                    className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden"
+                    className="space-y-4"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <StudentClassLeaderboard 
-                      classId={classData.id} 
-                      className={classData.name}
-                      currentStudentId={studentId}
-                    />
+                    {classEconomy?.economy_mode && (
+                      <StudentWallet
+                        studentId={studentId}
+                        classId={classData.id}
+                        className={classData.name}
+                        totalPoints={totalPoints || 0}
+                        economyMode={classEconomy.economy_mode}
+                        pointsToCashRate={classEconomy.points_to_cash_rate || 50}
+                      />
+                    )}
+                    <div className="glass-lg border-0 shadow-xl rounded-2xl overflow-hidden">
+                      <StudentClassLeaderboard 
+                        classId={classData.id} 
+                        className={classData.name}
+                        currentStudentId={studentId}
+                      />
+                    </div>
                   </motion.div>
                 );
               }).filter(Boolean)}
