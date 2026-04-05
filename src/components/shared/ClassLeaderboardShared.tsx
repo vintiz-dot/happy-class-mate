@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, Medal, Award, Flag, Users, X, CheckSquare, BookOpen, Zap, GraduationCap } from "lucide-react";
+import { Trophy, Medal, Award, Flag, Users, X, CheckSquare, BookOpen, Zap, GraduationCap, Banknote, Clock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +13,8 @@ import { BulkPointsDialog } from "@/components/shared/BulkPointsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StudentAnalyticsModal } from "@/components/student/StudentAnalyticsModal";
+import { EconomyActions, LogSpendButton } from "@/components/shared/EconomyActions";
+import { Badge } from "@/components/ui/badge";
 
 interface ClassLeaderboardSharedProps {
   classId: string;
