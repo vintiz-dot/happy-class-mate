@@ -48,6 +48,68 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
   const { toast } = useToast();
   const previousLeaderboardRef = useRef<any[]>([]);
 
+  // Fetch economy settings for this class
+  const { data: classEconomy } = useQuery({
+    queryKey: ["class-economy", classId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("classes")
+        .select("economy_mode, points_to_cash_rate")
+        .eq("id", classId)
+        .single();
+      return data;
+    },
+  });
+
+  const isEconomyMode = (classEconomy as any)?.economy_mode || false;
+
+  // Fetch cash data when economy mode is on
+  const { data: economyCashData } = useQuery({
+    queryKey: ["economy-cash-data", classId],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("student_id, students!inner(id, cash_on_hand)")
+        .eq("class_id", classId)
+        .or(`end_date.is.null,end_date.gte.${today}`);
+
+      const cashMap = new Map<string, number>();
+      (enrollments || []).forEach((e: any) => {
+        const student = Array.isArray(e.students) ? e.students[0] : e.students;
+        if (student) cashMap.set(student.id, student.cash_on_hand || 0);
+      });
+      return cashMap;
+    },
+    enabled: isEconomyMode,
+  });
+
+  const { data: pendingTransactions = [] } = useQuery({
+    queryKey: ["economy-pending", classId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("economy_transactions")
+        .select("id, student_id, type, points_impact, cash_impact, note")
+        .eq("class_id", classId)
+        .eq("status", "pending" as any)
+        .order("created_at", { ascending: true });
+
+      const studentIds = [...new Set((data || []).map((t: any) => t.student_id))];
+      const { data: students } = await supabase
+        .from("students")
+        .select("id, full_name")
+        .in("id", studentIds);
+
+      const nameMap = new Map((students || []).map((s: any) => [s.id, s.full_name]));
+
+      return (data || []).map((t: any) => ({
+        ...t,
+        student_name: nameMap.get(t.student_id) || "Unknown",
+      }));
+    },
+    enabled: isEconomyMode && canManagePoints,
+  });
+
   // Set up realtime subscription for student_points changes
   useEffect(() => {
     const channel = supabase
