@@ -472,12 +472,18 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
           {/* Ranks 4+ List */}
           {restOfList.length > 0 && (
             <div className="relative z-10 glass-panel rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
-              <div className="grid grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text">
+              <div className={`grid ${isEconomyMode ? 'grid-cols-[24px_32px_1fr_40px_50px] md:grid-cols-[40px_50px_1fr_80px_70px_60px_60px]' : 'grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px]'} gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 bg-white/10 border-b-2 border-leaderboard-glassBorder/20 font-bold text-xs md:text-sm text-leaderboard-text`}>
                 <div></div>
                 <div>RANK</div>
                 <div>NAME</div>
                 <div className="hidden md:block text-center">BREAKDOWN</div>
                 <div className="text-right">PTS</div>
+                {isEconomyMode && (
+                  <>
+                    <div className="text-right hidden md:block">CASH</div>
+                    <div className="text-right">💵</div>
+                  </>
+                )}
               </div>
               <div className="divide-y divide-leaderboard-glassBorder/20">
                 {restOfList.map((entry: any) => {
@@ -488,6 +494,8 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                     name: entry.students?.full_name,
                     avatarUrl: entry.students?.avatar_url,
                   };
+                  const studentCash = economyCashData?.get(entry.student_id) || 0;
+                  const studentPending = (pendingTransactions as any[]).filter((t: any) => t.student_id === entry.student_id);
 
                   const handleOpenAnalytics = () => {
                     setAnalyticsStudent({
@@ -506,7 +514,7 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                   return (
                     <motion.div
                       key={entry.id}
-                      className={`grid grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px] gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
+                      className={`grid ${isEconomyMode ? 'grid-cols-[24px_32px_1fr_40px_50px] md:grid-cols-[40px_50px_1fr_80px_70px_60px_60px]' : 'grid-cols-[24px_32px_1fr_40px] md:grid-cols-[40px_50px_1fr_80px_70px]'} gap-2 md:gap-4 px-3 md:px-6 py-2 md:py-4 transition-all hover:bg-white/10 cursor-pointer ${
                         isCurrentStudent ? 'bg-yellow-300/20 ring-2 ring-yellow-300' : ''
                       } ${isSelected && !isCurrentStudent ? 'bg-primary/20' : ''}`}
                       onClick={handleOpenAnalytics}
@@ -535,6 +543,11 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                           {isCurrentStudent && (
                             <Flag className="h-3 w-3 text-yellow-300 fill-yellow-300 flex-shrink-0" />
                           )}
+                          {isEconomyMode && studentPending.length > 0 && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
+                              <Clock className="h-2.5 w-2.5 mr-0.5" />{studentPending.length}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="hidden md:flex items-center justify-center gap-1 text-[10px] text-leaderboard-text/70">
@@ -549,10 +562,39 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                       <div className="flex items-center justify-end">
                         <span className="text-xs md:text-base font-bold text-leaderboard-text">{entry.total_points}</span>
                       </div>
+                      {isEconomyMode && (
+                        <>
+                          <div className="hidden md:flex items-center justify-end">
+                            <span className="text-xs font-bold text-green-400">{studentCash}</span>
+                          </div>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-xs font-bold text-green-400 md:hidden">{studentCash}</span>
+                            {canManagePoints && studentCash > 0 && (
+                              <LogSpendButton
+                                studentId={entry.student_id}
+                                classId={classId}
+                                studentName={entry.students?.full_name}
+                                cashOnHand={studentCash}
+                              />
+                            )}
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Pending Economy Requests */}
+          {isEconomyMode && canManagePoints && (pendingTransactions as any[]).length > 0 && (
+            <div className="relative z-10 glass-panel rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6">
+              <h3 className="text-leaderboard-text font-bold text-sm mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Pending Requests ({(pendingTransactions as any[]).length})
+              </h3>
+              <EconomyActions classId={classId} pendingTransactions={pendingTransactions as any[]} />
             </div>
           )}
         </>
