@@ -276,6 +276,39 @@ const ClassSettings = ({ classId }: { classId: string }) => {
 
               <Separator className="my-4" />
 
+              {/* Economy Mode */}
+              <h3 className="text-lg font-semibold">🏦 Classroom Economy</h3>
+              <p className="text-sm text-muted-foreground">Enable banking and currency system for this class</p>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Economy Mode</Label>
+                  <p className="text-xs text-muted-foreground">Points accumulate indefinitely (no monthly reset)</p>
+                </div>
+                <Switch
+                  checked={economyMode}
+                  onCheckedChange={setEconomyMode}
+                />
+              </div>
+
+              {economyMode && (
+                <div className="space-y-2">
+                  <Label>Points to Cash Rate</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={pointsToCashRate}
+                    onChange={(e) => setPointsToCashRate(Number(e.target.value) || 50)}
+                    placeholder="50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    How many points = 1 physical cash unit (e.g., 50 pts = 1 unit)
+                  </p>
+                </div>
+              )}
+
+              <Separator className="my-4" />
+
               {/* Visibility Toggles */}
               <h3 className="text-lg font-semibold">Public Visibility</h3>
               <p className="text-sm text-muted-foreground">Control what prospective students can see</p>
