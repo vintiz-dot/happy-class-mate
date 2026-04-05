@@ -68,6 +68,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
       setAgeRange((classData as any).age_range || "");
       setDescription((classData as any).description || "");
       setMaxStudents((classData as any).max_students || "");
+      setEconomyMode((classData as any).economy_mode || false);
+      setPointsToCashRate((classData as any).points_to_cash_rate || 50);
       if ((classData as any).visibility_settings) {
         setVisibilitySettings({
           curriculum: true,
@@ -78,7 +80,6 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         });
       }
       
-      // Parse typical start times if available
       if (classData.typical_start_times && Array.isArray(classData.typical_start_times)) {
         const firstTime = classData.typical_start_times[0];
         setDefaultStartTime(typeof firstTime === 'string' ? firstTime : "");
