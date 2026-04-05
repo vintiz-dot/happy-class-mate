@@ -30,6 +30,7 @@ import { WeeklyProgressCard } from "@/components/student/WeeklyProgressCard";
 import { StudentScheduleCalendar } from "@/components/student/StudentScheduleCalendar";
 import { ProfileShareCard } from "@/components/student/ProfileShareCard";
 import { InactiveStudentLanding } from "@/components/student/InactiveStudentLanding";
+import { StudentWallet } from "@/components/student/StudentWallet";
 import { DemoDashboard } from "@/components/student/DemoDashboard";
 import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
 import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
