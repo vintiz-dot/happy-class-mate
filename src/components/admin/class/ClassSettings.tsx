@@ -99,6 +99,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
         description: description || null,
         max_students: maxStudents || null,
         visibility_settings: visibilitySettings,
+        economy_mode: economyMode,
+        points_to_cash_rate: pointsToCashRate,
       };
 
       if (defaultStartTime) {
