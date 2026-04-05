@@ -23,6 +23,8 @@ const ClassSettings = ({ classId }: { classId: string }) => {
   const [ageRange, setAgeRange] = useState("");
   const [description, setDescription] = useState("");
   const [maxStudents, setMaxStudents] = useState<number | "">("");
+  const [economyMode, setEconomyMode] = useState(false);
+  const [pointsToCashRate, setPointsToCashRate] = useState(50);
   const [visibilitySettings, setVisibilitySettings] = useState({
     curriculum: true,
     age_range: true,
