@@ -249,7 +249,7 @@ export default function StudentDashboard() {
         .select(`
           id,
           class_id,
-          classes(id, name)
+          classes(id, name, economy_mode, points_to_cash_rate)
         `)
         .eq("student_id", studentId)
         .is("end_date", null);
