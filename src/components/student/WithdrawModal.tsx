@@ -45,6 +45,41 @@ export function WithdrawModal({ open, onOpenChange, studentId, classId, totalPoi
 
       if (error) throw error;
 
+      // Notify teachers of this class
+      const { data: classInfo } = await supabase.from("classes").select("name, default_teacher_id").eq("id", classId).single();
+      const { data: studentInfo } = await supabase.from("students").select("full_name").eq("id", studentId).single();
+
+      // Find all teachers for this class via sessions
+      const { data: teacherSessions } = await supabase
+        .from("sessions")
+        .select("teacher_id, teachers!inner(user_id)")
+        .eq("class_id", classId);
+
+      const teacherUserIds = new Set<string>();
+      (teacherSessions || []).forEach((s: any) => {
+        const t = Array.isArray(s.teachers) ? s.teachers[0] : s.teachers;
+        if (t?.user_id) teacherUserIds.add(t.user_id);
+      });
+
+      // Also add default teacher
+      if (classInfo?.default_teacher_id) {
+        const { data: dt } = await supabase.from("teachers").select("user_id").eq("id", classInfo.default_teacher_id).single();
+        if (dt?.user_id) teacherUserIds.add(dt.user_id);
+      }
+
+      // Create notifications for each teacher
+      const notifications = Array.from(teacherUserIds).map(userId => ({
+        user_id: userId,
+        title: `💰 Withdrawal Request`,
+        message: `${studentInfo?.full_name || "A student"} wants to withdraw ${cashAmount} cash (${pointsCost} pts) in ${classInfo?.name || "class"}`,
+        type: "economy_request",
+        metadata: { class_id: classId, student_id: studentId, student_name: studentInfo?.full_name, class_name: classInfo?.name },
+      }));
+
+      if (notifications.length > 0) {
+        await supabase.from("notifications").insert(notifications);
+      }
+
       toast.success("Withdrawal request sent!", {
         description: "Your teacher will review and hand you the cash.",
       });

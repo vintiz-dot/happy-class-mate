@@ -83,6 +83,38 @@ export function DepositModal({ open, onOpenChange, studentId, classId, cashOnHan
 
       if (error) throw error;
 
+      // Notify teachers of this class
+      const { data: classInfo } = await supabase.from("classes").select("name, default_teacher_id").eq("id", classId).single();
+      const { data: studentInfo } = await supabase.from("students").select("full_name").eq("id", studentId).single();
+
+      const { data: teacherSessions } = await supabase
+        .from("sessions")
+        .select("teacher_id, teachers!inner(user_id)")
+        .eq("class_id", classId);
+
+      const teacherUserIds = new Set<string>();
+      (teacherSessions || []).forEach((s: any) => {
+        const t = Array.isArray(s.teachers) ? s.teachers[0] : s.teachers;
+        if (t?.user_id) teacherUserIds.add(t.user_id);
+      });
+
+      if (classInfo?.default_teacher_id) {
+        const { data: dt } = await supabase.from("teachers").select("user_id").eq("id", classInfo.default_teacher_id).single();
+        if (dt?.user_id) teacherUserIds.add(dt.user_id);
+      }
+
+      const notifications = Array.from(teacherUserIds).map(userId => ({
+        user_id: userId,
+        title: `💰 Deposit Request`,
+        message: `${studentInfo?.full_name || "A student"} wants to deposit ${amount} cash for ${pointsGain} pts in ${classInfo?.name || "class"}`,
+        type: "economy_request",
+        metadata: { class_id: classId, student_id: studentId, student_name: studentInfo?.full_name, class_name: classInfo?.name },
+      }));
+
+      if (notifications.length > 0) {
+        await supabase.from("notifications").insert(notifications);
+      }
+
       toast.success("Deposit request sent!", {
         description: "Your teacher will verify and add the points back.",
       });
