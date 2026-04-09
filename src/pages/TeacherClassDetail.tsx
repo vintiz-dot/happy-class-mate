@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShared";
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 import { SetMonitorControl } from "@/components/teacher/SetMonitorControl";
+import { ClassEconomySettings } from "@/components/teacher/ClassEconomySettings";
+import { Settings } from "lucide-react";
 
 export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -206,6 +208,10 @@ export default function TeacherClassDetail() {
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
+          <TabsTrigger value="settings" className="gap-1.5">
+            <Settings className="h-3.5 w-3.5" />
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">
@@ -269,6 +275,10 @@ export default function TeacherClassDetail() {
               </p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <ClassEconomySettings classId={id!} />
         </TabsContent>
       </Tabs>
     </Layout>
