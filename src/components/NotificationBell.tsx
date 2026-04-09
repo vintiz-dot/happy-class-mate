@@ -62,7 +62,7 @@ export default function NotificationBell() {
         const { data, error } = await supabase
           .from("notifications")
           .select("*")
-          .or(`type.eq.homework_submitted,type.eq.journal_collaboration`)
+          .or(`type.eq.homework_submitted,type.eq.journal_collaboration,type.eq.economy_request`)
           .order("created_at", { ascending: false })
           .limit(50);
 
@@ -115,7 +115,9 @@ export default function NotificationBell() {
     const metadata = notification.metadata || {};
     
     // Handle different notification types
-    if (notification.type === 'homework_assigned' || notification.type === 'homework_graded') {
+    if (notification.type === 'economy_request' && metadata.class_id) {
+      navigate(`/classes/${metadata.class_id}`);
+    } else if (notification.type === 'homework_assigned' || notification.type === 'homework_graded') {
       navigate("/student/assignments");
     } else if (notification.type === 'homework_submitted') {
       navigate("/teacher/assignments");
