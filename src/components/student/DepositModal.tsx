@@ -112,7 +112,7 @@ export function DepositModal({ open, onOpenChange, studentId, classId, cashOnHan
       }));
 
       if (notifications.length > 0) {
-        await supabase.from("notifications").insert(notifications).catch(() => {});
+        await supabase.from("notifications").insert(notifications);
       }
 
       toast.success("Deposit request sent!", {

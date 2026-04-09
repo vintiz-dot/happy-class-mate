@@ -77,7 +77,7 @@ export function WithdrawModal({ open, onOpenChange, studentId, classId, totalPoi
       }));
 
       if (notifications.length > 0) {
-        await supabase.from("notifications").insert(notifications).catch(() => {});
+        await supabase.from("notifications").insert(notifications);
       }
 
       toast.success("Withdrawal request sent!", {
