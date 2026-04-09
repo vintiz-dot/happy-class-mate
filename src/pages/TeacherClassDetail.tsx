@@ -208,6 +208,10 @@ export default function TeacherClassDetail() {
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
+          <TabsTrigger value="settings" className="gap-1.5">
+            <Settings className="h-3.5 w-3.5" />
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">
