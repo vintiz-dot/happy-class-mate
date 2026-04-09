@@ -276,6 +276,10 @@ export default function TeacherClassDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <ClassEconomySettings classId={id!} />
+        </TabsContent>
       </Tabs>
     </Layout>
   );
