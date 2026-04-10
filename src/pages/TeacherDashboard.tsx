@@ -491,12 +491,13 @@ export default function TeacherDashboard() {
                       const timeStatus = getTimeStatus(session.start_time, session.end_time);
                       const classId = Array.isArray(session.classes) ? session.classes[0]?.id : session.classes?.id;
                       return (
-                        <motion.div
+                         <motion.div
                           key={session.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${
+                          onClick={() => classId && navigate(`/teacher/classes/${classId}`)}
+                          className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer ${
                             timeStatus === "ongoing" 
                               ? "bg-gradient-to-r from-primary/10 via-card to-card border-primary/30 shadow-md" 
                               : timeStatus === "completed"
@@ -554,6 +555,8 @@ export default function TeacherDashboard() {
                             {session.status === "Held" ? <CheckCircle2 className="h-3 w-3 mr-1" /> : null}
                             {session.status}
                           </Badge>
+
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                         </motion.div>
                       );
                     })}
