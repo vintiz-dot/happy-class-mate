@@ -461,6 +461,44 @@ export default function TeacherDashboard() {
           </Card>
         </motion.div>
 
+        {/* My Classes Grid */}
+        {activeClasses && activeClasses.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-primary" />
+                My Classes
+              </h3>
+            </div>
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {activeClasses.map((classData: any, index: number) => (
+                <motion.div
+                  key={classData.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Link to={`/teacher/classes/${classData.id}`}>
+                    <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/90 shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <CardContent className="p-5 relative flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 shrink-0">
+                          <BookOpen className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold truncate">{classData.name}</h4>
+                          <p className="text-sm text-muted-foreground">Calendar · Roster · Leaderboard</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all shrink-0" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Today's Agenda */}
@@ -491,12 +529,13 @@ export default function TeacherDashboard() {
                       const timeStatus = getTimeStatus(session.start_time, session.end_time);
                       const classId = Array.isArray(session.classes) ? session.classes[0]?.id : session.classes?.id;
                       return (
-                        <motion.div
+                         <motion.div
                           key={session.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${
+                          onClick={() => classId && navigate(`/teacher/classes/${classId}`)}
+                          className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer ${
                             timeStatus === "ongoing" 
                               ? "bg-gradient-to-r from-primary/10 via-card to-card border-primary/30 shadow-md" 
                               : timeStatus === "completed"
@@ -554,6 +593,8 @@ export default function TeacherDashboard() {
                             {session.status === "Held" ? <CheckCircle2 className="h-3 w-3 mr-1" /> : null}
                             {session.status}
                           </Badge>
+
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                         </motion.div>
                       );
                     })}
