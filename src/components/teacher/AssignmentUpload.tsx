@@ -451,7 +451,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                       </Button>
                       <HomeworkPdfDownload
                         homework={hw}
-                        className={hw.classes.name}
+                        className={hw.classes?.name || "Unknown Class"}
                         variant="icon"
                       />
                     </div>
