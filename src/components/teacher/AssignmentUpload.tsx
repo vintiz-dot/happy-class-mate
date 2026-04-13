@@ -82,21 +82,24 @@ async function fetchTeacherData() {
     .eq("user_id", user.user.id)
     .maybeSingle();
 
-  if (!ta) throw new Error("Staff profile not found");
+  if (ta) {
+    const { data: spData } = await supabase
+      .from("session_participants")
+      .select("sessions!inner(class_id, classes!inner(id, name))")
+      .eq("teaching_assistant_id", ta.id)
+      .eq("participant_type", "teaching_assistant");
 
-  const { data: spData } = await supabase
-    .from("session_participants")
-    .select("sessions!inner(class_id, classes!inner(id, name))")
-    .eq("teaching_assistant_id", ta.id)
-    .eq("participant_type", "teaching_assistant");
+    const classMap = new Map<string, Class>();
+    (spData || []).forEach((sp: any) => {
+      const cls = sp.sessions?.classes;
+      if (cls?.id) classMap.set(cls.id, cls);
+    });
 
-  const classMap = new Map<string, Class>();
-  (spData || []).forEach((sp: any) => {
-    const cls = sp.sessions?.classes;
-    if (cls?.id) classMap.set(cls.id, cls);
-  });
+    return { teacherId: ta.id, classes: Array.from(classMap.values()) };
+  }
 
-  return { teacherId: ta.id, classes: Array.from(classMap.values()) };
+  // Not a teacher or TA — return empty
+  return { teacherId: "", classes: [] };
 }
 
 // Fetch homeworks for teacher's classes
