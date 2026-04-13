@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { EditHomeworkDialog } from "./EditHomeworkDialog";
 import { GradeOfflineDialog } from "./GradeOfflineDialog";
+import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
 
 const ReactQuill = lazy(() => import("react-quill-new"));
 
@@ -426,7 +427,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                       Created: {format(new Date(hw.created_at), "MMM dd, yyyy 'at' h:mm a")}
                     </p>
 
-                    <div className="flex gap-2 pt-2 border-t mt-3">
+                     <div className="flex gap-2 pt-2 border-t mt-3">
                       <Button
                         variant="outline"
                         size="sm"
@@ -445,6 +446,11 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                         <Users className="h-4 w-4 mr-2" />
                         Grade Offline
                       </Button>
+                      <HomeworkPdfDownload
+                        homework={hw}
+                        className={hw.classes.name}
+                        variant="icon"
+                      />
                     </div>
                   </div>
                 </Card>

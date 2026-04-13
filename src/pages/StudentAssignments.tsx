@@ -6,7 +6,7 @@ import { useStudentProfile } from "@/contexts/StudentProfileContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Star, CheckCircle2, Clock, Send, AlertTriangle } from "lucide-react";
+import { FileText, Star, CheckCircle2, Clock, Send, AlertTriangle, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import HomeworkDetailDialog from "@/components/student/HomeworkDetailDialog";
 import HomeworkStreakCard from "@/components/student/HomeworkStreakCard";
@@ -16,6 +16,7 @@ import { useLoginChallenge } from "@/hooks/useLoginChallenge";
 import { GradeCelebration } from "@/components/student/GradeCelebration";
 import { getHomeworkStatus, statusConfig, getCountdown, type HomeworkStatus } from "@/lib/homeworkStatus";
 import { motion } from "framer-motion";
+import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
 
 const statusIcons: Record<HomeworkStatus, React.ReactNode> = {
   overdue: <AlertTriangle className="h-4 w-4 text-red-500" />,
@@ -127,6 +128,11 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                   Due {new Date(assignment.due_date).toLocaleDateString()}
                 </Badge>
               )}
+              <HomeworkPdfDownload
+                homework={assignment}
+                className={assignment.classes?.name}
+                variant="icon"
+              />
             </div>
 
             {(status === "submitted" || status === "graded") && (
