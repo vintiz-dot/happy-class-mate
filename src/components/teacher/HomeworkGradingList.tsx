@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { Download, Star, Undo } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { dayjs } from "@/lib/date";
+import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
 
 interface HomeworkGradingListProps {
   statusFilter?: string;
