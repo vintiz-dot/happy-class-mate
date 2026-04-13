@@ -30,7 +30,7 @@ interface Homework {
   due_date: string | null;
   created_at: string;
   class_id: string;
-  classes: { name: string };
+  classes: { name: string } | null;
   homework_files: Array<{ file_name: string; storage_key: string }>;
 }
 
@@ -82,21 +82,24 @@ async function fetchTeacherData() {
     .eq("user_id", user.user.id)
     .maybeSingle();
 
-  if (!ta) throw new Error("Staff profile not found");
+  if (ta) {
+    const { data: spData } = await supabase
+      .from("session_participants")
+      .select("sessions!inner(class_id, classes!inner(id, name))")
+      .eq("teaching_assistant_id", ta.id)
+      .eq("participant_type", "teaching_assistant");
 
-  const { data: spData } = await supabase
-    .from("session_participants")
-    .select("sessions!inner(class_id, classes!inner(id, name))")
-    .eq("teaching_assistant_id", ta.id)
-    .eq("participant_type", "teaching_assistant");
+    const classMap = new Map<string, Class>();
+    (spData || []).forEach((sp: any) => {
+      const cls = sp.sessions?.classes;
+      if (cls?.id) classMap.set(cls.id, cls);
+    });
 
-  const classMap = new Map<string, Class>();
-  (spData || []).forEach((sp: any) => {
-    const cls = sp.sessions?.classes;
-    if (cls?.id) classMap.set(cls.id, cls);
-  });
+    return { teacherId: ta.id, classes: Array.from(classMap.values()) };
+  }
 
-  return { teacherId: ta.id, classes: Array.from(classMap.values()) };
+  // Not a teacher or TA — return empty
+  return { teacherId: "", classes: [] };
 }
 
 // Fetch homeworks for teacher's classes
@@ -387,7 +390,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                         <h3 className="font-semibold text-base md:text-lg truncate">{hw.title}</h3>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">
-                            {hw.classes.name}
+                            {hw.classes?.name || "Unknown Class"}
                           </Badge>
                           {hw.due_date && (
                             <Badge variant="outline" className="text-xs flex items-center gap-1">
@@ -448,7 +451,7 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                       </Button>
                       <HomeworkPdfDownload
                         homework={hw}
-                        className={hw.classes.name}
+                        className={hw.classes?.name || "Unknown Class"}
                         variant="icon"
                       />
                     </div>
