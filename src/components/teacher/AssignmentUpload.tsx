@@ -30,7 +30,7 @@ interface Homework {
   due_date: string | null;
   created_at: string;
   class_id: string;
-  classes: { name: string };
+  classes: { name: string } | null;
   homework_files: Array<{ file_name: string; storage_key: string }>;
 }
 
