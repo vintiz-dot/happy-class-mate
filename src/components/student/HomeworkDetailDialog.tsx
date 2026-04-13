@@ -1,13 +1,16 @@
+import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Calendar, Star, AlertTriangle, Clock, Send, CheckCircle2 } from "lucide-react";
-import HomeworkSubmission from "./HomeworkSubmission";
+import { Download, Calendar, Star, AlertTriangle, Clock, Send, CheckCircle2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { getHomeworkStatus, statusConfig, getCountdown } from "@/lib/homeworkStatus";
+import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
+
+const HomeworkSubmission = lazy(() => import("./HomeworkSubmission"));
 
 interface HomeworkDetailDialogProps {
   homework: any;
@@ -35,6 +38,20 @@ function GradeCircle({ grade }: { grade: string }) {
 }
 
 export default function HomeworkDetailDialog({ homework, studentId, isReadOnly = false, onClose }: HomeworkDetailDialogProps) {
+  // Fetch teacher name for PDF
+  const { data: teacherName } = useQuery({
+    queryKey: ["class-teacher-name", homework.class_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("classes")
+        .select("default_teacher_id, teachers(full_name)")
+        .eq("id", homework.class_id)
+        .single();
+      return (data?.teachers as any)?.full_name || "Unknown";
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
   const { data: submission } = useQuery({
     queryKey: ["homework-submission", homework.id, studentId],
     queryFn: async () => {
@@ -100,6 +117,12 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
                     Due {format(new Date(homework.due_date), "MMM d, yyyy")}
                   </Badge>
                 )}
+                <HomeworkPdfDownload
+                  homework={homework}
+                  className={homework.classes?.name}
+                  teacherName={teacherName}
+                  variant="icon"
+                />
               </div>
             </div>
           </DialogHeader>
@@ -178,7 +201,9 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
                 )}
               </div>
             ) : (
-              <HomeworkSubmission homeworkId={homework.id} studentId={studentId} existingSubmission={submission} onSuccess={onClose} />
+              <Suspense fallback={<div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" />Loading submission form...</div>}>
+                <HomeworkSubmission homeworkId={homework.id} studentId={studentId} existingSubmission={submission} onSuccess={onClose} />
+              </Suspense>
             )}
           </div>
         </div>
