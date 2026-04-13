@@ -295,7 +295,14 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
                       </p>
                     )}
                   </div>
-                  <div className="flex sm:flex-col gap-2">{getStatusBadge(submission)}</div>
+                  <div className="flex sm:flex-col gap-2">
+                    {getStatusBadge(submission)}
+                    <HomeworkPdfDownload
+                      homework={{ id: homework?.id || submission.homework_id, title: homework?.title || "", body: null, due_date: null, created_at: undefined }}
+                      className={homework?.classes?.name}
+                      variant="icon"
+                    />
+                  </div>
                 </div>
               </CardHeader>
 
