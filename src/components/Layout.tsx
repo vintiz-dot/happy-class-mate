@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2 } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -90,6 +90,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: CalendarDays, label: "Schedule", path: "/schedule" },
           { icon: ListTodo, label: "Assignments", path: "/admin?tab=assignments" },
           { icon: NotebookPen, label: "Journal", path: "/admin?tab=journal" },
+          { icon: FileBarChart2, label: "Exam Reports", path: "/admin?tab=exam-reports" },
           { icon: PiggyBank, label: "Finance", path: "/admin?tab=finance" },
           { icon: Receipt, label: "Payroll", path: "/admin?tab=payroll" },
           { icon: TrendingUp, label: "Reports", path: "/admin?tab=reports" },
@@ -106,6 +107,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: BookOpenCheck, label: "Assignments", path: "/teacher/assignments" },
           { icon: ListTodo, label: "Attendance", path: "/teacher/attendance" },
           { icon: NotebookPen, label: "Journal", path: "/teacher/journal" },
+          { icon: FileBarChart2, label: "Exam Reports", path: "/teacher/exam-reports" },
         ];
       default:
         return [];

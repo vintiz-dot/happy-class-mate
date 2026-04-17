@@ -37,6 +37,7 @@ import Tuition from "./pages/Tuition";
 import TeacherProfile from "./pages/TeacherProfile";
 import StudentJournal from "./pages/StudentJournal";
 import TeacherJournal from "./pages/TeacherJournal";
+import TeacherExamReports from "./pages/TeacherExamReports";
 import { TuitionReviewQueue } from "./components/admin/TuitionReviewQueue";
 import { AnnouncementRenderer } from "./components/announcements/AnnouncementRenderer";
 
@@ -91,6 +92,7 @@ function AppContent() {
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/assignments" element={<TeacherAssignments />} />
             <Route path="/teacher/journal" element={<TeacherJournal />} />
+            <Route path="/teacher/exam-reports" element={<TeacherExamReports />} />
             <Route path="/teacher/leaderboards" element={<TeacherLeaderboards />} />
             
             {/* Student routes */}

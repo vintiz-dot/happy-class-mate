@@ -3,12 +3,13 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, BookOpen, CalendarDays, MoreHorizontal, NotebookPen, DollarSign, Trophy, Zap } from "lucide-react";
+import { Home, BookOpen, CalendarDays, MoreHorizontal, NotebookPen, DollarSign, Trophy, Zap, FileText } from "lucide-react";
 
 const allNavItems = [
   { id: "dashboard", label: "Dashboard", emoji: "🏠", path: "/student/dashboard", icon: Home, primary: true },
   { id: "homework", label: "Homework", emoji: "📝", path: "/student/assignments", icon: BookOpen, primary: true },
   { id: "schedule", label: "My Classes", emoji: "📅", path: "/student/dashboard?tab=schedule", icon: CalendarDays, primary: true },
+  { id: "reports", label: "Reports", emoji: "📄", path: "/student/dashboard?tab=reports", icon: FileText, primary: false },
   { id: "journal", label: "Journal", emoji: "📖", path: "/student/journal", icon: NotebookPen, primary: false },
   { id: "tuition", label: "Tuition", emoji: "💰", path: "/tuition", icon: DollarSign, primary: false },
   { id: "achievements", label: "Achievements", emoji: "🏆", path: "/student/dashboard?tab=achievements", icon: Trophy, primary: false },
@@ -28,6 +29,7 @@ export function StudentNavBar() {
     
     if (id === "achievements") return isOnDashboard && currentTab === "achievements";
     if (id === "schedule") return isOnDashboard && currentTab === "schedule";
+    if (id === "reports") return isOnDashboard && currentTab === "reports";
     if (id === "dashboard") return isOnDashboard && !currentTab;
     return location.pathname.startsWith(path);
   };

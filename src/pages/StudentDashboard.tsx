@@ -34,6 +34,7 @@ import { StudentWallet } from "@/components/student/StudentWallet";
 import { DemoDashboard } from "@/components/student/DemoDashboard";
 import { MonitorStatusCard } from "@/components/student/MonitorStatusCard";
 import { useStudentMonitorClasses } from "@/hooks/useClassMonitor";
+import { StudentExamReportsTab } from "@/components/exam-reports/StudentExamReportsTab";
 
 // Animation variants
 const containerVariants = {
@@ -84,7 +85,7 @@ export default function StudentDashboard() {
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "achievements" || tab === "schedule")) {
+    if (tab && (tab === "achievements" || tab === "schedule" || tab === "reports")) {
       setActiveTab(tab);
     } else if (!tab) {
       setActiveTab("dashboard");
@@ -962,6 +963,26 @@ export default function StudentDashboard() {
               <div className="glass-lg border-0 shadow-xl rounded-2xl p-6">
                 <HowToEarnXP />
               </div>
+            </motion.div>
+          </TabsContent>
+
+          {/* Exam Reports Tab */}
+          <TabsContent value="reports" className="mt-6">
+            <motion.div
+              className="glass-lg border-0 shadow-xl rounded-2xl p-6 space-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10">
+                  <span className="text-2xl">📄</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">My Exam Reports</h2>
+                  <p className="text-sm text-muted-foreground">Reports posted by your teachers — read online or download as PDF.</p>
+                </div>
+              </div>
+              <StudentExamReportsTab studentId={studentId} />
             </motion.div>
           </TabsContent>
 

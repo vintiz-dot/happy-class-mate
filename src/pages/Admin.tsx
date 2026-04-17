@@ -11,6 +11,7 @@ import { PayrollTab } from "@/components/admin/tabs/PayrollTab";
 import { AdminJournalViewEnhanced } from "@/components/admin/AdminJournalViewEnhanced";
 import { AssignmentsOverview } from "@/components/admin/AssignmentsOverview";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
+import ExamReportsTab from "@/components/admin/tabs/ExamReportsTab";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
@@ -25,6 +26,8 @@ const Admin = ({ defaultTab }: { defaultTab?: string } = {}) => {
         return <AssignmentsOverview />;
       case "journal":
         return <AdminJournalViewEnhanced />;
+      case "exam-reports":
+        return <ExamReportsTab />;
       case "finance":
         return <FinanceTab />;
       case "payroll":
