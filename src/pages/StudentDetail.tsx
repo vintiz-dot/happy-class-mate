@@ -19,9 +19,12 @@ import { useState } from "react";
 import { StudentLinkDialog } from "@/components/admin/StudentLinkDialog";
 import { StudentProfileEdit } from "@/components/student/StudentProfileEdit";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ExamReportsManager } from "@/components/exam-reports/ExamReportsManager";
+import { useAuth } from "@/hooks/useAuth";
 
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const { data: student, isLoading } = useQuery({
@@ -129,6 +132,7 @@ const StudentDetail = () => {
             <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
             <TabsTrigger value="tuition">Tuition</TabsTrigger>
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
@@ -172,6 +176,15 @@ const StudentDetail = () => {
 
           <TabsContent value="attendance" className="space-y-6">
             <StudentAttendanceTab studentId={student.id} />
+          </TabsContent>
+
+          <TabsContent value="reports" className="space-y-6">
+            <ExamReportsManager
+              fixedStudentId={student.id}
+              isAdmin={true}
+              currentUserId={user?.id}
+              title="Exam reports"
+            />
           </TabsContent>
 
           <TabsContent value="discounts" className="space-y-6">
