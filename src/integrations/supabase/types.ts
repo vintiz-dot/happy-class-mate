@@ -781,6 +781,66 @@ export type Database = {
           },
         ]
       }
+      exam_reports: {
+        Row: {
+          class_id: string | null
+          content_html: string | null
+          created_at: string
+          created_by: string | null
+          exam_date: string | null
+          file_name: string | null
+          file_size: number | null
+          file_storage_key: string | null
+          id: string
+          student_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_storage_key?: string | null
+          id?: string
+          student_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_storage_key?: string | null
+          id?: string
+          student_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_reports_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_reports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenditures: {
         Row: {
           amount: number
