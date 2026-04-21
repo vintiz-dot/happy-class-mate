@@ -40,6 +40,7 @@ function GradeCircle({ grade }: { grade: string }) {
 }
 
 export default function HomeworkDetailDialog({ homework, studentId, isReadOnly = false, onClose }: HomeworkDetailDialogProps) {
+  const isMobile = useIsMobile();
   // Fetch teacher name for PDF
   const { data: teacherName } = useQuery({
     queryKey: ["class-teacher-name", homework.class_id],
@@ -82,11 +83,10 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
     }
   };
 
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0">
+  const inner = (
+    <>
         {/* Status Banner */}
-        <div className={`px-4 sm:px-6 py-3 flex items-center gap-2 ${config.cardClass} ${config.borderColor} border-b rounded-t-lg`}>
+        <div className={`px-4 sm:px-6 py-3 flex items-center gap-2 ${config.cardClass} ${config.borderColor} border-b`}>
           <span className="text-lg">{config.icon}</span>
           <span className={`font-semibold text-sm ${config.textClass}`}>{config.label}</span>
           {countdown && (
@@ -209,6 +209,29 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
             )}
           </div>
         </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={true} onOpenChange={onClose}>
+        <SheetContent
+          side="bottom"
+          className="p-0 h-[92vh] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-2xl"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>{homework.title}</SheetTitle>
+          </SheetHeader>
+          {inner}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0">
+        {inner}
       </DialogContent>
     </Dialog>
   );
