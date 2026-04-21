@@ -367,10 +367,10 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl">Grade Submission</DialogTitle>
-              <p className="text-sm text-muted-foreground">{selectedSubmission.students?.full_name}</p>
+              <p className="text-sm text-muted-foreground break-words">{selectedSubmission.students?.full_name}</p>
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
