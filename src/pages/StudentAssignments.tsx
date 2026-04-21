@@ -78,19 +78,18 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
       whileTap={{ scale: 0.98 }}
     >
       <Card
-        className={`cursor-pointer hover:shadow-lg transition-shadow duration-200 ${config.cardClass} ${config.borderColor} ${isOverdue ? "animate-[pulse_3s_ease-in-out_infinite]" : ""}`}
+        className={`cursor-pointer hover:shadow-md transition-shadow duration-200 ${config.cardClass} ${config.borderColor} ${isOverdue ? "ring-1 ring-red-500/30 shadow-[0_0_0_1px_hsl(0_84%_60%/0.15)]" : ""}`}
         onClick={onClick}
       >
         <CardHeader className="p-3 sm:p-5">
           <div className="space-y-2">
             <div className="flex items-start gap-2">
-              <motion.span
-                className="mt-0.5 shrink-0"
-                animate={isOverdue ? { rotate: [0, -10, 10, -10, 0] } : {}}
-                transition={{ repeat: Infinity, duration: 2, repeatDelay: 3 }}
-              >
+              <span className="mt-0.5 shrink-0 relative">
                 {statusIcons[status]}
-              </motion.span>
+                {isOverdue && (
+                  <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
+                )}
+              </span>
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-base sm:text-lg leading-tight break-words">
                   {assignment.title}
