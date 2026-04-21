@@ -279,29 +279,33 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
           const homework = submission.homeworks;
 
           return (
-            <Card key={submission.id} className="overflow-hidden transition-all hover:shadow-lg border-2">
-              <CardHeader className="bg-gradient-to-br from-primary/5 to-primary/10 pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <CardTitle className="text-base md:text-lg line-clamp-2 flex items-start gap-2">
-                      <span className="text-2xl">📚</span>
-                      <span>{homework?.title}</span>
-                    </CardTitle>
-                    <p className="text-sm font-bold text-primary">{submission.students?.full_name}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground">Class: {homework?.classes?.name}</p>
-                    {submission.submitted_at && (
-                      <p className="text-xs text-muted-foreground">
-                        📅 Submitted: {format(new Date(submission.submitted_at), "MMM d, yyyy")}
-                      </p>
-                    )}
+            <Card key={submission.id} className="overflow-hidden transition-all hover:shadow-lg border-2 long-list-item">
+              <CardHeader className="bg-gradient-to-br from-primary/5 to-primary/10 pb-3 p-3 sm:p-6">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <CardTitle className="text-base md:text-lg break-words flex items-start gap-2">
+                        <span className="text-2xl shrink-0">📚</span>
+                        <span className="min-w-0 break-words">{homework?.title}</span>
+                      </CardTitle>
+                      <p className="text-sm font-bold text-primary break-words">{submission.students?.full_name}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground break-words">Class: {homework?.classes?.name}</p>
+                      {submission.submitted_at && (
+                        <p className="text-xs text-muted-foreground">
+                          📅 Submitted {format(new Date(submission.submitted_at), "MMM d, yyyy")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      <HomeworkPdfDownload
+                        homework={{ id: homework?.id || submission.homework_id, title: homework?.title || "", body: null, due_date: null, created_at: undefined }}
+                        className={homework?.classes?.name}
+                        variant="icon"
+                      />
+                    </div>
                   </div>
-                  <div className="flex sm:flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {getStatusBadge(submission)}
-                    <HomeworkPdfDownload
-                      homework={{ id: homework?.id || submission.homework_id, title: homework?.title || "", body: null, due_date: null, created_at: undefined }}
-                      className={homework?.classes?.name}
-                      variant="icon"
-                    />
                   </div>
                 </div>
               </CardHeader>
