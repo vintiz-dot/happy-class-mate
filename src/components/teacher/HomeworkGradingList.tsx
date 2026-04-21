@@ -410,6 +410,8 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
                 <Input
                   id="points"
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min="0"
                   max="100"
                   value={points}
