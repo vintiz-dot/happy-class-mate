@@ -140,7 +140,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
                 📋 Assignment Instructions
               </h2>
               <div
-                className="prose prose-sm max-w-none w-full min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [word-break:break-word] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_p]:break-words [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground [&_img]:max-w-full [&_img]:h-auto [&_a]:break-all [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:break-all"
+                className="prose prose-sm rich-content max-w-none w-full min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [word-break:break-word] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-foreground [&_p]:break-words [&_strong]:text-foreground [&_em]:text-foreground [&_ul]:text-foreground [&_ol]:text-foreground [&_li]:text-foreground [&_img]:max-w-full [&_img]:h-auto [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:break-all"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(homework.body) }}
               />
             </div>
