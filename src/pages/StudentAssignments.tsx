@@ -118,7 +118,13 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                 {config.icon} {config.label}
               </Badge>
               {countdown && (
-                <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} ${isOverdue || status === "due-today" ? "animate-pulse" : ""}`}>
+                <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} inline-flex items-center gap-1`}>
+                  {isOverdue && (
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60 animate-ping" style={{ animationDuration: "2.8s" }} />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+                    </span>
+                  )}
                   {countdown}
                 </Badge>
               )}
