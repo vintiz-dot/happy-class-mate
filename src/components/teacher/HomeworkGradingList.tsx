@@ -279,12 +279,12 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
           const homework = submission.homeworks;
 
           return (
-            <Card key={submission.id} className="overflow-hidden transition-all hover:shadow-lg border-2 long-list-item">
-              <CardHeader className="bg-gradient-to-br from-primary/5 to-primary/10 pb-3 p-3 sm:p-6">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-2 min-w-0">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <CardTitle className="text-base md:text-lg break-words flex items-start gap-2">
+            <Card key={submission.id} className="overflow-hidden transition-all hover:shadow-lg border-2 long-list-item min-w-0">
+              <CardHeader className="bg-gradient-to-br from-primary/5 to-primary/10 pb-3 p-3 sm:p-6 min-w-0">
+                <div className="flex flex-col gap-3 min-w-0">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <div className="flex-1 min-w-0 overflow-hidden space-y-1">
+                      <CardTitle className="text-base md:text-lg break-words [overflow-wrap:anywhere] flex items-start gap-2">
                         <span className="text-2xl shrink-0">📚</span>
                         <span className="min-w-0 break-words">{homework?.title}</span>
                       </CardTitle>
@@ -296,16 +296,16 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
                         </p>
                       )}
                     </div>
-                    <div className="shrink-0">
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    {getStatusBadge(submission)}
+                    <div className="ml-auto">
                       <HomeworkPdfDownload
                         homework={{ id: homework?.id || submission.homework_id, title: homework?.title || "", body: null, due_date: null, created_at: undefined }}
                         className={homework?.classes?.name}
-                        variant="icon"
+                        variant="pill-compact"
                       />
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {getStatusBadge(submission)}
                   </div>
                 </div>
               </CardHeader>

@@ -230,7 +230,7 @@ export default function StudentAssignments() {
   return (
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6 no-x-overflow min-w-0">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
