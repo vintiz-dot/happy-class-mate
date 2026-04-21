@@ -593,3 +593,42 @@ All colors MUST be HSL.
 .dark .premium-admin-hover:hover svg {
   color: hsl(152, 55%, 45%) !important;
 }
+
+/* Rich content links — make hyperlinks unmistakably visible */
+.prose a,
+.rich-content a {
+  color: hsl(217 91% 50%);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  font-weight: 600;
+  word-break: break-word;
+  transition: color 0.15s ease;
+}
+
+.prose a:hover,
+.rich-content a:hover {
+  color: hsl(217 91% 35%);
+  text-decoration-thickness: 3px;
+}
+
+.dark .prose a,
+.dark .rich-content a {
+  color: hsl(217 91% 65%);
+}
+
+.dark .prose a:hover,
+.dark .rich-content a:hover {
+  color: hsl(217 91% 78%);
+}
+
+/* External link affordance — small ↗ icon after links */
+.prose a[href^="http"]::after,
+.rich-content a[href^="http"]::after {
+  content: " ↗";
+  font-size: 0.85em;
+  opacity: 0.75;
+  display: inline-block;
+  margin-left: 1px;
+}
+
