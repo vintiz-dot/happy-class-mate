@@ -231,6 +231,9 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{homework.title}</DialogTitle>
+        </DialogHeader>
         {inner}
       </DialogContent>
     </Dialog>
