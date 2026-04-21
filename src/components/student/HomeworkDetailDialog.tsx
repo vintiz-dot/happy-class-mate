@@ -90,7 +90,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
           <span className="text-lg">{config.icon}</span>
           <span className={`font-semibold text-sm ${config.textClass}`}>{config.label}</span>
           {countdown && (
-            <Badge className={`ml-auto text-[10px] ${config.badgeClass} ${status === "overdue" || status === "due-today" ? "animate-pulse" : ""}`}>
+            <Badge className={`ml-auto text-[10px] ${config.badgeClass}`}>
               {countdown}
             </Badge>
           )}
