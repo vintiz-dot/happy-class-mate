@@ -78,23 +78,23 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
       whileTap={{ scale: 0.98 }}
     >
       <Card
-        className={`cursor-pointer hover:shadow-md transition-shadow duration-200 ${config.cardClass} ${config.borderColor} ${isOverdue ? "ring-1 ring-red-500/30 shadow-[0_0_0_1px_hsl(0_84%_60%/0.15)]" : ""}`}
+        className={`cursor-pointer hover:shadow-md transition-shadow duration-200 min-w-0 overflow-hidden ${config.cardClass} ${config.borderColor} ${isOverdue ? "ring-1 ring-red-500/30 shadow-[0_0_0_1px_hsl(0_84%_60%/0.15)]" : ""}`}
         onClick={onClick}
       >
-        <CardHeader className="p-3 sm:p-5">
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
+        <CardHeader className="p-3 sm:p-5 min-w-0 overflow-hidden">
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-start gap-2 min-w-0">
               <span className="mt-0.5 shrink-0 relative">
                 {statusIcons[status]}
                 {isOverdue && (
                   <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
                 )}
               </span>
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-base sm:text-lg leading-tight break-words">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <CardTitle className="text-base sm:text-lg leading-tight break-words [overflow-wrap:anywhere]">
                   {assignment.title}
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm mt-0.5">
+                <CardDescription className="text-xs sm:text-sm mt-0.5 break-words">
                   {assignment.classes.name}
                 </CardDescription>
               </div>
@@ -113,7 +113,7 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
               <Badge className={`text-[10px] sm:text-xs ${config.badgeClass}`}>
                 {config.icon} {config.label}
               </Badge>
@@ -133,13 +133,15 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                   Due {new Date(assignment.due_date).toLocaleDateString()}
                 </Badge>
               )}
-              <div onClick={(e) => e.stopPropagation()} className="ml-auto">
-                <HomeworkPdfDownload
-                  homework={assignment}
-                  className={assignment.classes?.name}
-                  variant="icon"
-                />
-              </div>
+            </div>
+
+            {/* Prominent PDF download — its own row so it never gets pushed off-screen */}
+            <div onClick={(e) => e.stopPropagation()} className="pt-1">
+              <HomeworkPdfDownload
+                homework={assignment}
+                className={assignment.classes?.name}
+                variant="pill-compact"
+              />
             </div>
 
             {(status === "submitted" || status === "graded") && (
@@ -148,9 +150,9 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
           </div>
         </CardHeader>
         {assignment.body && status !== "graded" && (
-          <CardContent className="px-3 pb-3 sm:px-5 sm:pb-4 pt-0">
+          <CardContent className="px-3 pb-3 sm:px-5 sm:pb-4 pt-0 min-w-0 overflow-hidden">
             <div
-              className="text-sm prose prose-sm max-w-none line-clamp-2 break-words overflow-hidden [&_img]:max-w-full [&_img]:h-auto"
+              className="text-sm prose prose-sm rich-content max-w-none w-full min-w-0 line-clamp-2 break-words [overflow-wrap:anywhere] overflow-hidden [&_*]:max-w-full [&_img]:max-w-full [&_img]:h-auto"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(assignment.body) }}
             />
           </CardContent>
