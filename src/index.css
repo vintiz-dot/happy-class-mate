@@ -602,7 +602,7 @@ All colors MUST be HSL.
   color: hsl(152, 55%, 45%) !important;
 }
 
-/* Rich content links — make hyperlinks unmistakably visible */
+/* Rich content links — make hyperlinks unmistakably visible AND wrap long URLs */
 .prose a,
 .rich-content a {
   color: hsl(217 91% 50%);
@@ -610,6 +610,9 @@ All colors MUST be HSL.
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
   font-weight: 600;
+  display: inline;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   word-break: break-word;
   transition: color 0.15s ease;
 }
@@ -639,4 +642,31 @@ All colors MUST be HSL.
   display: inline-block;
   margin-left: 1px;
 }
+
+/* Harden rich content containers against overflow from long URLs / unbroken strings */
+.rich-content,
+.prose {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.rich-content *,
+.prose * {
+  max-width: 100%;
+}
+.rich-content pre,
+.prose pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rich-content img,
+.prose img {
+  height: auto;
+}
+
+/* Safety-net utility: never allow horizontal overflow */
+.no-x-overflow {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 

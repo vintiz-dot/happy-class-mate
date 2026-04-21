@@ -447,11 +447,11 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                         <Users className="h-4 w-4 mr-2" />
                         Grade
                       </Button>
-                      <div className="col-span-2 sm:col-auto flex justify-end">
+                      <div className="col-span-2 sm:col-auto">
                         <HomeworkPdfDownload
                           homework={hw}
                           className={hw.classes?.name || "Unknown Class"}
-                          variant="icon"
+                          variant="pill-compact"
                         />
                       </div>
                     </div>
