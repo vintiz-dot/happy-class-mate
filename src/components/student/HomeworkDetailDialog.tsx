@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, Calendar, Star, AlertTriangle, Clock, Send, CheckCircle2, Loader2 } from "lucide-react";
@@ -9,6 +10,7 @@ import { format } from "date-fns";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { getHomeworkStatus, statusConfig, getCountdown } from "@/lib/homeworkStatus";
 import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const HomeworkSubmission = lazy(() => import("./HomeworkSubmission"));
 
