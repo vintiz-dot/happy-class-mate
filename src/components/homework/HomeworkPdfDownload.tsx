@@ -3,7 +3,6 @@ import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 
 interface HomeworkPdfDownloadProps {
@@ -27,9 +26,9 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
   const generate = async () => {
     setGenerating(true);
     try {
-      // Resolve teacher name if not provided
+      // Resolve teacher / class name if missing
       let resolvedTeacher = teacherName || "";
-      let resolvedClass = classNameProp || (homework.classes?.name) || "";
+      let resolvedClass = classNameProp || homework.classes?.name || "";
 
       if ((!resolvedTeacher || resolvedTeacher === "—") && homework.class_id) {
         const { data } = await supabase
@@ -43,97 +42,96 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
         }
       }
 
-      // Container width = A4 at 96dpi minus margins (padding handles margins)
+      // Transform homework body so links stay clickable AND show their full URL
+      const transformedBody = transformLinks(homework.body || "");
+
       const container = document.createElement("div");
       container.style.position = "absolute";
       container.style.left = "-9999px";
       container.style.top = "0";
-      container.style.width = "700px";
+      container.style.width = "680px";
       container.style.padding = "0";
       container.style.background = "white";
       container.style.color = "#1a1a1a";
-      container.style.fontFamily = "Arial, Helvetica, sans-serif";
+      container.style.fontFamily = "Helvetica, Arial, sans-serif";
       container.style.boxSizing = "border-box";
+      container.style.fontSize = "12px";
+      container.style.lineHeight = "1.6";
 
       container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px;">
-          <img src="/images/hec_logo.png" style="width: 90px; height: auto; margin: 0 auto 10px; display: block;" />
-          <h1 style="font-size: 20px; font-weight: bold; color: #d4a017; margin: 0; line-height: 1.3;">Happy English Club</h1>
+        <div style="text-align: center; margin-bottom: 16px;">
+          <img src="/images/hec_logo.png" crossorigin="anonymous" style="width: 80px; height: auto; margin: 0 auto 8px; display: block;" />
+          <h1 style="font-size: 18px; font-weight: bold; color: #d4a017; margin: 0;">Happy English Club</h1>
           <p style="font-size: 10px; color: #666; margin: 4px 0 0;">Learning, an endless journey to perfection</p>
         </div>
-        <hr style="border: none; border-top: 2px solid #d4a017; margin: 12px 0 18px;" />
-        <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 14px; color: #111; word-wrap: break-word; overflow-wrap: break-word;">${escapeHtml(homework.title)}</h2>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12px; table-layout: fixed;">
+        <hr style="border: none; border-top: 2px solid #d4a017; margin: 10px 0 16px;" />
+        <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px; color: #111; word-wrap: break-word;">${escapeHtml(homework.title)}</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; table-layout: fixed;">
           <tr>
-            <td style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold; width: 110px;">Class</td>
-            <td style="padding: 5px 10px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: break-word;">${escapeHtml(resolvedClass || "—")}</td>
+            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold; width: 100px;">Class</td>
+            <td style="padding: 5px 8px; border: 1px solid #ddd; word-wrap: break-word;">${escapeHtml(resolvedClass || "—")}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Teacher</td>
-            <td style="padding: 5px 10px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: break-word;">${escapeHtml(resolvedTeacher || "—")}</td>
+            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Teacher</td>
+            <td style="padding: 5px 8px; border: 1px solid #ddd; word-wrap: break-word;">${escapeHtml(resolvedTeacher || "—")}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Due Date</td>
-            <td style="padding: 5px 10px; border: 1px solid #ddd;">${homework.due_date ? new Date(homework.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "No due date"}</td>
+            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Due Date</td>
+            <td style="padding: 5px 8px; border: 1px solid #ddd;">${homework.due_date ? new Date(homework.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "No due date"}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Posted</td>
-            <td style="padding: 5px 10px; border: 1px solid #ddd;">${homework.created_at ? new Date(homework.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}</td>
+            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Posted</td>
+            <td style="padding: 5px 8px; border: 1px solid #ddd;">${homework.created_at ? new Date(homework.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}</td>
           </tr>
         </table>
-        ${homework.body ? `
-          <div style="margin-top: 14px;">
-            <h3 style="font-size: 14px; font-weight: bold; margin: 0 0 8px; color: #333;">Instructions</h3>
-            <div style="font-size: 12px; line-height: 1.7; color: #333; word-wrap: break-word; overflow-wrap: break-word; overflow-wrap: anywhere;">
-              <style>
-                .hw-body * { max-width: 100% !important; overflow-wrap: break-word !important; word-break: break-word !important; }
-                .hw-body table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-                .hw-body td, .hw-body th { padding: 4px 8px !important; border: 1px solid #ddd !important; word-wrap: break-word !important; overflow-wrap: break-word !important; font-size: 12px !important; }
-                .hw-body img { max-width: 100% !important; height: auto !important; }
-                .hw-body p { margin: 0 0 8px !important; }
-              </style>
-              <div class="hw-body">${homework.body}</div>
+        ${transformedBody ? `
+          <div style="margin-top: 12px;">
+            <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 8px; color: #333;">Instructions</h3>
+            <div class="hw-body" style="font-size: 12px; line-height: 1.7; color: #333; word-wrap: break-word; overflow-wrap: anywhere;">
+              ${transformedBody}
             </div>
           </div>
         ` : ""}
-        <div style="margin-top: 30px; padding-top: 12px; border-top: 1px solid #ddd; text-align: center; font-size: 9px; color: #999;">
+        <div style="margin-top: 24px; padding-top: 10px; border-top: 1px solid #ddd; text-align: center; font-size: 9px; color: #999;">
           Happy English Club &bull; Generated on ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
         </div>
+        <style>
+          .hw-body * { max-width: 100% !important; overflow-wrap: anywhere !important; word-break: break-word !important; }
+          .hw-body a { color: #2563eb !important; text-decoration: underline !important; font-weight: 600 !important; }
+          .hw-body img { max-width: 100% !important; height: auto !important; }
+          .hw-body p { margin: 0 0 8px !important; }
+          .hw-body ul, .hw-body ol { padding-left: 20px !important; margin: 0 0 8px !important; }
+          .hw-body table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
+          .hw-body td, .hw-body th { padding: 4px 8px !important; border: 1px solid #ddd !important; word-wrap: break-word !important; font-size: 11px !important; }
+        </style>
       `;
 
       document.body.appendChild(container);
 
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-
-      document.body.removeChild(container);
-
-      const marginMm = 15;
-      const contentWidthMm = 210 - marginMm * 2; // 180mm
-      const pageContentHeight = 297 - marginMm * 2; // 267mm
-      const imgHeight = (canvas.height * contentWidthMm) / canvas.width;
       const pdf = new jsPDF("p", "mm", "a4");
-      const imgData = canvas.toDataURL("image/png");
+      const fileName = `${homework.title.replace(/[^a-zA-Z0-9]/g, "_")}_homework.pdf`;
 
-      let heightLeft = imgHeight;
-      let position = marginMm;
-
-      pdf.addImage(imgData, "PNG", marginMm, position, contentWidthMm, imgHeight);
-      heightLeft -= pageContentHeight;
-
-      while (heightLeft > 0) {
-        position = marginMm - (imgHeight - heightLeft);
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", marginMm, position, contentWidthMm, imgHeight);
-        heightLeft -= pageContentHeight;
+      try {
+        // Preferred path: jsPDF.html() preserves real selectable text + clickable links
+        await pdf.html(container, {
+          callback: (doc) => {
+            doc.save(fileName);
+          },
+          margin: [15, 15, 15, 15],
+          autoPaging: "text",
+          width: 180, // 210mm A4 - 2*15mm margin
+          windowWidth: 680, // matches container width above
+          html2canvas: {
+            scale: 180 / 680,
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#ffffff",
+          } as any,
+        });
+        toast.success("PDF downloaded!");
+      } finally {
+        if (container.parentNode) document.body.removeChild(container);
       }
-
-      pdf.save(`${homework.title.replace(/[^a-zA-Z0-9]/g, "_")}_homework.pdf`);
-      toast.success("PDF downloaded!");
     } catch (err) {
       console.error("PDF generation error:", err);
       toast.error("Failed to generate PDF");
@@ -164,4 +162,33 @@ function escapeHtml(str: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Walks rendered HTML and:
+ * - Ensures every <a> has http(s) href, target=_blank
+ * - Appends "(full url)" after the link text when the visible text differs from the URL,
+ *   so printed copies still expose the destination.
+ */
+function transformLinks(html: string): string {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  const anchors = tmp.querySelectorAll("a");
+  anchors.forEach((a) => {
+    const href = (a.getAttribute("href") || "").trim();
+    if (!href) return;
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer");
+    const visible = (a.textContent || "").trim();
+    // Only append URL when it adds info (text doesn't already contain it)
+    if (visible && visible !== href && !visible.includes(href)) {
+      const span = document.createElement("span");
+      span.style.color = "#666";
+      span.style.fontSize = "0.9em";
+      span.textContent = ` (${href})`;
+      a.after(span);
+    }
+  });
+  return tmp.innerHTML;
 }
