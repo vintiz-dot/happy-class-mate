@@ -43,7 +43,7 @@ export function StudentNavBar() {
     return (
       <>
         {/* Spacer to prevent content from hiding behind fixed bottom bar */}
-        <div className="h-16 md:hidden" />
+        <div className="h-16 md:hidden pb-[env(safe-area-inset-bottom)]" />
 
         {/* More menu overlay */}
         <AnimatePresence>
