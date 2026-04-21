@@ -383,28 +383,26 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
           ) : (
             <div className="space-y-4">
               {filteredHomeworks.map((hw) => (
-                <Card key={hw.id} className="p-4 hover:shadow-md transition-shadow">
+                <Card key={hw.id} className="p-3 sm:p-4 hover:shadow-md transition-shadow long-list-item">
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base md:text-lg truncate">{hw.title}</h3>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {hw.classes?.name || "Unknown Class"}
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-base md:text-lg break-words">{hw.title}</h3>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <Badge variant="secondary" className="text-xs max-w-full truncate">
+                          {hw.classes?.name || "Unknown Class"}
+                        </Badge>
+                        {hw.due_date && (
+                          <Badge variant="outline" className="text-xs flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Due {format(new Date(hw.due_date), "MMM dd, yyyy")}
                           </Badge>
-                          {hw.due_date && (
-                            <Badge variant="outline" className="text-xs flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Due: {format(new Date(hw.due_date), "MMM dd, yyyy")}
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
 
                     {hw.body && (
-                      <div 
-                        className="text-sm text-muted-foreground line-clamp-2 prose prose-sm max-w-none"
+                      <div
+                        className="text-sm text-muted-foreground line-clamp-2 prose prose-sm max-w-none break-words"
                         dangerouslySetInnerHTML={{ __html: sanitizeHtml(hw.body) }}
                       />
                     )}
@@ -417,25 +415,25 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => viewFile(file.storage_key)}
-                            className="text-xs min-h-[36px]"
+                            className="text-xs min-h-[36px] max-w-full"
                           >
-                            <Eye className="h-3 w-3 mr-1" />
-                            {file.file_name}
+                            <Eye className="h-3 w-3 mr-1 shrink-0" />
+                            <span className="truncate">{file.file_name}</span>
                           </Button>
                         ))}
                       </div>
                     )}
 
                     <p className="text-xs text-muted-foreground">
-                      Created: {format(new Date(hw.created_at), "MMM dd, yyyy 'at' h:mm a")}
+                      Created {format(new Date(hw.created_at), "MMM dd, yyyy 'at' h:mm a")}
                     </p>
 
-                     <div className="flex gap-2 pt-2 border-t mt-3">
+                    <div className="grid grid-cols-2 sm:flex gap-2 pt-2 border-t">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setEditingHomeworkId(hw.id)}
-                        className="flex-1 min-h-[40px]"
+                        className="min-h-[44px] sm:flex-1"
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
@@ -444,16 +442,18 @@ export function AssignmentUpload({ classFilter }: AssignmentUploadProps) {
                         variant="secondary"
                         size="sm"
                         onClick={() => setGradingHomeworkId(hw.id)}
-                        className="flex-1 min-h-[40px]"
+                        className="min-h-[44px] sm:flex-1"
                       >
                         <Users className="h-4 w-4 mr-2" />
-                        Grade Offline
+                        Grade
                       </Button>
-                      <HomeworkPdfDownload
-                        homework={hw}
-                        className={hw.classes?.name || "Unknown Class"}
-                        variant="icon"
-                      />
+                      <div className="col-span-2 sm:col-auto flex justify-end">
+                        <HomeworkPdfDownload
+                          homework={hw}
+                          className={hw.classes?.name || "Unknown Class"}
+                          variant="icon"
+                        />
+                      </div>
                     </div>
                   </div>
                 </Card>

@@ -128,11 +128,13 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                   Due {new Date(assignment.due_date).toLocaleDateString()}
                 </Badge>
               )}
-              <HomeworkPdfDownload
-                homework={assignment}
-                className={assignment.classes?.name}
-                variant="icon"
-              />
+              <div onClick={(e) => e.stopPropagation()} className="ml-auto">
+                <HomeworkPdfDownload
+                  homework={assignment}
+                  className={assignment.classes?.name}
+                  variant="icon"
+                />
+              </div>
             </div>
 
             {(status === "submitted" || status === "graded") && (
@@ -221,14 +223,15 @@ export default function StudentAssignments() {
   return (
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="px-1"
         >
-          <h1 className="text-3xl font-bold">📚 Assignments</h1>
-          <p className="text-muted-foreground">Track your homework, earn XP, level up!</p>
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight">📚 Assignments</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Track your homework, earn XP, level up!</p>
         </motion.div>
 
         {/* Homework Streak Tracker */}
@@ -260,7 +263,9 @@ export default function StudentAssignments() {
                   <h2 className="text-lg font-semibold flex items-center gap-2">🎯 Current & Upcoming</h2>
                   <div className="grid gap-3">
                     {upcomingAssignments.map((a: any, i: number) => (
-                      <AssignmentCard key={a.id} assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
+                      <div key={a.id} className="long-list-item">
+                        <AssignmentCard assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -273,7 +278,7 @@ export default function StudentAssignments() {
                       const st = getHomeworkStatus(a);
                       const isOverdueNotSubmitted = st === "overdue";
                       return (
-                        <div key={a.id} className={isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-90 transition-opacity"}>
+                        <div key={a.id} className={`long-list-item ${isOverdueNotSubmitted ? "" : "opacity-60 hover:opacity-90 transition-opacity"}`}>
                           <AssignmentCard assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
                         </div>
                       );
