@@ -21,6 +21,7 @@ import { SKILL_ICONS } from "@/lib/skillConfig";
 import { LucideIcon, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { AssessmentStudentCard } from "./AssessmentStudentCard";
 
 interface LiveAssessmentGridProps {
   classId: string;
@@ -235,6 +236,15 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
     }));
   }, []);
 
+  const handleSelect = useCallback((id: string) => {
+    const s = students.find((x) => x.id === id);
+    if (s) setActiveStudent(s);
+  }, [students]);
+
+  const handleToggle = useCallback((id: string) => {
+    toggleStudent(id);
+  }, [students]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -288,101 +298,22 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
 
       {/* Student Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {students.map((student) => {
-          const isUnavailable = isStudentUnavailable(student.attendanceStatus);
-          
-          const cardContent = (
-            <div
-              className={cn(
-                "relative flex flex-col items-center p-4 rounded-2xl transition-all touch-manipulation select-none",
-                "bg-card border border-border/50",
-                isUnavailable 
-                  ? "opacity-50 grayscale cursor-not-allowed" 
-                  : "cursor-pointer hover:bg-warmGray dark:hover:bg-warmGray-dark active:scale-95",
-                bulkMode && selectedStudents.has(student.id) && !isUnavailable && "ring-2 ring-primary bg-primary/10"
-              )}
-              onClick={(e) => {
-                if (isUnavailable) return;
-                if (bulkMode) {
-                  e.preventDefault();
-                  toggleStudent(student.id);
-                }
-              }}
-            >
-              {/* Selection Checkbox */}
-              {bulkMode && !isUnavailable && (
-                <div className="absolute top-2 left-2">
-                  <Checkbox
-                    checked={selectedStudents.has(student.id)}
-                    onCheckedChange={() => toggleStudent(student.id)}
-                    className="h-5 w-5"
-                  />
-                </div>
-              )}
-              
-              {/* Absent/Excused Badge */}
-              {isUnavailable && (
-                <div className="absolute top-2 right-2">
-                  <span className={cn(
-                    "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                    student.attendanceStatus === "Absent" 
-                      ? "bg-destructive/20 text-destructive" 
-                      : "bg-muted text-muted-foreground"
-                  )}>
-                    {student.attendanceStatus}
-                  </span>
-                </div>
-              )}
-
-              {/* Avatar */}
-              <Avatar className="h-16 w-16 mb-2">
-                <AvatarImage src={student.avatar_url || undefined} />
-                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                  {student.full_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-
-              {/* Name */}
-              <span className="text-sm font-medium text-center line-clamp-1">
-                {student.full_name}
-              </span>
-
-              {/* Today's Points */}
-              <span className={cn(
-                "text-xs font-medium mt-1",
-                student.todayPoints > 0 ? "text-green-600 dark:text-green-400" :
-                student.todayPoints < 0 ? "text-red-600 dark:text-red-400" :
-                "text-muted-foreground"
-              )}>
-                {student.todayPoints > 0 ? "+" : ""}{student.todayPoints} today
-              </span>
-
-              {/* Feedback Animation */}
-              <PointFeedbackAnimation
-                feedbacks={feedbacks[student.id] || []}
-                onComplete={(id) => removeFeedback(student.id, id)}
-              />
-            </div>
-          );
-          
-          // If student is unavailable, render without popover
-          if (isUnavailable) {
-            return <div key={student.id}>{cardContent}</div>;
-          }
-          
-          return (
-            <div 
-              key={student.id}
-              onClick={() => {
-                if (!bulkMode) {
-                  setActiveStudent(student);
-                }
-              }}
-            >
-              {cardContent}
-            </div>
-          );
-        })}
+        {students.map((student) => (
+          <AssessmentStudentCard
+            key={student.id}
+            studentId={student.id}
+            fullName={student.full_name}
+            avatarUrl={student.avatar_url}
+            todayPoints={student.todayPoints}
+            attendanceStatus={student.attendanceStatus}
+            bulkMode={bulkMode}
+            isSelected={selectedStudents.has(student.id)}
+            feedbacks={feedbacks[student.id] || []}
+            onSelect={handleSelect}
+            onToggle={handleToggle}
+            onFeedbackComplete={removeFeedback}
+          />
+        ))}
       </div>
 
       {/* Skill Selection Dialog - appears centered, away from cards */}

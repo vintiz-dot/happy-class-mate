@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Long-list scroll perf — let the browser skip offscreen rendering */
+@layer utilities {
+  .long-list-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 120px;
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
