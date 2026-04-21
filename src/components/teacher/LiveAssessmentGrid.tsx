@@ -21,6 +21,7 @@ import { SKILL_ICONS } from "@/lib/skillConfig";
 import { LucideIcon, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { AssessmentStudentCard } from "./AssessmentStudentCard";
 
 interface LiveAssessmentGridProps {
   classId: string;
@@ -235,6 +236,15 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
     }));
   }, []);
 
+  const handleSelect = useCallback((id: string) => {
+    const s = students.find((x) => x.id === id);
+    if (s) setActiveStudent(s);
+  }, [students]);
+
+  const handleToggle = useCallback((id: string) => {
+    toggleStudent(id);
+  }, [students]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -288,10 +298,23 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
 
       {/* Student Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {students.map((student) => {
-          const isUnavailable = isStudentUnavailable(student.attendanceStatus);
-          
-          const cardContent = (
+        {students.map((student) => (
+          <AssessmentStudentCard
+            key={student.id}
+            studentId={student.id}
+            fullName={student.full_name}
+            avatarUrl={student.avatar_url}
+            todayPoints={student.todayPoints}
+            attendanceStatus={student.attendanceStatus}
+            bulkMode={bulkMode}
+            isSelected={selectedStudents.has(student.id)}
+            feedbacks={feedbacks[student.id] || []}
+            onSelect={handleSelect}
+            onToggle={handleToggle}
+            onFeedbackComplete={removeFeedback}
+          />
+        ))}
+      </div>
             <div
               className={cn(
                 "relative flex flex-col items-center p-4 rounded-2xl transition-all touch-manipulation select-none",
