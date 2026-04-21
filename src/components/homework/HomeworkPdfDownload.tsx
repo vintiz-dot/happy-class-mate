@@ -17,7 +17,7 @@ interface HomeworkPdfDownloadProps {
   };
   className?: string;
   teacherName?: string;
-  variant?: "icon" | "button";
+  variant?: "icon" | "button" | "pill" | "pill-compact";
 }
 
 export function HomeworkPdfDownload({ homework, className: classNameProp, teacherName, variant = "button" }: HomeworkPdfDownloadProps) {
@@ -144,6 +144,35 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
     return (
       <Button variant="ghost" size="icon" onClick={generate} disabled={generating} title="Download as PDF">
         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      </Button>
+    );
+  }
+
+  if (variant === "pill-compact") {
+    // Compact labeled pill — fits in card badge rows
+    return (
+      <Button
+        onClick={generate}
+        disabled={generating}
+        size="sm"
+        className="h-8 rounded-full gap-1.5 px-3 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold text-xs"
+      >
+        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+        PDF
+      </Button>
+    );
+  }
+
+  if (variant === "pill") {
+    // Prominent labeled pill — for detail views and grading lists
+    return (
+      <Button
+        onClick={generate}
+        disabled={generating}
+        className="h-10 min-h-[40px] rounded-full gap-2 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md font-semibold"
+      >
+        {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        {generating ? "Generating..." : "Download PDF"}
       </Button>
     );
   }
