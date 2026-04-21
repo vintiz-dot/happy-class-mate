@@ -103,22 +103,22 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
         </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          <DialogHeader>
-            <div className="space-y-2">
-              <DialogTitle className="text-lg sm:text-xl leading-tight break-words">{homework.title}</DialogTitle>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="secondary" className="text-xs">{homework.classes.name}</Badge>
-                {homework.created_at && (
-                  <span className="flex items-center gap-1 text-xs">
-                    <Calendar className="h-3 w-3 shrink-0" />
-                    {format(new Date(homework.created_at), "MMM d, yyyy")}
-                  </span>
-                )}
-                {homework.due_date && (
-                  <Badge variant="outline" className="text-xs">
-                    Due {format(new Date(homework.due_date), "MMM d, yyyy")}
-                  </Badge>
-                )}
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-semibold leading-tight break-words pr-8">{homework.title}</h2>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="secondary" className="text-xs">{homework.classes.name}</Badge>
+              {homework.created_at && (
+                <span className="flex items-center gap-1 text-xs">
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  {format(new Date(homework.created_at), "MMM d, yyyy")}
+                </span>
+              )}
+              {homework.due_date && (
+                <Badge variant="outline" className="text-xs">
+                  Due {format(new Date(homework.due_date), "MMM d, yyyy")}
+                </Badge>
+              )}
+              <div className="ml-auto">
                 <HomeworkPdfDownload
                   homework={homework}
                   className={homework.classes?.name}
@@ -127,7 +127,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
                 />
               </div>
             </div>
-          </DialogHeader>
+          </div>
 
           {/* Grade Circle for graded assignments */}
           {status === "graded" && submission?.grade && (
