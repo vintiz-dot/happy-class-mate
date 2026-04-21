@@ -1,72 +1,75 @@
 
 
-## Plan: Homework links + targeted mobile/perf pass
+## Plan: Fix homework overflow + make download button obvious
 
-Three workstreams, ordered low-risk → high-impact. No visual redesign, no schema changes, no breaking changes to existing flows.
-
----
-
-### 1. Homework links — visible in app, clickable in PDF
-
-**In-app rendering (`HomeworkDetailDialog` and assignment cards):**
-- Update the `prose` block so `<a>` tags render as **bold blue (#2563eb), underlined, with a hover color shift and an external-link icon** appended via CSS `::after`. Apply the same styling to teacher/admin homework views.
-- Add `target="_blank" rel="noopener noreferrer"` to all rendered links via a small post-sanitize transform (DOMPurify hook), so taps open in a new tab.
-
-**PDF generation (`HomeworkPdfDownload.tsx`) — switch from "image of HTML" to real text + links:**
-- Replace the current `html2canvas → image → jsPDF.addImage` approach (which flattens everything into a non-clickable image) with **`jsPDF.html()`** which preserves selectable text and clickable `<a href>` annotations.
-- In the HTML template, style links as **blue underlined** and append the full URL in parentheses next to each link's visible text (so printed copies still show the URL). A small DOM walk before render does this transformation.
-- Keep the existing branded header (logo, Happy English Club, teacher/class/due date table) and 15mm margins; jsPDF.html handles pagination natively.
-- Fallback: if `jsPDF.html()` fails for a given body, fall back to the current canvas method so downloads never break.
+Surgical fixes — no rebuild needed. The root cause is link/URL overflow plus an under-emphasized download control. Both are fixable in 4 files with no behavior changes.
 
 ---
 
-### 2. Performance — navigation, interactions, heavy pages
+### 1. Kill horizontal overflow everywhere rich content renders
 
-**Route-level code splitting (biggest single win for nav speed + initial load):**
-- Convert all route imports in `src/App.tsx` to `React.lazy()`. Currently every page (Admin, Teacher*, Student*, Schedule, Tuition, exam reports, journals, etc.) is bundled into the initial JS payload. Lazy-loading shrinks first paint and makes route transitions load only what's needed.
-- The existing `<Suspense fallback={<AppLoader />}>` already wraps `<Routes>`, so no new boilerplate is needed.
+**`src/index.css` — global rule for links inside rich content:**
 
-**React Query tuning (fewer redundant fetches, snappier re-opens):**
-- Add `staleTime: 60_000` and `gcTime: 5 * 60_000` to the default `QueryClient` options so navigating back to a page doesn't refetch everything immediately.
-- Keep `refetchOnWindowFocus: false` (already set).
+Add to the existing `.prose a, .rich-content a` block:
+```css
+overflow-wrap: anywhere;
+word-break: break-word;
+display: inline;       /* ensure wrap respects flow */
+max-width: 100%;
+```
+And add a sibling rule to harden the rich-content container itself so any element inside (long URLs in `<p>`, `<li>`, `<code>`) wraps:
+```css
+.rich-content, .prose { overflow-wrap: anywhere; word-break: break-word; }
+.rich-content *, .prose * { max-width: 100%; }
+.rich-content pre, .prose pre { white-space: pre-wrap; }
+```
 
-**Heavy-page targeted fixes:**
-- **Student dashboard / homework list**: lazy-load `HomeworkDetailDialog` (already lazy for submission — extend to dialog itself when opened from list), memoize the assignment-row component with `React.memo`, and virtualize only if list > 50 items (use a lightweight windowing approach with CSS `content-visibility: auto` first — no new dep).
-- **Teacher leaderboards**: wrap the per-student row in `React.memo` keyed by student id + score, so a single point update doesn't re-render the whole grid.
-- **Dialogs/sheets opening slowly**: the rich-text editor is the main culprit and is already lazy — extend the same pattern to the exam-report editor and any other dialog that imports `react-quill-new` eagerly.
-
-**Bundle hygiene:**
-- Audit `src/components/announcements/AnnouncementRenderer` and other always-mounted components for heavy imports; move non-critical work behind `requestIdleCallback` where safe.
-
----
-
-### 3. Targeted mobile pass (no redesign)
-
-Page-by-page audit at 375px width fixing only stability/usability bugs:
-
-- **Touch targets**: ensure every interactive element is ≥40px tall on mobile (buttons, table row actions, nav links). Bump `size="sm"` buttons to default size on `sm:` and below where they're primary actions.
-- **Horizontal overflow**: scan dashboards, leaderboards, tuition, finance tables for elements that force horizontal scroll. Wrap wide tables in `overflow-x-auto` containers with sticky first column where useful (tuition, payroll).
-- **Sticky headers/nav**: verify `StudentNavBar` and admin tab bars don't cover content under iOS safe-area; add `pb-[env(safe-area-inset-bottom)]` where appropriate.
-- **Dialogs on mobile**: convert oversized `Dialog` components on small screens to `Sheet` (bottom sheet) for: AddSession, EditSession, FamilyPayment, AttendanceDrawer, HomeworkDetailDialog. Existing desktop behavior preserved via responsive switch.
-- **Inputs**: set `inputMode` and `autoComplete` correctly on phone, money, and email inputs to surface the right mobile keyboard.
-- **Long lists**: add `content-visibility: auto` to large list items (homework, students, sessions) for smoother scroll.
+This single change fixes overflow in **every** place rich HTML is rendered (homework detail, card preview, exam reports, announcements) — not just the homework page.
 
 ---
 
-### Files touched (high level)
+### 2. Lock the assignment card to the viewport width
 
-- `src/lib/sanitize.ts` — keep target/rel attrs on `<a>`
-- `src/components/homework/HomeworkPdfDownload.tsx` — switch to `jsPDF.html()`, link transform
-- `src/components/student/HomeworkDetailDialog.tsx`, `src/pages/StudentAssignments.tsx`, teacher/admin homework lists — link styling utility class
-- `src/index.css` — global `.rich-content a` link style + external-link icon
-- `src/App.tsx` — `React.lazy` for all routes, query client tuning
-- Per-page mobile fixes across student/teacher/admin dashboards, dialogs → sheets on mobile
-- `React.memo` on leaderboard rows and homework list items
+**`src/pages/StudentAssignments.tsx` — `AssignmentCard`:**
 
-### Out of scope (call out for follow-up if needed)
+- Add `min-w-0` and `overflow-hidden` to the outer `Card` so flex children can never push it wider than the screen.
+- Add `min-w-0 break-words` to the title's flex-1 wrapper (the URL was inside a flex parent without `min-w-0` — the classic flexbox overflow trap).
+- Wrap the body preview in a `min-w-0 overflow-hidden` div and replace `line-clamp-2` with the same wrap rules used in the dialog (`[overflow-wrap:anywhere] break-words`) so long URLs wrap to 2 lines instead of overflowing.
+- Apply `min-w-0` to the page-level grid wrappers (`grid gap-3` containers) and the `Layout` content area is already constrained, so this stops cascading overflow.
 
-- No DB/RLS changes
-- No edge-function changes
-- No visual redesign — same look, just stable on mobile and faster
-- Capacitor/native wrap not included (separate decision)
+---
+
+### 3. Make the download button unmistakable
+
+Two changes:
+
+**On the assignment list cards (`AssignmentCard`):**
+- Replace the tiny `variant="icon"` PDF button with a clearly labeled pill: blue/violet background, `Download` icon + "PDF" label, ~36px tall. Sits on its own row below the badges so it never gets shoved off-screen by long titles.
+- On mobile (`<sm:`) it goes full-width-ish with text "Download PDF"; on desktop it stays as a compact pill with "PDF".
+
+**Inside the detail dialog (`HomeworkDetailDialog`):**
+- Promote the icon-only download in the meta row to a proper button: outline style, `Download` icon + "Download as PDF" label, placed in its own full-width row directly under the title metadata. Sticky on mobile? No — keep it inline so it scrolls naturally, but make sure it's above the fold.
+
+**Teacher/admin homework views (`HomeworkGradingList`, `AssignmentUpload` lists):**
+- Same treatment: convert the tiny icon to a labeled button "PDF" with the download icon, ~40px tall touch target.
+
+---
+
+### 4. One last safety net
+
+**`src/index.css`:**
+Add a utility class `.no-x-overflow` that applies `overflow-x: hidden; max-width: 100vw;` and apply it to the homework page root container and the dialog/sheet content roots. This guarantees that even if a future edge case slips through, the user can never need to pinch-zoom horizontally.
+
+---
+
+### Files touched
+- `src/index.css` — link wrap rules + container safety net
+- `src/pages/StudentAssignments.tsx` — card overflow fix + prominent PDF button
+- `src/components/student/HomeworkDetailDialog.tsx` — labeled download button
+- `src/components/teacher/HomeworkGradingList.tsx` + `src/components/teacher/AssignmentUpload.tsx` — labeled PDF buttons
+
+### Out of scope
+- No data, RLS, or schema changes
+- No rich-text editor changes
+- No layout redesign — same components, just bulletproof against long URLs and a much more visible download control
 
