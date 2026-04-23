@@ -46,9 +46,14 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       const transformedBody = transformLinks(homework.body || "");
 
       const container = document.createElement("div");
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
+      // Render on-screen but invisible so html2canvas can measure layout correctly.
+      // Off-screen (left: -9999px) makes html2canvas produce a blank canvas.
+      container.style.position = "fixed";
+      container.style.left = "0";
       container.style.top = "0";
+      container.style.zIndex = "-1";
+      container.style.opacity = "0";
+      container.style.pointerEvents = "none";
       container.style.width = "680px";
       container.style.padding = "0";
       container.style.background = "white";
@@ -112,6 +117,24 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       const fileName = `${homework.title.replace(/[^a-zA-Z0-9]/g, "_")}_homework.pdf`;
 
       try {
+        // Wait for all images (logo, embedded images) to load — html2canvas
+        // captures a blank frame if images aren't ready.
+        const imgs = Array.from(container.querySelectorAll("img"));
+        await Promise.all(
+          imgs.map(
+            (img) =>
+              new Promise<void>((resolve) => {
+                if (img.complete && img.naturalHeight > 0) return resolve();
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                // Safety timeout per image
+                setTimeout(() => resolve(), 1500);
+              })
+          )
+        );
+        // One more frame so layout settles
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+
         // Preferred path: jsPDF.html() preserves real selectable text + clickable links
         await pdf.html(container, {
           callback: (doc) => {
