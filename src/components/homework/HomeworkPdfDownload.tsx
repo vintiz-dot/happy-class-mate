@@ -3,6 +3,7 @@ import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 
 interface HomeworkPdfDownloadProps {
@@ -19,6 +20,16 @@ interface HomeworkPdfDownloadProps {
   teacherName?: string;
   variant?: "icon" | "button" | "pill" | "pill-compact";
 }
+
+// A4 @ 96dpi-ish working units in mm
+const PAGE_W_MM = 210;
+const PAGE_H_MM = 297;
+const MARGIN_MM = 15;
+const PRINTABLE_W_MM = PAGE_W_MM - MARGIN_MM * 2; // 180
+const PRINTABLE_H_MM = PAGE_H_MM - MARGIN_MM * 2; // 267
+const CONTAINER_W_PX = 720; // matches printable width visually; mm conversion = px * (180/720)
+const PX_TO_MM = PRINTABLE_W_MM / CONTAINER_W_PX;
+const BLOCK_GAP_MM = 2;
 
 export function HomeworkPdfDownload({ homework, className: classNameProp, teacherName, variant = "button" }: HomeworkPdfDownloadProps) {
   const [generating, setGenerating] = useState(false);
@@ -42,84 +53,99 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
         }
       }
 
-      // Transform homework body so links stay clickable AND show their full URL
       const transformedBody = transformLinks(homework.body || "");
 
+      // Build container
       const container = document.createElement("div");
-      // Render on-screen but invisible so html2canvas can measure layout correctly.
-      // Off-screen (left: -9999px) makes html2canvas produce a blank canvas.
       container.style.position = "fixed";
       container.style.left = "0";
       container.style.top = "0";
       container.style.zIndex = "-1";
       container.style.opacity = "0";
       container.style.pointerEvents = "none";
-      container.style.width = "680px";
+      container.style.width = `${CONTAINER_W_PX}px`;
       container.style.padding = "0";
       container.style.background = "white";
       container.style.color = "#1a1a1a";
       container.style.fontFamily = "Helvetica, Arial, sans-serif";
       container.style.boxSizing = "border-box";
-      container.style.fontSize = "12px";
+      container.style.fontSize = "13px";
       container.style.lineHeight = "1.6";
 
+      const dueDateStr = homework.due_date
+        ? new Date(homework.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : "No due date";
+      const postedStr = homework.created_at
+        ? new Date(homework.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : "—";
+
       container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 16px;">
-          <img src="/images/hec_logo.png" crossorigin="anonymous" style="width: 80px; height: auto; margin: 0 auto 8px; display: block;" />
-          <h1 style="font-size: 18px; font-weight: bold; color: #d4a017; margin: 0;">Happy English Club</h1>
-          <p style="font-size: 10px; color: #666; margin: 4px 0 0;">Learning, an endless journey to perfection</p>
+        <div data-pdf-block style="text-align: center; padding-bottom: 8px;">
+          <img src="/images/hec_logo.png" crossorigin="anonymous" style="width: 80px; height: auto; margin: 0 auto 8px; display: block;" onerror="this.style.display='none'" />
+          <h1 style="font-size: 20px; font-weight: bold; color: #d4a017; margin: 0;">Happy English Club</h1>
+          <p style="font-size: 11px; color: #666; margin: 4px 0 0;">Learning, an endless journey to perfection</p>
+          <hr style="border: none; border-top: 2px solid #d4a017; margin: 10px 0 0;" />
         </div>
-        <hr style="border: none; border-top: 2px solid #d4a017; margin: 10px 0 16px;" />
-        <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px; color: #111; word-wrap: break-word;">${escapeHtml(homework.title)}</h2>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; table-layout: fixed;">
-          <tr>
-            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold; width: 100px;">Class</td>
-            <td style="padding: 5px 8px; border: 1px solid #ddd; word-wrap: break-word;">${escapeHtml(resolvedClass || "—")}</td>
-          </tr>
-          <tr>
-            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Teacher</td>
-            <td style="padding: 5px 8px; border: 1px solid #ddd; word-wrap: break-word;">${escapeHtml(resolvedTeacher || "—")}</td>
-          </tr>
-          <tr>
-            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Due Date</td>
-            <td style="padding: 5px 8px; border: 1px solid #ddd;">${homework.due_date ? new Date(homework.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "No due date"}</td>
-          </tr>
-          <tr>
-            <td style="padding: 5px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Posted</td>
-            <td style="padding: 5px 8px; border: 1px solid #ddd;">${homework.created_at ? new Date(homework.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}</td>
-          </tr>
-        </table>
+        <div data-pdf-block style="padding-top: 10px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 12px; color: #111; word-wrap: break-word; overflow-wrap: anywhere;">${escapeHtml(homework.title)}</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed;">
+            <tr>
+              <td style="padding: 6px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold; width: 110px;">Class</td>
+              <td style="padding: 6px 8px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: anywhere;">${escapeHtml(resolvedClass || "—")}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Teacher</td>
+              <td style="padding: 6px 8px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: anywhere;">${escapeHtml(resolvedTeacher || "—")}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Due Date</td>
+              <td style="padding: 6px 8px; border: 1px solid #ddd;">${dueDateStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px; background: #f5f5f5; border: 1px solid #ddd; font-weight: bold;">Posted</td>
+              <td style="padding: 6px 8px; border: 1px solid #ddd;">${postedStr}</td>
+            </tr>
+          </table>
+        </div>
         ${transformedBody ? `
-          <div style="margin-top: 12px;">
-            <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 8px; color: #333;">Instructions</h3>
-            <div class="hw-body" style="font-size: 12px; line-height: 1.7; color: #333; word-wrap: break-word; overflow-wrap: anywhere;">
-              ${transformedBody}
-            </div>
+          <div data-pdf-block style="padding-top: 14px;">
+            <h3 style="font-size: 14px; font-weight: bold; margin: 0 0 8px; color: #333;">Instructions</h3>
+          </div>
+          <div id="pdf-body-root" class="hw-body" style="font-size: 13px; line-height: 1.7; color: #333;">
+            ${transformedBody}
           </div>
         ` : ""}
-        <div style="margin-top: 24px; padding-top: 10px; border-top: 1px solid #ddd; text-align: center; font-size: 9px; color: #999;">
+        <div data-pdf-block data-pdf-footer style="margin-top: 18px; padding-top: 10px; border-top: 1px solid #ddd; text-align: center; font-size: 10px; color: #999;">
           Happy English Club &bull; Generated on ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
         </div>
         <style>
-          .hw-body * { max-width: 100% !important; overflow-wrap: anywhere !important; word-break: break-word !important; }
+          .hw-body { word-wrap: break-word; overflow-wrap: anywhere; }
+          .hw-body * { max-width: 100% !important; overflow-wrap: anywhere !important; word-break: break-word !important; box-sizing: border-box; }
           .hw-body a { color: #2563eb !important; text-decoration: underline !important; font-weight: 600 !important; }
-          .hw-body img { max-width: 100% !important; height: auto !important; }
-          .hw-body p { margin: 0 0 8px !important; }
-          .hw-body ul, .hw-body ol { padding-left: 20px !important; margin: 0 0 8px !important; }
-          .hw-body table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-          .hw-body td, .hw-body th { padding: 4px 8px !important; border: 1px solid #ddd !important; word-wrap: break-word !important; font-size: 11px !important; }
+          .hw-body img { max-width: 100% !important; height: auto !important; display: block; margin: 8px 0; }
+          .hw-body p { margin: 0 0 10px !important; }
+          .hw-body h1, .hw-body h2, .hw-body h3, .hw-body h4 { margin: 12px 0 8px !important; line-height: 1.3 !important; }
+          .hw-body ul, .hw-body ol { padding-left: 22px !important; margin: 0 0 10px !important; }
+          .hw-body li { margin-bottom: 4px !important; }
+          .hw-body blockquote { border-left: 3px solid #d4a017; padding-left: 10px; margin: 8px 0; color: #555; }
+          .hw-body pre, .hw-body code { white-space: pre-wrap !important; background: #f5f5f5; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+          .hw-body table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; margin: 8px 0 !important; }
+          .hw-body td, .hw-body th { padding: 6px 8px !important; border: 1px solid #ddd !important; word-wrap: break-word !important; font-size: 12px !important; vertical-align: top; }
         </style>
       `;
 
       document.body.appendChild(container);
 
-      const pdf = new jsPDF("p", "mm", "a4");
       const fileName = `${homework.title.replace(/[^a-zA-Z0-9]/g, "_")}_homework.pdf`;
+      const pdf = new jsPDF("p", "mm", "a4");
 
       try {
-        // Wait for all images (logo, embedded images) to load — html2canvas
-        // captures a blank frame if images aren't ready.
-        const imgs = Array.from(container.querySelectorAll("img"));
+        // Wait for fonts
+        if ((document as any).fonts?.ready) {
+          try { await (document as any).fonts.ready; } catch {}
+        }
+        // Wait for images
+        const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
         await Promise.all(
           imgs.map(
             (img) =>
@@ -127,30 +153,139 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
                 if (img.complete && img.naturalHeight > 0) return resolve();
                 img.onload = () => resolve();
                 img.onerror = () => resolve();
-                // Safety timeout per image
                 setTimeout(() => resolve(), 1500);
               })
           )
         );
-        // One more frame so layout settles
+        // Layout settle
         await new Promise((r) => requestAnimationFrame(() => r(null)));
+        await new Promise((r) => setTimeout(r, 50));
 
-        // Preferred path: jsPDF.html() preserves real selectable text + clickable links
-        await pdf.html(container, {
-          callback: (doc) => {
-            doc.save(fileName);
-          },
-          margin: [15, 15, 15, 15],
-          autoPaging: "text",
-          width: 180, // 210mm A4 - 2*15mm margin
-          windowWidth: 680, // matches container width above
-          html2canvas: {
-            scale: 180 / 680,
+        // Collect blocks: top-level [data-pdf-block] + body chunks
+        const blocks: HTMLElement[] = [];
+        container.querySelectorAll(":scope > [data-pdf-block]").forEach((el) => {
+          if (!el.hasAttribute("data-pdf-footer")) blocks.push(el as HTMLElement);
+        });
+
+        const bodyRoot = container.querySelector("#pdf-body-root") as HTMLElement | null;
+        if (bodyRoot) {
+          // Wrap each top-level child as its own block
+          const children = Array.from(bodyRoot.children) as HTMLElement[];
+          if (children.length === 0 && bodyRoot.textContent?.trim()) {
+            blocks.push(bodyRoot);
+          } else {
+            children.forEach((c) => blocks.push(c));
+          }
+        }
+
+        const footer = container.querySelector("[data-pdf-footer]") as HTMLElement | null;
+
+        // Pagination state
+        let cursorY = MARGIN_MM;
+
+        const ensureSpace = (heightMm: number) => {
+          if (cursorY + heightMm > PAGE_H_MM - MARGIN_MM) {
+            pdf.addPage();
+            cursorY = MARGIN_MM;
+          }
+        };
+
+        const renderElementToPdf = async (el: HTMLElement) => {
+          if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
+          try {
+            const canvas = await html2canvas(el, {
+              backgroundColor: "#ffffff",
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              windowWidth: CONTAINER_W_PX,
+            });
+            if (canvas.width === 0 || canvas.height === 0) return;
+
+            const imgWmm = PRINTABLE_W_MM;
+            const imgHmm = (canvas.height * imgWmm) / canvas.width;
+
+            // If single block taller than full page, slice the canvas
+            if (imgHmm > PRINTABLE_H_MM) {
+              const sliceHeightMm = PRINTABLE_H_MM;
+              const totalHmm = imgHmm;
+              let consumedMm = 0;
+              while (consumedMm < totalHmm) {
+                const remainingMm = totalHmm - consumedMm;
+                const thisSliceMm = Math.min(sliceHeightMm, remainingMm);
+                // pixels to slice
+                const sliceCanvas = document.createElement("canvas");
+                const pxPerMm = canvas.width / imgWmm;
+                const sliceHpx = Math.floor(thisSliceMm * pxPerMm);
+                const sliceYpx = Math.floor(consumedMm * pxPerMm);
+                sliceCanvas.width = canvas.width;
+                sliceCanvas.height = sliceHpx;
+                const ctx = sliceCanvas.getContext("2d");
+                if (!ctx) break;
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+                ctx.drawImage(canvas, 0, sliceYpx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
+                if (cursorY !== MARGIN_MM) {
+                  pdf.addPage();
+                  cursorY = MARGIN_MM;
+                }
+                pdf.addImage(sliceCanvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, cursorY, imgWmm, thisSliceMm);
+                cursorY += thisSliceMm;
+                consumedMm += thisSliceMm;
+                if (consumedMm < totalHmm) {
+                  pdf.addPage();
+                  cursorY = MARGIN_MM;
+                }
+              }
+              cursorY += BLOCK_GAP_MM;
+              return;
+            }
+
+            ensureSpace(imgHmm);
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, cursorY, imgWmm, imgHmm);
+
+            // Map links inside this element to PDF coordinates
+            const containerRect = el.getBoundingClientRect();
+            const anchors = Array.from(el.querySelectorAll("a")) as HTMLAnchorElement[];
+            anchors.forEach((a) => {
+              const href = a.getAttribute("href");
+              if (!href) return;
+              const r = a.getBoundingClientRect();
+              if (r.width === 0 || r.height === 0) return;
+              const xMm = MARGIN_MM + (r.left - containerRect.left) * PX_TO_MM;
+              const yMm = cursorY + (r.top - containerRect.top) * PX_TO_MM;
+              const wMm = r.width * PX_TO_MM;
+              const hMm = r.height * PX_TO_MM;
+              try {
+                pdf.link(xMm, yMm, wMm, hMm, { url: href });
+              } catch {}
+            });
+
+            cursorY += imgHmm + BLOCK_GAP_MM;
+          } catch (err) {
+            console.warn("Block render skipped:", err);
+          }
+        };
+
+        for (const block of blocks) {
+          await renderElementToPdf(block);
+        }
+
+        // Footer on last page
+        if (footer) {
+          const footerCanvas = await html2canvas(footer, {
+            backgroundColor: "#ffffff",
+            scale: 2,
             useCORS: true,
             logging: false,
-            backgroundColor: "#ffffff",
-          } as any,
-        });
+            windowWidth: CONTAINER_W_PX,
+          });
+          const fH = (footerCanvas.height * PRINTABLE_W_MM) / footerCanvas.width;
+          ensureSpace(fH);
+          pdf.addImage(footerCanvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, cursorY, PRINTABLE_W_MM, fH);
+        }
+
+        pdf.save(fileName);
         toast.success("PDF downloaded!");
       } finally {
         if (container.parentNode) document.body.removeChild(container);
@@ -172,7 +307,6 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
   }
 
   if (variant === "pill-compact") {
-    // Compact labeled pill — fits in card badge rows
     return (
       <Button
         onClick={generate}
@@ -187,7 +321,6 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
   }
 
   if (variant === "pill") {
-    // Prominent labeled pill — for detail views and grading lists
     return (
       <Button
         onClick={generate}
@@ -216,12 +349,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/**
- * Walks rendered HTML and:
- * - Ensures every <a> has http(s) href, target=_blank
- * - Appends "(full url)" after the link text when the visible text differs from the URL,
- *   so printed copies still expose the destination.
- */
 function transformLinks(html: string): string {
   if (!html) return "";
   const tmp = document.createElement("div");
@@ -233,7 +360,6 @@ function transformLinks(html: string): string {
     a.setAttribute("target", "_blank");
     a.setAttribute("rel", "noopener noreferrer");
     const visible = (a.textContent || "").trim();
-    // Only append URL when it adds info (text doesn't already contain it)
     if (visible && visible !== href && !visible.includes(href)) {
       const span = document.createElement("span");
       span.style.color = "#666";
