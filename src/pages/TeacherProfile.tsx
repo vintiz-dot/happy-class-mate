@@ -20,6 +20,7 @@ import { TeacherProfileAudit } from "@/components/admin/teacher/TeacherProfileAu
 import { TeacherEditDrawer } from "@/components/admin/TeacherEditDrawer";
 import { TeacherLinkDialog } from "@/components/admin/TeacherLinkDialog";
 import { TeacherProfileEdit } from "@/components/teacher/TeacherProfileEdit";
+import { PdfExportLogCard } from "@/components/teacher/PdfExportLogCard";
 
 const TeacherProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -150,7 +151,7 @@ const TeacherProfile = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="classes">Classes</TabsTrigger>
@@ -158,6 +159,7 @@ const TeacherProfile = () => {
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="files">Files & Notes</TabsTrigger>
             <TabsTrigger value="audit">Audit</TabsTrigger>
+            <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -186,6 +188,10 @@ const TeacherProfile = () => {
 
           <TabsContent value="audit">
             <TeacherProfileAudit teacherId={teacher.id} />
+          </TabsContent>
+
+          <TabsContent value="diagnostics">
+            <PdfExportLogCard />
           </TabsContent>
         </Tabs>
 
