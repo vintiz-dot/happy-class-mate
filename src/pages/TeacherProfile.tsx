@@ -189,6 +189,10 @@ const TeacherProfile = () => {
           <TabsContent value="audit">
             <TeacherProfileAudit teacherId={teacher.id} />
           </TabsContent>
+
+          <TabsContent value="diagnostics">
+            <PdfExportLogCard />
+          </TabsContent>
         </Tabs>
 
         {showEditDrawer && (
