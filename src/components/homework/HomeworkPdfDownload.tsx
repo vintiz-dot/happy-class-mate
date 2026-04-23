@@ -242,24 +242,31 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
             }
 
             ensureSpace(imgHmm);
-            pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, cursorY, imgWmm, imgHmm);
+            const blockTopY = cursorY;
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, blockTopY, imgWmm, imgHmm);
 
-            // Map links inside this element to PDF coordinates
-            const containerRect = el.getBoundingClientRect();
-            const anchors = Array.from(el.querySelectorAll("a")) as HTMLAnchorElement[];
-            anchors.forEach((a) => {
-              const href = a.getAttribute("href");
-              if (!href) return;
-              const r = a.getBoundingClientRect();
-              if (r.width === 0 || r.height === 0) return;
-              const xMm = MARGIN_MM + (r.left - containerRect.left) * PX_TO_MM;
-              const yMm = cursorY + (r.top - containerRect.top) * PX_TO_MM;
-              const wMm = r.width * PX_TO_MM;
-              const hMm = r.height * PX_TO_MM;
-              try {
-                pdf.link(xMm, yMm, wMm, hMm, { url: href });
-              } catch {}
-            });
+            // Map links inside this element to PDF coordinates (best-effort, never throws)
+            try {
+              const elRect = el.getBoundingClientRect();
+              const anchors = Array.from(el.querySelectorAll("a")) as HTMLAnchorElement[];
+              anchors.forEach((a) => {
+                try {
+                  const href = a.getAttribute("href");
+                  if (!href) return;
+                  const r = a.getBoundingClientRect();
+                  if (!r || r.width === 0 || r.height === 0) return;
+                  const relTop = r.top - elRect.top;
+                  const relLeft = r.left - elRect.left;
+                  if (relTop < 0 || relLeft < 0) return;
+                  const xMm = MARGIN_MM + relLeft * PX_TO_MM;
+                  const yMm = blockTopY + relTop * PX_TO_MM;
+                  const wMm = Math.min(r.width * PX_TO_MM, imgWmm);
+                  const hMm = r.height * PX_TO_MM;
+                  if (yMm + hMm > PAGE_H_MM - MARGIN_MM) return;
+                  pdf.link(xMm, yMm, wMm, hMm, { url: href });
+                } catch {}
+              });
+            } catch {}
 
             cursorY += imgHmm + BLOCK_GAP_MM;
           } catch (err) {
