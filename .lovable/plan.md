@@ -1,75 +1,145 @@
 
+## Plan: Fix blank homework PDFs and add true long-content pagination
 
-## Plan: Fix homework overflow + make download button obvious
+### 1. Replace the current `pdf.html()` path with deterministic page rendering
+**File:** `src/components/homework/HomeworkPdfDownload.tsx`
 
-Surgical fixes — no rebuild needed. The root cause is link/URL overflow plus an under-emphasized download control. Both are fixable in 4 files with no behavior changes.
+The blank-page issue is most likely coming from the current `jsPDF.html(container, ...)` flow. It is fragile with hidden/off-screen DOM, images, and long rich-text content.
 
----
+Implementation:
+- Stop using `pdf.html(...)` as the primary export path.
+- Import and use `html2canvas` directly.
+- Keep `jsPDF` only for page assembly and download.
+- Render the homework into a hidden but measurable DOM root attached to `document.body`:
+  - `position: fixed`
+  - `top: 0`
+  - `left: 0`
+  - `z-index: -1`
+  - `opacity: 0`
+  - fixed content width matching A4 printable width
 
-### 1. Kill horizontal overflow everywhere rich content renders
-
-**`src/index.css` — global rule for links inside rich content:**
-
-Add to the existing `.prose a, .rich-content a` block:
-```css
-overflow-wrap: anywhere;
-word-break: break-word;
-display: inline;       /* ensure wrap respects flow */
-max-width: 100%;
-```
-And add a sibling rule to harden the rich-content container itself so any element inside (long URLs in `<p>`, `<li>`, `<code>`) wraps:
-```css
-.rich-content, .prose { overflow-wrap: anywhere; word-break: break-word; }
-.rich-content *, .prose * { max-width: 100%; }
-.rich-content pre, .prose pre { white-space: pre-wrap; }
-```
-
-This single change fixes overflow in **every** place rich HTML is rendered (homework detail, card preview, exam reports, announcements) — not just the homework page.
+This removes the unstable renderer and gives full control over pagination.
 
 ---
 
-### 2. Lock the assignment card to the viewport width
+### 2. Restructure the PDF DOM into logical sections and blocks
+Inside the temporary PDF container, split content into explicit printable pieces instead of one giant blob.
 
-**`src/pages/StudentAssignments.tsx` — `AssignmentCard`:**
+Structure:
+- Header block: logo + school title
+- Metadata block: class / teacher / due date / posted
+- Title block
+- Instructions title block
+- Instruction content blocks derived from the homework body
+- Footer block
 
-- Add `min-w-0` and `overflow-hidden` to the outer `Card` so flex children can never push it wider than the screen.
-- Add `min-w-0 break-words` to the title's flex-1 wrapper (the URL was inside a flex parent without `min-w-0` — the classic flexbox overflow trap).
-- Wrap the body preview in a `min-w-0 overflow-hidden` div and replace `line-clamp-2` with the same wrap rules used in the dialog (`[overflow-wrap:anywhere] break-words`) so long URLs wrap to 2 lines instead of overflowing.
-- Apply `min-w-0` to the page-level grid wrappers (`grid gap-3` containers) and the `Layout` content area is already constrained, so this stops cascading overflow.
+For the instructions body:
+- Parse the rendered HTML into block-level chunks:
+  - headings
+  - paragraphs
+  - lists / list items
+  - blockquotes
+  - tables
+  - code/pre blocks
+  - images
+- Wrap each chunk with `data-pdf-block` so it can be measured and paginated individually.
 
----
-
-### 3. Make the download button unmistakable
-
-Two changes:
-
-**On the assignment list cards (`AssignmentCard`):**
-- Replace the tiny `variant="icon"` PDF button with a clearly labeled pill: blue/violet background, `Download` icon + "PDF" label, ~36px tall. Sits on its own row below the badges so it never gets shoved off-screen by long titles.
-- On mobile (`<sm:`) it goes full-width-ish with text "Download PDF"; on desktop it stays as a compact pill with "PDF".
-
-**Inside the detail dialog (`HomeworkDetailDialog`):**
-- Promote the icon-only download in the meta row to a proper button: outline style, `Download` icon + "Download as PDF" label, placed in its own full-width row directly under the title metadata. Sticky on mobile? No — keep it inline so it scrolls naturally, but make sure it's above the fold.
-
-**Teacher/admin homework views (`HomeworkGradingList`, `AssignmentUpload` lists):**
-- Same treatment: convert the tiny icon to a labeled button "PDF" with the download icon, ~40px tall touch target.
-
----
-
-### 4. One last safety net
-
-**`src/index.css`:**
-Add a utility class `.no-x-overflow` that applies `overflow-x: hidden; max-width: 100vw;` and apply it to the homework page root container and the dialog/sheet content roots. This guarantees that even if a future edge case slips through, the user can never need to pinch-zoom horizontally.
+This avoids arbitrary slicing and prevents content from being cut mid-block.
 
 ---
 
-### Files touched
-- `src/index.css` — link wrap rules + container safety net
-- `src/pages/StudentAssignments.tsx` — card overflow fix + prominent PDF button
-- `src/components/student/HomeworkDetailDialog.tsx` — labeled download button
-- `src/components/teacher/HomeworkGradingList.tsx` + `src/components/teacher/AssignmentUpload.tsx` — labeled PDF buttons
+### 3. Add true pagination for long homework content
+Use manual A4 pagination in `HomeworkPdfDownload.tsx`:
+
+- Define A4 page constants:
+  - page width / height
+  - margins
+  - printable width / height
+- Iterate block by block.
+- For each block:
+  - capture it with `html2canvas`
+  - convert canvas size to PDF mm
+  - if the next block does not fit in remaining page space, start a new page
+  - place the block image with `pdf.addImage(...)`
+
+Special handling:
+- If a block is taller than a full printable page:
+  - do not let it overflow or get cut off
+  - split that block further before rendering:
+    - paragraph groups into smaller chunks
+    - list items into smaller chunks
+    - table rows into multiple table fragments
+    - large images scaled to fit printable height
+- Keep a small vertical gap between blocks for readability.
+
+Result: long homework exports across multiple pages cleanly, with nothing clipped at the bottom.
+
+---
+
+### 4. Preserve visible links and restore clickable PDF links
+The earlier requirement for links should still hold.
+
+Implementation:
+- Keep the existing “show full URL in parentheses” behavior.
+- While rendering each chunk, collect all anchor elements inside that chunk.
+- After placing the chunk image in the PDF, translate each anchor’s DOM rect into PDF coordinates and add a `pdf.link(...)` overlay.
+
+That way the PDF keeps:
+- obvious visible links
+- printed full URLs
+- clickable hotspots in the exported PDF
+
+---
+
+### 5. Harden the export against blank pages
+Add explicit readiness checks before any capture:
+
+- Wait for all images in the PDF container to load or fail safely
+- Wait for `document.fonts.ready`
+- Wait at least one layout frame after insertion
+- Verify the container and each block have non-zero width/height before capture
+- If the logo fails, continue without blocking the export
+- If a block captures as empty, skip and log the failure instead of producing a blank whole document
+
+Also sanitize and normalize the homework HTML before rendering so unsupported markup does not destabilize the export.
+
+---
+
+### 6. Keep the current branded look while making it page-safe
+Maintain the existing Happy English Club styling, but tune it for multi-page output:
+
+- stable widths
+- wrapped links everywhere
+- tables forced to printable width
+- images constrained to page width
+- `pre` / code blocks allowed to wrap instead of overflowing
+- predictable margins and section spacing
+
+This keeps the current design but makes it reliable for long homework bodies.
+
+---
+
+### Files to update
+- `src/components/homework/HomeworkPdfDownload.tsx` — main rewrite for manual pagination, blank-page fix, and PDF link overlays
+
+Optional only if needed during implementation:
+- extract small internal helpers inside the same file or a tiny PDF utility file for:
+  - waiting for assets
+  - block measurement
+  - anchor-to-PDF coordinate mapping
+
+---
+
+### QA to run after implementation
+Verify with at least these cases:
+1. Short homework: 1-page PDF, not blank
+2. Long homework: 2+ pages, no clipped bottom content
+3. Extremely long URL: wraps and stays within page width
+4. Hyperlinked text: visible as blue underlined text, full URL shown, PDF link clickable
+5. Homework with lists / tables / images: no overflow, no blank pages, correct ordering
+6. Mobile-triggered download from student and teacher views: same output quality
 
 ### Out of scope
-- No data, RLS, or schema changes
-- No rich-text editor changes
-- No layout redesign — same components, just bulletproof against long URLs and a much more visible download control
-
+- No homework editor redesign
+- No app-wide mobile rebuild here
+- No database or backend changes
