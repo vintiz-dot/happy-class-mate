@@ -117,6 +117,24 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       const fileName = `${homework.title.replace(/[^a-zA-Z0-9]/g, "_")}_homework.pdf`;
 
       try {
+        // Wait for all images (logo, embedded images) to load — html2canvas
+        // captures a blank frame if images aren't ready.
+        const imgs = Array.from(container.querySelectorAll("img"));
+        await Promise.all(
+          imgs.map(
+            (img) =>
+              new Promise<void>((resolve) => {
+                if (img.complete && img.naturalHeight > 0) return resolve();
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                // Safety timeout per image
+                setTimeout(() => resolve(), 1500);
+              })
+          )
+        );
+        // One more frame so layout settles
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+
         // Preferred path: jsPDF.html() preserves real selectable text + clickable links
         await pdf.html(container, {
           callback: (doc) => {
