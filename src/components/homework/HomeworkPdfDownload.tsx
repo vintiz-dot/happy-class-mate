@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
+import { logPdfEvent, newExportId } from "@/lib/pdfExportLog";
 
 interface HomeworkPdfDownloadProps {
   homework: {
@@ -36,6 +37,17 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
 
   const generate = async () => {
     setGenerating(true);
+    const exportId = newExportId();
+    const log = (level: "info" | "warn" | "error", step: string, data?: any) =>
+      logPdfEvent({
+        level,
+        step,
+        exportId,
+        homeworkId: homework.id,
+        homeworkTitle: homework.title,
+        data,
+      });
+    log("info", "export.start", { variant, hasBody: !!homework.body, bodyLen: (homework.body || "").length });
     try {
       // Resolve teacher / class name if missing
       let resolvedTeacher = teacherName || "";
@@ -249,24 +261,42 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
             try {
               const elRect = el.getBoundingClientRect();
               const anchors = Array.from(el.querySelectorAll("a")) as HTMLAnchorElement[];
-              anchors.forEach((a) => {
+              if (anchors.length > 0) log("info", "links.found", { count: anchors.length });
+              anchors.forEach((a, idx) => {
+                const href = a.getAttribute("href") || "";
                 try {
-                  const href = a.getAttribute("href");
-                  if (!href) return;
+                  if (!href) {
+                    log("warn", "links.skip.no-href", { idx });
+                    return;
+                  }
                   const r = a.getBoundingClientRect();
-                  if (!r || r.width === 0 || r.height === 0) return;
+                  if (!r || r.width === 0 || r.height === 0) {
+                    log("warn", "links.skip.zero-rect", { idx, href });
+                    return;
+                  }
                   const relTop = r.top - elRect.top;
                   const relLeft = r.left - elRect.left;
-                  if (relTop < 0 || relLeft < 0) return;
+                  if (relTop < 0 || relLeft < 0) {
+                    log("warn", "links.skip.negative-offset", { idx, href, relTop, relLeft });
+                    return;
+                  }
                   const xMm = MARGIN_MM + relLeft * PX_TO_MM;
                   const yMm = blockTopY + relTop * PX_TO_MM;
                   const wMm = Math.min(r.width * PX_TO_MM, imgWmm);
                   const hMm = r.height * PX_TO_MM;
-                  if (yMm + hMm > PAGE_H_MM - MARGIN_MM) return;
+                  if (yMm + hMm > PAGE_H_MM - MARGIN_MM) {
+                    log("warn", "links.skip.out-of-page", { idx, href, yMm, hMm });
+                    return;
+                  }
                   pdf.link(xMm, yMm, wMm, hMm, { url: href });
-                } catch {}
+                  log("info", "links.mapped", { idx, href, xMm, yMm, wMm, hMm });
+                } catch (linkErr: any) {
+                  log("error", "links.map-error", { idx, href, message: linkErr?.message, stack: linkErr?.stack });
+                }
               });
-            } catch {}
+            } catch (outerLinkErr: any) {
+              log("error", "links.outer-error", { message: outerLinkErr?.message });
+            }
 
             cursorY += imgHmm + BLOCK_GAP_MM;
           } catch (err) {
@@ -292,14 +322,21 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
           pdf.addImage(footerCanvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN_MM, cursorY, PRINTABLE_W_MM, fH);
         }
 
-        pdf.save(fileName);
-        toast.success("PDF downloaded!");
+        try {
+          pdf.save(fileName);
+          log("info", "export.saved", { fileName });
+          toast.success("PDF downloaded!");
+        } catch (saveErr: any) {
+          log("error", "export.save-error", { message: saveErr?.message, stack: saveErr?.stack });
+          throw saveErr;
+        }
       } finally {
         if (container.parentNode) document.body.removeChild(container);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("PDF generation error:", err);
-      toast.error("Failed to generate PDF");
+      log("error", "export.fatal", { message: err?.message, stack: err?.stack });
+      toast.error("Failed to generate PDF — check Teacher Profile → PDF Diagnostics for details");
     } finally {
       setGenerating(false);
     }
