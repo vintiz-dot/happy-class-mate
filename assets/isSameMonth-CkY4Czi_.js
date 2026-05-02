@@ -1,0 +1,1 @@
+import{a as r}from"./format-BTG5JUbL.js";import{t as n}from"./Layout-rkSGezls.js";function i(e,o){const t=r(e),a=r(o);return+t==+a}function c(e,o){const t=n(e),a=n(o);return t.getFullYear()===a.getFullYear()&&t.getMonth()===a.getMonth()}export{c as a,i};

@@ -1,0 +1,1 @@
+import{t as n}from"./index-QuVT_i4R.js";const r="Asia/Bangkok";function o(t){if(t.status==="Canceled"||t.status==="Holiday")return t.status;const a=new Date(`${t.date}T${t.start_time}`),e=n(new Date,r);return a>e?"Scheduled":t.status}export{o as g};
