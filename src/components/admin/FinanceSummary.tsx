@@ -2,12 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, UserX, CheckCircle } from "lucide-react";
 import { useFinanceSummary } from "@/hooks/useFinanceSummary";
+import { useEarliestFinanceMonth } from "@/hooks/useEarliestFinanceMonth";
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
 
-const EARLIEST_FINANCE_MONTH = "2025-10";
-
 export function FinanceSummary() {
+  const { data: earliestMonth } = useEarliestFinanceMonth();
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
