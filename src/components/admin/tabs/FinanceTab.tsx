@@ -9,6 +9,7 @@ import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
+import { useEarliestFinanceMonth } from "@/hooks/useEarliestFinanceMonth";
 import { Button } from "@/components/ui/button";
 import { Wallet, Users } from "lucide-react";
 import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
@@ -18,6 +19,8 @@ const FinanceTab = () => {
   const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
   const [batchPaymentOpen, setBatchPaymentOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
+  const { data: earliestMonth } = useEarliestFinanceMonth();
+
 
   return (
     <>
@@ -53,7 +56,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="overview" className="space-y-4">
-        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth="2025-10" maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth={earliestMonth} maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
         <AdminTuitionListEnhanced month={currentMonth} />
       </TabsContent>
 
@@ -70,7 +73,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="expenditures" className="space-y-4">
-        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth="2025-10" maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth={earliestMonth} maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
         <ExpendituresManager selectedMonth={currentMonth} />
       </TabsContent>
 
