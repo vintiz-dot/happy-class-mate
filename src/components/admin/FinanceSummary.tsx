@@ -1,8 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, UserX, CheckCircle } from "lucide-react";
 import { useFinanceSummary } from "@/hooks/useFinanceSummary";
+import { MonthPicker } from "@/components/MonthPicker";
+import { dayjs } from "@/lib/date";
+
+const EARLIEST_FINANCE_MONTH = "2025-10";
 
 export function FinanceSummary() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -19,34 +22,16 @@ export function FinanceSummary() {
     }).format(amount);
   };
 
-  const getMonthOptions = () => {
-    const options = [];
-    const now = new Date();
-    for (let i = -6; i <= 2; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const label = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-      options.push({ value, label });
-    }
-    return options;
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Finance Summary</h2>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {getMonthOptions().map(({ value, label }) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MonthPicker
+          value={selectedMonth}
+          onChange={setSelectedMonth}
+          minMonth={EARLIEST_FINANCE_MONTH}
+          maxMonth={dayjs().add(2, "month").format("YYYY-MM")}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
