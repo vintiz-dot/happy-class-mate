@@ -56,7 +56,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="overview" className="space-y-4">
-        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth="2025-10" maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth={earliestMonth} maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
         <AdminTuitionListEnhanced month={currentMonth} />
       </TabsContent>
 
@@ -73,7 +73,7 @@ const FinanceTab = () => {
       </TabsContent>
 
       <TabsContent value="expenditures" className="space-y-4">
-        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth="2025-10" maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
+        <MonthPicker value={currentMonth} onChange={setCurrentMonth} minMonth={earliestMonth} maxMonth={dayjs().add(2, "month").format("YYYY-MM")} />
         <ExpendituresManager selectedMonth={currentMonth} />
       </TabsContent>
 
