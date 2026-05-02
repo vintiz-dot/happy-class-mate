@@ -9,6 +9,7 @@ import { ExpendituresManager } from "@/components/admin/ExpendituresManager";
 import { RecordedPaymentManager } from "@/components/admin/RecordedPaymentManager";
 import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
+import { useEarliestFinanceMonth } from "@/hooks/useEarliestFinanceMonth";
 import { Button } from "@/components/ui/button";
 import { Wallet, Users } from "lucide-react";
 import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
