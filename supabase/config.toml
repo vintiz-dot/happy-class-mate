@@ -1,4 +1,4 @@
-project_id = "aswgmbefikhsnhogtryv"
+project_id = "yxdcngazogqmrffllbkl"
 
 [functions.generate-sessions]
 verify_jwt = true
