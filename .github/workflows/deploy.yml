@@ -37,7 +37,7 @@ jobs:
         run: npm run build
 
       - name: Add CNAME file
-        run: echo "english.synergylifelineconsulting.com" > dist/CNAME
+        run: echo "user.hanoienglish.vip" > dist/CNAME
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
