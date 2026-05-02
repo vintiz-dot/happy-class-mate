@@ -19,6 +19,8 @@ const FinanceTab = () => {
   const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
   const [batchPaymentOpen, setBatchPaymentOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
+  const { data: earliestMonth } = useEarliestFinanceMonth();
+
 
   return (
     <>
