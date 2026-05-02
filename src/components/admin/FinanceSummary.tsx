@@ -29,7 +29,7 @@ export function FinanceSummary() {
         <MonthPicker
           value={selectedMonth}
           onChange={setSelectedMonth}
-          minMonth={EARLIEST_FINANCE_MONTH}
+          minMonth={earliestMonth}
           maxMonth={dayjs().add(2, "month").format("YYYY-MM")}
         />
       </div>
