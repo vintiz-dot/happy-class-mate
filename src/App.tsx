@@ -69,9 +69,9 @@ function AppContent() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <ProfilePicker />
         <BrowserRouter>
           <AuthProvider>
+            <ProfilePicker />
             <AnnouncementRenderer />
             <StartupGuard>
               <Suspense fallback={<AppLoader />}>
