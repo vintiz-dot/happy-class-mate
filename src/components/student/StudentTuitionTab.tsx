@@ -24,23 +24,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
   const [studentName, setStudentName] = useState("");
 
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  
-  // Check if user is admin
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (!session?.user) return;
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-      setIsAdmin(data?.role === "admin");
-    };
-    checkAdmin();
-  }, [session]);
+  const { role } = useAuth();
 
   // Load student name
   useEffect(() => {
@@ -189,7 +173,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && ((tuitionData?.carryOutDebt ?? 0) > 0 || (tuitionData?.carryOutCredit ?? 0) > 0) && (
+          {role === "admin" && ((tuitionData?.carryOutDebt ?? 0) > 0 || (tuitionData?.carryOutCredit ?? 0) > 0) && (
             <Button
               onClick={() => setSettleBillOpen(true)}
               variant="outline"
@@ -490,7 +474,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
       )}
 
       {/* Settle Bill Modal */}
-      {isAdmin && (
+      {role === "admin" && (
         <SettleBillModal
           studentId={settleBillOpen ? studentId : null}
           studentName={studentName}
