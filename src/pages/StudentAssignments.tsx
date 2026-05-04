@@ -171,27 +171,20 @@ export default function StudentAssignments() {
     if (studentId) recordHomeworkVisit();
   }, [studentId]);
 
-  const { data: enrollments } = useQuery({
-    queryKey: ["student-enrollments", studentId],
+  const { data: assignments = [], isLoading } = useQuery({
+    queryKey: ["student-assignments", studentId],
     queryFn: async () => {
       if (!studentId) return [];
-      const { data } = await supabase
+
+      const { data: enrollmentData } = await supabase
         .from("enrollments")
         .select("class_id")
         .eq("student_id", studentId)
         .is("end_date", null);
-      return data || [];
-    },
-    enabled: !!studentId,
-    staleTime: 10 * 60 * 1000,
-  });
 
-  const classIds = enrollments?.map(e => e.class_id) || [];
+      const classIds = enrollmentData?.map(e => e.class_id) || [];
+      if (classIds.length === 0) return [];
 
-  const { data: assignments = [], isLoading } = useQuery({
-    queryKey: ["student-assignments", studentId, classIds.join(",")],
-    queryFn: async () => {
-      if (!studentId || classIds.length === 0) return [];
       const [homeworksResult, submissionsResult] = await Promise.all([
         supabase
           .from("homeworks")
@@ -209,7 +202,7 @@ export default function StudentAssignments() {
       const submissionMap = new Map(submissions.map(s => [s.homework_id, s]));
       return homeworks.map(hw => ({ ...hw, submission: submissionMap.get(hw.id) || null }));
     },
-    enabled: !!studentId && classIds.length > 0,
+    enabled: !!studentId,
     staleTime: 2 * 60 * 1000,
   });
 

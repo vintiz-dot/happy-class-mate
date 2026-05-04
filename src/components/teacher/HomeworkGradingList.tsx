@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,13 +27,11 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
   const [feedback, setFeedback] = useState("");
   const [points, setPoints] = useState("");
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: submissions = [], isLoading } = useQuery({
-    queryKey: ["all-homework-submissions"],
+    queryKey: ["all-homework-submissions", user?.id],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       // Try teacher first
@@ -85,6 +84,7 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
 
       return data || [];
     },
+    enabled: !!user,
   });
 
   const gradeMutation = useMutation({
@@ -168,8 +168,6 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
         .maybeSingle();
 
       if (!reward) throw new Error("No early bonus to reverse");
-
-      const { data: { user } } = await supabase.auth.getUser();
 
       // Mark as reversed
       await supabase

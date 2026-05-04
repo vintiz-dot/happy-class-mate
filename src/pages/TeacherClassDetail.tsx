@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { monthKey, dayjs } from "@/lib/date";
 import CalendarMonth from "@/components/calendar/CalendarMonth";
 import Layout from "@/components/Layout";
@@ -19,6 +20,7 @@ export default function TeacherClassDetail() {
   const { id } = useParams<{ id: string }>();
   const [month, setMonth] = useState(monthKey());
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Real-time subscription for enrollment changes
   useEffect(() => {
@@ -44,10 +46,10 @@ export default function TeacherClassDetail() {
   }, [id, queryClient]);
 
   const { data: classData, isLoading: classLoading } = useQuery({
-    queryKey: ["teacher-class", id],
+    queryKey: ["teacher-class", id, user?.id],
+    enabled: !!user,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) return null;
 
       // Try teacher first
       const { data: teacher } = await supabase

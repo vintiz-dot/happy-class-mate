@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { dayjs } from "@/lib/date";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
@@ -40,13 +41,14 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
   const currentMonth = dayjs().format("YYYY-MM");
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const { user } = useAuth();
 
   // Single auth + teacher lookup, shared by all queries
   const { data: teacherProfile } = useQuery({
-    queryKey: ["teacher-dashboard-profile"],
+    queryKey: ["teacher-dashboard-profile", user?.id],
+    enabled: !!user,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) return null;
 
       // Try teacher first
       const { data: teacher } = await supabase
