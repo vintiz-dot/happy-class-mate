@@ -17,6 +17,8 @@ import { GradeCelebration } from "@/components/student/GradeCelebration";
 import { getHomeworkStatus, statusConfig, getCountdown, type HomeworkStatus } from "@/lib/homeworkStatus";
 import { motion } from "framer-motion";
 import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
+import { PageHero } from "@/components/quest/PageHero";
+import { EmptyState } from "@/components/quest/EmptyState";
 
 const statusIcons: Record<HomeworkStatus, React.ReactNode> = {
   overdue: <AlertTriangle className="h-4 w-4 text-red-500" />,
@@ -224,15 +226,12 @@ export default function StudentAssignments() {
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
       <div className="space-y-4 sm:space-y-6 no-x-overflow min-w-0">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="px-1"
-        >
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight">📚 Assignments</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Track your homework, earn XP, level up!</p>
-        </motion.div>
+        <PageHero
+          eyebrow="Quest log"
+          title="Assignments"
+          subtitle="Track your homework, earn XP, level up."
+          variant="aurora"
+        />
 
         {/* Homework Streak Tracker */}
         {assignments.length > 0 && studentId && (
@@ -240,15 +239,11 @@ export default function StudentAssignments() {
         )}
 
         {assignments.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No assignments yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Your teachers haven&apos;t posted any assignments</p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <EmptyState
+            icon={FileText}
+            title="No assignments yet"
+            description="Your teachers haven't posted any assignments. Check back soon — new quests appear here."
+          />
         ) : (
           <Tabs defaultValue="list" className="w-full">
             <TabsList className="w-full grid grid-cols-3 h-auto rounded-xl bg-muted/60 p-1">

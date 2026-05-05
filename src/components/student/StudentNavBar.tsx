@@ -89,8 +89,8 @@ export function StudentNavBar() {
         </AnimatePresence>
 
         {/* Bottom tab bar */}
-        <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-card/95 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden pb-[env(safe-area-inset-bottom)]">
-          <div className="flex items-center justify-around py-1.5 px-1">
+        <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-background/85 backdrop-blur-xl border-t border-border/50 shadow-[0_-8px_32px_-8px_rgba(120,80,200,0.18)] md:hidden pb-[env(safe-area-inset-bottom)]">
+          <div className="relative flex items-center justify-around py-1.5 px-1">
             {primaryItems.map((item) => {
               const active = isActive(item.path, item.id);
               const Icon = item.icon;
@@ -99,20 +99,30 @@ export function StudentNavBar() {
                   key={item.id}
                   onClick={() => navigate(item.path)}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[60px]",
-                    active
-                      ? "text-primary"
-                      : "text-muted-foreground"
+                    "relative flex flex-col items-center gap-0.5 px-3 pt-2 pb-1.5 rounded-2xl transition-all min-w-[64px] tap-44"
                   )}
                 >
-                  <Icon className={cn("h-5 w-5", active && "text-primary")} />
-                  <span className="text-[10px] font-medium">{item.label}</span>
                   {active && (
                     <motion.div
-                      className="absolute -bottom-0.5 w-6 h-0.5 rounded-full bg-primary"
                       layoutId="bottomTabIndicator"
+                      className="absolute inset-x-3 inset-y-0.5 rounded-2xl bg-aurora opacity-15"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
+                  <Icon
+                    className={cn(
+                      "relative h-5 w-5 transition-colors",
+                      active ? "text-violet-600 dark:text-violet-300" : "text-muted-foreground"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "relative text-[10px] font-semibold transition-colors",
+                      active ? "text-violet-700 dark:text-violet-200" : "text-muted-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </button>
               );
             })}
@@ -120,14 +130,14 @@ export function StudentNavBar() {
             <button
               onClick={() => setMoreOpen(!moreOpen)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[60px]",
-                isMoreActive || moreOpen
-                  ? "text-primary"
+                "relative flex flex-col items-center gap-0.5 px-3 pt-2 pb-1.5 rounded-2xl transition-all min-w-[64px] tap-44",
+                (isMoreActive || moreOpen)
+                  ? "text-violet-600 dark:text-violet-300"
                   : "text-muted-foreground"
               )}
             >
               <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] font-medium">More</span>
+              <span className="text-[10px] font-semibold">More</span>
             </button>
           </div>
         </nav>
