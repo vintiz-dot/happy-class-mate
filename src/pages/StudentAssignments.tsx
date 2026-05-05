@@ -35,7 +35,7 @@ function SubmissionPipeline({ status }: { status: HomeworkStatus }) {
       {steps.map((step, i) => (
         <div key={step} className="flex items-center gap-1">
           <motion.div
-            className={`h-1.5 w-6 rounded-full transition-colors ${i <= activeIdx ? "bg-emerald-500" : "bg-muted"}`}
+            className={`h-1.5 w-7 sm:w-6 rounded-full transition-colors ${i <= activeIdx ? "bg-emerald-500" : "bg-muted"}`}
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ delay: i * 0.15, duration: 0.3 }}
@@ -43,7 +43,7 @@ function SubmissionPipeline({ status }: { status: HomeworkStatus }) {
           {i < steps.length - 1 && <div className="h-px w-1 bg-muted" />}
         </div>
       ))}
-      <span className="text-[10px] ml-1 text-muted-foreground">{steps[activeIdx]}</span>
+      <span className="text-[11px] sm:text-xs ml-1 text-muted-foreground font-medium">{steps[activeIdx]}</span>
     </div>
   );
 }
@@ -114,11 +114,11 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-              <Badge className={`text-[10px] sm:text-xs ${config.badgeClass}`}>
+              <Badge className={`text-[11px] sm:text-xs px-2 py-0.5 ${config.badgeClass}`}>
                 {config.icon} {config.label}
               </Badge>
               {countdown && (
-                <Badge className={`text-[10px] sm:text-xs ${config.badgeClass} inline-flex items-center gap-1`}>
+                <Badge className={`text-[11px] sm:text-xs px-2 py-0.5 ${config.badgeClass} inline-flex items-center gap-1`}>
                   {isOverdue && (
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60 animate-ping" style={{ animationDuration: "2.8s" }} />
@@ -129,7 +129,7 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                 </Badge>
               )}
               {assignment.due_date && (
-                <Badge variant="outline" className="text-[10px] sm:text-xs">
+                <Badge variant="outline" className="text-[11px] sm:text-xs px-2 py-0.5">
                   Due {new Date(assignment.due_date).toLocaleDateString()}
                 </Badge>
               )}
@@ -251,10 +251,10 @@ export default function StudentAssignments() {
           </motion.div>
         ) : (
           <Tabs defaultValue="list" className="w-full">
-            <TabsList className="w-full grid grid-cols-3 h-auto">
-              <TabsTrigger value="list" className="text-xs sm:text-sm py-3">📋 List</TabsTrigger>
-              <TabsTrigger value="calendar" className="text-xs sm:text-sm py-3">📅 Calendar</TabsTrigger>
-              <TabsTrigger value="upcoming" className="text-xs sm:text-sm py-3">🔜 Upcoming</TabsTrigger>
+            <TabsList className="w-full grid grid-cols-3 h-auto rounded-xl bg-muted/60 p-1">
+              <TabsTrigger value="list" className="text-sm py-2.5 min-h-[44px] rounded-lg font-semibold">📋 List</TabsTrigger>
+              <TabsTrigger value="calendar" className="text-sm py-2.5 min-h-[44px] rounded-lg font-semibold">📅 Calendar</TabsTrigger>
+              <TabsTrigger value="upcoming" className="text-sm py-2.5 min-h-[44px] rounded-lg font-semibold">🔜 Soon</TabsTrigger>
             </TabsList>
 
             <TabsContent value="list" className="space-y-6 mt-4">

@@ -51,6 +51,7 @@ function AssessmentStudentCardImpl({
 
   const card = (
     <div
+      data-student-card={studentId}
       className={cn(
         "relative flex flex-col items-center p-4 rounded-2xl transition-all touch-manipulation select-none",
         "bg-card border border-border/50",

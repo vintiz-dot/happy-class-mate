@@ -538,16 +538,32 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                             <img src={getRandomAvatarUrl(entry.student_id)} alt="avatar" className="w-full h-full object-cover rounded-full" />
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                          <span className="font-semibold text-leaderboard-text text-xs md:text-sm leading-tight line-clamp-2">{entry.students?.full_name}</span>
-                          {isCurrentStudent && (
-                            <Flag className="h-3 w-3 text-yellow-300 fill-yellow-300 flex-shrink-0" />
-                          )}
-                          {isEconomyMode && studentPending.length > 0 && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
-                              <Clock className="h-2.5 w-2.5 mr-0.5" />{studentPending.length}
-                            </Badge>
-                          )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-semibold text-leaderboard-text text-xs md:text-sm leading-tight line-clamp-2">{entry.students?.full_name}</span>
+                            {isCurrentStudent && (
+                              <Flag className="h-3 w-3 text-yellow-300 fill-yellow-300 flex-shrink-0" />
+                            )}
+                            {isEconomyMode && studentPending.length > 0 && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
+                                <Clock className="h-2.5 w-2.5 mr-0.5" />{studentPending.length}
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Mobile-only breakdown — replaces the desktop "BREAKDOWN" column */}
+                          <div className="md:hidden flex items-center gap-2 mt-0.5 text-[10px] text-leaderboard-text/70">
+                            <span className="inline-flex items-center gap-0.5" title="Homework">
+                              <BookOpen className="h-2.5 w-2.5" /> {entry.homework_points || 0}
+                            </span>
+                            <span className="inline-flex items-center gap-0.5" title="Participation">
+                              <Zap className="h-2.5 w-2.5" /> {entry.participation_points || 0}
+                            </span>
+                            {isEconomyMode && (
+                              <span className="inline-flex items-center gap-0.5 text-green-300" title="Cash">
+                                💵 {studentCash}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="hidden md:flex items-center justify-center gap-1 text-[10px] text-leaderboard-text/70">
@@ -568,7 +584,6 @@ export function ClassLeaderboardShared({ classId, currentStudentId, canManagePoi
                             <span className="text-xs font-bold text-green-400">{studentCash}</span>
                           </div>
                           <div className="flex items-center justify-end gap-1">
-                            <span className="text-xs font-bold text-green-400 md:hidden">{studentCash}</span>
                             {canManagePoints && studentCash > 0 && (
                               <LogSpendButton
                                 studentId={entry.student_id}

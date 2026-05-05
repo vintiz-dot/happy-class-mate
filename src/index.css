@@ -2,11 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Premium system font stack — matches platform-native rendering on every OS,
+   no FOUT, no extra HTTP request. */
+:root {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
+    "Segoe UI", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-display: var(--font-sans);
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+html, body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+}
+
 /* Long-list scroll perf — let the browser skip offscreen rendering */
 @layer utilities {
   .long-list-item {
     content-visibility: auto;
     contain-intrinsic-size: auto 120px;
+  }
+
+  /* Premium focus ring — visible without being harsh. */
+  .focus-premium:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+
+  /* Subtle lifted-card shadow used across premium surfaces. */
+  .shadow-premium {
+    box-shadow:
+      0 1px 2px 0 rgba(15, 10, 30, 0.04),
+      0 8px 24px -8px rgba(120, 80, 200, 0.18);
+  }
+  .shadow-premium-lg {
+    box-shadow:
+      0 2px 4px 0 rgba(15, 10, 30, 0.05),
+      0 24px 48px -12px rgba(120, 80, 200, 0.22);
+  }
+
+  /* Safe-area padding for fixed bars on devices with notches. */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 

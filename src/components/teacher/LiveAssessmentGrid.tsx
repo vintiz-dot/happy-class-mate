@@ -1,15 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { dayjs } from "@/lib/date";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { RadialSkillMenu } from "./RadialSkillMenu";
 import { PointFeedbackAnimation } from "./PointFeedbackAnimation";
 import { ReadingTheoryScoreEntry } from "@/components/shared/ReadingTheoryScoreEntry";
@@ -20,8 +15,8 @@ import { awardPoints, getTodaySession } from "@/lib/pointsHelper";
 import { SKILL_ICONS } from "@/lib/skillConfig";
 import { LucideIcon, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { AssessmentStudentCard } from "./AssessmentStudentCard";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface LiveAssessmentGridProps {
   classId: string;
@@ -316,55 +311,18 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
         ))}
       </div>
 
-      {/* Skill Selection Dialog - appears centered, away from cards */}
-      <Dialog open={!!activeStudent} onOpenChange={(open) => !open && setActiveStudent(null)}>
-        <DialogContent className="sm:max-w-md p-0 border-0 bg-transparent shadow-none overflow-visible">
-          <VisuallyHidden>
-            <DialogTitle>Award points to {activeStudent?.full_name}</DialogTitle>
-          </VisuallyHidden>
-          <div className="flex flex-col items-center gap-4">
-            {/* Student info header */}
-            {activeStudent && (
-              <div className="flex items-center gap-3 px-4 py-3 bg-card/95 backdrop-blur-sm rounded-xl border border-border/50 shadow-lg">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={activeStudent.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                    {activeStudent.full_name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-sm">{activeStudent.full_name}</p>
-                  <p className={cn(
-                    "text-xs",
-                    activeStudent.todayPoints > 0 ? "text-green-600" :
-                    activeStudent.todayPoints < 0 ? "text-red-600" :
-                    "text-muted-foreground"
-                  )}>
-                    {activeStudent.todayPoints > 0 ? "+" : ""}{activeStudent.todayPoints} today
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 ml-2"
-                  onClick={() => setActiveStudent(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            
-            {/* Radial skill menu */}
-            {activeStudent && (
-              <RadialSkillMenu
-                onSkillTap={(skill, points, subTag) => handleSkillTap(activeStudent.id, skill, points, subTag)}
-                onClose={() => setActiveStudent(null)}
-                onReadingTheoryClick={() => setReadingTheoryOpen(true)}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Smart-positioning skill panel — non-modal, never blocks student cards.
+          Auto-anchors to a safe edge of the viewport based on which half the
+          active student is in, so the panel never covers a clickable student. */}
+      <SmartSkillPanel
+        activeStudent={activeStudent}
+        onClose={() => setActiveStudent(null)}
+        onSkillTap={(skill, points, subTag) =>
+          activeStudent && handleSkillTap(activeStudent.id, skill, points, subTag)
+        }
+        onReadingTheoryClick={() => setReadingTheoryOpen(true)}
+        bulkActive={bulkMode && selectedStudents.size > 0}
+      />
 
       {/* Reading Theory Score Entry Dialog */}
       <ReadingTheoryScoreEntry
@@ -387,5 +345,146 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Non-modal floating panel for awarding skills to a single student.
+ * Positions itself in the half of the viewport opposite the active student card,
+ * so the panel never sits on top of any clickable student. Allows the teacher
+ * to tap another student card without dismissing first — activeStudent just
+ * switches and the panel re-positions itself.
+ */
+interface SmartSkillPanelProps {
+  activeStudent: StudentCard | null;
+  onClose: () => void;
+  onSkillTap: (skill: string, points: number, subTag?: string) => void;
+  onReadingTheoryClick: () => void;
+  bulkActive: boolean;
+}
+
+function SmartSkillPanel({
+  activeStudent,
+  onClose,
+  onSkillTap,
+  onReadingTheoryClick,
+  bulkActive,
+}: SmartSkillPanelProps) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [anchor, setAnchor] = useState<"bottom" | "top">("bottom");
+
+  // Decide top vs bottom anchor based on which half of the viewport
+  // the active student card is in. Also scroll the card into view if it
+  // would be obscured by the panel.
+  useEffect(() => {
+    if (!activeStudent) return;
+
+    const cardEl = document.querySelector<HTMLElement>(
+      `[data-student-card="${activeStudent.id}"]`
+    );
+    if (!cardEl) {
+      setAnchor("bottom");
+      return;
+    }
+
+    const rect = cardEl.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const cardCenterY = rect.top + rect.height / 2;
+
+    // If the card is in the bottom half, dock the panel at the top.
+    const newAnchor: "top" | "bottom" = cardCenterY > vh / 2 ? "top" : "bottom";
+    setAnchor(newAnchor);
+
+    // Reserve ~280px for the panel + safe gap; scroll if the card is hidden.
+    const PANEL_RESERVE = 300;
+    const safeTop = newAnchor === "top" ? PANEL_RESERVE : 16;
+    const safeBottom = newAnchor === "bottom" ? PANEL_RESERVE : 16;
+
+    const obscured =
+      rect.bottom > vh - safeBottom || rect.top < safeTop;
+    if (obscured) {
+      cardEl.scrollIntoView({
+        behavior: "smooth",
+        block: newAnchor === "bottom" ? "start" : "end",
+      });
+    }
+  }, [activeStudent?.id]);
+
+  // Close on Escape — keeps keyboard ergonomics of the previous Dialog.
+  useEffect(() => {
+    if (!activeStudent) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeStudent, onClose]);
+
+  return (
+    <AnimatePresence>
+      {activeStudent && (
+        <motion.div
+          ref={panelRef}
+          key="smart-skill-panel"
+          initial={{ opacity: 0, y: anchor === "bottom" ? 24 : -24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: anchor === "bottom" ? 24 : -24 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className={cn(
+            "fixed left-1/2 -translate-x-1/2 z-40 w-[min(560px,calc(100vw-1.5rem))]",
+            anchor === "bottom"
+              ? bulkActive
+                ? "bottom-24"
+                : "bottom-4"
+              : "top-4"
+          )}
+          // Stop clicks inside the panel from reaching cards behind, but
+          // intentionally do NOT block pointer events outside the panel.
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarImage src={activeStudent.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                  {activeStudent.full_name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{activeStudent.full_name}</p>
+                <p
+                  className={cn(
+                    "text-xs",
+                    activeStudent.todayPoints > 0
+                      ? "text-green-600"
+                      : activeStudent.todayPoints < 0
+                      ? "text-red-600"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {activeStudent.todayPoints > 0 ? "+" : ""}
+                  {activeStudent.todayPoints} today
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={onClose}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <RadialSkillMenu
+              onSkillTap={onSkillTap}
+              onClose={onClose}
+              onReadingTheoryClick={onReadingTheoryClick}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
