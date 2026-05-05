@@ -315,6 +315,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
           Auto-anchors to a safe edge of the viewport based on which half the
           active student is in, so the panel never covers a clickable student. */}
       <SmartSkillPanel
+        classId={classId}
         activeStudent={activeStudent}
         onClose={() => setActiveStudent(null)}
         onSkillTap={(skill, points, subTag) =>
@@ -356,6 +357,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
  * switches and the panel re-positions itself.
  */
 interface SmartSkillPanelProps {
+  classId: string;
   activeStudent: StudentCard | null;
   onClose: () => void;
   onSkillTap: (skill: string, points: number, subTag?: string) => void;
@@ -363,54 +365,132 @@ interface SmartSkillPanelProps {
   bulkActive: boolean;
 }
 
+const PANEL_W = 560;
+const PANEL_W_MOBILE_FRACTION = 0.94; // % of viewport width on small screens
+const PANEL_H_ESTIMATE = 280;
+const PANEL_MARGIN = 12;
+
+/**
+ * Picks the largest empty quadrant of the viewport relative to the active
+ * student card so the panel never sits on top of clickable content.
+ * On mobile we just bottom-dock; the grid is full-width anyway.
+ */
+function pickAutoPosition(
+  activeStudentId: string,
+  isMobile: boolean
+): { x: number; y: number } | null {
+  if (typeof window === "undefined") return null;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = isMobile ? Math.min(vw - PANEL_MARGIN * 2, PANEL_W) : PANEL_W;
+  const h = PANEL_H_ESTIMATE;
+
+  // Mobile: pin to bottom centre
+  if (isMobile) {
+    return {
+      x: Math.max(PANEL_MARGIN, (vw - w) / 2),
+      y: Math.max(PANEL_MARGIN, vh - h - PANEL_MARGIN - 12),
+    };
+  }
+
+  const cardEl = document.querySelector<HTMLElement>(
+    `[data-student-card="${activeStudentId}"]`
+  );
+  if (!cardEl) {
+    // Fallback: top-right corner
+    return { x: vw - w - PANEL_MARGIN, y: PANEL_MARGIN + 80 };
+  }
+
+  const r = cardEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+
+  // Score 4 candidate corners by how far they are from the active card
+  // and how much of the panel fits inside the viewport.
+  const candidates = [
+    { name: "tl", x: PANEL_MARGIN, y: PANEL_MARGIN + 80 },
+    { name: "tr", x: vw - w - PANEL_MARGIN, y: PANEL_MARGIN + 80 },
+    { name: "bl", x: PANEL_MARGIN, y: vh - h - PANEL_MARGIN },
+    { name: "br", x: vw - w - PANEL_MARGIN, y: vh - h - PANEL_MARGIN },
+  ];
+
+  let best = candidates[0];
+  let bestScore = -Infinity;
+  for (const c of candidates) {
+    const px = c.x + w / 2;
+    const py = c.y + h / 2;
+    const dist = Math.hypot(px - cx, py - cy);
+    if (dist > bestScore) {
+      bestScore = dist;
+      best = c;
+    }
+  }
+  return { x: best.x, y: best.y };
+}
+
 function SmartSkillPanel({
+  classId,
   activeStudent,
   onClose,
   onSkillTap,
   onReadingTheoryClick,
   bulkActive,
 }: SmartSkillPanelProps) {
+  const storageKey = `live-skill-panel-pos:${classId}`;
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [hasUserMoved, setHasUserMoved] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [anchor, setAnchor] = useState<"bottom" | "top">("bottom");
 
-  // Decide top vs bottom anchor based on which half of the viewport
-  // the active student card is in. Also scroll the card into view if it
-  // would be obscured by the panel.
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const panelWidth = isMobile
+    ? Math.min(window.innerWidth - PANEL_MARGIN * 2, PANEL_W)
+    : PANEL_W;
+
+  // On open, restore saved pos OR auto-pick a non-overlapping corner.
   useEffect(() => {
-    if (!activeStudent) return;
-
-    const cardEl = document.querySelector<HTMLElement>(
-      `[data-student-card="${activeStudent.id}"]`
-    );
-    if (!cardEl) {
-      setAnchor("bottom");
+    if (!activeStudent) {
+      setHasUserMoved(false);
       return;
     }
 
-    const rect = cardEl.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const cardCenterY = rect.top + rect.height / 2;
+    let restored: { x: number; y: number } | null = null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) restored = JSON.parse(raw);
+    } catch {}
 
-    // If the card is in the bottom half, dock the panel at the top.
-    const newAnchor: "top" | "bottom" = cardCenterY > vh / 2 ? "top" : "bottom";
-    setAnchor(newAnchor);
-
-    // Reserve ~280px for the panel + safe gap; scroll if the card is hidden.
-    const PANEL_RESERVE = 300;
-    const safeTop = newAnchor === "top" ? PANEL_RESERVE : 16;
-    const safeBottom = newAnchor === "bottom" ? PANEL_RESERVE : 16;
-
-    const obscured =
-      rect.bottom > vh - safeBottom || rect.top < safeTop;
-    if (obscured) {
-      cardEl.scrollIntoView({
-        behavior: "smooth",
-        block: newAnchor === "bottom" ? "start" : "end",
-      });
+    if (restored && Number.isFinite(restored.x) && Number.isFinite(restored.y)) {
+      // Clamp to current viewport in case window resized
+      const clamped = clampToViewport(restored, panelWidth, PANEL_H_ESTIMATE);
+      setPos(clamped);
+      setHasUserMoved(true);
+    } else {
+      const auto = pickAutoPosition(activeStudent.id, isMobile);
+      setPos(auto);
+      setHasUserMoved(false);
     }
   }, [activeStudent?.id]);
 
-  // Close on Escape — keeps keyboard ergonomics of the previous Dialog.
+  // If user hasn't moved the panel and they tap a different student,
+  // re-pick the best corner so we keep dodging student cards.
+  useEffect(() => {
+    if (!activeStudent || hasUserMoved) return;
+    const auto = pickAutoPosition(activeStudent.id, isMobile);
+    if (auto) setPos(auto);
+  }, [activeStudent?.id, hasUserMoved, isMobile]);
+
+  // Reposition on viewport resize
+  useEffect(() => {
+    if (!activeStudent) return;
+    const onResize = () => {
+      setPos((p) => (p ? clampToViewport(p, panelWidth, PANEL_H_ESTIMATE) : p));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeStudent, panelWidth]);
+
+  // Close on Escape
   useEffect(() => {
     if (!activeStudent) return;
     const onKey = (e: KeyboardEvent) => {
@@ -420,36 +500,127 @@ function SmartSkillPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [activeStudent, onClose]);
 
+  const startDrag = (clientX: number, clientY: number) => {
+    if (!pos) return;
+    dragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      origX: pos.x,
+      origY: pos.y,
+    };
+
+    const handleMove = (mx: number, my: number) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const next = clampToViewport(
+        { x: d.origX + (mx - d.startX), y: d.origY + (my - d.startY) },
+        panelWidth,
+        PANEL_H_ESTIMATE
+      );
+      setPos(next);
+    };
+
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) handleMove(t.clientX, t.clientY);
+    };
+    const onEnd = () => {
+      if (dragRef.current) {
+        // Persist final position so it sticks across opens.
+        try {
+          // Read current pos via state callback to avoid stale closure
+          setPos((p) => {
+            if (p) {
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(p));
+              } catch {}
+            }
+            return p;
+          });
+        } catch {}
+        setHasUserMoved(true);
+      }
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchend", onEnd);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchend", onEnd);
+  };
+
+  const resetPosition = () => {
+    try { localStorage.removeItem(storageKey); } catch {}
+    setHasUserMoved(false);
+    if (activeStudent) {
+      const auto = pickAutoPosition(activeStudent.id, isMobile);
+      if (auto) setPos(auto);
+    }
+  };
+
   return (
     <AnimatePresence>
-      {activeStudent && (
+      {activeStudent && pos && (
         <motion.div
           ref={panelRef}
           key="smart-skill-panel"
-          initial={{ opacity: 0, y: anchor === "bottom" ? 24 : -24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: anchor === "bottom" ? 24 : -24 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className={cn(
-            "fixed left-1/2 -translate-x-1/2 z-40 w-[min(560px,calc(100vw-1.5rem))]",
-            anchor === "bottom"
-              ? bulkActive
-                ? "bottom-24"
-                : "bottom-4"
-              : "top-4"
-          )}
-          // Stop clicks inside the panel from reaching cards behind, but
-          // intentionally do NOT block pointer events outside the panel.
+          style={{
+            position: "fixed",
+            left: pos.x,
+            top: pos.y,
+            width: panelWidth,
+            zIndex: 40,
+            // Lift above bulk action bar without re-layouting
+            ...(bulkActive && isMobile ? { top: pos.y - 60 } : null),
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 shrink-0">
+          <div className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl overflow-hidden">
+            {/* Drag handle bar — drag from anywhere in the header */}
+            <div
+              className="flex items-center gap-3 px-3 sm:px-4 py-2.5 border-b border-border/40 cursor-grab active:cursor-grabbing select-none touch-none"
+              onMouseDown={(e) => {
+                if ((e.target as HTMLElement).closest("button")) return;
+                startDrag(e.clientX, e.clientY);
+              }}
+              onTouchStart={(e) => {
+                if ((e.target as HTMLElement).closest("button")) return;
+                const t = e.touches[0];
+                if (t) startDrag(t.clientX, t.clientY);
+              }}
+              role="toolbar"
+              aria-label="Drag to move"
+            >
+              {/* Visible grip indicator */}
+              <div className="flex flex-col gap-0.5 shrink-0 opacity-50">
+                <div className="flex gap-0.5">
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                </div>
+                <div className="flex gap-0.5">
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                  <span className="h-1 w-1 rounded-full bg-foreground" />
+                </div>
+              </div>
+
+              <Avatar className="h-9 w-9 shrink-0">
                 <AvatarImage src={activeStudent.avatar_url || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
                   {activeStudent.full_name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
+
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate">{activeStudent.full_name}</p>
                 <p
@@ -466,6 +637,19 @@ function SmartSkillPanel({
                   {activeStudent.todayPoints} today
                 </p>
               </div>
+
+              {hasUserMoved && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-[11px] text-muted-foreground"
+                  onClick={resetPosition}
+                  title="Reset to auto-position"
+                >
+                  Auto
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -477,14 +661,31 @@ function SmartSkillPanel({
               </Button>
             </div>
 
-            <RadialSkillMenu
-              onSkillTap={onSkillTap}
-              onClose={onClose}
-              onReadingTheoryClick={onReadingTheoryClick}
-            />
+            {/* Body — non-draggable so taps land on the skill buttons */}
+            <div className="p-3 sm:p-4">
+              <RadialSkillMenu
+                onSkillTap={onSkillTap}
+                onClose={onClose}
+                onReadingTheoryClick={onReadingTheoryClick}
+              />
+            </div>
           </div>
         </motion.div>
       )}
     </AnimatePresence>
   );
+}
+
+function clampToViewport(
+  pos: { x: number; y: number },
+  width: number,
+  height: number
+) {
+  if (typeof window === "undefined") return pos;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return {
+    x: Math.max(PANEL_MARGIN, Math.min(pos.x, vw - width - PANEL_MARGIN)),
+    y: Math.max(PANEL_MARGIN, Math.min(pos.y, vh - height - PANEL_MARGIN)),
+  };
 }

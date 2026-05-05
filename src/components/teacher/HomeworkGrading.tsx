@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, Undo } from "lucide-react";
 import { dayjs } from "@/lib/date";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { useAuth } from "@/hooks/useAuth";
 
 const GRADE_PRESETS = [
   { label: "⭐ Superstar", value: "Superstar", minPoints: 90, maxPoints: 100 },
@@ -33,6 +34,7 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
   const [feedback, setFeedback] = useState("");
   const [points, setPoints] = useState("");
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: homework } = useQuery({
     queryKey: ["homework-detail", homeworkId],
@@ -191,11 +193,9 @@ export function HomeworkGrading({ homeworkId, onClose }: HomeworkGradingProps) {
 
       if (!reward) throw new Error("No early bonus to reverse");
 
-      const { data: { user } } = await supabase.auth.getUser();
-
       await supabase
         .from("early_submission_rewards")
-        .update({ 
+        .update({
           reversed_at: new Date().toISOString(),
           reversed_by: user?.id
         })
