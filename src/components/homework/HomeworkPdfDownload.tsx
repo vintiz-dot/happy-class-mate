@@ -72,22 +72,24 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
 
       const transformedBody = transformLinks(homework.body || "");
 
-      // Build a single offscreen container with all content.
+      // Build an offscreen container with all content.
+      // IMPORTANT: do NOT use opacity:0 or display:none — html2canvas inherits
+      // computed opacity and renders a blank canvas. We park the node far
+      // off-screen instead so it's invisible but fully painted.
       container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "0";
+      container.setAttribute("aria-hidden", "true");
+      container.style.position = "absolute";
+      container.style.left = "-10000px";
       container.style.top = "0";
-      container.style.zIndex = "-1";
-      container.style.opacity = "0";
-      container.style.pointerEvents = "none";
       container.style.width = `${CONTAINER_W_PX}px`;
       container.style.padding = "0";
-      container.style.background = "white";
+      container.style.background = "#ffffff";
       container.style.color = "#1a1a1a";
       container.style.fontFamily = "Helvetica, Arial, sans-serif";
       container.style.boxSizing = "border-box";
       container.style.fontSize = "13px";
       container.style.lineHeight = "1.6";
+      container.style.pointerEvents = "none";
 
       const dueDateStr = homework.due_date
         ? new Date(homework.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
@@ -181,22 +183,33 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       await new Promise((r) => requestAnimationFrame(() => r(null)));
 
       const t1 = performance.now();
-      log("info", "render.start", { containerHeight: container.offsetHeight });
+      const measuredW = container.offsetWidth;
+      const measuredH = container.offsetHeight;
+      log("info", "render.start", { measuredW, measuredH });
 
-      // ONE html2canvas call for the whole document (was N before, ~3-5x faster).
+      if (measuredH === 0) {
+        throw new Error(`Container has zero height (w=${measuredW}). Layout did not paint.`);
+      }
+
+      // ONE html2canvas call for the whole document.
       const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
         scale: RENDER_SCALE,
         useCORS: true,
+        allowTaint: false,
         logging: false,
+        foreignObjectRendering: false,
+        width: CONTAINER_W_PX,
+        height: measuredH,
         windowWidth: CONTAINER_W_PX,
+        windowHeight: measuredH,
       });
 
       const t2 = performance.now();
       log("info", "render.done", { canvasW: canvas.width, canvasH: canvas.height, ms: Math.round(t2 - t1) });
 
       if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error("Empty canvas");
+        throw new Error(`Empty canvas (w=${canvas.width}, h=${canvas.height})`);
       }
 
       // Slice the single canvas into A4-page-sized strips.
