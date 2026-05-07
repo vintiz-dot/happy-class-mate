@@ -303,7 +303,7 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
             
             {/* Prior Balance Breakdown */}
             {tuitionData.priorBalanceBreakdown && (
-              <PriorBalanceBreakdown breakdown={tuitionData.priorBalanceBreakdown} />
+              <PriorBalanceBreakdown breakdown={tuitionData.priorBalanceBreakdown} studentId={studentId} />
             )}
           </CardContent>
         </Card>

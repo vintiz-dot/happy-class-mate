@@ -12,14 +12,17 @@ import { MonthPicker } from "@/components/MonthPicker";
 import { dayjs } from "@/lib/date";
 import { useEarliestFinanceMonth } from "@/hooks/useEarliestFinanceMonth";
 import { Button } from "@/components/ui/button";
-import { Wallet, Users } from "lucide-react";
+import { Wallet, Users, Lock } from "lucide-react";
 import { SmartFamilyPaymentModal } from "@/components/admin/SmartFamilyPaymentModal";
 import { BatchFamilyPaymentModal } from "@/components/admin/BatchFamilyPaymentModal";
 import { QuickPayPanel } from "@/components/admin/QuickPayPanel";
+import { CloseMonthDialog } from "@/components/admin/CloseMonthDialog";
+import { PageHero } from "@/components/quest/PageHero";
 
 const FinanceTab = () => {
   const [smartPaymentOpen, setSmartPaymentOpen] = useState(false);
   const [batchPaymentOpen, setBatchPaymentOpen] = useState(false);
+  const [closeMonthOpen, setCloseMonthOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
   const { data: earliestMonth } = useEarliestFinanceMonth();
 
@@ -28,7 +31,16 @@ const FinanceTab = () => {
     <>
       <SmartFamilyPaymentModal open={smartPaymentOpen} onClose={() => setSmartPaymentOpen(false)} />
       <BatchFamilyPaymentModal open={batchPaymentOpen} onClose={() => setBatchPaymentOpen(false)} />
-      
+      <CloseMonthDialog open={closeMonthOpen} month={currentMonth} onClose={() => setCloseMonthOpen(false)} />
+
+      <PageHero
+        eyebrow="Finance"
+        title="Tuition & Money"
+        subtitle="Live billing, payments, payroll, and audit-grade closes."
+        variant="mint"
+        className="mb-6"
+      />
+
       <Tabs defaultValue="summary" className="space-y-4">
         <div className="space-y-3">
           {/* Tabs — horizontally scrollable on mobile, wrap on tablet+, no overflow */}
@@ -55,6 +67,11 @@ const FinanceTab = () => {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Batch Payment</span>
               <span className="sm:hidden">Batch</span>
+            </Button>
+            <Button onClick={() => setCloseMonthOpen(true)} variant="outline" className="gap-2">
+              <Lock className="h-4 w-4" />
+              <span className="hidden sm:inline">Close Month</span>
+              <span className="sm:hidden">Close</span>
             </Button>
           </div>
         </div>

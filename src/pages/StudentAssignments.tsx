@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
 import { PageHero } from "@/components/quest/PageHero";
 import { EmptyState } from "@/components/quest/EmptyState";
+import { PagedListControls, usePagedList } from "@/components/shared/PagedListControls";
 
 const statusIcons: Record<HomeworkStatus, React.ReactNode> = {
   overdue: <AlertTriangle className="h-4 w-4 text-red-500" />,
@@ -222,6 +223,12 @@ export default function StudentAssignments() {
   const upcomingAssignments = assignments.filter((a: any) => !a.due_date || new Date(a.due_date) >= now);
   const pastAssignments = assignments.filter((a: any) => a.due_date && new Date(a.due_date) < now);
 
+  // Paginate each list independently. Upcoming is usually short; past
+  // grows over the year. Both honour the 20-per-page rule.
+  const upcomingPaged = usePagedList(upcomingAssignments);
+  const pastPaged = usePagedList(pastAssignments);
+  const upcomingSoonPaged = usePagedList(upcomingAssignments);
+
   return (
     <Layout title="Assignments">
       {studentId && <GradeCelebration studentId={studentId} />}
@@ -257,19 +264,26 @@ export default function StudentAssignments() {
                 <div className="space-y-3">
                   <h2 className="text-lg font-semibold flex items-center gap-2">🎯 Current & Upcoming</h2>
                   <div className="grid gap-3">
-                    {upcomingAssignments.map((a: any, i: number) => (
+                    {upcomingPaged.slice.map((a: any, i: number) => (
                       <div key={a.id} className="long-list-item">
                         <AssignmentCard assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
                       </div>
                     ))}
                   </div>
+                  <PagedListControls
+                    page={upcomingPaged.page}
+                    totalPages={upcomingPaged.totalPages}
+                    total={upcomingPaged.total}
+                    rangeLabel={upcomingPaged.rangeLabel}
+                    onPageChange={upcomingPaged.setPage}
+                  />
                 </div>
               )}
               {pastAssignments.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-lg font-semibold flex items-center gap-2">📁 Past Assignments</h2>
                   <div className="grid gap-3">
-                    {pastAssignments.map((a: any, i: number) => {
+                    {pastPaged.slice.map((a: any, i: number) => {
                       const st = getHomeworkStatus(a);
                       const isOverdueNotSubmitted = st === "overdue";
                       return (
@@ -279,6 +293,13 @@ export default function StudentAssignments() {
                       );
                     })}
                   </div>
+                  <PagedListControls
+                    page={pastPaged.page}
+                    totalPages={pastPaged.totalPages}
+                    total={pastPaged.total}
+                    rangeLabel={pastPaged.rangeLabel}
+                    onPageChange={pastPaged.setPage}
+                  />
                 </div>
               )}
             </TabsContent>
@@ -293,15 +314,24 @@ export default function StudentAssignments() {
               />
             </TabsContent>
 
-            <TabsContent value="upcoming" className="mt-4">
+            <TabsContent value="upcoming" className="mt-4 space-y-4">
               {upcomingAssignments.length === 0 ? (
                 <Card><CardContent className="py-12 text-center"><FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">No upcoming assignments</p></CardContent></Card>
               ) : (
-                <div className="grid gap-3">
-                  {upcomingAssignments.map((a: any, i: number) => (
-                    <AssignmentCard key={a.id} assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid gap-3">
+                    {upcomingSoonPaged.slice.map((a: any, i: number) => (
+                      <AssignmentCard key={a.id} assignment={a} index={i} onClick={() => setSelectedHomework(a)} />
+                    ))}
+                  </div>
+                  <PagedListControls
+                    page={upcomingSoonPaged.page}
+                    totalPages={upcomingSoonPaged.totalPages}
+                    total={upcomingSoonPaged.total}
+                    rangeLabel={upcomingSoonPaged.rangeLabel}
+                    onPageChange={upcomingSoonPaged.setPage}
+                  />
+                </>
               )}
             </TabsContent>
           </Tabs>

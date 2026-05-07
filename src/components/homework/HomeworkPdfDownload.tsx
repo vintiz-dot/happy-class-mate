@@ -29,10 +29,29 @@ const MARGIN_MM = 15;
 const PRINTABLE_W_MM = PAGE_W_MM - MARGIN_MM * 2; // 180
 const PRINTABLE_H_MM = PAGE_H_MM - MARGIN_MM * 2; // 267
 const CONTAINER_W_PX = 720;
-// Lower scale = ~3-4x faster html2canvas, still readable on screen and print.
-const RENDER_SCALE = 1.5;
-// JPEG quality balance: 0.82 ~= half the bytes of 0.92 with no visible diff in text PDFs.
-const JPEG_QUALITY = 0.82;
+// iOS Safari/WebKit caps canvas total area at ~16.7M px and is sensitive to peak memory.
+// Keep peak well under that to leave headroom for slice canvases.
+const MAX_CANVAS_PIXELS_MOBILE = 8_000_000;
+const MAX_CANVAS_PIXELS_DESKTOP = 24_000_000;
+
+function isMobileWebKit(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+  const isAndroid = /Android/i.test(ua);
+  return isIOS || isAndroid;
+}
+
+function pickRenderScale(measuredHpx: number, isMobile: boolean): number {
+  // Start from a conservative scale, then clamp so the rendered canvas
+  // stays under the platform pixel budget.
+  const base = isMobile ? 1.0 : 1.5;
+  const budget = isMobile ? MAX_CANVAS_PIXELS_MOBILE : MAX_CANVAS_PIXELS_DESKTOP;
+  const projected = CONTAINER_W_PX * measuredHpx * base * base;
+  if (projected <= budget) return base;
+  // sqrt scale-down to stay under budget
+  return Math.max(0.6, base * Math.sqrt(budget / projected));
+}
 
 export function HomeworkPdfDownload({ homework, className: classNameProp, teacherName, variant = "button" }: HomeworkPdfDownloadProps) {
   const [generating, setGenerating] = useState(false);
@@ -185,7 +204,9 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       const t1 = performance.now();
       const measuredW = container.offsetWidth;
       const measuredH = container.offsetHeight;
-      log("info", "render.start", { measuredW, measuredH });
+      const mobile = isMobileWebKit();
+      const renderScale = pickRenderScale(measuredH, mobile);
+      log("info", "render.start", { measuredW, measuredH, mobile, renderScale });
 
       if (measuredH === 0) {
         throw new Error(`Container has zero height (w=${measuredW}). Layout did not paint.`);
@@ -194,7 +215,7 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       // ONE html2canvas call for the whole document.
       const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
-        scale: RENDER_SCALE,
+        scale: renderScale,
         useCORS: true,
         allowTaint: false,
         logging: false,
@@ -213,16 +234,21 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
       }
 
       // Slice the single canvas into A4-page-sized strips.
+      // jsPDF v4 accepts an HTMLCanvasElement directly to addImage — this
+      // avoids allocating a giant base64 dataURL in memory (the main mobile
+      // OOM culprit). We yield to the event loop between slices so iOS
+      // Safari can reclaim memory and not freeze the UI.
       const pxPerMm = canvas.width / PRINTABLE_W_MM;
       const pageHeightPx = Math.floor(PRINTABLE_H_MM * pxPerMm);
       const totalHeightPx = canvas.height;
 
       let offsetPx = 0;
       let pageIndex = 0;
+      let sliceCanvas: HTMLCanvasElement | null = null;
       while (offsetPx < totalHeightPx) {
         const sliceHpx = Math.min(pageHeightPx, totalHeightPx - offsetPx);
 
-        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas = document.createElement("canvas");
         sliceCanvas.width = canvas.width;
         sliceCanvas.height = sliceHpx;
         const ctx = sliceCanvas.getContext("2d");
@@ -234,27 +260,54 @@ export function HomeworkPdfDownload({ homework, className: classNameProp, teache
         const sliceHmm = sliceHpx / pxPerMm;
 
         if (pageIndex > 0) pdf.addPage();
-        pdf.addImage(
-          sliceCanvas.toDataURL("image/jpeg", JPEG_QUALITY),
-          "JPEG",
-          MARGIN_MM,
-          MARGIN_MM,
-          PRINTABLE_W_MM,
-          sliceHmm
-        );
+        // Pass the canvas element directly. jsPDF will encode internally and
+        // we can drop our reference immediately on next iteration.
+        pdf.addImage(sliceCanvas, "JPEG", MARGIN_MM, MARGIN_MM, PRINTABLE_W_MM, sliceHmm, undefined, "FAST");
+
+        // Free pixel memory before the next iteration.
+        sliceCanvas.width = 0;
+        sliceCanvas.height = 0;
+        sliceCanvas = null;
 
         offsetPx += sliceHpx;
         pageIndex += 1;
+
+        // Yield so WebKit can GC between slices on long docs.
+        if (mobile && pageIndex % 2 === 0) {
+          await new Promise((r) => setTimeout(r, 0));
+        }
       }
 
-      try {
-        pdf.save(fileName);
-        const total = Math.round(performance.now() - t0);
-        log("info", "export.saved", { fileName, totalMs: total, pages: pageIndex });
+      // Build a Blob and route the save in a way that works on iOS Safari,
+      // where pdf.save() can silently fail if the user gesture has been
+      // consumed by upstream awaits (Supabase fetch, html2canvas, etc.).
+      const blob: Blob = pdf.output("blob");
+      const blobUrl = URL.createObjectURL(blob);
+      const total = Math.round(performance.now() - t0);
+      log("info", "export.saved", { fileName, totalMs: total, pages: pageIndex, sizeBytes: blob.size, mobile });
+
+      if (mobile) {
+        // iOS Safari is unreliable with synthetic <a download> after long
+        // async chains. Open the PDF in a new tab so the user can use the
+        // system "Save to Files" / share sheet — no gesture loss.
+        const opened = window.open(blobUrl, "_blank");
+        if (!opened) {
+          // Popup blocked — fall back to in-tab navigation, which Safari
+          // also handles via the PDF viewer + share sheet.
+          window.location.href = blobUrl;
+        }
+        toast.success(`PDF ready (${pageIndex} ${pageIndex === 1 ? "page" : "pages"}) — tap the share icon to save`);
+        // Revoke after a delay so the new tab has time to load.
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);
         toast.success(`PDF downloaded (${pageIndex} ${pageIndex === 1 ? "page" : "pages"})`);
-      } catch (saveErr: any) {
-        log("error", "export.save-error", { message: saveErr?.message });
-        throw saveErr;
       }
     } catch (err: any) {
       console.error("PDF generation error:", err);

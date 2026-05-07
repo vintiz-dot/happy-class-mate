@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StudentNavBar } from "@/components/student/StudentNavBar";
+import { AdminTopBar } from "@/components/AdminTopBar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -327,15 +328,17 @@ const Layout = ({ children, title }: LayoutProps) => {
           )}
         </header>
 
-        {/* Desktop Header */}
-        <header className="hidden md:flex sticky top-0 z-40 border-b bg-card/95 backdrop-blur shadow-sm px-6 py-4 items-center justify-between">
-          <h1 className="text-xl font-bold">{title || "Dashboard"}</h1>
-            <div className="flex items-center gap-3">
+        {/* Desktop Header — breadcrumbs + ⌘K palette + user controls */}
+        <AdminTopBar
+          title={title}
+          rightSlot={
+            <>
               <ProfileSwitcher />
               <NotificationBell />
               <ChangePassword />
-            </div>
-        </header>
+            </>
+          }
+        />
 
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">{children}</main>

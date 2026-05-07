@@ -15,6 +15,7 @@ import { Download, Star, Undo } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { dayjs } from "@/lib/date";
 import { HomeworkPdfDownload } from "@/components/homework/HomeworkPdfDownload";
+import { PagedListControls, usePagedList } from "@/components/shared/PagedListControls";
 
 interface HomeworkGradingListProps {
   statusFilter?: string;
@@ -240,6 +241,8 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
     return true;
   });
 
+  const paged = usePagedList(filteredSubmissions);
+
   const getStatusBadge = (submission: any) => {
     if (submission.grade !== null) {
       return <Badge className="bg-green-500 hover:bg-green-600 rounded-full">✓ Graded</Badge>;
@@ -273,7 +276,7 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
   return (
     <>
       <div className="space-y-3 md:space-y-4">
-        {filteredSubmissions.map((submission: any) => {
+        {paged.slice.map((submission: any) => {
           const homework = submission.homeworks;
 
           return (
@@ -362,6 +365,14 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
           );
         })}
       </div>
+
+      <PagedListControls
+        page={paged.page}
+        totalPages={paged.totalPages}
+        total={paged.total}
+        rangeLabel={paged.rangeLabel}
+        onPageChange={paged.setPage}
+      />
 
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
