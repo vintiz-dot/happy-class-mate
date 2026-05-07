@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StudentNavBar } from "@/components/student/StudentNavBar";
 import { AdminTopBar } from "@/components/AdminTopBar";
+import { ClassroomToolsLauncher } from "@/components/classroom-tools/ClassroomToolsLauncher";
 
 interface LayoutProps {
   children: ReactNode;
@@ -343,6 +344,10 @@ const Layout = ({ children, title }: LayoutProps) => {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">{children}</main>
       </div>
+
+      {/* Floating Classroom Tools — teachers and admins only.
+          Stays mounted across pages so it can be triggered mid-lesson. */}
+      {(role === "teacher" || role === "admin") && <ClassroomToolsLauncher />}
     </div>
   );
 };
