@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StudentProfileProvider } from "./contexts/StudentProfileContext";
+import { TimerProvider } from "./contexts/TimerContext";
 import ProfilePicker from "./components/ProfilePicker";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -42,6 +43,8 @@ const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
 const StudentJournal = lazy(() => import("./pages/StudentJournal"));
 const TeacherJournal = lazy(() => import("./pages/TeacherJournal"));
 const TeacherExamReports = lazy(() => import("./pages/TeacherExamReports"));
+const TeacherResources = lazy(() => import("./pages/TeacherResources"));
+const StudentResources = lazy(() => import("./pages/StudentResources"));
 const TuitionReviewQueue = lazy(() =>
   import("./components/admin/TuitionReviewQueue").then((m) => ({ default: m.TuitionReviewQueue }))
 );
@@ -102,11 +105,13 @@ function AppContent() {
                   <Route path="/teacher/journal" element={<TeacherJournal />} />
                   <Route path="/teacher/exam-reports" element={<TeacherExamReports />} />
                   <Route path="/teacher/leaderboards" element={<TeacherLeaderboards />} />
+                  <Route path="/teacher/resources" element={<TeacherResources />} />
 
                   {/* Student routes */}
                   <Route path="/student/dashboard" element={<StudentDashboard />} />
                   <Route path="/student/assignments" element={<StudentAssignments />} />
                   <Route path="/student/journal" element={<StudentJournal />} />
+                  <Route path="/student/resources" element={<StudentResources />} />
 
                   {/* Shared routes */}
                   <Route path="/schedule" element={<Schedule />} />
@@ -127,7 +132,9 @@ function AppContent() {
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <TimerProvider>
+        <AppContent />
+      </TimerProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

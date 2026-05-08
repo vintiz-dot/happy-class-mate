@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Play, Pause, RotateCcw } from "lucide-react";
-import { playChime } from "./audio";
+import { useTimer } from "@/contexts/TimerContext";
 
 const PRESETS = [
   { label: "1m", seconds: 60 },
@@ -19,99 +18,34 @@ function formatTime(secs: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Pure rendering component for the visual timer. All state & tick logic
+ * lives in TimerContext so the timer persists even when this component
+ * is unmounted (e.g. when the Classroom Tools sheet closes).
+ */
 export function VisualTimer() {
-  const [totalSeconds, setTotalSeconds] = useState(300);
-  const [remaining, setRemaining] = useState(300);
-  const [running, setRunning] = useState(false);
-  const [endedAt, setEndedAt] = useState<number | null>(null);
-  const intervalRef = useRef<number | null>(null);
-  const [draftMin, setDraftMin] = useState("5");
-  const [draftSec, setDraftSec] = useState("0");
-
-  // Tick. We compute remaining off a wall-clock target so it stays
-  // accurate even if the tab throttles.
-  useEffect(() => {
-    if (!running || endedAt === null) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-    const tick = () => {
-      const now = performance.now();
-      const r = Math.max(0, Math.round((endedAt - now) / 1000));
-      setRemaining(r);
-      if (r <= 0) {
-        setRunning(false);
-        playChime();
-      }
-    };
-    tick();
-    intervalRef.current = window.setInterval(tick, 200) as unknown as number;
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [running, endedAt]);
-
-  const start = (seconds?: number) => {
-    const target = seconds ?? totalSeconds;
-    if (target <= 0) return;
-    setTotalSeconds(target);
-    setRemaining(target);
-    setEndedAt(performance.now() + target * 1000);
-    setRunning(true);
-  };
-
-  const pause = () => {
-    setRunning(false);
-    // Convert remaining time to a fresh endedAt the moment we resume.
-  };
-
-  const resume = () => {
-    setEndedAt(performance.now() + remaining * 1000);
-    setRunning(true);
-  };
-
-  const reset = () => {
-    setRunning(false);
-    setRemaining(totalSeconds);
-    setEndedAt(null);
-  };
-
-  const applyDraft = () => {
-    const m = Math.max(0, Math.min(99, Number(draftMin) || 0));
-    const s = Math.max(0, Math.min(59, Number(draftSec) || 0));
-    const total = m * 60 + s;
-    if (total === 0) return;
-    setTotalSeconds(total);
-    setRemaining(total);
-    setRunning(false);
-    setEndedAt(null);
-  };
-
-  const progress = useMemo(() => {
-    if (totalSeconds === 0) return 0;
-    return remaining / totalSeconds;
-  }, [remaining, totalSeconds]);
-
-  // Color stops: green > 50%, amber 20–50%, red < 20%, soft red flash at 0.
-  const ringColor =
-    progress > 0.5
-      ? "stroke-emerald-500"
-      : progress > 0.2
-      ? "stroke-amber-500"
-      : "stroke-rose-500";
+  const {
+    totalSeconds,
+    remaining,
+    running,
+    progress,
+    isFinished,
+    ringColor,
+    draftMin,
+    draftSec,
+    start,
+    pause,
+    resume,
+    reset,
+    applyDraft,
+    setDraftMin,
+    setDraftSec,
+  } = useTimer();
 
   // SVG ring math.
   const RADIUS = 86;
   const CIRC = 2 * Math.PI * RADIUS;
   const dash = CIRC * progress;
-
-  const isFinished = running === false && remaining === 0;
 
   return (
     <div className="space-y-5">

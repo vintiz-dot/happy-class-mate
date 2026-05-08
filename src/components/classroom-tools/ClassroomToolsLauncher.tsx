@@ -15,6 +15,7 @@ import { NoiseMeter } from "./NoiseMeter";
 import { FocusChime } from "./FocusChime";
 import { GroupMaker } from "./GroupMaker";
 import { cn } from "@/lib/utils";
+import { useTimer } from "@/contexts/TimerContext";
 
 const TOOLS = [
   { id: "timer", label: "Timer", icon: Timer },
@@ -26,16 +27,24 @@ const TOOLS = [
 
 type ToolId = (typeof TOOLS)[number]["id"];
 
+function formatCompact(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 /**
  * Floating launcher mounted into the layout for teachers/admins. Stays
  * visible across pages so a teacher can flip between the lesson view and
  * a tool (timer, spinner, etc.) without navigating away.
  *
- * Each tool is mounted lazily — opening one doesn't initialise the others.
+ * The Timer state is hoisted into TimerContext so it persists even when
+ * the Sheet is closed. All other tools mount lazily.
  */
 export function ClassroomToolsLauncher() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<ToolId>("timer");
+  const { running, remaining } = useTimer();
 
   return (
     <>
@@ -50,6 +59,19 @@ export function ClassroomToolsLauncher() {
         )}
       >
         <Sparkles className="h-6 w-6" />
+
+        {/* Running timer indicator badge */}
+        {running && (
+          <span
+            className={cn(
+              "absolute -top-1 -right-1 min-w-[2.25rem] px-1.5 py-0.5 rounded-full",
+              "bg-emerald-500 text-white text-[10px] font-bold tabular-nums leading-none",
+              "shadow-lg animate-pulse pointer-events-none",
+            )}
+          >
+            {formatCompact(remaining)}
+          </span>
+        )}
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -86,8 +108,10 @@ export function ClassroomToolsLauncher() {
             </TabsList>
 
             <div className="flex-1 overflow-y-auto px-4 py-4">
+              {/* Timer is always rendered — state lives in TimerContext
+                  so mounting/unmounting is cheap and lossless. */}
               <TabsContent value="timer" className="m-0 focus-visible:outline-none">
-                {active === "timer" && <VisualTimer />}
+                <VisualTimer />
               </TabsContent>
               <TabsContent value="wheel" className="m-0 focus-visible:outline-none">
                 {active === "wheel" && <WheelSpinner />}
