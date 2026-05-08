@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { playChime } from "@/components/classroom-tools/audio";
+import { startAlarm, stopAlarm } from "@/components/classroom-tools/audio";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -18,6 +18,7 @@ interface TimerState {
   totalSeconds: number;
   remaining: number;
   running: boolean;
+  alarming: boolean;
   draftMin: string;
   draftSec: string;
   /** Derived */
@@ -31,6 +32,7 @@ interface TimerActions {
   pause: () => void;
   resume: () => void;
   reset: () => void;
+  dismiss: () => void;
   applyDraft: () => void;
   setDraftMin: (v: string) => void;
   setDraftSec: (v: string) => void;
@@ -52,6 +54,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [totalSeconds, setTotalSeconds] = useState(300);
   const [remaining, setRemaining] = useState(300);
   const [running, setRunning] = useState(false);
+  const [alarming, setAlarming] = useState(false);
   const [endedAt, setEndedAt] = useState<number | null>(null);
   const intervalRef = useRef<number | null>(null);
   const [draftMin, setDraftMin] = useState("5");
@@ -75,7 +78,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setRemaining(r);
       if (r <= 0) {
         setRunning(false);
-        playChime();
+        // Start the continuous alarm — it will loop until dismiss()
+        setAlarming(true);
+        startAlarm();
       }
     };
 
@@ -90,17 +95,29 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     };
   }, [running, endedAt]);
 
+  // Clean up alarm on unmount (safety net)
+  useEffect(() => {
+    return () => {
+      stopAlarm();
+    };
+  }, []);
+
   // ---- Actions -------------------------------------------------------
   const start = useCallback(
     (seconds?: number) => {
       const target = seconds ?? totalSeconds;
       if (target <= 0) return;
+      // Stop any ongoing alarm when starting a new timer
+      if (alarming) {
+        stopAlarm();
+        setAlarming(false);
+      }
       setTotalSeconds(target);
       setRemaining(target);
       setEndedAt(performance.now() + target * 1000);
       setRunning(true);
     },
-    [totalSeconds],
+    [totalSeconds, alarming],
   );
 
   const pause = useCallback(() => {
@@ -116,6 +133,20 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setRunning(false);
     setRemaining(totalSeconds);
     setEndedAt(null);
+    // Stop alarm if it's ringing
+    if (alarming) {
+      stopAlarm();
+      setAlarming(false);
+    }
+  }, [totalSeconds, alarming]);
+
+  /** Dismiss the alarm — stops the sound and resets the timer. */
+  const dismiss = useCallback(() => {
+    stopAlarm();
+    setAlarming(false);
+    setRunning(false);
+    setRemaining(totalSeconds);
+    setEndedAt(null);
   }, [totalSeconds]);
 
   const applyDraft = useCallback(() => {
@@ -123,17 +154,23 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const s = Math.max(0, Math.min(59, Number(draftSec) || 0));
     const total = m * 60 + s;
     if (total === 0) return;
+    // Stop alarm if it's ringing
+    if (alarming) {
+      stopAlarm();
+      setAlarming(false);
+    }
     setTotalSeconds(total);
     setRemaining(total);
     setRunning(false);
     setEndedAt(null);
-  }, [draftMin, draftSec]);
+  }, [draftMin, draftSec, alarming]);
 
   // ---- Derived -------------------------------------------------------
   const progress = totalSeconds === 0 ? 0 : remaining / totalSeconds;
 
-  const ringColor =
-    progress > 0.5
+  const ringColor = alarming
+    ? "stroke-rose-500"
+    : progress > 0.5
       ? "stroke-emerald-500"
       : progress > 0.2
         ? "stroke-amber-500"
@@ -147,6 +184,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       totalSeconds,
       remaining,
       running,
+      alarming,
       draftMin,
       draftSec,
       progress,
@@ -156,6 +194,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       pause,
       resume,
       reset,
+      dismiss,
       applyDraft,
       setDraftMin,
       setDraftSec,
@@ -164,6 +203,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       totalSeconds,
       remaining,
       running,
+      alarming,
       draftMin,
       draftSec,
       progress,
@@ -173,6 +213,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       pause,
       resume,
       reset,
+      dismiss,
       applyDraft,
     ],
   );

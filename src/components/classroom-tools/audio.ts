@@ -1,4 +1,4 @@
-// Web Audio synthesised chime. No bundled asset, no network call.
+// Web Audio synthesised sounds. No bundled asset, no network call.
 // One context is reused across the app to avoid the per-tab limit.
 
 type Ctx = AudioContext | null;
@@ -79,4 +79,80 @@ export function playClick(): void {
   osc.connect(gain).connect(c.destination);
   osc.start(now);
   osc.stop(now + 0.08);
+}
+
+/* ------------------------------------------------------------------ */
+/*  iPhone-style repeating alarm                                       */
+/* ------------------------------------------------------------------ */
+
+// Plays a single alarm "burst" — a loud, attention-grabbing tri-tone
+// pattern similar to iPhone timers: three ascending tones, brief pause,
+// then two descending tones. Much louder than the chime.
+function playAlarmBurst(): void {
+  const c = getCtx();
+  if (!c) return;
+
+  const now = c.currentTime;
+
+  // Tri-tone pattern: ascending then descending
+  const pattern = [
+    { freq: 880, start: 0, dur: 0.15 },       // A5
+    { freq: 1108.73, start: 0.18, dur: 0.15 }, // C#6
+    { freq: 1318.51, start: 0.36, dur: 0.20 }, // E6
+    { freq: 1108.73, start: 0.70, dur: 0.15 }, // C#6
+    { freq: 880, start: 0.88, dur: 0.15 },     // A5
+    { freq: 1318.51, start: 1.10, dur: 0.20 }, // E6
+  ];
+
+  const master = c.createGain();
+  master.gain.setValueAtTime(0.7, now); // Loud!
+  master.connect(c.destination);
+
+  for (const t of pattern) {
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = "square"; // Harsh/buzzy — cuts through ambient noise
+    osc.frequency.value = t.freq;
+
+    const s = now + t.start;
+    const e = s + t.dur;
+
+    // Sharp attack and release for a punchy alert tone
+    gain.gain.setValueAtTime(0.0001, s);
+    gain.gain.linearRampToValueAtTime(0.6, s + 0.01);
+    gain.gain.setValueAtTime(0.6, e - 0.02);
+    gain.gain.linearRampToValueAtTime(0.0001, e);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(s);
+    osc.stop(e + 0.01);
+  }
+}
+
+/** Handle for the currently running alarm loop, if any. */
+let alarmIntervalId: number | null = null;
+
+/**
+ * Start a continuous, repeating alarm — plays an iPhone-style tri-tone
+ * burst every ~1.8 seconds until `stopAlarm()` is called. Designed to
+ * be impossible to ignore (loud, repeating, square-wave buzz).
+ */
+export function startAlarm(): void {
+  // Prevent duplicate loops
+  if (alarmIntervalId !== null) return;
+
+  // Play immediately, then repeat
+  playAlarmBurst();
+  alarmIntervalId = window.setInterval(playAlarmBurst, 1800);
+}
+
+/**
+ * Stop the repeating alarm.
+ */
+export function stopAlarm(): void {
+  if (alarmIntervalId !== null) {
+    clearInterval(alarmIntervalId);
+    alarmIntervalId = null;
+  }
 }

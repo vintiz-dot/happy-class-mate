@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -44,24 +44,45 @@ function formatCompact(secs: number): string {
 export function ClassroomToolsLauncher() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<ToolId>("timer");
-  const { running, remaining } = useTimer();
+  const { running, alarming, remaining, dismiss } = useTimer();
+
+  // Auto-open the sheet and switch to timer tab when alarm fires
+  useEffect(() => {
+    if (alarming) {
+      setOpen(true);
+      setActive("timer");
+    }
+  }, [alarming]);
 
   return (
     <>
       <Button
         type="button"
         size="icon"
-        onClick={() => setOpen(true)}
-        aria-label="Open Classroom Tools"
+        onClick={() => {
+          // If alarming, dismiss immediately on FAB tap as a quick-stop
+          if (alarming) {
+            dismiss();
+            return;
+          }
+          setOpen(true);
+        }}
+        aria-label={alarming ? "Stop Timer Alarm" : "Open Classroom Tools"}
         className={cn(
           "fixed bottom-5 right-5 md:bottom-6 md:right-6 z-40 h-14 w-14 rounded-full shadow-q3 lift",
-          "bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+          alarming
+            ? "bg-gradient-to-br from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white animate-bounce"
+            : "bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
         )}
       >
-        <Sparkles className="h-6 w-6" />
+        {alarming ? (
+          <span className="text-2xl">⏰</span>
+        ) : (
+          <Sparkles className="h-6 w-6" />
+        )}
 
         {/* Running timer indicator badge */}
-        {running && (
+        {running && !alarming && (
           <span
             className={cn(
               "absolute -top-1 -right-1 min-w-[2.25rem] px-1.5 py-0.5 rounded-full",
@@ -70,6 +91,19 @@ export function ClassroomToolsLauncher() {
             )}
           >
             {formatCompact(remaining)}
+          </span>
+        )}
+
+        {/* Alarming badge */}
+        {alarming && (
+          <span
+            className={cn(
+              "absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full",
+              "bg-white text-rose-600 text-[10px] font-black leading-none",
+              "shadow-lg animate-pulse pointer-events-none",
+            )}
+          >
+            STOP
           </span>
         )}
       </Button>
