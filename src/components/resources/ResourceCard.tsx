@@ -18,18 +18,22 @@ interface Props {
 /**
  * Visual resource card — designed for ESL Grades 1-3 students.
  * Uses large icons, high-contrast colours, and minimal text.
+ * When a resource has BOTH a link and a file, shows two distinct action buttons.
  */
 export function ResourceCard({ resource, compact = false, classNameMap }: Props) {
   const [loading, setLoading] = useState(false);
   const fileInfo = getFileTypeInfo(resource.file_type);
 
-  const handleOpen = async () => {
+  const hasBoth = !!resource.external_url && !!resource.storage_key;
+
+  const openLink = () => {
     if (resource.external_url) {
       window.open(resource.external_url, "_blank", "noopener");
-      return;
     }
-    if (!resource.storage_key) return;
+  };
 
+  const downloadFile = async () => {
+    if (!resource.storage_key) return;
     setLoading(true);
     try {
       const url = await getResourceSignedUrl(resource.storage_key);
@@ -38,6 +42,15 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
       toast.error("Could not open file. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** Card-level click: opens link if present, otherwise downloads file */
+  const handleOpen = async () => {
+    if (resource.external_url) {
+      openLink();
+    } else {
+      await downloadFile();
     }
   };
 
@@ -58,6 +71,9 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
         <div className="flex items-center gap-1.5 shrink-0">
           {resource.visibility === "private" && (
             <Badge variant="outline" className="text-[10px]">Private</Badge>
+          )}
+          {hasBoth && (
+            <Badge variant="secondary" className="text-[10px]">Link + File</Badge>
           )}
           <Badge variant="secondary" className="text-[10px]">{fileInfo.label}</Badge>
         </div>
@@ -152,29 +168,66 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
         )}
       </div>
 
-      {/* ---- Action button ---- */}
-      <div className="p-3 pt-0">
-        <Button
-          size="lg"
-          className={cn(
-            "w-full gap-2 rounded-xl font-bold text-sm h-11",
-            "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleOpen();
-          }}
-          disabled={loading}
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : resource.external_url ? (
-            <ExternalLink className="h-4 w-4" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          {resource.external_url ? "Open Link" : "Download"}
-        </Button>
+      {/* ---- Action buttons ---- */}
+      <div className="p-3 pt-0 space-y-2">
+        {/* When resource has BOTH a link and a file, show two distinct buttons */}
+        {hasBoth ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              className={cn(
+                "gap-1.5 rounded-xl font-bold text-xs h-10",
+                "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                openLink();
+              }}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Link
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 rounded-xl font-bold text-xs h-10 border-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadFile();
+              }}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              File
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="lg"
+            className={cn(
+              "w-full gap-2 rounded-xl font-bold text-sm h-11",
+              "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpen();
+            }}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : resource.external_url ? (
+              <ExternalLink className="h-4 w-4" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {resource.external_url ? "Open Link" : "Download"}
+          </Button>
+        )}
       </div>
     </div>
   );
