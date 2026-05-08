@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StudentProfileProvider } from "./contexts/StudentProfileContext";
 import { TimerProvider } from "./contexts/TimerContext";
+import { NoiseMeterProvider } from "./contexts/NoiseMeterContext";
 import ProfilePicker from "./components/ProfilePicker";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -135,7 +136,9 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TimerProvider>
+      <NoiseMeterProvider>
         <AppContent />
+      </NoiseMeterProvider>
       </TimerProvider>
     </QueryClientProvider>
   </ErrorBoundary>

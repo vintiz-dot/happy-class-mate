@@ -98,7 +98,7 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
                   {assignment.title}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm mt-0.5 break-words">
-                  {assignment.classes.name}
+                  {assignment.classes?.name || "Class"}
                 </CardDescription>
               </div>
               {status === "graded" && assignment.submission?.grade && (
@@ -142,7 +142,7 @@ function AssignmentCard({ assignment, onClick, index = 0 }: { assignment: any; o
             <div onClick={(e) => e.stopPropagation()} className="pt-1">
               <HomeworkPdfDownload
                 homework={assignment}
-                className={assignment.classes?.name}
+                className={assignment.classes?.name || ""}
                 variant="pill-compact"
               />
             </div>

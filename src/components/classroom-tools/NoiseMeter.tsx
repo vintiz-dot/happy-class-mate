@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, AlertTriangle } from "lucide-react";
-
-type Status = "idle" | "requesting" | "running" | "denied" | "error";
+import { useNoiseMeter } from "@/contexts/NoiseMeterContext";
 
 // Visual zones for the volume meter. Each zone owns a colour, an emoji,
 // and a label; the active zone is whichever range the current level falls
-// into. Tuned for typical classroom mic input — adjust thresholds if a
-// site has noisy ambient baseline.
+// into. Tuned for typical classroom mic input.
 const ZONES = [
   { from: 0,  to: 22, color: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-300", emoji: "😌", label: "Quiet" },
   { from: 22, to: 45, color: "bg-lime-500",    textColor: "text-lime-700 dark:text-lime-300",       emoji: "🙂", label: "Working" },
@@ -21,97 +18,7 @@ function zoneFor(level: number) {
 }
 
 export function NoiseMeter() {
-  const [status, setStatus] = useState<Status>("idle");
-  const [level, setLevel] = useState(0); // 0–100
-  const [error, setError] = useState<string | null>(null);
-
-  const streamRef = useRef<MediaStream | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const rafRef = useRef<number | null>(null);
-
-  const stop = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (ctxRef.current) {
-      ctxRef.current.close().catch(() => {});
-      ctxRef.current = null;
-    }
-    analyserRef.current = null;
-    setStatus("idle");
-    setLevel(0);
-  };
-
-  useEffect(() => () => stop(), []);
-
-  const start = async () => {
-    setError(null);
-    setStatus("requesting");
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Microphone API not available in this browser.");
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
-      streamRef.current = stream;
-
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) throw new Error("AudioContext unavailable.");
-      const ctx = new Ctor();
-      ctxRef.current = ctx;
-
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.6;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-
-      const buffer = new Uint8Array(analyser.fftSize);
-      let smoothed = 0;
-
-      const tick = () => {
-        analyser.getByteTimeDomainData(buffer);
-        // RMS over the time-domain buffer. Bytes are 0–255 centred at 128.
-        let sumSq = 0;
-        for (let i = 0; i < buffer.length; i++) {
-          const v = (buffer[i] - 128) / 128;
-          sumSq += v * v;
-        }
-        const rms = Math.sqrt(sumSq / buffer.length); // 0–1
-        // Map to 0–100. Multiply because typical speech RMS is well under 0.4.
-        const raw = Math.min(100, rms * 220);
-        smoothed = smoothed * 0.7 + raw * 0.3;
-        setLevel(Math.round(smoothed));
-        rafRef.current = requestAnimationFrame(tick);
-      };
-      tick();
-      setStatus("running");
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      if (e?.name === "NotAllowedError" || msg.includes("Permission")) {
-        setStatus("denied");
-        setError("Microphone permission was denied. Allow it in your browser settings to use the meter.");
-      } else if (e?.name === "NotFoundError") {
-        setStatus("error");
-        setError("No microphone detected.");
-      } else {
-        setStatus("error");
-        setError(msg);
-      }
-    }
-  };
+  const { status, level, error, start, stop } = useNoiseMeter();
 
   const zone = zoneFor(level);
 

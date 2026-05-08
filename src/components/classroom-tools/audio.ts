@@ -29,8 +29,9 @@ export function playChime(): void {
 
   const now = c.currentTime;
   const tones = [
-    { freq: 523.25, start: 0, duration: 1.4 }, // C5
-    { freq: 783.99, start: 0.12, duration: 1.6 }, // G5
+    { freq: 523.25, start: 0, duration: 2.0 },    // C5
+    { freq: 783.99, start: 0.10, duration: 2.2 },  // G5
+    { freq: 659.25, start: 0.20, duration: 1.8 },  // E5 — adds richness
   ];
 
   const master = c.createGain();
@@ -47,7 +48,7 @@ export function playChime(): void {
     const startTime = now + t.start;
     const endTime = startTime + t.duration;
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.4, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.85, startTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
 
     osc.connect(gain);
@@ -56,9 +57,9 @@ export function playChime(): void {
     osc.stop(endTime + 0.05);
   }
 
-  // Master envelope so consecutive plays don't clip.
-  master.gain.exponentialRampToValueAtTime(0.6, now + 0.05);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+  // Master envelope — louder and sustains longer.
+  master.gain.exponentialRampToValueAtTime(1.0, now + 0.04);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 2.6);
 }
 
 /**

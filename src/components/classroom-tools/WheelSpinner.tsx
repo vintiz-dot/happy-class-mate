@@ -42,16 +42,13 @@ export function WheelSpinner() {
     setWinner(null);
     setSpinning(true);
 
-    const winningIndex = Math.floor(Math.random() * entries.length);
-    // Land with the centre of the winning slice at the top pointer (12 o'clock).
-    // Pointer is at angle 0 (top); slice i centre is at i * sliceAngle + sliceAngle/2.
-    const targetSliceCentre = winningIndex * sliceAngle + sliceAngle / 2;
     const fullRotations = 6 + Math.random() * 2; // 6–8 full turns
-    const finalAngle = fullRotations * 360 + (360 - targetSliceCentre);
+    const randomExtra = Math.random() * 360;      // random landing position
+    const finalAngle = angle + fullRotations * 360 + randomExtra;
 
     const start = performance.now();
-    const startAngle = angle % 360;
-    const totalDelta = finalAngle - startAngle + Math.ceil(startAngle / 360) * 360;
+    const startAngle = angle;
+    const totalDelta = finalAngle - startAngle;
     const duration = 4500;
 
     let lastClickAt = 0;
@@ -67,14 +64,21 @@ export function WheelSpinner() {
       const wholeSlicesPassed = Math.floor((current - startAngle) / sliceAngle);
       if (wholeSlicesPassed > lastClickAt) {
         const passes = wholeSlicesPassed - lastClickAt;
-        // Throttle clicks near the start where the wheel is still fast.
         if (t > 0.55 && passes < 4) playClick();
         lastClickAt = wholeSlicesPassed;
       }
 
       if (t >= 1) {
         setSpinning(false);
-        setWinner(entries[winningIndex]);
+        // Determine winner from where the pointer actually landed.
+        // The pointer is at the top (12 o'clock). The wheel is rotated by
+        // `current` degrees clockwise. Slice i occupies the arc from
+        // i * sliceAngle to (i+1) * sliceAngle, starting at 0° (top).
+        // The pointer points at angle (360 - (current mod 360)) mod 360
+        // relative to the wheel's zero.
+        const pointerOnWheel = ((360 - (current % 360)) % 360 + 360) % 360;
+        const idx = Math.floor(pointerOnWheel / sliceAngle) % entries.length;
+        setWinner(entries[idx]);
         playChime();
         return;
       }
