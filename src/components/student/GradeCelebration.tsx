@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { CelebrationOverlay } from "./CelebrationOverlay";
 import { soundManager } from "@/lib/soundManager";
 
 interface GradeCelebrationProps {
   studentId: string;
+  assignments: any[];
 }
 
 interface GradedItem {
@@ -15,85 +14,83 @@ interface GradedItem {
   className: string;
 }
 
-export function GradeCelebration({ studentId }: GradeCelebrationProps) {
+export function GradeCelebration({ studentId, assignments }: GradeCelebrationProps) {
   const [celebrationItem, setCelebrationItem] = useState<GradedItem | null>(null);
   const [queue, setQueue] = useState<GradedItem[]>([]);
-  const queryClient = useQueryClient();
-  const locallySeen = useRef<Set<string>>(new Set());
-
-  const { data: pendingGrades } = useQuery({
-    queryKey: ["pending-grade-celebrations", studentId],
-    queryFn: async () => {
-      try {
-        const { data: homeworks, error } = await supabase.rpc("get_student_homeworks", {
-          p_student_id: studentId,
-        });
-
-        if (error) throw error;
-
-        const hwMap = new Map(
-          ((homeworks as any)?.homeworks || []).map((h: any) => [h.id, h])
-        );
-
-        const items = ((homeworks as any)?.submissions || [])
-          .filter((s: any) => s.status === "graded" && !s.celebration_seen_at && !locallySeen.current.has(s.id))
-          .sort((a: any, b: any) => {
-            const timeA = a.graded_at ? new Date(a.graded_at).getTime() : 0;
-            const timeB = b.graded_at ? new Date(b.graded_at).getTime() : 0;
-            return timeB - timeA;
-          })
-          .slice(0, 5);
-
-        if (items.length === 0) return [];
-
-        return items.map((s: any) => {
-          const hw = hwMap.get(s.homework_id);
-          return {
-            id: s.id as string,
-            title: hw?.title || "Homework",
-            grade: s.grade || "✓",
-            className: hw?.classes?.name || "Class",
-          };
-        });
-      } catch (err) {
-        console.warn("GradeCelebration query failed (RPC):", err);
-        return [];
-      }
-    },
-    enabled: !!studentId,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
 
   useEffect(() => {
-    if (pendingGrades?.length && !celebrationItem && queue.length === 0) {
-      const limited = pendingGrades.slice(0, 2);
-      setQueue(limited);
-      setCelebrationItem(limited[0]);
+    // Only celebrate things graded in the last 48 hours to avoid
+    // an avalanche of confetti for old grades if localStorage is cleared
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - 48);
+
+    // Get locally seen IDs
+    const seenStr = localStorage.getItem(`celebration_seen_${studentId}`) || "[]";
+    let seenIds: string[] = [];
+    try {
+      seenIds = JSON.parse(seenStr);
+    } catch (e) {
+      seenIds = [];
+    }
+    const seenSet = new Set(seenIds);
+
+    const pending = assignments
+      .map(a => a.submission)
+      .filter(sub => {
+        if (!sub) return false;
+        if (sub.status !== "graded") return false;
+        if (seenSet.has(sub.id)) return false;
+        
+        const gradedDate = sub.graded_at ? new Date(sub.graded_at) : null;
+        if (!gradedDate || gradedDate < cutoffDate) return false;
+        
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = a.graded_at ? new Date(a.graded_at).getTime() : 0;
+        const timeB = b.graded_at ? new Date(b.graded_at).getTime() : 0;
+        return timeB - timeA; // newest first
+      })
+      .slice(0, 5) // max 5 celebrations per session
+      .map(sub => {
+        const hw = assignments.find(a => a.id === sub.homework_id);
+        return {
+          id: sub.id,
+          title: hw?.title || "Homework",
+          grade: sub.grade || "✓",
+          className: hw?.classes?.name || "Class",
+        };
+      });
+
+    if (pending.length > 0 && !celebrationItem && queue.length === 0) {
+      setQueue(pending);
+      setCelebrationItem(pending[0]);
       soundManager.play("success");
     }
-  }, [pendingGrades, celebrationItem, queue.length]);
+  }, [assignments, studentId]);
 
-  const markSeen = async (submissionId: string) => {
-    // Add to local Set immediately to prevent infinite loops if the DB fails
-    locallySeen.current.add(submissionId);
+  const markSeen = (submissionId: string) => {
+    const seenStr = localStorage.getItem(`celebration_seen_${studentId}`) || "[]";
+    let seenIds: string[] = [];
+    try {
+      seenIds = JSON.parse(seenStr);
+    } catch (e) {
+      seenIds = [];
+    }
+    seenIds.push(submissionId);
     
-    // We don't need to catch because Supabase returns { data, error } and does not throw.
-    await supabase
-      .from("homework_submissions")
-      .update({ celebration_seen_at: new Date().toISOString() })
-      .eq("id", submissionId);
+    // Keep localStorage from growing infinitely
+    if (seenIds.length > 50) seenIds = seenIds.slice(seenIds.length - 50);
+    
+    localStorage.setItem(`celebration_seen_${studentId}`, JSON.stringify(seenIds));
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     const current = celebrationItem;
     const remaining = queue.slice(1);
 
     if (current) {
-      // Fire-and-forget — UI advances immediately, DB catches up.
-      markSeen(current.id).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["pending-grade-celebrations", studentId] });
-      });
+      markSeen(current.id);
     }
 
     setQueue(remaining);
