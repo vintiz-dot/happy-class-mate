@@ -23,26 +23,49 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
   const { data: pendingGrades } = useQuery({
     queryKey: ["pending-grade-celebrations", studentId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("homework_submissions")
-        .select(`
-          id,
-          grade,
-          graded_at,
-          homework:homeworks!inner(title, class:classes(name))
-        `)
-        .eq("student_id", studentId)
-        .eq("status", "graded")
-        .is("celebration_seen_at", null)
-        .order("graded_at", { ascending: false })
-        .limit(5);
+      try {
+        const { data, error } = await supabase
+          .from("homework_submissions")
+          .select(`
+            id,
+            grade,
+            graded_at,
+            homework_id
+          `)
+          .eq("student_id", studentId)
+          .eq("status", "graded")
+          .is("celebration_seen_at", null)
+          .order("graded_at", { ascending: false })
+          .limit(5);
 
-      return (data || []).map((s: any) => ({
-        id: s.id as string,
-        title: s.homework?.title || "Homework",
-        grade: s.grade || "✓",
-        className: s.homework?.class?.name || "Class",
-      }));
+        if (error) throw error;
+
+        // Fetch homework titles separately to avoid the inner join RLS issue
+        const items = data || [];
+        if (items.length === 0) return [];
+
+        const hwIds = items.map((s: any) => s.homework_id);
+        const { data: homeworks } = await supabase.rpc("get_student_homeworks", {
+          p_student_id: studentId,
+        });
+
+        const hwMap = new Map(
+          ((homeworks as any)?.homeworks || []).map((h: any) => [h.id, h])
+        );
+
+        return items.map((s: any) => {
+          const hw = hwMap.get(s.homework_id);
+          return {
+            id: s.id as string,
+            title: hw?.title || "Homework",
+            grade: s.grade || "✓",
+            className: hw?.classes?.name || "Class",
+          };
+        });
+      } catch (err) {
+        console.warn("GradeCelebration query failed (RLS):", err);
+        return [];
+      }
     },
     enabled: !!studentId,
     staleTime: 60_000,
