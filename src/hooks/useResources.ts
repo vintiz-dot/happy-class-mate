@@ -103,23 +103,41 @@ export function useStudentResources(studentId?: string) {
     enabled: !!studentId,
     queryFn: async () => {
       // Get student's enrolled class IDs
-      const { data: enrollments } = await supabase
+      const { data: enrollments, error: enrollErr } = await supabase
         .from("enrollments")
         .select("class_id")
         .eq("student_id", studentId!)
         .is("end_date", null);
 
+      if (enrollErr) {
+        console.error("[useStudentResources] enrollments error:", enrollErr);
+        throw enrollErr;
+      }
+
       const classIds = (enrollments || []).map((e: any) => e.class_id);
       if (classIds.length === 0) return [];
 
-      // Get resource IDs accessible to these classes
-      const { data: accessRows } = await db
+      // Get resource IDs + class mapping accessible to these classes
+      const { data: accessRows, error: accessErr } = await db
         .from("resource_class_access")
-        .select("resource_id")
+        .select("resource_id, class_id")
         .in("class_id", classIds);
+
+      if (accessErr) {
+        console.error("[useStudentResources] resource_class_access error:", accessErr);
+        throw accessErr;
+      }
 
       const resourceIds = [...new Set((accessRows || []).map((a: any) => a.resource_id))];
       if (resourceIds.length === 0) return [];
+
+      // Build class_ids mapping per resource
+      const accessMap = new Map<string, string[]>();
+      for (const row of accessRows || []) {
+        const existing = accessMap.get(row.resource_id) || [];
+        existing.push(row.class_id);
+        accessMap.set(row.resource_id, existing);
+      }
 
       // Fetch the actual resources (only shared)
       const { data: resources, error } = await db
@@ -129,13 +147,17 @@ export function useStudentResources(studentId?: string) {
         .eq("visibility", "shared")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[useStudentResources] resources error:", error);
+        throw error;
+      }
 
       return (resources || []).map((r: any) => ({
         ...r,
         blooms_levels: r.blooms_levels || [],
         pyp_themes: r.pyp_themes || [],
         vocab_tags: r.vocab_tags || [],
+        class_ids: accessMap.get(r.id) || [],
       })) as Resource[];
     },
   });
