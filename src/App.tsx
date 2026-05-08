@@ -45,6 +45,7 @@ const TeacherJournal = lazy(() => import("./pages/TeacherJournal"));
 const TeacherExamReports = lazy(() => import("./pages/TeacherExamReports"));
 const TeacherResources = lazy(() => import("./pages/TeacherResources"));
 const StudentResources = lazy(() => import("./pages/StudentResources"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const TuitionReviewQueue = lazy(() =>
   import("./components/admin/TuitionReviewQueue").then((m) => ({ default: m.TuitionReviewQueue }))
 );
@@ -81,6 +82,7 @@ function AppContent() {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/dashboard" element={<Dashboard />} />
 
                   {/* Admin-only routes */}

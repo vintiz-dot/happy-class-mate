@@ -97,7 +97,7 @@ const Auth = () => {
         navigate(state?.redirectTo || "/dashboard");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/auth/reset-password`,
         });
         if (error) throw error;
         toast.success("Reset email sent! Check your inbox.");
