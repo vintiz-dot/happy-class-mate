@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CelebrationOverlay } from "./CelebrationOverlay";
@@ -19,6 +19,7 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
   const [celebrationItem, setCelebrationItem] = useState<GradedItem | null>(null);
   const [queue, setQueue] = useState<GradedItem[]>([]);
   const queryClient = useQueryClient();
+  const locallySeen = useRef<Set<string>>(new Set());
 
   const { data: pendingGrades } = useQuery({
     queryKey: ["pending-grade-celebrations", studentId],
@@ -35,7 +36,7 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
         );
 
         const items = ((homeworks as any)?.submissions || [])
-          .filter((s: any) => s.status === "graded" && !s.celebration_seen_at)
+          .filter((s: any) => s.status === "graded" && !s.celebration_seen_at && !locallySeen.current.has(s.id))
           .sort((a: any, b: any) => {
             const timeA = a.graded_at ? new Date(a.graded_at).getTime() : 0;
             const timeB = b.graded_at ? new Date(b.graded_at).getTime() : 0;
@@ -74,10 +75,15 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
   }, [pendingGrades, celebrationItem, queue.length]);
 
   const markSeen = async (submissionId: string) => {
+    // Add to local Set immediately to prevent infinite loops if the DB fails
+    locallySeen.current.add(submissionId);
+    
+    // We swallow the error here because the local Set prevents the infinite loop anyway
     await supabase
       .from("homework_submissions")
       .update({ celebration_seen_at: new Date().toISOString() })
-      .eq("id", submissionId);
+      .eq("id", submissionId)
+      .catch(() => {});
   };
 
   const handleComplete = async () => {
