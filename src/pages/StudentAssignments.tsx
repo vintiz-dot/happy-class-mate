@@ -199,6 +199,17 @@ export default function StudentAssignments() {
     staleTime: 2 * 60 * 1000,
   });
 
+  const now = new Date();
+  const upcomingAssignments = assignments.filter((a: any) => !a.due_date || new Date(a.due_date) >= now);
+  const pastAssignments = assignments.filter((a: any) => a.due_date && new Date(a.due_date) < now);
+
+  // Paginate each list independently. Upcoming is usually short; past
+  // grows over the year. Both honour the 20-per-page rule.
+  // CRITICAL: These must be above any conditional returns to avoid React Error #310
+  const upcomingPaged = usePagedList(upcomingAssignments);
+  const pastPaged = usePagedList(pastAssignments);
+  const upcomingSoonPaged = usePagedList(upcomingAssignments);
+
   if (!studentId) {
     return (
       <Layout title="Assignments">
@@ -208,16 +219,6 @@ export default function StudentAssignments() {
   }
 
   if (isLoading) return <Layout title="Assignments">Loading...</Layout>;
-
-  const now = new Date();
-  const upcomingAssignments = assignments.filter((a: any) => !a.due_date || new Date(a.due_date) >= now);
-  const pastAssignments = assignments.filter((a: any) => a.due_date && new Date(a.due_date) < now);
-
-  // Paginate each list independently. Upcoming is usually short; past
-  // grows over the year. Both honour the 20-per-page rule.
-  const upcomingPaged = usePagedList(upcomingAssignments);
-  const pastPaged = usePagedList(pastAssignments);
-  const upcomingSoonPaged = usePagedList(upcomingAssignments);
 
   return (
     <Layout title="Assignments">

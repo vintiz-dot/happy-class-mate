@@ -226,8 +226,6 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
     }
   };
 
-  if (isLoading) return <div className="text-center py-8 text-muted-foreground">Loading submissions...</div>;
-
   const filteredSubmissions = submissions.filter((submission: any) => {
     // Class filter
     if (classFilter && classFilter !== "all") {
@@ -242,6 +240,8 @@ export function HomeworkGradingList({ statusFilter = "all", classFilter = "all" 
   });
 
   const paged = usePagedList(filteredSubmissions);
+
+  if (isLoading) return <div className="text-center py-8 text-muted-foreground">Loading submissions...</div>;
 
   const getStatusBadge = (submission: any) => {
     if (submission.grade !== null) {
