@@ -179,31 +179,21 @@ export default function StudentAssignments() {
     queryFn: async () => {
       if (!studentId) return [];
 
-      const { data: enrollmentData } = await supabase
-        .from("enrollments")
-        .select("class_id")
-        .eq("student_id", studentId)
-        .is("end_date", null);
+      // Use RPC to bypass RLS — the function does its own auth check
+      const { data, error } = await supabase.rpc("get_student_homeworks", {
+        p_student_id: studentId,
+      });
 
-      const classIds = enrollmentData?.map(e => e.class_id) || [];
-      if (classIds.length === 0) return [];
+      if (error) {
+        console.error("get_student_homeworks RPC error:", error);
+        return [];
+      }
 
-      const [homeworksResult, submissionsResult] = await Promise.all([
-        supabase
-          .from("homeworks")
-          .select(`*, classes!inner(name), homework_files(*)`)
-          .in("class_id", classIds)
-          .order("created_at", { ascending: false })
-          .limit(100),
-        supabase
-          .from("homework_submissions")
-          .select("*")
-          .eq("student_id", studentId),
-      ]);
-      const homeworks = homeworksResult.data || [];
-      const submissions = submissionsResult.data || [];
-      const submissionMap = new Map(submissions.map(s => [s.homework_id, s]));
-      return homeworks.map(hw => ({ ...hw, submission: submissionMap.get(hw.id) || null }));
+      const result = data as any;
+      const homeworks: any[] = result?.homeworks || [];
+      const submissions: any[] = result?.submissions || [];
+      const submissionMap = new Map(submissions.map((s: any) => [s.homework_id, s]));
+      return homeworks.map((hw: any) => ({ ...hw, submission: submissionMap.get(hw.id) || null }));
     },
     enabled: !!studentId,
     staleTime: 2 * 60 * 1000,
