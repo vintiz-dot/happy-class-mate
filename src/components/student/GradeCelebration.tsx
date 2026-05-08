@@ -24,34 +24,26 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
     queryKey: ["pending-grade-celebrations", studentId],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from("homework_submissions")
-          .select(`
-            id,
-            grade,
-            graded_at,
-            homework_id
-          `)
-          .eq("student_id", studentId)
-          .eq("status", "graded")
-          .is("celebration_seen_at", null)
-          .order("graded_at", { ascending: false })
-          .limit(5);
-
-        if (error) throw error;
-
-        // Fetch homework titles separately to avoid the inner join RLS issue
-        const items = data || [];
-        if (items.length === 0) return [];
-
-        const hwIds = items.map((s: any) => s.homework_id);
-        const { data: homeworks } = await supabase.rpc("get_student_homeworks", {
+        const { data: homeworks, error } = await supabase.rpc("get_student_homeworks", {
           p_student_id: studentId,
         });
+
+        if (error) throw error;
 
         const hwMap = new Map(
           ((homeworks as any)?.homeworks || []).map((h: any) => [h.id, h])
         );
+
+        const items = ((homeworks as any)?.submissions || [])
+          .filter((s: any) => s.status === "graded" && !s.celebration_seen_at)
+          .sort((a: any, b: any) => {
+            const timeA = a.graded_at ? new Date(a.graded_at).getTime() : 0;
+            const timeB = b.graded_at ? new Date(b.graded_at).getTime() : 0;
+            return timeB - timeA;
+          })
+          .slice(0, 5);
+
+        if (items.length === 0) return [];
 
         return items.map((s: any) => {
           const hw = hwMap.get(s.homework_id);
@@ -63,7 +55,7 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
           };
         });
       } catch (err) {
-        console.warn("GradeCelebration query failed (RLS):", err);
+        console.warn("GradeCelebration query failed (RPC):", err);
         return [];
       }
     },
