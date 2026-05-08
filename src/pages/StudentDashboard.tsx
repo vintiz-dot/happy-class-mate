@@ -794,7 +794,7 @@ export default function StudentDashboard() {
                           <span className="text-xl">🎓</span>
                         </div>
                         <div className="space-y-1">
-                          <p className="font-semibold text-foreground">{session.classes.name}</p>
+                          <p className="font-semibold text-foreground">{session.classes?.name || "Class"}</p>
                           <p className="text-sm text-muted-foreground flex items-center gap-2">
                             <Calendar className="h-3.5 w-3.5" />
                             {dayjs(session.date).format("MMM D")} • {session.start_time.slice(0, 5)}

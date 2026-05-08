@@ -48,9 +48,9 @@ export default function StudentResources() {
         .eq("student_id", activeStudentId!)
         .is("end_date", null);
       return (data || []).map((e: any) => ({
-        id: e.classes.id,
-        name: e.classes.name,
-      }));
+        id: e.classes?.id,
+        name: e.classes?.name || "Class",
+      })).filter((c: any) => c.id);
     },
   });
 

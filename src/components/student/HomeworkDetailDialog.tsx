@@ -106,7 +106,7 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
           <div className="space-y-3 min-w-0">
             <h2 className="text-lg sm:text-xl font-semibold leading-tight break-words [overflow-wrap:anywhere]">{homework.title}</h2>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground min-w-0">
-              <Badge variant="secondary" className="text-xs break-words max-w-full">{homework.classes.name}</Badge>
+              <Badge variant="secondary" className="text-xs break-words max-w-full">{homework.classes?.name || "Class"}</Badge>
               {homework.created_at && (
                 <span className="flex items-center gap-1 text-xs">
                   <Calendar className="h-3 w-3 shrink-0" />
