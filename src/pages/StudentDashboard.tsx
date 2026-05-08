@@ -249,12 +249,12 @@ export default function StudentDashboard() {
     queryFn: async () => {
       if (!studentId) return { homeworkCompleted: 0, classesAttended: 0, perfectWeeks: 0 };
 
-      // Count completed homework submissions
-      const { count: homeworkCount } = await supabase
-        .from("homework_submissions")
-        .select("id", { count: "exact", head: true })
-        .eq("student_id", studentId)
-        .eq("status", "graded");
+      // Count completed homework submissions using RPC
+      const { data } = await supabase.rpc("get_student_homeworks", {
+        p_student_id: studentId,
+      });
+      const submissions = (data as any)?.submissions || [];
+      const homeworkCount = submissions.filter((s: any) => s.status === "graded").length;
 
       // Count attended classes
       const { count: attendanceCount } = await supabase

@@ -58,13 +58,8 @@ export default function HomeworkDetailDialog({ homework, studentId, isReadOnly =
   const { data: submission } = useQuery({
     queryKey: ["homework-submission", homework.id, studentId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("homework_submissions")
-        .select("*")
-        .eq("homework_id", homework.id)
-        .eq("student_id", studentId)
-        .maybeSingle();
-      return data;
+      // The submission is already fetched via get_student_homeworks and passed down
+      return homework.submission || null;
     },
   });
 
