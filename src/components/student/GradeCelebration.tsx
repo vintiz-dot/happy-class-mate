@@ -78,12 +78,11 @@ export function GradeCelebration({ studentId }: GradeCelebrationProps) {
     // Add to local Set immediately to prevent infinite loops if the DB fails
     locallySeen.current.add(submissionId);
     
-    // We swallow the error here because the local Set prevents the infinite loop anyway
+    // We don't need to catch because Supabase returns { data, error } and does not throw.
     await supabase
       .from("homework_submissions")
       .update({ celebration_seen_at: new Date().toISOString() })
-      .eq("id", submissionId)
-      .catch(() => {});
+      .eq("id", submissionId);
   };
 
   const handleComplete = async () => {
