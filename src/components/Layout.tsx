@@ -46,7 +46,7 @@ const Layout = ({ children, title }: LayoutProps) => {
         .from("students")
         .select("full_name, avatar_url")
         .eq("linked_user_id", user.id)
-        .single();
+        .maybeSingle();
       if (studentData?.full_name) {
         setUserName(studentData.full_name);
         setAvatarUrl(studentData.avatar_url);
@@ -57,7 +57,7 @@ const Layout = ({ children, title }: LayoutProps) => {
         .from("teachers")
         .select("full_name, avatar_url")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (teacherData?.full_name) {
         setUserName(teacherData.full_name);
         setAvatarUrl(teacherData.avatar_url);

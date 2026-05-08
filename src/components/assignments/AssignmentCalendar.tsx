@@ -74,6 +74,20 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
     staleTime: 0,
   });
 
+  const cells = useMemo(() => buildMonthGrid(currentMonth), [currentMonth]);
+  
+  const assignmentsByDate = useMemo(() => {
+    const map: Record<string, Assignment[]> = {};
+    if (!assignments) return map;
+    
+    for (const assignment of assignments) {
+      if (assignment.due_date) {
+        (map[assignment.due_date] ||= []).push(assignment);
+      }
+    }
+    return map;
+  }, [assignments]);
+
   // Early return for empty state
   if (!isLoading && assignments.length === 0 && studentId && role === "student") {
     return (
@@ -88,20 +102,6 @@ export function AssignmentCalendar({ onSelectAssignment, role, classId }: Assign
       </Card>
     );
   }
-
-  const cells = useMemo(() => buildMonthGrid(currentMonth), [currentMonth]);
-  
-  const assignmentsByDate = useMemo(() => {
-    const map: Record<string, Assignment[]> = {};
-    if (!assignments) return map;
-    
-    for (const assignment of assignments) {
-      if (assignment.due_date) {
-        (map[assignment.due_date] ||= []).push(assignment);
-      }
-    }
-    return map;
-  }, [assignments]);
 
   const getAssignmentStatus = (assignment: Assignment) => {
     const submissions = assignment.homework_submissions || [];
