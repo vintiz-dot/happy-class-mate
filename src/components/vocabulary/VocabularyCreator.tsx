@@ -86,23 +86,40 @@ export function VocabularyCreator({ onAddWord }: Props) {
     }, 700);
   };
 
-  // ---- Dictionary API (free, no key) ----
+  // ---- Dictionary API (Grade-appropriate via Edge Function) ----
   const fetchDictionary = async (q: string) => {
     setDictLoading(true); setDictData(null); setViDefinitions({});
     try {
-      const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q));
-      if (res.ok) {
-        const data: DictEntry[] = await res.json();
-        if (data?.[0]) {
-          setDictData(data[0]);
-          const firstPos = data[0].meanings[0]?.partOfSpeech;
-          if (firstPos) {
-            const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
-            if (m) setPos(m.value);
-          }
-          // For Grade 1-5: translate definitions to Vietnamese
-          if (gradeNum >= 1 && gradeNum <= 5) {
-            translateDefinitions(data[0]);
+      const { data, error } = await supabase.functions.invoke("smart-dictionary", {
+        body: { word: q, grade: gradeNum || 3 },
+      });
+      if (!error && data?.[0]) {
+        setDictData(data[0]);
+        const firstPos = data[0].meanings[0]?.partOfSpeech;
+        if (firstPos) {
+          const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
+          if (m) setPos(m.value);
+        }
+        // For Grade 1-5: translate definitions to Vietnamese
+        if (gradeNum >= 1 && gradeNum <= 5) {
+          translateDefinitions(data[0]);
+        }
+      } else {
+        // Fallback to free dictionary API
+        const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q));
+        if (res.ok) {
+          const fallbackData: DictEntry[] = await res.json();
+          if (fallbackData?.[0]) {
+            setDictData(fallbackData[0]);
+            const firstPos = fallbackData[0].meanings[0]?.partOfSpeech;
+            if (firstPos) {
+              const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
+              if (m) setPos(m.value);
+            }
+            // For Grade 1-5: translate definitions to Vietnamese
+            if (gradeNum >= 1 && gradeNum <= 5) {
+              translateDefinitions(fallbackData[0]);
+            }
           }
         }
       }
