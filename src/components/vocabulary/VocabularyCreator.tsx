@@ -149,38 +149,38 @@ export function VocabularyCreator({ onAddWord }: Props) {
     } catch { /* silent */ }
   };
 
-  // ---- Image search (Pixabay free tier via CORS-friendly endpoint) ----
+  // ---- Image search (Wikimedia Commons — free, no API key, relevant images) ----
   const fetchImages = async (q: string) => {
     setFetchingImages(true); setImages([]); setSelectedImage("");
     try {
-      // Try Pixabay (free, key required but free to register)
-      const pixabayKey = import.meta.env.VITE_PIXABAY_API_KEY;
-      if (pixabayKey) {
-        const res = await fetch(
-          "https://pixabay.com/api/?key=" + pixabayKey +
-          "&q=" + encodeURIComponent(q) +
-          "&image_type=photo&per_page=10&safesearch=true"
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.hits?.length > 0) {
-            const imgs = data.hits.map((h: any) => ({ url: h.webformatURL, alt: h.tags || q }));
-            setImages(imgs);
+      const url =
+        "https://commons.wikimedia.org/w/api.php?action=query" +
+        "&generator=search&gsrsearch=" + encodeURIComponent(q + " photo") +
+        "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url" +
+        "&iiurlwidth=400&format=json&origin=*";
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const pages = data?.query?.pages;
+        if (pages) {
+          const imgs = Object.values(pages)
+            .map((p: any) => {
+              const info = p.imageinfo?.[0];
+              if (!info?.thumburl) return null;
+              // Filter out SVGs, icons, and tiny images
+              const title = (p.title || "").toLowerCase();
+              if (title.endsWith(".svg") || title.includes("icon") || title.includes("logo")) return null;
+              return { url: info.thumburl, alt: (p.title || q).replace("File:", "") };
+            })
+            .filter(Boolean) as { url: string; alt: string }[];
+          if (imgs.length > 0) {
+            setImages(imgs.slice(0, 10));
             setSelectedImage(imgs[0].url);
             setFetchingImages(false);
             return;
           }
         }
       }
-      // Fallback: picsum with word-seeded URLs
-      const h = q.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
-      const seed = Math.abs(h);
-      const fallback = Array.from({ length: 8 }, (_, i) => ({
-        url: "https://picsum.photos/seed/" + (seed + i) + "/400/300",
-        alt: q,
-      }));
-      setImages(fallback);
-      setSelectedImage(fallback[0].url);
     } catch { /* silent */ }
     setFetchingImages(false);
   };
