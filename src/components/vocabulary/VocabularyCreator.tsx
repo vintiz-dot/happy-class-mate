@@ -41,7 +41,11 @@ function speak(text: string, lang = "en-US", rate = 0.8) {
   speechSynthesis.speak(u);
 }
 
+const GRADE_KEY = "hec-vocab-grade";
+const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
 export function VocabularyCreator({ onAddWord }: Props) {
+  const [grade, setGrade] = useState(() => localStorage.getItem(GRADE_KEY) || "");
   const [word, setWord] = useState("");
   const [pos, setPos] = useState("noun");
   const [meaning, setMeaning] = useState("");
@@ -54,6 +58,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
   const [dictData, setDictData] = useState<DictEntry | null>(null);
   const [dictLoading, setDictLoading] = useState(false);
   const [viTranslation, setViTranslation] = useState("");
+  const [viDefinitions, setViDefinitions] = useState<Record<string, string>>({});
   const [grammarResult, setGrammarResult] = useState<string | null>(null);
   const [checkingGrammar, setCheckingGrammar] = useState(false);
 
@@ -61,6 +66,9 @@ export function VocabularyCreator({ onAddWord }: Props) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const grammarRef = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
+
+  const gradeNum = parseInt(grade) || 0;
+  const setAndSaveGrade = (g: string) => { setGrade(g); localStorage.setItem(GRADE_KEY, g); };
 
   // ---- Word change: triggers dictionary + images + translation ----
   const onWordChange = (val: string) => {
@@ -80,7 +88,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
 
   // ---- Dictionary API (free, no key) ----
   const fetchDictionary = async (q: string) => {
-    setDictLoading(true); setDictData(null);
+    setDictLoading(true); setDictData(null); setViDefinitions({});
     try {
       const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q));
       if (res.ok) {
@@ -92,10 +100,37 @@ export function VocabularyCreator({ onAddWord }: Props) {
             const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
             if (m) setPos(m.value);
           }
+          // For Grade 1-5: translate definitions to Vietnamese
+          if (gradeNum >= 1 && gradeNum <= 5) {
+            translateDefinitions(data[0]);
+          }
         }
       }
     } catch { /* silent */ }
     setDictLoading(false);
+  };
+
+  // ---- Translate definitions to Vietnamese for younger students ----
+  const translateDefinitions = async (entry: DictEntry) => {
+    const defsToTranslate: { key: string; text: string }[] = [];
+    entry.meanings.forEach((m, mi) => {
+      m.definitions.slice(0, 2).forEach((d, di) => {
+        defsToTranslate.push({ key: mi + "-" + di, text: d.definition });
+      });
+    });
+    const results: Record<string, string> = {};
+    // Translate in parallel (max 4 to avoid rate limits)
+    await Promise.all(defsToTranslate.slice(0, 4).map(async (item) => {
+      try {
+        const res = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(item.text.slice(0, 200)) + "&langpair=en|vi");
+        if (res.ok) {
+          const data = await res.json();
+          const t = data?.responseData?.translatedText;
+          if (t) results[item.key] = t;
+        }
+      } catch { /* silent */ }
+    }));
+    setViDefinitions(results);
   };
 
   // ---- Vietnamese translation (MyMemory API, free, no key) ----
@@ -268,7 +303,31 @@ export function VocabularyCreator({ onAddWord }: Props) {
           <p className="text-center text-sm text-muted-foreground">Tap 🎤 to speak or type your word</p>
         </CardHeader>
         <CardContent>
+          {/* Grade Selector (shown if not set) */}
+          {!grade ? (
+            <div className="text-center space-y-5 py-6">
+              <div className="text-5xl">🎓</div>
+              <h3 className="text-xl font-bold text-foreground">What grade are you in?</h3>
+              <p className="text-sm text-muted-foreground">This helps us show definitions you can understand.</p>
+              <div className="grid grid-cols-4 gap-3 max-w-xs mx-auto">
+                {GRADES.map(g => (
+                  <Button key={g} variant="outline" onClick={() => setAndSaveGrade(g)}
+                    className="h-14 text-xl font-bold rounded-xl hover:bg-violet-50 hover:border-violet-400 hover:text-violet-700 transition-all">
+                    {g}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Grade indicator */}
+            <div className="flex items-center justify-end">
+              <button type="button" onClick={() => setAndSaveGrade("")} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                🎓 Grade {grade}
+                <span className="underline">change</span>
+              </button>
+            </div>
+
             {/* Word + POS */}
             <div className="space-y-2">
               <Label className="text-base font-semibold">English Word</Label>
@@ -292,53 +351,125 @@ export function VocabularyCreator({ onAddWord }: Props) {
 
             {dictData && (
               <div className="rounded-2xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-violet-600" />
-                    <h3 className="text-lg font-bold capitalize">{dictData.word}</h3>
-                    {dictData.phonetic && <span className="text-sm text-muted-foreground font-mono">{dictData.phonetic}</span>}
+                    <h3 className={cn("font-bold capitalize", gradeNum <= 3 ? "text-2xl" : "text-lg")}>{dictData.word}</h3>
+                    {gradeNum >= 4 && dictData.phonetic && <span className="text-sm text-muted-foreground font-mono">{dictData.phonetic}</span>}
                   </div>
                   <Button type="button" variant="ghost" size="sm" onClick={playDictAudio} className="text-violet-600 gap-1">
-                    <Volume2 className="w-4 h-4" /> Listen
+                    <Volume2 className="w-4 h-4" /> {gradeNum <= 3 ? "🔊" : "Listen"}
                   </Button>
                 </div>
 
+                {/* Vietnamese translation — always prominent */}
                 {viTranslation && (
-                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg px-3 py-2">
-                    <span className="text-sm font-medium">🇻🇳</span>
-                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{viTranslation}</span>
+                  <div className={cn("flex items-center gap-2 rounded-lg px-3", gradeNum <= 3 ? "bg-blue-100 dark:bg-blue-950/40 py-3" : "bg-blue-50 dark:bg-blue-950/30 py-2")}>
+                    <span className={gradeNum <= 3 ? "text-2xl" : "text-sm"}>🇻🇳</span>
+                    <span className={cn("font-bold text-blue-700 dark:text-blue-300", gradeNum <= 3 ? "text-xl" : "text-sm")}>{viTranslation}</span>
                   </div>
                 )}
 
                 <Separator className="bg-violet-200 dark:bg-violet-800" />
 
-                {dictData.meanings.map((m, mi) => (
-                  <div key={mi} className="space-y-1.5">
-                    <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
-                      {m.partOfSpeech}
-                    </Badge>
-                    <ul className="space-y-1.5 pl-1">
-                      {m.definitions.slice(0, 2).map((d, di) => (
-                        <li key={di} className="text-sm space-y-0.5">
-                          <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
-                          {d.example && (
-                            <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
-                              "{d.example}"
-                              <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
-                                <Volume2 className="w-3 h-3" />
-                              </Button>
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                {/* === GRADE 1-3: Simple, Vietnamese-first, emoji-rich === */}
+                {gradeNum >= 1 && gradeNum <= 3 && (
+                  <div className="space-y-3">
+                    {dictData.meanings.slice(0, 1).map((m, mi) => (
+                      <div key={mi} className="space-y-2">
+                        <Badge className={cn("text-sm font-bold", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
+                          {m.partOfSpeech === "noun" ? "📦 Thing (Noun)" : m.partOfSpeech === "verb" ? "🏃 Action (Verb)" : m.partOfSpeech === "adjective" ? "🌈 Describing (Adjective)" : "📝 " + m.partOfSpeech}
+                        </Badge>
+                        {m.definitions.slice(0, 1).map((d, di) => {
+                          const viDef = viDefinitions[mi + "-" + di];
+                          return (
+                            <div key={di} className="bg-white dark:bg-slate-800 rounded-xl p-3 space-y-2 border">
+                              {viDef && <p className="text-base font-bold text-foreground">🇻🇳 {viDef}</p>}
+                              {d.example && (
+                                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
+                                  <span className="text-lg">💬</span>
+                                  <p className="text-sm font-medium text-foreground italic">"{d.example}"</p>
+                                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.7)}>
+                                    <Volume2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
 
+                {/* === GRADE 4-5: Bilingual, simplified === */}
+                {gradeNum >= 4 && gradeNum <= 5 && (
+                  <div className="space-y-3">
+                    {dictData.meanings.slice(0, 2).map((m, mi) => (
+                      <div key={mi} className="space-y-1.5">
+                        <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
+                          {m.partOfSpeech}
+                        </Badge>
+                        <ul className="space-y-2 pl-1">
+                          {m.definitions.slice(0, 2).map((d, di) => {
+                            const viDef = viDefinitions[mi + "-" + di];
+                            return (
+                              <li key={di} className="text-sm space-y-1">
+                                <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
+                                {viDef && <p className="text-xs text-blue-600 dark:text-blue-400 pl-4">🇻🇳 {viDef}</p>}
+                                {d.example && (
+                                  <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
+                                    "{d.example}"
+                                    <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
+                                      <Volume2 className="w-3 h-3" />
+                                    </Button>
+                                  </p>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* === GRADE 6-8: Full English definitions === */}
+                {gradeNum >= 6 && (
+                  <div className="space-y-3">
+                    {dictData.meanings.map((m, mi) => (
+                      <div key={mi} className="space-y-1.5">
+                        <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
+                          {m.partOfSpeech}
+                        </Badge>
+                        <ul className="space-y-1.5 pl-1">
+                          {m.definitions.slice(0, 3).map((d, di) => (
+                            <li key={di} className="text-sm space-y-0.5">
+                              <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
+                              {d.example && (
+                                <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
+                                  "{d.example}"
+                                  <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
+                                    <Volume2 className="w-3 h-3" />
+                                  </Button>
+                                </p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Prompt */}
                 <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded-xl p-3">
                   <Lightbulb className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    <strong>Your turn!</strong> Write your own sentence using "<strong>{dictData.word}</strong>" below!
+                  <p className={cn("text-amber-700 dark:text-amber-400", gradeNum <= 3 ? "text-base" : "text-sm")}>
+                    {gradeNum <= 3
+                      ? <><strong>Đến lượt em!</strong> Viết một câu có từ "<strong>{dictData.word}</strong>" ở bên dưới nhé! ✍️</>
+                      : <><strong>Your turn!</strong> Write your own sentence using "<strong>{dictData.word}</strong>" below!</>}
                   </p>
                 </div>
               </div>
@@ -407,9 +538,10 @@ export function VocabularyCreator({ onAddWord }: Props) {
             </div>
 
             <Button type="submit" className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all">
-              Add to My Vocabulary ✨
+              {gradeNum <= 3 ? "Thêm từ vựng ✨" : "Add to My Vocabulary ✨"}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </>
