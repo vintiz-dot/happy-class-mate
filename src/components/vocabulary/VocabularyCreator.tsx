@@ -493,9 +493,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
                   </div>
                   <ScrollBar orientation="horizontal" />
                 </ScrollArea>
-                {!import.meta.env.VITE_PIXABAY_API_KEY && (
-                  <p className="text-[10px] text-muted-foreground">💡 Add VITE_PIXABAY_API_KEY to .env for word-matched images (free at pixabay.com/api)</p>
-                )}
+
               </div>
             )}
 
