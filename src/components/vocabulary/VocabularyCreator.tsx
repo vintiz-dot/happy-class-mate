@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { getCEFRBadgeLabel, getCEFRProfile } from "@/lib/cefrMapping";
+import { VisemePlayer } from "./VisemePlayer";
 
 declare global {
   interface Window { SpeechRecognition: any; webkitSpeechRecognition: any; }
@@ -337,8 +339,11 @@ export function VocabularyCreator({ onAddWord }: Props) {
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Grade indicator */}
-            <div className="flex items-center justify-end">
+            {/* Grade + CEFR indicator */}
+            <div className="flex items-center justify-end gap-2">
+              <Badge variant="outline" className="text-[10px] font-medium bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 border-violet-200">
+                {getCEFRBadgeLabel(gradeNum)}
+              </Badge>
               <button type="button" onClick={() => setAndSaveGrade("")} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                 🎓 Grade {grade}
                 <span className="underline">change</span>
@@ -368,16 +373,19 @@ export function VocabularyCreator({ onAddWord }: Props) {
 
             {dictData && (
               <div className="rounded-2xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                {/* Header */}
+                {/* Header with Viseme Pronunciation */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-violet-600" />
                     <h3 className={cn("font-bold capitalize", gradeNum <= 3 ? "text-2xl" : "text-lg")}>{dictData.word}</h3>
                     {gradeNum >= 4 && dictData.phonetic && <span className="text-sm text-muted-foreground font-mono">{dictData.phonetic}</span>}
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={playDictAudio} className="text-violet-600 gap-1">
-                    <Volume2 className="w-4 h-4" /> {gradeNum <= 3 ? "🔊" : "Listen"}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <VisemePlayer word={dictData.word} compact />
+                    <Button type="button" variant="ghost" size="sm" onClick={playDictAudio} className="text-violet-600 gap-1">
+                      <Volume2 className="w-4 h-4" /> {gradeNum <= 3 ? "🔊" : "Listen"}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Vietnamese translation — always prominent */}
