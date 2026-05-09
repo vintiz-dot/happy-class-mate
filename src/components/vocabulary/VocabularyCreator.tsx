@@ -1,20 +1,16 @@
-import { useState, useEffect, useRef } from "react";
-import { Mic, Loader2, Image as ImageIcon, Check } from "lucide-react";
+import { useState, useRef } from "react";
+import { Mic, MicOff, Volume2, Check, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-interface VocabularyCreatorProps {
-  onAddWord: (word: any) => void;
-}
-
-// Ensure TypeScript knows about webkitSpeechRecognition
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -22,268 +18,185 @@ declare global {
   }
 }
 
-export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
+interface Props {
+  onAddWord: (w: { word: string; partOfSpeech: string; meaning: string; example: string; imageUrl: string }) => void;
+}
+
+const POS_OPTIONS = [
+  { value: "noun", label: "Noun (n.)" },
+  { value: "verb", label: "Verb (v.)" },
+  { value: "adjective", label: "Adj (adj.)" },
+  { value: "adverb", label: "Adv (adv.)" },
+  { value: "phrase", label: "Phrase" },
+];
+
+export function VocabularyCreator({ onAddWord }: Props) {
   const [word, setWord] = useState("");
+  const [pos, setPos] = useState("noun");
   const [meaning, setMeaning] = useState("");
   const [example, setExample] = useState("");
-  
   const [images, setImages] = useState<string[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string>("");
-  const [isFetchingImages, setIsFetchingImages] = useState(false);
-  
-  // Speech recognition states
-  const [activeInput, setActiveInput] = useState<"word" | "meaning" | "example" | null>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [language, setLanguage] = useState<"en" | "vi">("en");
-  
-  const recognitionRef = useRef<any>(null);
+  const [selectedImage, setSelectedImage] = useState("");
+  const [fetchingImages, setFetchingImages] = useState(false);
+  const [listeningField, setListeningField] = useState<string | null>(null);
+  const recRef = useRef<any>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onresult = async (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setIsListening(false);
-        
-        if (language === "vi") {
-          updateActiveInput(transcript);
-        } else {
-          // English mode - polish with AI
-          await polishTextWithAI(transcript);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error", event.error);
-        setIsListening(false);
-        setActiveInput(null);
-        toast({
-          title: "Microphone Error",
-          description: "There was an error with the microphone. Please try again.",
-          variant: "destructive",
-        });
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [language, activeInput]); // Re-init if language changes to update lang property (handled in startListening)
-
-  const updateActiveInput = (text: string) => {
-    if (activeInput === "word") setWord((prev) => (prev ? prev + " " + text : text));
-    if (activeInput === "meaning") setMeaning((prev) => (prev ? prev + " " + text : text));
-    if (activeInput === "example") setExample((prev) => (prev ? prev + " " + text : text));
-    setActiveInput(null);
+  // --- Pronunciation ---
+  const speak = (text: string, lang = "en-US") => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = 0.8;
+    speechSynthesis.speak(u);
   };
 
-  const polishTextWithAI = async (rawText: string) => {
-    setIsPolishing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('smart-dictation', {
-        body: { rawText, targetLanguage: 'en' }
-      });
-
-      if (error) throw error;
-      
-      const correctedText = data.correctedText;
-      updateActiveInput(correctedText);
-      
-      toast({
-        title: "AI Polished",
-        description: "Your pronunciation was corrected and polished!",
-      });
-    } catch (error) {
-      console.error("Error polishing text:", error);
-      toast({
-        title: "Polishing Failed",
-        description: "Could not polish the text. Using rough transcript instead.",
-        variant: "destructive",
-      });
-      updateActiveInput(rawText);
-    } finally {
-      setIsPolishing(false);
-    }
+  // --- Image fetch (debounced) ---
+  const onWordChange = (val: string) => {
+    setWord(val);
+    clearTimeout(debounceRef.current);
+    if (val.trim().length < 2) { setImages([]); setSelectedImage(""); return; }
+    debounceRef.current = setTimeout(() => {
+      setFetchingImages(true);
+      const h = val.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+      const seed = Math.abs(h);
+      const urls = Array.from({ length: 8 }, (_, i) =>
+        "https://picsum.photos/seed/" + (seed + i) + "/400/300"
+      );
+      setImages(urls);
+      setSelectedImage(urls[0]);
+      setFetchingImages(false);
+    }, 800);
   };
 
-  const toggleListening = (inputName: "word" | "meaning" | "example") => {
-    if (isListening && activeInput === inputName) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      setActiveInput(null);
+  // --- Voice input (direct browser SpeechRecognition, no AI dependency) ---
+  const toggleVoice = (field: string, lang: string) => {
+    if (listeningField === field) {
+      recRef.current?.stop();
+      setListeningField(null);
       return;
     }
-
-    if (recognitionRef.current) {
-      setActiveInput(inputName);
-      // Auto-set language based on input type for convenience, but respect manual toggle if needed.
-      // Usually Meaning is VI, Word/Example are EN.
-      const targetLang = inputName === "meaning" ? "vi-VN" : "en-US";
-      recognitionRef.current.lang = targetLang;
-      // We also track language state for AI polishing
-      setLanguage(inputName === "meaning" ? "vi" : "en");
-      
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error("Speech recognition already started");
-      }
-    } else {
-      toast({
-        title: "Not Supported",
-        description: "Speech recognition is not supported in this browser.",
-        variant: "destructive",
-      });
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      toast({ title: "Not Supported", description: "Speech recognition is not available in this browser.", variant: "destructive" });
+      return;
     }
-  };
-
-  // Debounced Image Fetcher
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (word.trim().length > 2) {
-        fetchImages(word.trim());
-      } else {
-        setImages([]);
-      }
-    }, 800);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [word]);
-
-  const fetchImages = async (searchQuery: string) => {
-    setIsFetchingImages(true);
-    // Use picsum.photos for reliable, free image placeholders.
-    // For a production app, integrate the Unsplash API via an Edge Function with an API key.
-    try {
-      // Generate a deterministic seed from the search query for each image slot
-      const hashCode = (s: string) => s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
-      const baseSeed = Math.abs(hashCode(searchQuery));
-      const newImages = Array.from({ length: 8 }).map((_, i) =>
-        `https://picsum.photos/seed/${baseSeed + i}/400/300`
-      );
-      setImages(newImages);
-      // Auto-select first image if none selected
-      if (!selectedImage && newImages.length > 0) {
-        setSelectedImage(newImages[0]);
-      }
-    } catch (e) {
-      console.error("Failed to fetch images", e);
-    } finally {
-      setIsFetchingImages(false);
-    }
+    const rec = new SR();
+    rec.lang = lang;
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const t = e.results[0][0].transcript;
+      if (field === "word") setWord(prev => prev ? prev + " " + t : t);
+      if (field === "meaning") setMeaning(prev => prev ? prev + " " + t : t);
+      if (field === "example") setExample(prev => prev ? prev + " " + t : t);
+      setListeningField(null);
+    };
+    rec.onerror = () => { setListeningField(null); };
+    rec.onend = () => { setListeningField(null); };
+    recRef.current = rec;
+    rec.start();
+    setListeningField(field);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!word || !meaning || !example || !selectedImage) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all fields and select an image.",
-        variant: "destructive",
-      });
+    if (!word.trim() || !meaning.trim()) {
+      toast({ title: "Required", description: "Please enter the word and its Vietnamese meaning.", variant: "destructive" });
       return;
     }
-    
     onAddWord({
-      id: crypto.randomUUID(),
-      word,
-      meaning,
-      example,
-      imageUrl: selectedImage,
-      createdAt: new Date().toISOString()
+      word: word.trim(),
+      partOfSpeech: pos,
+      meaning: meaning.trim(),
+      example: example.trim() || ("I learned the word " + word.trim() + " today."),
+      imageUrl: selectedImage || ("https://picsum.photos/seed/" + Date.now() + "/400/300"),
     });
-    
-    // Reset form
-    setWord("");
-    setMeaning("");
-    setExample("");
-    setSelectedImage("");
-    setImages([]);
-    
-    toast({
-      title: "Success",
-      description: "Vocabulary word added to the list!",
-    });
+    setWord(""); setMeaning(""); setExample(""); setSelectedImage(""); setImages([]);
+    toast({ title: "Word Added! ✨", description: word.trim() + " is now in your vocabulary." });
+  };
+
+  const MicButton = ({ field, lang }: { field: string; lang: string }) => {
+    const active = listeningField === field;
+    return (
+      <Button
+        type="button"
+        variant={active ? "destructive" : "ghost"}
+        size="icon"
+        onClick={() => toggleVoice(field, lang)}
+        className={cn("rounded-full shrink-0", active && "animate-pulse")}
+      >
+        {active ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+      </Button>
+    );
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-lg border-2 border-primary/10 bg-white/50 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center text-primary mb-2">Create New Word</CardTitle>
+    <Card className="w-full max-w-2xl mx-auto shadow-xl border-0 bg-gradient-to-br from-white to-blue-50/50 dark:from-slate-900 dark:to-slate-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">
+          Add a New Word
+        </CardTitle>
+        <p className="text-center text-sm text-muted-foreground">Tap the 🎤 to speak or type your word</p>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* WORD INPUT */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Word + POS */}
           <div className="space-y-2">
-            <Label htmlFor="word" className="text-lg font-semibold">English Word</Label>
-            <div className="relative flex items-center">
-              <Input 
-                id="word"
-                placeholder="e.g. Beautiful" 
-                value={word}
-                onChange={(e) => setWord(e.target.value)}
-                className="pr-12 text-lg py-6"
-                disabled={isPolishing && activeInput === "word"}
-              />
-              <div className="absolute right-2 flex items-center space-x-1">
-                {isPolishing && activeInput === "word" ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                ) : (
-                  <Button 
-                    type="button" 
-                    variant={isListening && activeInput === "word" ? "destructive" : "ghost"}
-                    size="icon"
-                    onClick={() => toggleListening("word")}
-                    className={`rounded-full ${isListening && activeInput === "word" ? 'animate-pulse' : ''}`}
-                  >
-                    <Mic className="w-5 h-5" />
-                  </Button>
-                )}
+            <Label className="text-base font-semibold">English Word</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  placeholder="e.g. beautiful"
+                  value={word}
+                  onChange={e => onWordChange(e.target.value)}
+                  className="text-lg h-12 pr-20"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {word && (
+                    <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => speak(word)}>
+                      <Volume2 className="w-4 h-4 text-blue-500" />
+                    </Button>
+                  )}
+                  <MicButton field="word" lang="en-US" />
+                </div>
               </div>
+              <Select value={pos} onValueChange={setPos}>
+                <SelectTrigger className="w-[120px] h-12">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {POS_OPTIONS.map(p => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            {isPolishing && activeInput === "word" && (
-              <p className="text-xs text-primary animate-pulse flex items-center mt-1">
-                <Loader2 className="w-3 h-3 animate-spin mr-1"/> AI is polishing your pronunciation...
-              </p>
-            )}
           </div>
 
-          {/* IMAGE GALLERY */}
-          <div className="space-y-2 bg-muted/30 p-4 rounded-xl border border-muted">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-semibold flex items-center text-muted-foreground">
-                <ImageIcon className="w-4 h-4 mr-1" />
-                Smart Images
-              </Label>
-              {isFetchingImages && <Badge variant="secondary" className="animate-pulse">Searching...</Badge>}
-            </div>
-            
-            {images.length > 0 ? (
-              <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                <div className="flex w-max space-x-4 p-2">
-                  {images.map((imgUrl, i) => (
-                    <div 
-                      key={i} 
-                      className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 rounded-xl overflow-hidden shadow-sm w-[150px] h-[120px] shrink-0 ${
-                        selectedImage === imgUrl ? 'ring-4 ring-primary ring-offset-2' : 'hover:ring-2 hover:ring-primary/50'
-                      }`}
-                      onClick={() => setSelectedImage(imgUrl)}
+          {/* Image Gallery */}
+          {images.length > 0 && (
+            <div className="space-y-2 bg-muted/30 p-3 rounded-xl border">
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-medium text-muted-foreground">Choose an image</Label>
+                {fetchingImages && <Badge variant="secondary" className="animate-pulse text-xs">Loading...</Badge>}
+              </div>
+              <ScrollArea className="w-full whitespace-nowrap rounded-lg">
+                <div className="flex w-max gap-3 p-1">
+                  {images.map((url, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "relative cursor-pointer rounded-xl overflow-hidden w-[120px] h-[90px] shrink-0 transition-all duration-200 hover:scale-105",
+                        selectedImage === url ? "ring-3 ring-violet-500 ring-offset-2 shadow-lg" : "opacity-70 hover:opacity-100"
+                      )}
+                      onClick={() => setSelectedImage(url)}
                     >
-                      <img src={imgUrl} alt="Vocabulary visual" className="w-full h-full object-cover" />
-                      {selectedImage === imgUrl && (
-                        <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1 shadow-md">
-                          <Check className="w-4 h-4" />
+                      <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      {selectedImage === url && (
+                        <div className="absolute top-1 right-1 bg-violet-500 text-white rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
                         </div>
                       )}
                     </div>
@@ -291,75 +204,46 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
                 </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
-            ) : (
-              <div className="h-[120px] flex items-center justify-center border-2 border-dashed rounded-xl text-muted-foreground bg-white/50">
-                {word.length > 2 ? "No images found." : "Type a word to see auto-fetched images..."}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* MEANING INPUT */}
+          {/* Vietnamese Meaning */}
           <div className="space-y-2">
-            <Label htmlFor="meaning" className="text-lg font-semibold">Vietnamese Meaning</Label>
-            <div className="relative flex items-center">
-              <Input 
-                id="meaning"
-                placeholder="e.g. Xinh đẹp" 
+            <Label className="text-base font-semibold">Vietnamese Meaning (Nghĩa tiếng Việt)</Label>
+            <div className="relative">
+              <Input
+                placeholder="e.g. xinh đẹp"
                 value={meaning}
-                onChange={(e) => setMeaning(e.target.value)}
-                className="pr-12 text-lg py-6"
+                onChange={e => setMeaning(e.target.value)}
+                className="text-lg h-12 pr-12"
               />
-              <div className="absolute right-2 flex items-center space-x-1">
-                <Button 
-                  type="button" 
-                  variant={isListening && activeInput === "meaning" ? "destructive" : "ghost"}
-                  size="icon"
-                  onClick={() => toggleListening("meaning")}
-                  className={`rounded-full ${isListening && activeInput === "meaning" ? 'animate-pulse' : ''}`}
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
+              <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                <MicButton field="meaning" lang="vi-VN" />
               </div>
             </div>
           </div>
 
-          {/* EXAMPLE INPUT */}
+          {/* Example Sentence */}
           <div className="space-y-2">
-            <Label htmlFor="example" className="text-lg font-semibold">Example Sentence</Label>
-            <div className="relative flex items-center">
-              <Textarea 
-                id="example"
-                placeholder="e.g. She is a very beautiful girl." 
+            <Label className="text-base font-semibold">Example Sentence</Label>
+            <div className="relative">
+              <Textarea
+                placeholder='e.g. She is a very beautiful girl.'
                 value={example}
-                onChange={(e) => setExample(e.target.value)}
-                className="pr-12 text-lg min-h-[100px] resize-none"
-                disabled={isPolishing && activeInput === "example"}
+                onChange={e => setExample(e.target.value)}
+                className="text-base min-h-[80px] resize-none pr-12"
               />
-              <div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
-                {isPolishing && activeInput === "example" ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                ) : (
-                  <Button 
-                    type="button" 
-                    variant={isListening && activeInput === "example" ? "destructive" : "ghost"}
-                    size="icon"
-                    onClick={() => toggleListening("example")}
-                    className={`rounded-full ${isListening && activeInput === "example" ? 'animate-pulse' : ''}`}
-                  >
-                    <Mic className="w-5 h-5" />
-                  </Button>
-                )}
+              <div className="absolute top-2 right-1">
+                <MicButton field="example" lang="en-US" />
               </div>
             </div>
-             {isPolishing && activeInput === "example" && (
-              <p className="text-xs text-primary animate-pulse flex items-center mt-1">
-                <Loader2 className="w-3 h-3 animate-spin mr-1"/> AI is polishing your sentence...
-              </p>
-            )}
           </div>
 
-          <Button type="submit" className="w-full text-lg py-6 rounded-xl shadow-lg hover:shadow-xl transition-all font-bold">
-            Add to Vocabulary
+          <Button
+            type="submit"
+            className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all"
+          >
+            Add to My Vocabulary ✨
           </Button>
         </form>
       </CardContent>
