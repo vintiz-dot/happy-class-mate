@@ -2,9 +2,8 @@ import { useState } from "react";
 import { VocabularyCreator } from "@/components/vocabulary/VocabularyCreator";
 import { VocabularyIndex, VocabularyItem } from "@/components/vocabulary/VocabularyIndex";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, PlusCircle } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { Layout } from "@/components/Layout";
+import { BookOpen, PlusCircle, Sparkles } from "lucide-react";
+import Layout from "@/components/Layout";
 
 // Dummy data for initial testing, matching the strict 30-item pagination testing needs
 const initialVocabulary: VocabularyItem[] = Array.from({ length: 45 }).map((_, i) => ({
@@ -12,7 +11,7 @@ const initialVocabulary: VocabularyItem[] = Array.from({ length: 45 }).map((_, i
   word: ["Apple", "Beautiful", "Cat", "Dog", "Elephant", "Flower", "Guitar", "House"][i % 8] + (i > 7 ? ` ${i}` : ""),
   meaning: ["Quả táo", "Xinh đẹp", "Con mèo", "Con chó", "Con voi", "Bông hoa", "Đàn ghi-ta", "Ngôi nhà"][i % 8],
   example: "This is a sample sentence for testing the UI layout and features.",
-  imageUrl: `https://source.unsplash.com/400x300/?nature&sig=${i}`,
+  imageUrl: `https://picsum.photos/seed/${i + 100}/400/300`,
   createdAt: new Date().toISOString()
 }));
 
@@ -24,13 +23,18 @@ export default function Vocabulary() {
   };
 
   return (
-    <Layout>
-      <div className="container max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in duration-500">
-        <PageHeader 
-          title="Smart Vocabulary" 
-          description="Build and explore your personal English vocabulary with AI assistance."
-          icon={<BookOpen className="w-8 h-8 text-primary" />}
-        />
+    <Layout title="Smart Vocabulary">
+      <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+        {/* Page Header */}
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-sm">
+            <Sparkles className="w-7 h-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Smart Vocabulary</h1>
+            <p className="text-muted-foreground mt-0.5">Build and explore your personal English vocabulary with AI assistance.</p>
+          </div>
+        </div>
 
         <Tabs defaultValue="index" className="w-full">
           <div className="flex justify-center mb-8">

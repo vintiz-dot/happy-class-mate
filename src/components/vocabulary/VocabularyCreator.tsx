@@ -162,15 +162,14 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
 
   const fetchImages = async (searchQuery: string) => {
     setIsFetchingImages(true);
-    // Note: Since Unsplash source URL (source.unsplash.com) has been deprecated/changed, 
-    // we generate a list of mock URLs using a reliable placeholder service like Picsum or a dynamic Unsplash source endpoint if still active.
-    // For a real app, you would use the Unsplash API via Edge Function.
-    // Here we simulate fetching 5 images based on the keyword using Unsplash Source format
+    // Use picsum.photos for reliable, free image placeholders.
+    // For a production app, integrate the Unsplash API via an Edge Function with an API key.
     try {
-      // Simulate network request
-      await new Promise(r => setTimeout(r, 500));
-      const newImages = Array.from({ length: 8 }).map((_, i) => 
-        `https://source.unsplash.com/400x300/?${encodeURIComponent(searchQuery)}&sig=${i}`
+      // Generate a deterministic seed from the search query for each image slot
+      const hashCode = (s: string) => s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+      const baseSeed = Math.abs(hashCode(searchQuery));
+      const newImages = Array.from({ length: 8 }).map((_, i) =>
+        `https://picsum.photos/seed/${baseSeed + i}/400/300`
       );
       setImages(newImages);
       // Auto-select first image if none selected
