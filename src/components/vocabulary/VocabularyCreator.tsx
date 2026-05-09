@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Mic, MicOff, Volume2, Check, Loader2, BookOpen, Lightbulb, PenLine, Timer, SpellCheck } from "lucide-react";
+import { Mic, MicOff, Volume2, Check, Loader2, BookOpen, Lightbulb, PenLine, Timer, SpellCheck, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,18 @@ interface Props {
 interface DictDefinition { definition: string; example?: string; }
 interface DictMeaning { partOfSpeech: string; definitions: DictDefinition[]; }
 interface DictEntry { word: string; phonetic?: string; phonetics?: { text?: string; audio?: string }[]; meanings: DictMeaning[]; }
+
+/** v2 ESL Dictionary entry returned by the refactored smart-dictionary edge function */
+interface ESLDictEntry {
+  target_word: string;
+  part_of_speech: string;
+  cefr_level: string;
+  vietnamese_translation: string;
+  english_definition: string;
+  usage_examples: string[];
+  synonyms: string[];
+  antonyms: string[];
+}
 
 const POS_OPTIONS = [
   { value: "noun", label: "Noun (n.)" }, { value: "verb", label: "Verb (v.)" },
@@ -58,6 +70,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
   const [listeningField, setListeningField] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [dictData, setDictData] = useState<DictEntry | null>(null);
+  const [eslEntry, setEslEntry] = useState<ESLDictEntry | null>(null);
   const [dictLoading, setDictLoading] = useState(false);
   const [viTranslation, setViTranslation] = useState("");
   const [viDefinitions, setViDefinitions] = useState<Record<string, string>>({});
@@ -77,7 +90,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
     setWord(val);
     clearTimeout(debounceRef.current);
     if (val.trim().length < 2) {
-      setImages([]); setSelectedImage(""); setDictData(null); setViTranslation("");
+      setImages([]); setSelectedImage(""); setDictData(null); setEslEntry(null); setViTranslation("");
       return;
     }
     debounceRef.current = setTimeout(() => {
@@ -88,23 +101,55 @@ export function VocabularyCreator({ onAddWord }: Props) {
     }, 700);
   };
 
-  // ---- Dictionary API (Grade-appropriate via Edge Function) ----
+  // ---- Dictionary API (v2 ESL Dictionary via Edge Function) ----
   const fetchDictionary = async (q: string) => {
-    setDictLoading(true); setDictData(null); setViDefinitions({});
+    setDictLoading(true); setDictData(null); setEslEntry(null); setViDefinitions({});
     try {
+      // Use v2 API with target_word + cefr_level
+      const cefrLevel = getCEFRProfile(gradeNum || 3).level;
       const { data, error } = await supabase.functions.invoke("smart-dictionary", {
-        body: { word: q, grade: gradeNum || 3 },
+        body: {
+          target_word: q,
+          part_of_speech: pos !== "other" ? pos : "",
+          cefr_level: cefrLevel,
+        },
       });
-      if (!error && data?.[0]) {
-        setDictData(data[0]);
-        const firstPos = data[0].meanings[0]?.partOfSpeech;
-        if (firstPos) {
-          const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
+
+      if (!error && data && !data.error) {
+        // v2 response — single ESLDictEntry object
+        if (data.target_word && data.english_definition) {
+          const entry = data as ESLDictEntry;
+          setEslEntry(entry);
+          // Auto-set part of speech from LLM response
+          const m = POS_OPTIONS.find(p => entry.part_of_speech?.startsWith(p.value));
           if (m) setPos(m.value);
+          // Auto-fill Vietnamese translation
+          if (entry.vietnamese_translation) {
+            setViTranslation(entry.vietnamese_translation);
+            if (!meaning.trim()) setMeaning(entry.vietnamese_translation);
+          }
+          // Convert to legacy DictEntry for the existing UI rendering
+          setDictData({
+            word: entry.target_word,
+            meanings: [{
+              partOfSpeech: entry.part_of_speech,
+              definitions: [{
+                definition: entry.english_definition,
+                example: entry.usage_examples?.[0] || "",
+              }],
+            }],
+          });
+          setDictLoading(false);
+          return;
         }
-        // For Grade 1-5: translate definitions to Vietnamese
-        if (gradeNum >= 1 && gradeNum <= 5) {
-          translateDefinitions(data[0]);
+        // v1 legacy response — array of DictEntry
+        if (Array.isArray(data) && data[0]) {
+          setDictData(data[0]);
+          const firstPos = data[0].meanings[0]?.partOfSpeech;
+          if (firstPos) {
+            const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
+            if (m) setPos(m.value);
+          }
         }
       } else {
         // Fallback to free dictionary API
@@ -118,38 +163,11 @@ export function VocabularyCreator({ onAddWord }: Props) {
               const m = POS_OPTIONS.find(p => firstPos.startsWith(p.value));
               if (m) setPos(m.value);
             }
-            // For Grade 1-5: translate definitions to Vietnamese
-            if (gradeNum >= 1 && gradeNum <= 5) {
-              translateDefinitions(fallbackData[0]);
-            }
           }
         }
       }
     } catch { /* silent */ }
     setDictLoading(false);
-  };
-
-  // ---- Translate definitions to Vietnamese for younger students ----
-  const translateDefinitions = async (entry: DictEntry) => {
-    const defsToTranslate: { key: string; text: string }[] = [];
-    entry.meanings.forEach((m, mi) => {
-      m.definitions.slice(0, 2).forEach((d, di) => {
-        defsToTranslate.push({ key: mi + "-" + di, text: d.definition });
-      });
-    });
-    const results: Record<string, string> = {};
-    // Translate in parallel (max 4 to avoid rate limits)
-    await Promise.all(defsToTranslate.slice(0, 4).map(async (item) => {
-      try {
-        const res = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(item.text.slice(0, 200)) + "&langpair=en|vi");
-        if (res.ok) {
-          const data = await res.json();
-          const t = data?.responseData?.translatedText;
-          if (t) results[item.key] = t;
-        }
-      } catch { /* silent */ }
-    }));
-    setViDefinitions(results);
   };
 
   // ---- Vietnamese translation (MyMemory API, free, no key) ----
@@ -286,7 +304,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
       imageUrl: selectedImage || ("https://picsum.photos/seed/" + Date.now() + "/400/300"),
     });
     setWord(""); setMeaning(""); setExample(""); setSelectedImage(""); setImages([]);
-    setDictData(null); setViTranslation(""); setGrammarResult(null);
+    setDictData(null); setEslEntry(null); setViTranslation(""); setGrammarResult(null);
     toast({ title: "Word Added! ✨", description: word.trim() + " is now in your vocabulary." });
   };
 
@@ -379,6 +397,7 @@ export function VocabularyCreator({ onAddWord }: Props) {
                     <BookOpen className="w-5 h-5 text-violet-600" />
                     <h3 className={cn("font-bold capitalize", gradeNum <= 3 ? "text-2xl" : "text-lg")}>{dictData.word}</h3>
                     {gradeNum >= 4 && dictData.phonetic && <span className="text-sm text-muted-foreground font-mono">{dictData.phonetic}</span>}
+                    {eslEntry && <Badge variant="outline" className="text-[10px] ml-1 border-violet-300 text-violet-600">{eslEntry.cefr_level}</Badge>}
                   </div>
                   <div className="flex items-center gap-1">
                     <VisemePlayer word={dictData.word} compact />
@@ -398,94 +417,122 @@ export function VocabularyCreator({ onAddWord }: Props) {
 
                 <Separator className="bg-violet-200 dark:bg-violet-800" />
 
-                {/* === GRADE 1-3: Simple, Vietnamese-first, emoji-rich === */}
-                {gradeNum >= 1 && gradeNum <= 3 && (
+                {/* ── v2 ESL Entry (LLM-generated) ── */}
+                {eslEntry ? (
                   <div className="space-y-3">
-                    {dictData.meanings.slice(0, 1).map((m, mi) => (
-                      <div key={mi} className="space-y-2">
-                        <Badge className={cn("text-sm font-bold", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
-                          {m.partOfSpeech === "noun" ? "📦 Thing (Noun)" : m.partOfSpeech === "verb" ? "🏃 Action (Verb)" : m.partOfSpeech === "adjective" ? "🌈 Describing (Adjective)" : "📝 " + m.partOfSpeech}
-                        </Badge>
-                        {m.definitions.slice(0, 1).map((d, di) => {
-                          const viDef = viDefinitions[mi + "-" + di];
-                          return (
-                            <div key={di} className="bg-white dark:bg-slate-800 rounded-xl p-3 space-y-2 border">
-                              {viDef && <p className="text-base font-bold text-foreground">🇻🇳 {viDef}</p>}
-                              {d.example && (
-                                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
-                                  <span className="text-lg">💬</span>
-                                  <p className="text-sm font-medium text-foreground italic">"{d.example}"</p>
-                                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.7)}>
-                                    <Volume2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              )}
+                    {/* Part of speech badge */}
+                    <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[eslEntry.part_of_speech] || "bg-slate-100 text-slate-600")}>
+                      {eslEntry.part_of_speech === "noun" && gradeNum <= 3 ? "📦 Thing (Noun)" : eslEntry.part_of_speech === "verb" && gradeNum <= 3 ? "🏃 Action (Verb)" : eslEntry.part_of_speech === "adjective" && gradeNum <= 3 ? "🌈 Describing (Adjective)" : eslEntry.part_of_speech}
+                    </Badge>
+
+                    {/* English definition */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 space-y-2 border">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">📖 Definition</p>
+                      <p className={cn("text-foreground font-medium", gradeNum <= 3 ? "text-base" : "text-sm")}>{eslEntry.english_definition}</p>
+                    </div>
+
+                    {/* Usage examples */}
+                    {eslEntry.usage_examples.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">💬 Examples</p>
+                        {eslEntry.usage_examples.map((ex, i) => (
+                          <div key={i} className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
+                            <span className="text-xs font-bold text-emerald-600 shrink-0">{i + 1}.</span>
+                            <p className={cn("text-foreground italic flex-1", gradeNum <= 3 ? "text-sm font-medium" : "text-sm")}>"{ex}"</p>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-500" onClick={() => speak(ex, "en-US", gradeNum <= 3 ? 0.7 : 0.85)}>
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Synonyms & Antonyms */}
+                    {(eslEntry.synonyms.length > 0 || eslEntry.antonyms.length > 0) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {eslEntry.synonyms.length > 0 && (
+                          <div className="bg-teal-50 dark:bg-teal-950/20 rounded-xl p-3 space-y-1.5 border border-teal-200 dark:border-teal-800">
+                            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider">✅ Synonyms</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {eslEntry.synonyms.map((s, i) => (
+                                <button key={i} type="button" onClick={() => speak(s)} className="px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 text-xs font-medium hover:bg-teal-200 dark:hover:bg-teal-800/60 transition-colors cursor-pointer">
+                                  {s}
+                                </button>
+                              ))}
                             </div>
-                          );
-                        })}
+                          </div>
+                        )}
+                        {eslEntry.antonyms.length > 0 && (
+                          <div className="bg-rose-50 dark:bg-rose-950/20 rounded-xl p-3 space-y-1.5 border border-rose-200 dark:border-rose-800">
+                            <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1"><ArrowRightLeft className="w-3 h-3" /> Antonyms</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {eslEntry.antonyms.map((a, i) => (
+                                <button key={i} type="button" onClick={() => speak(a)} className="px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-xs font-medium hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer">
+                                  {a}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-
-                {/* === GRADE 4-5: Bilingual, simplified === */}
-                {gradeNum >= 4 && gradeNum <= 5 && (
-                  <div className="space-y-3">
-                    {dictData.meanings.slice(0, 2).map((m, mi) => (
-                      <div key={mi} className="space-y-1.5">
-                        <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
-                          {m.partOfSpeech}
-                        </Badge>
-                        <ul className="space-y-2 pl-1">
-                          {m.definitions.slice(0, 2).map((d, di) => {
-                            const viDef = viDefinitions[mi + "-" + di];
-                            return (
-                              <li key={di} className="text-sm space-y-1">
-                                <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
-                                {viDef && <p className="text-xs text-blue-600 dark:text-blue-400 pl-4">🇻🇳 {viDef}</p>}
+                ) : (
+                  <>
+                    {/* === Legacy fallback: GRADE 1-3 === */}
+                    {gradeNum >= 1 && gradeNum <= 3 && (
+                      <div className="space-y-3">
+                        {dictData.meanings.slice(0, 1).map((m, mi) => (
+                          <div key={mi} className="space-y-2">
+                            <Badge className={cn("text-sm font-bold", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
+                              {m.partOfSpeech === "noun" ? "📦 Thing (Noun)" : m.partOfSpeech === "verb" ? "🏃 Action (Verb)" : m.partOfSpeech === "adjective" ? "🌈 Describing (Adjective)" : "📝 " + m.partOfSpeech}
+                            </Badge>
+                            {m.definitions.slice(0, 1).map((d, di) => (
+                              <div key={di} className="bg-white dark:bg-slate-800 rounded-xl p-3 space-y-2 border">
                                 {d.example && (
-                                  <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
-                                    "{d.example}"
-                                    <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
-                                      <Volume2 className="w-3 h-3" />
+                                  <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-3 py-2">
+                                    <span className="text-lg">💬</span>
+                                    <p className="text-sm font-medium text-foreground italic">"{d.example}"</p>
+                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.7)}>
+                                      <Volume2 className="w-3.5 h-3.5" />
                                     </Button>
-                                  </p>
+                                  </div>
                                 )}
-                              </li>
-                            );
-                          })}
-                        </ul>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {/* === GRADE 6-8: Full English definitions === */}
-                {gradeNum >= 6 && (
-                  <div className="space-y-3">
-                    {dictData.meanings.map((m, mi) => (
-                      <div key={mi} className="space-y-1.5">
-                        <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
-                          {m.partOfSpeech}
-                        </Badge>
-                        <ul className="space-y-1.5 pl-1">
-                          {m.definitions.slice(0, 3).map((d, di) => (
-                            <li key={di} className="text-sm space-y-0.5">
-                              <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
-                              {d.example && (
-                                <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
-                                  "{d.example}"
-                                  <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
-                                    <Volume2 className="w-3 h-3" />
-                                  </Button>
-                                </p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                    {/* === Legacy fallback: GRADE 4-8 === */}
+                    {gradeNum >= 4 && (
+                      <div className="space-y-3">
+                        {dictData.meanings.slice(0, 2).map((m, mi) => (
+                          <div key={mi} className="space-y-1.5">
+                            <Badge className={cn("text-xs font-bold uppercase", POS_COLORS[m.partOfSpeech] || "bg-slate-100 text-slate-600")}>
+                              {m.partOfSpeech}
+                            </Badge>
+                            <ul className="space-y-1.5 pl-1">
+                              {m.definitions.slice(0, 3).map((d, di) => (
+                                <li key={di} className="text-sm space-y-0.5">
+                                  <p><span className="font-medium text-muted-foreground mr-1">{di + 1}.</span>{d.definition}</p>
+                                  {d.example && (
+                                    <p className="text-xs text-muted-foreground italic pl-4 border-l-2 border-violet-200">
+                                      "{d.example}"
+                                      <Button type="button" variant="ghost" size="sm" className="ml-1 h-5 px-1 text-blue-500" onClick={() => speak(d.example!, "en-US", 0.8)}>
+                                        <Volume2 className="w-3 h-3" />
+                                      </Button>
+                                    </p>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
 
                 {/* Prompt */}
