@@ -8,11 +8,11 @@ import { Layout } from "@/components/Layout";
 
 // Dummy data for initial testing, matching the strict 30-item pagination testing needs
 const initialVocabulary: VocabularyItem[] = Array.from({ length: 45 }).map((_, i) => ({
-  id: `mock-\${i}`,
-  word: ["Apple", "Beautiful", "Cat", "Dog", "Elephant", "Flower", "Guitar", "House"][i % 8] + (i > 7 ? ` \${i}` : ""),
+  id: `mock-${i}`,
+  word: ["Apple", "Beautiful", "Cat", "Dog", "Elephant", "Flower", "Guitar", "House"][i % 8] + (i > 7 ? ` ${i}` : ""),
   meaning: ["Quả táo", "Xinh đẹp", "Con mèo", "Con chó", "Con voi", "Bông hoa", "Đàn ghi-ta", "Ngôi nhà"][i % 8],
   example: "This is a sample sentence for testing the UI layout and features.",
-  imageUrl: `https://source.unsplash.com/400x300/?nature&sig=\${i}`,
+  imageUrl: `https://source.unsplash.com/400x300/?nature&sig=${i}`,
   createdAt: new Date().toISOString()
 }));
 

@@ -170,7 +170,7 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
       // Simulate network request
       await new Promise(r => setTimeout(r, 500));
       const newImages = Array.from({ length: 8 }).map((_, i) => 
-        \`https://source.unsplash.com/400x300/?\${encodeURIComponent(searchQuery)}&sig=\${i}\`
+        `https://source.unsplash.com/400x300/?${encodeURIComponent(searchQuery)}&sig=${i}`
       );
       setImages(newImages);
       // Auto-select first image if none selected
@@ -246,7 +246,7 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
                     variant={isListening && activeInput === "word" ? "destructive" : "ghost"}
                     size="icon"
                     onClick={() => toggleListening("word")}
-                    className={\`rounded-full \${isListening && activeInput === "word" ? 'animate-pulse' : ''}\`}
+                    className={`rounded-full ${isListening && activeInput === "word" ? 'animate-pulse' : ''}`}
                   >
                     <Mic className="w-5 h-5" />
                   </Button>
@@ -276,9 +276,9 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
                   {images.map((imgUrl, i) => (
                     <div 
                       key={i} 
-                      className={\`relative cursor-pointer transition-all duration-300 transform hover:scale-105 rounded-xl overflow-hidden shadow-sm w-[150px] h-[120px] shrink-0 \${
+                      className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 rounded-xl overflow-hidden shadow-sm w-[150px] h-[120px] shrink-0 ${
                         selectedImage === imgUrl ? 'ring-4 ring-primary ring-offset-2' : 'hover:ring-2 hover:ring-primary/50'
-                      }\`}
+                      }`}
                       onClick={() => setSelectedImage(imgUrl)}
                     >
                       <img src={imgUrl} alt="Vocabulary visual" className="w-full h-full object-cover" />
@@ -316,7 +316,7 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
                   variant={isListening && activeInput === "meaning" ? "destructive" : "ghost"}
                   size="icon"
                   onClick={() => toggleListening("meaning")}
-                  className={\`rounded-full \${isListening && activeInput === "meaning" ? 'animate-pulse' : ''}\`}
+                  className={`rounded-full ${isListening && activeInput === "meaning" ? 'animate-pulse' : ''}`}
                 >
                   <Mic className="w-5 h-5" />
                 </Button>
@@ -345,7 +345,7 @@ export function VocabularyCreator({ onAddWord }: VocabularyCreatorProps) {
                     variant={isListening && activeInput === "example" ? "destructive" : "ghost"}
                     size="icon"
                     onClick={() => toggleListening("example")}
-                    className={\`rounded-full \${isListening && activeInput === "example" ? 'animate-pulse' : ''}\`}
+                    className={`rounded-full ${isListening && activeInput === "example" ? 'animate-pulse' : ''}`}
                   >
                     <Mic className="w-5 h-5" />
                   </Button>
