@@ -583,6 +583,58 @@ export function VocabularyCreator({ onAddWord }: Props) {
               )}
             </div>
 
+            {/* ── ESL Quick Reference (explicitly rendered from LLM payload) ── */}
+            {eslEntry && (
+              <div className="space-y-3 bg-gradient-to-br from-indigo-50/80 to-sky-50/60 dark:from-indigo-950/30 dark:to-sky-950/20 rounded-2xl p-4 border border-indigo-200 dark:border-indigo-800 animate-in fade-in duration-300">
+                <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">📚 Quick Reference</p>
+
+                {/* English Meaning */}
+                {eslEntry.english_definition && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground">English Meaning:</p>
+                    <p className={cn("text-foreground font-medium bg-white/70 dark:bg-slate-800/50 rounded-lg px-3 py-2", gradeNum <= 3 ? "text-base" : "text-sm")}>
+                      {eslEntry.english_definition}
+                    </p>
+                  </div>
+                )}
+
+                {/* Examples as bullet points */}
+                {eslEntry.usage_examples.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground">Examples:</p>
+                    <ul className="space-y-1 pl-1">
+                      {eslEntry.usage_examples.map((ex, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-indigo-400 mt-1.5 shrink-0">•</span>
+                          <p className={cn("text-foreground italic", gradeNum <= 3 ? "text-sm" : "text-sm")}>{ex}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Similar words (synonyms) */}
+                {eslEntry.synonyms.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground">Similar words:</p>
+                    <p className="text-sm text-teal-700 dark:text-teal-300 font-medium bg-teal-50/80 dark:bg-teal-950/30 rounded-lg px-3 py-1.5">
+                      {eslEntry.synonyms.join(", ")}
+                    </p>
+                  </div>
+                )}
+
+                {/* Opposite words (antonyms) */}
+                {eslEntry.antonyms.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground">Opposite words:</p>
+                    <p className="text-sm text-rose-700 dark:text-rose-300 font-medium bg-rose-50/80 dark:bg-rose-950/30 rounded-lg px-3 py-1.5">
+                      {eslEntry.antonyms.join(", ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Example Sentence with grammar check */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

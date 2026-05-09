@@ -205,12 +205,13 @@ Respond ONLY with a valid JSON object in this EXACT structure (no markdown, no c
 
 STRICT RULES:
 1. "vietnamese_translation" must be an accurate, natural Vietnamese translation.
-2. "english_definition" MUST use ONLY vocabulary at or below ${cefrLevel}. Do NOT use words the student hasn't learned yet.
-3. "usage_examples" MUST contain exactly 2 sentences. Both sentences must use grammar and vocabulary at or below ${cefrLevel}.
-4. "synonyms" MUST contain 0-3 words. Each synonym must be at or below ${cefrLevel}. If no simple synonym exists at this level, return an empty array [].
-5. "antonyms" MUST contain 0-2 words. Each antonym must be at or below ${cefrLevel}. If no simple antonym exists at this level, return an empty array [].
+2. You must ALWAYS return an "english_definition" using simple, easy-to-understand words, even for complex concepts. MUST use ONLY vocabulary at or below ${cefrLevel}. Do NOT use words the student hasn't learned yet.
+3. "usage_examples" MUST contain exactly 2 sentences. You must ALWAYS return 2 usage examples using simple, easy-to-understand words, even for complex concepts. Both sentences must use grammar and vocabulary at or below ${cefrLevel}.
+4. "synonyms" MUST contain 1-3 words. For synonyms, if perfect grade-level matches do not exist, provide the closest simple related words (e.g., for "environment", use "nature" or "world"). Each synonym should be at or below ${cefrLevel} when possible, but NEVER return an empty synonyms array — always provide at least one close related word.
+5. "antonyms" MUST contain 0-2 words. Each antonym must be at or below ${cefrLevel}. If an antonym truly does not exist for the concept, return an empty array [], but DO NOT fail or omit the other fields.
 6. ${partOfSpeech !== "auto-detect" ? `The part_of_speech MUST be "${partOfSpeech}".` : "Detect the most common part of speech for this word."}
-7. The JSON must be valid. No trailing commas. No markdown fences. No extra text.`;
+7. The JSON must be valid. No trailing commas. No markdown fences. No extra text.
+8. NEVER return null or omit any field. Every field in the schema MUST be present in the response.`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
