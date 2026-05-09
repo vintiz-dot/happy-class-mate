@@ -47,6 +47,7 @@ const TeacherExamReports = lazy(() => import("./pages/TeacherExamReports"));
 const TeacherResources = lazy(() => import("./pages/TeacherResources"));
 const StudentResources = lazy(() => import("./pages/StudentResources"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Vocabulary = lazy(() => import("./pages/Vocabulary"));
 const TuitionReviewQueue = lazy(() =>
   import("./components/admin/TuitionReviewQueue").then((m) => ({ default: m.TuitionReviewQueue }))
 );
@@ -119,6 +120,8 @@ function AppContent() {
                   {/* Shared routes */}
                   <Route path="/schedule" element={<Schedule />} />
                   <Route path="/tuition" element={<Tuition />} />
+                  <Route path="/vocabulary" element={<Vocabulary />} />
+                  <Route path="/student/vocabulary" element={<Vocabulary />} />
 
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
