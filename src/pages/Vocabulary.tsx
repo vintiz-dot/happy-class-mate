@@ -69,59 +69,57 @@ export default function Vocabulary() {
   // --- Test Azure Connection ---
   const testAzure = async () => {
     setTestingAzure(true);
-    toast({ title: "Testing Azure...", description: "Connecting to Azure Speech Services..." });
+    toast({ title: "Testing Azure...", description: "Connecting to Azure via Edge Function..." });
 
     try {
-      const speechKey = import.meta.env.VITE_AZURE_SPEECH_KEY;
-      const speechRegion = import.meta.env.VITE_AZURE_SPEECH_REGION;
+      const { data, error } = await supabase.functions.invoke("pronounce-viseme", {
+        body: { word: "Azure connection successful.", sentence: true },
+      });
 
-      if (!speechKey || !speechRegion) {
-        throw new Error("Azure Speech keys are missing in environment variables.");
+      if (error) {
+        throw new Error(error.message || "Failed to reach edge function");
       }
 
-      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
-      const speechConfig = sdk.SpeechConfig.fromSubscription(speechKey, speechRegion);
-      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
+      if (data?.error || data?.fallback) {
+        toast({
+          title: "❌ Azure Connection Failed",
+          description: data.error || "Azure Speech is not configured in secrets (needs azure_key).",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Log visemes to console as requested
+      if (data.visemes && data.visemes.length > 0) {
+        console.log("(Azure Test) Visemes received from Edge Function:");
+        data.visemes.forEach((v: any) => {
+          console.log(`VisemeId: ${v.id}, AudioOffset: ${v.offset}ms`);
+        });
+      } else {
+        console.log("(Azure Test) No visemes received.");
+      }
+
+      // Play the audio
+      const audioUrl = `data:${data.contentType || "audio/mpeg"};base64,${data.audioBase64}`;
+      const audio = new Audio(audioUrl);
       
-      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
-      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
-
-      let visemeReceived = false;
-
-      synthesizer.visemeReceived = (s, e) => {
-        console.log(`(Azure Test) VisemeReceived: visemeId=${e.visemeId}, audioOffset=${e.audioOffset}`);
-        visemeReceived = true;
+      audio.onplay = () => {
+        toast({
+          title: "✅ Azure is Working!",
+          description: data.visemes?.length ? "Audio playing and visemes received." : "Audio playing but no visemes received.",
+        });
       };
 
-      synthesizer.speakTextAsync(
-        "Azure connection successful.",
-        (result) => {
-          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            toast({
-              title: "✅ Azure is Working!",
-              description: visemeReceived ? "Audio played and visemes received." : "Audio played but no visemes received.",
-            });
-          } else {
-            toast({
-              title: "❌ Azure Connection Failed",
-              description: "Result reason: " + result.reason,
-              variant: "destructive",
-            });
-          }
-          synthesizer.close();
-          setTestingAzure(false);
-        },
-        (error) => {
-          console.error("Azure Synthesis Error:", error);
-          toast({
-            title: "❌ Azure Error",
-            description: error,
-            variant: "destructive",
-          });
-          synthesizer.close();
-          setTestingAzure(false);
-        }
-      );
+      audio.onerror = () => {
+        toast({
+          title: "❌ Audio Playback Failed",
+          description: "Could not play the audio stream.",
+          variant: "destructive",
+        });
+      };
+
+      await audio.play();
+
     } catch (err: any) {
       console.error("Azure test exception:", err);
       toast({
@@ -129,9 +127,11 @@ export default function Vocabulary() {
         description: err.message || "Unknown error",
         variant: "destructive",
       });
+    } finally {
       setTestingAzure(false);
     }
   };
+
 
   return (
     <Layout title="Smart Vocabulary">
