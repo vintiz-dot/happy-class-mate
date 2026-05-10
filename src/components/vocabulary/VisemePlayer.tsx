@@ -104,94 +104,6 @@ export function VisemePlayer({ word, compact, className }: Props) {
     };
   }, []);
 
-  // ── Animation loop: sync viseme to audio time ──
-  const animateVisemes = useCallback(() => {
-    if (!audioRef.current || audioRef.current.paused) {
-      setPlaying(false);
-      setCurrentViseme(0);
-      return;
-    }
-
-    const elapsed = audioRef.current.currentTime * 1000; // Convert to ms
-    const visemes = visemesRef.current;
-
-    // Find the current viseme based on elapsed time
-    let visemeId = 0;
-    for (let i = visemes.length - 1; i >= 0; i--) {
-      if (elapsed >= visemes[i].offset) {
-        visemeId = visemes[i].id;
-        break;
-      }
-    }
-
-    setCurrentViseme(visemeId);
-    rafRef.current = requestAnimationFrame(animateVisemes);
-  }, []);
-
-  // ── Play pronunciation with viseme animation via SDK ──
-  const play = useCallback(async () => {
-    if (loading || !word.trim()) return;
-
-    setLoading(true);
-    try {
-      // 1. Get auth token securely from Edge Function
-      const { data, error } = await supabase.functions.invoke("get-speech-token");
-      
-      if (error || !data?.token) {
-        throw new Error(error?.message || "Failed to get Azure token");
-      }
-
-      // 2. Initialize SDK
-      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
-      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
-      
-      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
-      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
-
-      // Track visemes received during synthesis
-      const receivedVisemes: { id: number; offset: number }[] = [];
-      
-      synthesizer.visemeReceived = (s, e) => {
-        // e.audioOffset is in ticks (100-nanoseconds) -> convert to ms
-        receivedVisemes.push({ id: e.visemeId, offset: e.audioOffset / 10000 });
-      };
-
-      // Ensure we start playing
-      setPlaying(true);
-      startTimeRef.current = performance.now();
-      
-      synthesizer.speakTextAsync(
-        word.trim(),
-        (result) => {
-          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            // Audio complete
-          }
-          setPlaying(false);
-          setCurrentViseme(0);
-          cancelAnimationFrame(rafRef.current);
-          synthesizer.close();
-          setLoading(false);
-        },
-        (err) => {
-          console.error("SDK synthesis error:", err);
-          setPlaying(false);
-          setCurrentViseme(0);
-          synthesizer.close();
-          fallbackBrowserTTS();
-        }
-      );
-
-      // Save visemes to ref so animate loop can read them
-      visemesRef.current = receivedVisemes;
-      rafRef.current = requestAnimationFrame(animateVisemes);
-
-    } catch (err) {
-      console.error("Viseme SDK setup error:", err);
-      fallbackBrowserTTS();
-    }
-  }, [word, loading, animateVisemes]);
-
   const fallbackBrowserTTS = useCallback(() => {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word.trim());
@@ -232,6 +144,62 @@ export function VisemePlayer({ word, compact, className }: Props) {
     speechSynthesis.speak(u);
     setLoading(false);
   }, [word]);
+
+  // ── Play pronunciation with viseme animation via SDK ──
+  const play = useCallback(async () => {
+    if (loading || !word.trim()) return;
+
+    setLoading(true);
+    try {
+      // 1. Get auth token securely from Edge Function
+      const { data, error } = await supabase.functions.invoke("get-speech-token");
+      
+      if (error || !data?.token) {
+        throw new Error(error?.message || "Failed to get Azure token");
+      }
+
+      // 2. Initialize SDK
+      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
+      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
+      
+      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
+      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
+
+      synthesizer.visemeReceived = (s, e) => {
+        // The SDK fires this perfectly in sync with the audio playback
+        setCurrentViseme(e.visemeId);
+      };
+
+      // Ensure we start playing
+      setPlaying(true);
+      
+      synthesizer.speakTextAsync(
+        word.trim(),
+        (result) => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            // Audio complete
+          }
+          setPlaying(false);
+          setCurrentViseme(0);
+          synthesizer.close();
+          setLoading(false);
+        },
+        (err) => {
+          console.error("SDK synthesis error:", err);
+          setPlaying(false);
+          setCurrentViseme(0);
+          synthesizer.close();
+          fallbackBrowserTTS();
+        }
+      );
+
+    } catch (err) {
+      console.error("Viseme SDK setup error:", err);
+      fallbackBrowserTTS();
+    }
+  }, [word, loading, fallbackBrowserTTS]);
+
 
   // ── Render ──
   const mouthPath = VISEME_PATHS[currentViseme] || VISEME_PATHS[0];
