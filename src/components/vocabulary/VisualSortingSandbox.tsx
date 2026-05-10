@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -101,11 +101,13 @@ export function VisualSortingSandbox({ targetWord, antonyms, onComplete, classNa
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;
+    console.log("DragEnd:", { active: active?.id, over: over?.id });
     if (!over) return;
 
     const tileId = active.id as string;
     const dropZone = over.id as Zone;
 
+    console.log(`Moving ${tileId} to ${dropZone}`);
     if (dropZone === "target" || dropZone === "opposite" || dropZone === "bank") {
       setPlacements((prev) => ({ ...prev, [tileId]: dropZone }));
     }
@@ -175,7 +177,7 @@ export function VisualSortingSandbox({ targetWord, antonyms, onComplete, classNa
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -317,14 +319,9 @@ function DraggableTile({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: tile.id });
 
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       className={cn(
