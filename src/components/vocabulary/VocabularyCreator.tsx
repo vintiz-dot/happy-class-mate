@@ -549,7 +549,15 @@ export function VocabularyCreator({ onAddWord }: Props) {
                             selectedImage === img.url ? "ring-3 ring-violet-500 ring-offset-2 shadow-lg" : "opacity-70 hover:opacity-100"
                           )} onClick={() => setSelectedImage(img.url)}>
                           <img src={img.url} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
-                          {selectedImage === img.url && <div className="absolute top-1 right-1 bg-violet-500 text-white rounded-full p-0.5"><Check className="w-3 h-3" /></div>}
+                          <div className="absolute top-1 left-1">
+                            <span className={cn(
+                              "text-[8px] font-bold px-1.5 py-0.5 rounded-sm backdrop-blur-md text-white shadow-sm uppercase tracking-wider",
+                              img.source === "pixabay" ? "bg-green-500/80" : "bg-teal-500/80"
+                            )}>
+                              {img.source === "pixabay" ? "Pixabay" : "Pexels"}
+                            </span>
+                          </div>
+                          {selectedImage === img.url && <div className="absolute top-1 right-1 bg-violet-500 text-white rounded-full p-0.5 shadow-md"><Check className="w-3 h-3" /></div>}
                         </div>
                       ))
                     )}

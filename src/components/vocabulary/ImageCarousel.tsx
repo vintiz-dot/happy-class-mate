@@ -113,9 +113,12 @@ export function ImageCarousel({ query, className }: Props) {
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-1">
-                <span className="text-[9px] text-white/80 font-medium">
-                  {img.source}
+              <div className="absolute top-1.5 right-1.5">
+                <span className={cn(
+                  "text-[9px] font-bold px-1.5 py-0.5 rounded-sm backdrop-blur-md text-white shadow-sm uppercase tracking-wider",
+                  img.source === "pixabay" ? "bg-green-500/80" : "bg-teal-500/80"
+                )}>
+                  {img.source === "pixabay" ? "Pixabay" : "Pexels"}
                 </span>
               </div>
             </div>
