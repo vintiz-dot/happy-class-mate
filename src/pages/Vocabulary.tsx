@@ -6,7 +6,7 @@ import { WordExplorer } from "@/components/vocabulary/WordExplorer";
 import { useVocabularyStore } from "@/hooks/useVocabularyStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap, Search, Mic } from "lucide-react";
+import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap, Search, Mic, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,9 +17,10 @@ export default function Vocabulary() {
   const store = useVocabularyStore(user?.id);
   const stats = store.getStats();
   const wordsForReview = store.getWordsForReview();
-  const { toast } = useToast();
   const [testingAI, setTestingAI] = useState(false);
   const [testingAzure, setTestingAzure] = useState(false);
+  const [testingPixabay, setTestingPixabay] = useState(false);
+  const [testingPexels, setTestingPexels] = useState(false);
 
   // --- Test AI Connection ---
   const testAI = async () => {
@@ -132,6 +133,54 @@ export default function Vocabulary() {
     }
   };
 
+  // --- Test Pixabay Connection ---
+  const testPixabay = async () => {
+    setTestingPixabay(true);
+    toast({ title: "Testing Pixabay...", description: "Connecting via Edge Function..." });
+    try {
+      const { data, error } = await supabase.functions.invoke("image-search", {
+        body: { query: "apple", provider: "pixabay" },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.images?.length > 0) {
+        toast({
+          title: "✅ Pixabay is Working!",
+          description: `Found ${data.images.length} images.`,
+        });
+      } else {
+        throw new Error(data?.message || "No images returned or Pixabay not configured.");
+      }
+    } catch (err: any) {
+      toast({ title: "❌ Pixabay Error", description: err.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setTestingPixabay(false);
+    }
+  };
+
+  // --- Test Pexels Connection ---
+  const testPexels = async () => {
+    setTestingPexels(true);
+    toast({ title: "Testing Pexels...", description: "Connecting via Edge Function..." });
+    try {
+      const { data, error } = await supabase.functions.invoke("image-search", {
+        body: { query: "apple", provider: "pexels" },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.images?.length > 0) {
+        toast({
+          title: "✅ Pexels is Working!",
+          description: `Found ${data.images.length} images.`,
+        });
+      } else {
+        throw new Error(data?.message || "No images returned or Pexels not configured.");
+      }
+    } catch (err: any) {
+      toast({ title: "❌ Pexels Error", description: err.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setTestingPexels(false);
+    }
+  };
+
 
   return (
     <Layout title="Smart Vocabulary">
@@ -184,6 +233,26 @@ export default function Vocabulary() {
             >
               {testingAzure ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />}
               Test Azure
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testPixabay}
+              disabled={testingPixabay}
+              className="rounded-xl gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950/30"
+            >
+              {testingPixabay ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+              Test Pixabay
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testPexels}
+              disabled={testingPexels}
+              className="rounded-xl gap-1.5 text-xs border-teal-300 text-teal-700 hover:bg-teal-50 dark:border-teal-700 dark:text-teal-400 dark:hover:bg-teal-950/30"
+            >
+              {testingPexels ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+              Test Pexels
             </Button>
           </div>
         </div>

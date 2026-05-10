@@ -101,10 +101,6 @@ export function VisemePlayer({ word, compact, className }: Props) {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
     };
   }, []);
 
@@ -132,82 +128,69 @@ export function VisemePlayer({ word, compact, className }: Props) {
     rafRef.current = requestAnimationFrame(animateVisemes);
   }, []);
 
-  // ── Play pronunciation with viseme animation ──
+  // ── Play pronunciation with viseme animation via SDK ──
   const play = useCallback(async () => {
     if (loading || !word.trim()) return;
 
-    // Check cache first
-    if (cachedAudioRef.current?.word === word.trim().toLowerCase()) {
-      playFromCache();
-      return;
-    }
-
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("pronounce-viseme", {
-        body: { word: word.trim() },
-      });
-
-      if (error || data?.error) {
-        // Azure not configured — mark unavailable, fall back to browser TTS
-        if (data?.fallback || data?.error === "Azure Speech not configured") {
-          setAvailable(false);
-          fallbackBrowserTTS();
-          return;
-        }
-        console.error("Viseme error:", error || data?.error);
-        fallbackBrowserTTS();
-        return;
+      // 1. Get auth token securely from Edge Function
+      const { data, error } = await supabase.functions.invoke("get-speech-token");
+      
+      if (error || !data?.token) {
+        throw new Error(error?.message || "Failed to get Azure token");
       }
 
-      // Cache the result
-      const audioUrl = `data:${data.contentType || "audio/mpeg"};base64,${data.audioBase64}`;
-      cachedAudioRef.current = {
-        word: word.trim().toLowerCase(),
-        url: audioUrl,
-        visemes: data.visemes || [],
+      // 2. Initialize SDK
+      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
+      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
+      
+      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
+      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
+
+      // Track visemes received during synthesis
+      const receivedVisemes: { id: number; offset: number }[] = [];
+      
+      synthesizer.visemeReceived = (s, e) => {
+        // e.audioOffset is in ticks (100-nanoseconds) -> convert to ms
+        receivedVisemes.push({ id: e.visemeId, offset: e.audioOffset / 10000 });
       };
 
-      playFromCache();
-    } catch (err) {
-      console.error("Viseme fetch error:", err);
-      fallbackBrowserTTS();
-    } finally {
-      setLoading(false);
-    }
-  }, [word, loading, animateVisemes]);
-
-  const playFromCache = useCallback(() => {
-    if (!cachedAudioRef.current) return;
-
-    const cache = cachedAudioRef.current;
-    visemesRef.current = cache.visemes;
-
-    // Create and play audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    const audio = new Audio(cache.url);
-    audioRef.current = audio;
-
-    audio.onplay = () => {
+      // Ensure we start playing
       setPlaying(true);
       startTimeRef.current = performance.now();
-      rafRef.current = requestAnimationFrame(animateVisemes);
-    };
-    audio.onended = () => {
-      setPlaying(false);
-      setCurrentViseme(0);
-      cancelAnimationFrame(rafRef.current);
-    };
-    audio.onerror = () => {
-      setPlaying(false);
-      setCurrentViseme(0);
-      fallbackBrowserTTS();
-    };
+      
+      synthesizer.speakTextAsync(
+        word.trim(),
+        (result) => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            // Audio complete
+          }
+          setPlaying(false);
+          setCurrentViseme(0);
+          cancelAnimationFrame(rafRef.current);
+          synthesizer.close();
+          setLoading(false);
+        },
+        (err) => {
+          console.error("SDK synthesis error:", err);
+          setPlaying(false);
+          setCurrentViseme(0);
+          synthesizer.close();
+          fallbackBrowserTTS();
+        }
+      );
 
-    audio.play().catch(() => fallbackBrowserTTS());
-  }, [animateVisemes]);
+      // Save visemes to ref so animate loop can read them
+      visemesRef.current = receivedVisemes;
+      rafRef.current = requestAnimationFrame(animateVisemes);
+
+    } catch (err) {
+      console.error("Viseme SDK setup error:", err);
+      fallbackBrowserTTS();
+    }
+  }, [word, loading, animateVisemes]);
 
   const fallbackBrowserTTS = useCallback(() => {
     speechSynthesis.cancel();

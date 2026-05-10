@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const rawQuery = (body.query || "").trim();
     const count = Math.min(Math.max(body.count || 8, 1), 20);
+    const provider = body.provider; // "pixabay" | "pexels" | undefined
 
     if (!rawQuery) {
       return new Response(
@@ -45,9 +46,9 @@ Deno.serve(async (req) => {
     // Append kid-friendly search terms
     const query = rawQuery + " isolated white background";
 
-    // ── Try Pixabay first ──
+    // ── Try Pixabay first (unless provider is strictly pexels) ──
     const pixabayKey = Deno.env.get("Pixabay_API");
-    if (pixabayKey) {
+    if (pixabayKey && provider !== "pexels") {
       try {
         const pixabayUrl =
           `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}` +
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
 
     // ── Fallback to Pexels ──
     const pexelsKey = Deno.env.get("Pexels_API");
-    if (pexelsKey) {
+    if (pexelsKey && provider !== "pixabay") {
       try {
         const pexelsUrl =
           `https://api.pexels.com/v1/search?query=${encodeURIComponent(rawQuery)}` +
