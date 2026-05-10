@@ -17,6 +17,7 @@ export default function Vocabulary() {
   const store = useVocabularyStore(user?.id);
   const stats = store.getStats();
   const wordsForReview = store.getWordsForReview();
+  const { toast } = useToast();
   const [testingAI, setTestingAI] = useState(false);
   const [testingAzure, setTestingAzure] = useState(false);
   const [testingPixabay, setTestingPixabay] = useState(false);
