@@ -6,7 +6,7 @@ import { WordExplorer } from "@/components/vocabulary/WordExplorer";
 import { useVocabularyStore } from "@/hooks/useVocabularyStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap, Search } from "lucide-react";
+import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap, Search, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ export default function Vocabulary() {
   const wordsForReview = store.getWordsForReview();
   const { toast } = useToast();
   const [testingAI, setTestingAI] = useState(false);
+  const [testingAzure, setTestingAzure] = useState(false);
 
   // --- Test AI Connection ---
   const testAI = async () => {
@@ -65,6 +66,73 @@ export default function Vocabulary() {
     }
   };
 
+  // --- Test Azure Connection ---
+  const testAzure = async () => {
+    setTestingAzure(true);
+    toast({ title: "Testing Azure...", description: "Connecting to Azure Speech Services..." });
+
+    try {
+      const speechKey = import.meta.env.VITE_AZURE_SPEECH_KEY;
+      const speechRegion = import.meta.env.VITE_AZURE_SPEECH_REGION;
+
+      if (!speechKey || !speechRegion) {
+        throw new Error("Azure Speech keys are missing in environment variables.");
+      }
+
+      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
+      const speechConfig = sdk.SpeechConfig.fromSubscription(speechKey, speechRegion);
+      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
+      
+      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
+      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
+
+      let visemeReceived = false;
+
+      synthesizer.visemeReceived = (s, e) => {
+        console.log(`(Azure Test) VisemeReceived: visemeId=${e.visemeId}, audioOffset=${e.audioOffset}`);
+        visemeReceived = true;
+      };
+
+      synthesizer.speakTextAsync(
+        "Azure connection successful.",
+        (result) => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            toast({
+              title: "✅ Azure is Working!",
+              description: visemeReceived ? "Audio played and visemes received." : "Audio played but no visemes received.",
+            });
+          } else {
+            toast({
+              title: "❌ Azure Connection Failed",
+              description: "Result reason: " + result.reason,
+              variant: "destructive",
+            });
+          }
+          synthesizer.close();
+          setTestingAzure(false);
+        },
+        (error) => {
+          console.error("Azure Synthesis Error:", error);
+          toast({
+            title: "❌ Azure Error",
+            description: error,
+            variant: "destructive",
+          });
+          synthesizer.close();
+          setTestingAzure(false);
+        }
+      );
+    } catch (err: any) {
+      console.error("Azure test exception:", err);
+      toast({
+        title: "❌ Connection Error",
+        description: err.message || "Unknown error",
+        variant: "destructive",
+      });
+      setTestingAzure(false);
+    }
+  };
+
   return (
     <Layout title="Smart Vocabulary">
       <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -106,6 +174,16 @@ export default function Vocabulary() {
             >
               {testingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
               Test AI
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testAzure}
+              disabled={testingAzure}
+              className="rounded-xl gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
+            >
+              {testingAzure ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />}
+              Test Azure
             </Button>
           </div>
         </div>

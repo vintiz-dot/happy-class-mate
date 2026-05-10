@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, ImageOff } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,6 +30,7 @@ export function ImageCarousel({ query, className }: Props) {
 
     let cancelled = false;
     const fetchImages = async () => {
+      setImages([]); // State Reset: clear previous images explicitly
       setLoading(true);
       setError(null);
       try {
@@ -69,11 +71,15 @@ export function ImageCarousel({ query, className }: Props) {
 
   if (loading) {
     return (
-      <div className={cn("flex items-center justify-center py-8", className)}>
-        <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
-        <span className="ml-2 text-sm text-muted-foreground">
-          Finding pictures...
-        </span>
+      <div className={cn("space-y-2", className)}>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Finding pictures...
+        </p>
+        <div className="flex overflow-hidden gap-3 p-1">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="w-[140px] h-[105px] rounded-xl shrink-0" />
+          ))}
+        </div>
       </div>
     );
   }

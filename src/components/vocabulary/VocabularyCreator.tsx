@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { getCEFRBadgeLabel, getCEFRProfile } from "@/lib/cefrMapping";
 import { VisemePlayer } from "./VisemePlayer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 declare global {
   interface Window { SpeechRecognition: any; webkitSpeechRecognition: any; }
@@ -186,37 +187,17 @@ export function VocabularyCreator({ onAddWord }: Props) {
     } catch { /* silent */ }
   };
 
-  // ---- Image search (Wikimedia Commons — free, no API key, relevant images) ----
+  // ---- Image search (Pixabay/Pexels via Edge Function) ----
   const fetchImages = async (q: string) => {
     setFetchingImages(true); setImages([]); setSelectedImage("");
     try {
-      const url =
-        "https://commons.wikimedia.org/w/api.php?action=query" +
-        "&generator=search&gsrsearch=" + encodeURIComponent(q + " photo") +
-        "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url" +
-        "&iiurlwidth=400&format=json&origin=*";
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        const pages = data?.query?.pages;
-        if (pages) {
-          const imgs = Object.values(pages)
-            .map((p: any) => {
-              const info = p.imageinfo?.[0];
-              if (!info?.thumburl) return null;
-              // Filter out SVGs, icons, and tiny images
-              const title = (p.title || "").toLowerCase();
-              if (title.endsWith(".svg") || title.includes("icon") || title.includes("logo")) return null;
-              return { url: info.thumburl, alt: (p.title || q).replace("File:", "") };
-            })
-            .filter(Boolean) as { url: string; alt: string }[];
-          if (imgs.length > 0) {
-            setImages(imgs.slice(0, 10));
-            setSelectedImage(imgs[0].url);
-            setFetchingImages(false);
-            return;
-          }
-        }
+      const { data, error } = await supabase.functions.invoke("image-search", {
+        body: { query: q, count: 12 },
+      });
+      if (!error && data?.images && data.images.length > 0) {
+        const imgs = data.images.map((img: any) => ({ url: img.thumbnail || img.url, alt: img.alt }));
+        setImages(imgs);
+        setSelectedImage(imgs[0].url);
       }
     } catch { /* silent */ }
     setFetchingImages(false);
@@ -548,24 +529,33 @@ export function VocabularyCreator({ onAddWord }: Props) {
             )}
 
             {/* Image Gallery */}
-            {images.length > 0 && (
+            {(fetchingImages || images.length > 0) && (
               <div className="space-y-2 bg-muted/30 p-3 rounded-xl border">
-                <Label className="text-sm font-medium text-muted-foreground">Pick the best picture for this word</Label>
+                <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  {fetchingImages ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Finding best pictures...</>
+                  ) : (
+                    "Pick the best picture for this word"
+                  )}
+                </Label>
                 <ScrollArea className="w-full whitespace-nowrap rounded-lg">
                   <div className="flex w-max gap-3 p-1">
-                    {images.map((img, i) => (
-                      <div key={i}
-                        className={cn("relative cursor-pointer rounded-xl overflow-hidden w-[130px] h-[95px] shrink-0 transition-all duration-200 hover:scale-105",
-                          selectedImage === img.url ? "ring-3 ring-violet-500 ring-offset-2 shadow-lg" : "opacity-70 hover:opacity-100"
-                        )} onClick={() => setSelectedImage(img.url)}>
-                        <img src={img.url} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
-                        {selectedImage === img.url && <div className="absolute top-1 right-1 bg-violet-500 text-white rounded-full p-0.5"><Check className="w-3 h-3" /></div>}
-                      </div>
-                    ))}
+                    {fetchingImages ? (
+                      [1, 2, 3, 4].map(i => <Skeleton key={i} className="w-[130px] h-[95px] rounded-xl shrink-0" />)
+                    ) : (
+                      images.map((img, i) => (
+                        <div key={i}
+                          className={cn("relative cursor-pointer rounded-xl overflow-hidden w-[130px] h-[95px] shrink-0 transition-all duration-200 hover:scale-105",
+                            selectedImage === img.url ? "ring-3 ring-violet-500 ring-offset-2 shadow-lg" : "opacity-70 hover:opacity-100"
+                          )} onClick={() => setSelectedImage(img.url)}>
+                          <img src={img.url} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
+                          {selectedImage === img.url && <div className="absolute top-1 right-1 bg-violet-500 text-white rounded-full p-0.5"><Check className="w-3 h-3" /></div>}
+                        </div>
+                      ))
+                    )}
                   </div>
                   <ScrollBar orientation="horizontal" />
                 </ScrollArea>
-
               </div>
             )}
 
