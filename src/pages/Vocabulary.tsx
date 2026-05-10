@@ -2,10 +2,11 @@ import { useState } from "react";
 import { VocabularyCreator } from "@/components/vocabulary/VocabularyCreator";
 import { VocabularyIndex } from "@/components/vocabulary/VocabularyIndex";
 import { VocabularyPractice } from "@/components/vocabulary/VocabularyPractice";
+import { WordExplorer } from "@/components/vocabulary/WordExplorer";
 import { useVocabularyStore } from "@/hooks/useVocabularyStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap } from "lucide-react";
+import { BookOpen, PlusCircle, Brain, Sparkles, Star, Loader2, Zap, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,9 +111,17 @@ export default function Vocabulary() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="bank" className="w-full">
+        <Tabs defaultValue="explore" className="w-full">
           <div className="flex justify-center mb-6">
-            <TabsList className="grid w-full max-w-xl grid-cols-3 p-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border shadow-sm rounded-2xl h-12">
+            <TabsList className="grid w-full max-w-2xl grid-cols-4 p-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border shadow-sm rounded-2xl h-12">
+              <TabsTrigger
+                value="explore"
+                className="rounded-xl text-sm font-semibold data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all gap-1.5"
+              >
+                <Search className="w-4 h-4" />
+                <span className="hidden sm:inline">Explore</span>
+                <span className="sm:hidden">🔍</span>
+              </TabsTrigger>
               <TabsTrigger
                 value="bank"
                 className="rounded-xl text-sm font-semibold data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all gap-1.5"
@@ -144,6 +153,12 @@ export default function Vocabulary() {
               </TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent value="explore" className="mt-0 outline-none">
+            <div className="py-4">
+              <WordExplorer />
+            </div>
+          </TabsContent>
 
           <TabsContent value="bank" className="mt-0 outline-none">
             <VocabularyIndex items={store.words} onDelete={store.deleteWord} />

@@ -5,11 +5,11 @@
  * and returns both the audio (base64) and viseme timeline data so the frontend
  * can animate a mouth in sync with the pronunciation.
  *
- * Input:  { word: string, voice?: string }
+ * Input:  { word: string, voice?: string, sentence?: boolean }
  * Output: { audioBase64: string, visemes: { id: number, offset: number }[], duration: number }
  *
  * Secrets required (Supabase Dashboard → Edge Functions → Secrets):
- *   AZURE_SPEECH_KEY      — Azure Speech Services subscription key
+ *   azure_key             — Azure Speech Services subscription key (Lovable secret)
  *   AZURE_SPEECH_REGION   — Azure region (e.g. "southeastasia", "eastus")
  *
  * Azure Viseme IDs (0-21):
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { word, voice } = await req.json();
+    const { word, voice, sentence } = await req.json();
 
     if (!word || typeof word !== "string") {
       return new Response(
@@ -45,12 +45,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const speechKey = Deno.env.get("AZURE_SPEECH_KEY");
-    const speechRegion = Deno.env.get("AZURE_SPEECH_REGION");
+    const speechKey = Deno.env.get("azure_key");
+    const speechRegion = Deno.env.get("AZURE_SPEECH_REGION") || "southeastasia";
 
-    if (!speechKey || !speechRegion) {
+    if (!speechKey) {
       console.error(
-        "AZURE_SPEECH_KEY or AZURE_SPEECH_REGION not set in secrets."
+        "azure_key not set in Lovable secrets."
       );
       return new Response(
         JSON.stringify({
@@ -67,10 +67,12 @@ Deno.serve(async (req) => {
     const selectedVoice = voice || DEFAULT_VOICE;
 
     // ── Build SSML with slow rate for ESL learners ──
+    // For sentences, use slightly faster rate; for single words, use slow rate
+    const rate = sentence ? "-10%" : "-20%";
     const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"
   xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
   <voice name="${selectedVoice}">
-    <prosody rate="-20%" pitch="+0%">
+    <prosody rate="${rate}" pitch="+0%">
       ${escapeXml(word.trim())}
     </prosody>
   </voice>
