@@ -43,14 +43,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Append kid-friendly search terms
-    const query = rawQuery + " isolated white background";
+    // Kid-friendly illustration query — Pixabay primary, Pexels fallback
+    const pixabayQuery = `${rawQuery} simple illustration isolated`;
+    const pexelsQuery = `${rawQuery} simple illustration isolated kid friendly clear`;
 
     // ── Try Pixabay first (unless provider is strictly pexels) ──
     const pixabayKey = Deno.env.get("Pixabay_API");
     const pexelsKey = Deno.env.get("Pexels_API");
-    
-    // The user requested 6 images from each API. 
+
+    // The user requested 6 images from each API.
     // We will ask for 6 from both to ensure we get a mixed batch of 12 total.
     const perPage = 6;
 
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
       try {
         const pixabayUrl =
           `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}` +
-          `&q=${encodeURIComponent(query)}` +
+          `&q=${encodeURIComponent(pixabayQuery)}` +
           `&image_type=illustration&safesearch=true&per_page=${perPage}&lang=en`;
 
         const res = await fetch(pixabayUrl);
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
       if (!pexelsKey || provider === "pixabay") return [];
       try {
         const pexelsUrl =
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(rawQuery)}` +
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(pexelsQuery)}` +
           `&per_page=${perPage}&size=small`;
 
         const res = await fetch(pexelsUrl, {

@@ -91,12 +91,18 @@ export default function Vocabulary() {
         return;
       }
 
-      // Log visemes to console as requested
+      // Log visemes to console as requested. New shape:
+      //   { audioOffset: number (ms), blendShapes: number[55][] }
       if (data.visemes && data.visemes.length > 0) {
-        console.log("(Azure Test) Visemes received from Edge Function:");
-        data.visemes.forEach((v: any) => {
-          console.log(`VisemeId: ${v.id}, AudioOffset: ${v.offset}ms`);
-        });
+        console.log("(Azure Test) Viseme batches received from Edge Function:");
+        const totalFrames = data.visemes.reduce(
+          (n: number, b: any) => n + (b.blendShapes?.length || 0),
+          0
+        );
+        console.log(
+          `Batches: ${data.visemes.length}, frames: ${totalFrames}, ` +
+          `first batch audioOffset: ${data.visemes[0]?.audioOffset}ms`
+        );
       } else {
         console.log("(Azure Test) No visemes received.");
       }

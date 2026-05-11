@@ -1,16 +1,22 @@
 /**
- * VisemePlayer — Animated Mouth Pronunciation Component
- * ======================================================
- * Renders an SVG-based animated "mouth" that cycles through 21 viseme shapes
- * in sync with audio playback from the Azure TTS edge function.
+ * VisemePlayer — 3D-head pronunciation viewer
+ * ============================================
+ * Renders a real 3D head (Three.js + glTF/GLB) whose mouth animates in sync
+ * with audio returned by the `pronounce-viseme` edge function. The edge
+ * function returns Azure's "FacialExpression" blend-shape animation track
+ * (55-channel, ~60 fps); we drive `mesh.morphTargetInfluences` from it.
  *
- * Usage:
- *   <VisemePlayer word="exercise" compact />
+ * Asset:
+ *   VITE_VISEME_HEAD_URL — URL of a GLB head with ARKit-compatible morph
+ *   targets (Ready Player Me default works). If unset or load fails we fall
+ *   back to a lightweight SVG mouth so the page still pronounces.
  *
- * The component:
- * 1. Calls the `pronounce-viseme` edge function to get audio + viseme timeline
- * 2. Plays the audio via an <audio> element
- * 3. Animates an SVG mouth through the viseme shapes using requestAnimationFrame
+ * Backend response shape (see supabase/functions/pronounce-viseme):
+ *   { audioBase64, mime, visemes: [{ audioOffset, blendShapes: number[55][] }] }
+ *
+ * Package versions (top of package.json):
+ *   three@^0.170.0  (+ @types/three)
+ *   microsoft-cognitiveservices-speech-sdk@^1.49.0 (browser fallback only)
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -18,369 +24,409 @@ import { Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
-interface VisemeFrame {
-  id: number;   // 0-21, Azure viseme ID
-  offset: number; // milliseconds from audio start
+// ─── Types ──────────────────────────────────────────────────────────────
+
+interface VisemeBatch {
+  audioOffset: number;     // ms from audio start
+  blendShapes: number[][]; // each row is 55 floats (Azure order)
 }
 
 interface Props {
   word: string;
-  /** Compact mode — just the mouth + play button, no label */
+  /** Compact mode — small inline pronunciation button. */
   compact?: boolean;
   className?: string;
 }
 
-// ─── 22 Viseme Mouth Shapes (SVG path data) ─────────────────────────────
-// These approximate the 22 Azure viseme IDs (0 = silence, 1-21 = phonemes).
-// Each is an SVG path for the mouth opening in a 60×40 viewBox.
-
-const VISEME_PATHS: string[] = [
-  // 0 — Silence (closed mouth, slight smile)
-  "M 10,20 Q 30,22 50,20",
-  // 1 — æ, ə, ʌ (medium open, wide)
-  "M 8,17 Q 30,32 52,17",
-  // 2 — ɑ (wide open)
-  "M 8,15 Q 30,36 52,15",
-  // 3 — ɔ (rounded open)
-  "M 15,16 Q 30,34 45,16",
-  // 4 — ɛ, ʊ (half open)
-  "M 10,18 Q 30,28 50,18",
-  // 5 — ɝ (slightly rounded, medium)
-  "M 14,17 Q 30,29 46,17",
-  // 6 — j, i, ɪ (wide smile, slightly open)
-  "M 6,19 Q 30,24 54,19",
-  // 7 — w, u (pursed/rounded)
-  "M 20,17 Q 30,28 40,17",
-  // 8 — o (rounded, medium open)
-  "M 18,16 Q 30,30 42,16",
-  // 9 — aʊ (wide to rounded transition)
-  "M 12,16 Q 30,33 48,16",
-  // 10 — ɔɪ (rounded to spread)
-  "M 14,17 Q 30,31 46,17",
-  // 11 — aɪ (open to spread)
-  "M 10,16 Q 30,32 50,16",
-  // 12 — h (relaxed open)
-  "M 12,18 Q 30,26 48,18",
-  // 13 — ɹ (slightly rounded)
-  "M 16,18 Q 30,26 44,18",
-  // 14 — l (tongue tip up, narrow open)
-  "M 14,19 Q 30,25 46,19",
-  // 15 — s, z (teeth close, narrow slit)
-  "M 12,20 Q 30,22 48,20",
-  // 16 — ʃ, tʃ, dʒ, ʒ (pursed forward)
-  "M 18,18 Q 30,26 42,18",
-  // 17 — ð (tongue between teeth)
-  "M 12,19 Q 30,24 48,19",
-  // 18 — f, v (lower lip tucked)
-  "M 10,20 Q 30,23 50,20",
-  // 19 — d, t, n, θ (tongue tip to ridge)
-  "M 12,19 Q 30,24 48,19",
-  // 20 — k, g, ŋ (back of mouth, medium open)
-  "M 12,17 Q 30,28 48,17",
-  // 21 — p, b, m (lips pressed then released)
-  "M 14,20 Q 30,20 46,20",
+// ─── Azure 3D blend-shape channel order ─────────────────────────────────
+// Per https://learn.microsoft.com/azure/ai-services/speech-service/how-to-speech-synthesis-viseme?tabs=3dblendshapes
+// (Indices 0–51 match ARKit; 52–54 are head/eye rolls used for procedural motion.)
+const AZURE_BLENDSHAPE_NAMES: readonly string[] = [
+  "eyeBlinkLeft", "eyeLookDownLeft", "eyeLookInLeft", "eyeLookOutLeft", "eyeLookUpLeft",
+  "eyeSquintLeft", "eyeWideLeft",
+  "eyeBlinkRight", "eyeLookDownRight", "eyeLookInRight", "eyeLookOutRight", "eyeLookUpRight",
+  "eyeSquintRight", "eyeWideRight",
+  "jawForward", "jawLeft", "jawRight", "jawOpen",
+  "mouthClose", "mouthFunnel", "mouthPucker", "mouthLeft", "mouthRight",
+  "mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight",
+  "mouthDimpleLeft", "mouthDimpleRight", "mouthStretchLeft", "mouthStretchRight",
+  "mouthRollLower", "mouthRollUpper", "mouthShrugLower", "mouthShrugUpper",
+  "mouthPressLeft", "mouthPressRight",
+  "mouthLowerDownLeft", "mouthLowerDownRight", "mouthUpperUpLeft", "mouthUpperUpRight",
+  "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight",
+  "cheekPuff", "cheekSquintLeft", "cheekSquintRight",
+  "noseSneerLeft", "noseSneerRight",
+  "tongueOut",
+  "headRoll", "leftEyeRoll", "rightEyeRoll",
 ];
 
-// Upper lip (static) and teeth hints
-const UPPER_LIP = "M 8,20 Q 20,14 30,13 Q 40,14 52,20";
-const TEETH_UPPER = "M 14,20 L 46,20";
+const HEAD_URL = import.meta.env.VITE_VISEME_HEAD_URL as string | undefined;
+
+// ─── Component ──────────────────────────────────────────────────────────
 
 export function VisemePlayer({ word, compact, className }: Props) {
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [currentViseme, setCurrentViseme] = useState(0);
-  const [available, setAvailable] = useState(true); // false if Azure not configured
+
+  // Derived mouth-shape signal for the SVG fallback (0 = closed, 1 = open).
+  const [jawOpen, setJawOpen] = useState(0);
+  const [mouthPucker, setMouthPucker] = useState(0);
+  const [mouthSmile, setMouthSmile] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const visemesRef = useRef<VisemeFrame[]>([]);
-  const startTimeRef = useRef(0);
+  const visemesRef = useRef<VisemeBatch[]>([]);
+  const flatFramesRef = useRef<{ t: number; v: number[] }[]>([]);
   const rafRef = useRef(0);
-  const cachedAudioRef = useRef<{ word: string; url: string; visemes: VisemeFrame[] } | null>(null);
 
-  // Cleanup on unmount
+  // Three.js refs (kept null until/unless the GLB head loads successfully)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const headApiRef = useRef<HeadApi | null>(null);
+  const [headReady, setHeadReady] = useState(false);
+
+  // Initialize 3D head once, if a head URL is configured.
   useEffect(() => {
+    if (!HEAD_URL || !canvasRef.current) return;
+    let disposed = false;
+    initThreeHead(canvasRef.current, HEAD_URL)
+      .then((api) => {
+        if (disposed) {
+          api.dispose();
+          return;
+        }
+        headApiRef.current = api;
+        setHeadReady(true);
+      })
+      .catch((err) => {
+        console.warn("3D head failed to load, falling back to SVG mouth:", err);
+      });
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      disposed = true;
+      headApiRef.current?.dispose();
+      headApiRef.current = null;
     };
   }, []);
 
-  const fallbackBrowserTTS = useCallback(() => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(word.trim());
-    u.lang = "en-US";
-    u.rate = 0.7;
-
-    // Animate with estimated visemes during browser TTS
-    const estimated = estimateVisemesClient(word.trim());
-    visemesRef.current = estimated;
-
-    u.onstart = () => {
-      setPlaying(true);
-      startTimeRef.current = performance.now();
-      const animate = () => {
-        if (!speechSynthesis.speaking) {
-          setPlaying(false);
-          setCurrentViseme(0);
-          return;
-        }
-        const elapsed = performance.now() - startTimeRef.current;
-        let visemeId = 0;
-        for (let i = estimated.length - 1; i >= 0; i--) {
-          if (elapsed >= estimated[i].offset) {
-            visemeId = estimated[i].id;
-            break;
-          }
-        }
-        setCurrentViseme(visemeId);
-        rafRef.current = requestAnimationFrame(animate);
-      };
-      rafRef.current = requestAnimationFrame(animate);
+  // Cleanup audio + rAF on unmount.
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
     };
-    u.onend = () => {
-      setPlaying(false);
-      setCurrentViseme(0);
+  }, []);
+
+  // ── Animation loop: pick the latest blend-shape row ≤ audio.currentTime ──
+  const startAnimationLoop = useCallback(() => {
+    const tick = () => {
+      const audio = audioRef.current;
+      const frames = flatFramesRef.current;
+      if (!audio || frames.length === 0) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      const tMs = audio.currentTime * 1000;
+      // Binary search for the latest frame with t ≤ tMs.
+      let lo = 0, hi = frames.length - 1, idx = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (frames[mid].t <= tMs) { idx = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+      }
+      const row = frames[idx].v;
+      // Drive 3D head if loaded.
+      headApiRef.current?.applyBlendShapes(row);
+      // Drive SVG fallback signals (cheap state updates, throttled by raf).
+      setJawOpen(clamp01(row[17]));
+      setMouthPucker(clamp01(row[20]));
+      setMouthSmile(clamp01(((row[23] || 0) + (row[24] || 0)) / 2));
+
+      if (audio.paused || audio.ended) {
+        setPlaying(false);
+        // Settle to neutral.
+        headApiRef.current?.applyBlendShapes(new Array(55).fill(0));
+        setJawOpen(0);
+        setMouthPucker(0);
+        setMouthSmile(0);
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
     };
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
 
-    speechSynthesis.speak(u);
-    setLoading(false);
-  }, [word]);
-
-  // ── Play pronunciation with viseme animation via SDK ──
+  // ── Fetch from edge function and play ──
   const play = useCallback(async () => {
-    if (loading || !word.trim()) return;
-
+    if (loading || playing || !word.trim()) return;
     setLoading(true);
     try {
-      // 1. Get auth token securely from Edge Function
-      const { data, error } = await supabase.functions.invoke("get-speech-token");
-      
-      if (error || !data?.token) {
-        throw new Error(error?.message || "Failed to get Azure token");
-      }
+      const { data, error } = await supabase.functions.invoke("pronounce-viseme", {
+        body: { word: word.trim() },
+      });
+      if (error) throw error;
+      if (!data?.audioBase64) throw new Error("No audio in response");
 
-      // 2. Initialize SDK
-      const sdk = await import("microsoft-cognitiveservices-speech-sdk");
-      const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-      speechConfig.speechSynthesisVoiceName = "en-US-JennyNeural";
-      
-      const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
-      const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
+      const mime = data.mime || data.contentType || "audio/mpeg";
+      const audio = new Audio(`data:${mime};base64,${data.audioBase64}`);
+      audioRef.current = audio;
 
-      synthesizer.visemeReceived = (s, e) => {
-        // The SDK fires this perfectly in sync with the audio playback
-        setCurrentViseme(e.visemeId);
+      visemesRef.current = Array.isArray(data.visemes) ? data.visemes : [];
+      flatFramesRef.current = flattenFrames(visemesRef.current);
+
+      audio.onended = () => setPlaying(false);
+      audio.onerror = () => {
+        console.error("Audio playback error");
+        setPlaying(false);
       };
 
-      // Ensure we start playing
       setPlaying(true);
-      
-      synthesizer.speakTextAsync(
-        word.trim(),
-        (result) => {
-          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            // Audio complete
-          }
-          setPlaying(false);
-          setCurrentViseme(0);
-          synthesizer.close();
-          setLoading(false);
-        },
-        (err) => {
-          console.error("SDK synthesis error:", err);
-          setPlaying(false);
-          setCurrentViseme(0);
-          synthesizer.close();
-          fallbackBrowserTTS();
-        }
-      );
-
+      setLoading(false);
+      await audio.play();
+      startAnimationLoop();
     } catch (err) {
-      console.error("Viseme SDK setup error:", err);
+      console.error("Viseme fetch/play error:", err);
+      setLoading(false);
       fallbackBrowserTTS();
     }
-  }, [word, loading, fallbackBrowserTTS]);
+  }, [word, loading, playing, startAnimationLoop]);
 
+  const fallbackBrowserTTS = useCallback(() => {
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(word.trim());
+      u.lang = "en-US";
+      u.rate = 0.7;
+      u.onstart = () => setPlaying(true);
+      u.onend = () => {
+        setPlaying(false);
+        setJawOpen(0); setMouthPucker(0); setMouthSmile(0);
+      };
+      speechSynthesis.speak(u);
+    } catch (e) {
+      console.error("Browser TTS fallback failed:", e);
+    }
+  }, [word]);
 
   // ── Render ──
-  const mouthPath = VISEME_PATHS[currentViseme] || VISEME_PATHS[0];
-
-  if (compact) {
-    return (
-      <button
-        type="button"
-        onClick={play}
-        disabled={loading}
-        className={cn(
-          "group relative inline-flex items-center gap-1.5 rounded-full px-2 py-1",
-          "hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors",
-          className
-        )}
-        title="See how to pronounce this word"
-      >
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
-        ) : (
-          <>
-            {/* Mini mouth SVG */}
-            <svg
-              viewBox="0 0 60 40"
-              className={cn(
-                "w-7 h-5 transition-all",
-                playing && "scale-110"
-              )}
-            >
-              {/* Face circle */}
-              <ellipse
-                cx="30" cy="20" rx="28" ry="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="text-violet-300 dark:text-violet-700"
-              />
-              {/* Upper lip */}
-              <path
-                d={UPPER_LIP}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className="text-rose-400"
-              />
-              {/* Lower lip / mouth opening */}
-              <path
-                d={mouthPath}
-                fill={playing ? "rgba(239,68,68,0.15)" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className="text-rose-400 transition-all duration-75"
-              />
-              {/* Teeth hint for certain visemes */}
-              {(currentViseme === 15 || currentViseme === 17 || currentViseme === 18 || currentViseme === 19) && (
-                <path
-                  d={TEETH_UPPER}
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="1"
-                  opacity="0.7"
-                />
-              )}
-            </svg>
-            <Volume2 className="w-3.5 h-3.5 text-violet-500 group-hover:text-violet-700 transition-colors" />
-          </>
-        )}
-      </button>
-    );
-  }
-
-  // Full-size mode
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
+    <div
+      className={cn(
+        compact ? "inline-flex items-center gap-1.5" : "flex flex-col items-center gap-2",
+        className
+      )}
+    >
       <button
         type="button"
         onClick={play}
         disabled={loading}
         className={cn(
-          "relative rounded-2xl p-3 border-2 transition-all",
+          "relative rounded-2xl border-2 transition-all overflow-hidden",
+          compact ? "p-1.5" : "p-2",
           playing
             ? "border-violet-400 bg-violet-50 dark:bg-violet-950/30 shadow-lg shadow-violet-200/50 dark:shadow-violet-900/30"
-            : "border-slate-200 dark:border-slate-700 hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-950/20",
+            : "border-slate-200 dark:border-slate-700 hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-950/20"
         )}
         title="Click to hear pronunciation and see mouth shapes"
       >
         {loading ? (
-          <div className="w-20 h-14 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+          <div className={cn("flex items-center justify-center", compact ? "w-9 h-7" : "w-24 h-20")}>
+            <Loader2 className={cn("animate-spin text-violet-500", compact ? "w-4 h-4" : "w-6 h-6")} />
           </div>
-        ) : (
-          <svg viewBox="0 0 60 40" className="w-20 h-14">
-            {/* Face background */}
-            <ellipse
-              cx="30" cy="20" rx="28" ry="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-slate-200 dark:text-slate-700"
-            />
-            {/* Eyes */}
-            <circle cx="20" cy="12" r="2" fill="currentColor" className="text-slate-400" />
-            <circle cx="40" cy="12" r="2" fill="currentColor" className="text-slate-400" />
-            {/* Upper lip */}
-            <path
-              d={UPPER_LIP}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              className="text-rose-400"
-            />
-            {/* Lower lip / mouth opening — animated */}
-            <path
-              d={mouthPath}
-              fill={playing ? "rgba(239,68,68,0.12)" : "none"}
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              className="text-rose-400 transition-all duration-75"
-            />
-            {/* Teeth hint */}
-            {(currentViseme === 15 || currentViseme === 17 || currentViseme === 18 || currentViseme === 19) && (
-              <path
-                d={TEETH_UPPER}
-                fill="none"
-                stroke="white"
-                strokeWidth="1.5"
-                opacity="0.6"
-              />
-            )}
-            {/* Tongue hint for L, R, TH visemes */}
-            {(currentViseme === 14 || currentViseme === 13 || currentViseme === 17) && (
-              <ellipse
-                cx="30" cy="24" rx="4" ry="2"
-                fill="rgba(244,114,114,0.3)"
-              />
-            )}
-          </svg>
+        ) : HEAD_URL ? (
+          // 3D head canvas (always mounted so the GLB loader has somewhere to render).
+          <canvas
+            ref={canvasRef}
+            className={cn(compact ? "w-9 h-7" : "w-24 h-20", !headReady && "opacity-0")}
+          />
+        ) : null}
+
+        {/* SVG fallback mouth — shown when 3D head isn't configured or hasn't loaded. */}
+        {!loading && !headReady && (
+          <SvgMouth
+            jawOpen={jawOpen}
+            mouthPucker={mouthPucker}
+            mouthSmile={mouthSmile}
+            compact={!!compact}
+            playing={playing}
+          />
         )}
 
-        {/* Pulse ring when playing */}
-        {playing && (
-          <div className="absolute inset-0 rounded-2xl border-2 border-violet-400 animate-ping opacity-20" />
+        {playing && !compact && (
+          <div className="absolute inset-0 rounded-2xl border-2 border-violet-400 animate-ping opacity-20 pointer-events-none" />
         )}
       </button>
 
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Volume2 className="w-3 h-3" />
-        <span>{playing ? "Speaking..." : "Tap to pronounce"}</span>
-      </div>
+      {!compact && (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Volume2 className="w-3 h-3" />
+          <span>{playing ? "Speaking..." : "Tap to pronounce"}</span>
+        </div>
+      )}
+      {compact && (
+        <Volume2 className="w-3.5 h-3.5 text-violet-500" />
+      )}
     </div>
   );
 }
 
-// ─── Client-side viseme estimation (fallback when Azure unavailable) ────
+// ─── Helpers ────────────────────────────────────────────────────────────
 
-function estimateVisemesClient(word: string): VisemeFrame[] {
-  const MAP: Record<string, number> = {
-    a: 1, e: 4, i: 6, o: 8, u: 7,
-    b: 21, p: 21, m: 21,
-    f: 18, v: 18,
-    s: 15, z: 15, c: 15,
-    t: 19, d: 19, n: 19, l: 14,
-    r: 13, k: 20, g: 20,
-    w: 7, y: 6, h: 12, q: 20, x: 15,
-  };
+function clamp01(n: number | undefined): number {
+  if (typeof n !== "number" || Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
 
-  const result: VisemeFrame[] = [{ id: 0, offset: 0 }];
-  const msPerPhone = 150; // Slow speech ~150ms per phoneme
-  let offset = 80;
-
-  const lower = word.toLowerCase().replace(/[^a-z]/g, "");
-  for (const ch of lower) {
-    if (MAP[ch] !== undefined) {
-      result.push({ id: MAP[ch], offset });
-      offset += msPerPhone;
+/**
+ * Flatten Azure's batched animation track into a single time-ordered list of
+ * frames. Azure emits ~60 fps blend-shape rows; the spacing between rows is
+ * 1000/60 ms, and each batch's audioOffset is the absolute time of its first
+ * row.
+ */
+function flattenFrames(
+  batches: VisemeBatch[]
+): { t: number; v: number[] }[] {
+  const FRAME_MS = 1000 / 60;
+  const out: { t: number; v: number[] }[] = [];
+  for (const b of batches) {
+    if (!b || !Array.isArray(b.blendShapes)) continue;
+    for (let i = 0; i < b.blendShapes.length; i++) {
+      out.push({ t: b.audioOffset + i * FRAME_MS, v: b.blendShapes[i] });
     }
   }
-  result.push({ id: 0, offset: offset + 80 });
-  return result;
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+
+// ─── SVG fallback mouth ─────────────────────────────────────────────────
+
+function SvgMouth({
+  jawOpen, mouthPucker, mouthSmile, compact, playing,
+}: {
+  jawOpen: number; mouthPucker: number; mouthSmile: number;
+  compact: boolean; playing: boolean;
+}) {
+  // Interpolate a mouth shape from blend-shape-derived signals.
+  // - jawOpen widens vertical opening (lower-lip y)
+  // - mouthPucker narrows horizontal extent
+  // - mouthSmile raises corners
+  const open = jawOpen * 18;                 // 0-18 px
+  const narrow = mouthPucker * 14;           // 0-14 px
+  const cornerLift = mouthSmile * 4;         // 0-4 px
+  const leftX = 8 + narrow;
+  const rightX = 52 - narrow;
+  const cornerY = 20 - cornerLift;
+  const bottomY = 20 + open;
+  const lowerLip = `M ${leftX},${cornerY} Q 30,${bottomY} ${rightX},${cornerY}`;
+
+  return (
+    <svg
+      viewBox="0 0 60 40"
+      className={cn(compact ? "w-7 h-5" : "w-20 h-14", playing && "scale-105 transition-transform")}
+    >
+      <ellipse
+        cx="30" cy="20" rx="28" ry="18"
+        fill="none" stroke="currentColor" strokeWidth="1.5"
+        className="text-slate-200 dark:text-slate-700"
+      />
+      {!compact && (
+        <>
+          <circle cx="20" cy="12" r="2" fill="currentColor" className="text-slate-400" />
+          <circle cx="40" cy="12" r="2" fill="currentColor" className="text-slate-400" />
+        </>
+      )}
+      <path
+        d="M 8,20 Q 20,14 30,13 Q 40,14 52,20"
+        fill="none" stroke="currentColor" strokeWidth={compact ? 2 : 2.5}
+        strokeLinecap="round" className="text-rose-400"
+      />
+      <path
+        d={lowerLip}
+        fill={playing ? "rgba(239,68,68,0.15)" : "none"}
+        stroke="currentColor" strokeWidth={compact ? 2 : 2.5}
+        strokeLinecap="round" className="text-rose-400"
+      />
+    </svg>
+  );
+}
+
+// ─── Three.js head integration ──────────────────────────────────────────
+
+interface HeadApi {
+  applyBlendShapes: (values: number[]) => void;
+  dispose: () => void;
+}
+
+async function initThreeHead(canvas: HTMLCanvasElement, url: string): Promise<HeadApi> {
+  const THREE = await import("three");
+  const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  const resize = () => renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  resize();
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(
+    20,
+    (canvas.clientWidth || 1) / (canvas.clientHeight || 1),
+    0.1, 100
+  );
+  camera.position.set(0, 1.6, 1.2);
+  camera.lookAt(0, 1.55, 0);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1.2));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(1, 2, 2);
+  scene.add(dir);
+
+  const loader = new GLTFLoader();
+  const gltf: any = await new Promise((resolve, reject) =>
+    loader.load(url, resolve, undefined, reject)
+  );
+  scene.add(gltf.scene);
+
+  // Collect every mesh that exposes morph targets matching the Azure names.
+  // RPM (and most ARKit-compatible heads) put them on a "Wolf3D_Head"/teeth/eyelashes mesh.
+  type MorphTarget = { mesh: any; nameToIndex: Record<string, number> };
+  const targets: MorphTarget[] = [];
+  gltf.scene.traverse((obj: any) => {
+    if (obj.isMesh && obj.morphTargetDictionary && obj.morphTargetInfluences) {
+      targets.push({ mesh: obj, nameToIndex: obj.morphTargetDictionary });
+    }
+  });
+
+  if (targets.length === 0) {
+    renderer.dispose();
+    throw new Error("Loaded head has no morph targets — check VITE_VISEME_HEAD_URL is an ARKit-compatible glb");
+  }
+
+  let running = true;
+  const animate = () => {
+    if (!running) return;
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  };
+  animate();
+
+  const ro = new ResizeObserver(resize);
+  ro.observe(canvas);
+
+  return {
+    applyBlendShapes(values: number[]) {
+      for (const { mesh, nameToIndex } of targets) {
+        for (let i = 0; i < AZURE_BLENDSHAPE_NAMES.length && i < values.length; i++) {
+          const morphIdx = nameToIndex[AZURE_BLENDSHAPE_NAMES[i]];
+          if (typeof morphIdx === "number") {
+            mesh.morphTargetInfluences[morphIdx] = values[i] || 0;
+          }
+        }
+      }
+    },
+    dispose() {
+      running = false;
+      ro.disconnect();
+      renderer.dispose();
+    },
+  };
 }

@@ -10,6 +10,7 @@ interface Props {
 export function WebcamMirror({ className }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mirrored, setMirrored] = useState(true);
@@ -17,20 +18,32 @@ export function WebcamMirror({ className }: Props) {
   const startCamera = async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 320, height: 240 },
         audio: false,
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      streamRef.current = s;
+
+      s.oninactive = () => {
+        console.warn("Webcam stream became inactive");
+        setActive(false);
+      };
+      s.getTracks().forEach((t) => {
+        t.onended = () => {
+          console.warn("Webcam track ended:", t.kind, t.label);
+          setActive(false);
+        };
+      });
+
+      setStream(s);
       setActive(true);
     } catch (err: any) {
       console.error("Webcam error:", err);
-      setError(err.name === "NotAllowedError" 
-        ? "Camera access denied. Please allow camera in your browser settings." 
-        : "Could not access camera.");
+      setError(
+        err.name === "NotAllowedError"
+          ? "Camera access denied. Please allow camera in your browser settings."
+          : "Could not access camera."
+      );
       setActive(false);
     }
   };
@@ -43,14 +56,33 @@ export function WebcamMirror({ className }: Props) {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setStream(null);
     setActive(false);
   };
+
+  // Attach stream after the <video> element is mounted/visible.
+  // Doing this in an effect (instead of inline in startCamera) guarantees the
+  // ref is populated by the time we set srcObject and call play().
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (active && stream) {
+      el.srcObject = stream;
+      el.play().catch((e) => {
+        console.error("Video play() failed:", e);
+        setError("Could not start video playback.");
+      });
+    } else {
+      el.srcObject = null;
+    }
+  }, [active, stream]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
     };
   }, []);
@@ -104,18 +136,20 @@ export function WebcamMirror({ className }: Props) {
         )}
         style={{ aspectRatio: "4/3", maxHeight: 200 }}
       >
-        {active ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className={cn(
-              "w-full h-full object-cover",
-              mirrored && "scale-x-[-1]"
-            )}
-          />
-        ) : (
+        {/* Video element is always mounted so the ref is available before
+            srcObject is assigned. Visibility is toggled by `active`. */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={cn(
+            "w-full h-full object-cover",
+            mirrored && "scale-x-[-1]",
+            !active && "hidden"
+          )}
+        />
+        {!active && (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2 p-4">
             <Camera className="w-8 h-8 opacity-30" />
             <p className="text-xs text-center opacity-60">
