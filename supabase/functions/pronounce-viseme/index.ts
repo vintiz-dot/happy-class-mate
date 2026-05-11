@@ -15,7 +15,10 @@
  *           // Each viseme frame batch from Azure carries one or more rows of
  *           // 55 blend-shape values. We flatten across batches into a single
  *           // ordered sequence with the absolute time of each row.
- *           visemes: { audioOffset: number; blendShapes: number[][] }[],
+ *           // visemeId (0-21) is Azure's classic 2D viseme — kept alongside
+ *           // the blend-shape data so the client can drive a simple lip-shape
+ *           // image overlay without re-deriving it from blendShapes.
+ *           visemes: { audioOffset: number; visemeId: number; blendShapes: number[][] }[],
  *           duration: number,
  *           word: string,
  *         }
@@ -40,7 +43,8 @@ const AZURE_REGION = "southeastasia";
 const DEFAULT_VOICE = "en-US-AvaMultilingualNeural";
 
 interface VisemeBatch {
-  audioOffset: number; // ms from audio start (absolute time of first row)
+  audioOffset: number;     // ms from audio start (absolute time of first row)
+  visemeId: number;        // Azure's classic 2D viseme ID (0-21) for this phoneme
   blendShapes: number[][]; // each row = 55 floats (Azure's blend-shape order)
 }
 
@@ -101,14 +105,17 @@ Deno.serve(async (req) => {
       //   { FrameIndex, BlendShapes: number[][] }
       //   { BlendShapes: number[][] }
       //   { blendShapes: number[][] }
+      // The same event also carries e.visemeId — Azure's classic 2D viseme
+      // (0-21) — which we forward to the client for lip-image overlay.
       const audioOffsetMs = Number(e.audioOffset) / 10000;
+      const visemeId = Number(e.visemeId) || 0;
       if (!e.animation) return;
       try {
         const parsed = JSON.parse(e.animation);
         const rows: number[][] =
           parsed.BlendShapes ?? parsed.blendShapes ?? [];
         if (Array.isArray(rows) && rows.length > 0) {
-          visemes.push({ audioOffset: audioOffsetMs, blendShapes: rows });
+          visemes.push({ audioOffset: audioOffsetMs, visemeId, blendShapes: rows });
         }
       } catch (err) {
         console.error("Failed to parse viseme animation payload:", err);

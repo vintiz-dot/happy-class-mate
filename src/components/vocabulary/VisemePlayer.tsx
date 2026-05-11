@@ -28,7 +28,68 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface VisemeBatch {
   audioOffset: number;     // ms from audio start
+  visemeId?: number;       // Azure's 2D viseme ID (0-21); added by pronounce-viseme
   blendShapes: number[][]; // each row is 55 floats (Azure order)
+}
+
+/**
+ * Azure 2D viseme ID → lip-shape image overlay.
+ * IDs follow https://learn.microsoft.com/azure/ai-services/speech-service/how-to-speech-synthesis-viseme?tabs=visemeid
+ * Files live in /public/lip/ (served at /lip/ at runtime). Spaces are URL-encoded.
+ * id 0 is silence — we return null so the overlay hides between syllables.
+ */
+const LIP_IMAGES: { src: string | null; alt: string }[] = [
+  { src: null,                                             alt: "silence" },                       // 0
+  { src: "/lip/e.png",                                     alt: "vowel ae / uh" },                 // 1
+  { src: "/lip/o.png",                                     alt: "open vowel aa" },                 // 2
+  { src: "/lip/o.png",                                     alt: "vowel aw" },                      // 3
+  { src: "/lip/e.png",                                     alt: "vowel eh / oo" },                 // 4
+  { src: "/lip/r.png",                                     alt: "r-colored vowel er" },            // 5
+  { src: "/lip/e.png",                                     alt: "vowel ee / ih / y" },             // 6
+  { src: "/lip/u.png",                                     alt: "vowel oo / w" },                  // 7
+  { src: "/lip/o.png",                                     alt: "vowel oh" },                      // 8
+  { src: "/lip/o.png",                                     alt: "diphthong ow" },                  // 9
+  { src: "/lip/o.png",                                     alt: "diphthong oy" },                  // 10
+  { src: "/lip/e.png",                                     alt: "diphthong eye" },                 // 11
+  { src: "/lip/ch%20sh%20j.png",                           alt: "h sound" },                       // 12
+  { src: "/lip/r.png",                                     alt: "r sound" },                       // 13
+  { src: "/lip/l.png",                                     alt: "l sound" },                       // 14
+  { src: "/lip/c%20d%20g%20k%20n%20s%20t.png",             alt: "s / z" },                         // 15
+  { src: "/lip/ch%20sh%20j.png",                           alt: "ch / sh / j" },                   // 16
+  { src: "/lip/th.png",                                    alt: "th sound" },                      // 17
+  { src: "/lip/f%20v.png",                                 alt: "f / v" },                         // 18
+  { src: "/lip/c%20d%20g%20k%20n%20s%20t.png",             alt: "d / t / n" },                     // 19
+  { src: "/lip/c%20d%20g%20k%20n%20s%20t%20x%20y%20z.png", alt: "k / g / ng" },                    // 20
+  { src: "/lip/b%20m%20p.png",                             alt: "b / m / p" },                     // 21
+];
+
+/**
+ * Derive a viseme ID (0-21) from a blend-shape row, used as a fallback when
+ * the edge function response predates the visemeId field. The mapping looks
+ * at the dominant mouth-related shape and picks the closest 2D viseme.
+ * This is a coarse heuristic — visemeId from Azure is always preferred.
+ */
+function deriveVisemeIdFromBlendShapes(row: number[] | undefined): number {
+  if (!row || row.length < 25) return 0;
+  // Mouth-shape signals (indices match AZURE_BLENDSHAPE_NAMES above).
+  const jawOpen = row[17] ?? 0;
+  const mouthFunnel = row[19] ?? 0;
+  const mouthPucker = row[20] ?? 0;
+  const mouthClose = row[18] ?? 0;
+  const mouthSmile = ((row[23] ?? 0) + (row[24] ?? 0)) / 2;
+  const mouthRollUpper = row[32] ?? 0;
+  const mouthRollLower = row[31] ?? 0;
+
+  // Mostly closed → silence or a bilabial.
+  if (jawOpen < 0.05 && mouthClose < 0.2 && mouthPucker < 0.1) return 0;
+  if (mouthClose > 0.4) return 21;                    // p/b/m
+  if (mouthRollLower > 0.3 || mouthRollUpper > 0.3) return 18; // f/v
+  if (mouthPucker > 0.45) return 7;                    // w/u
+  if (mouthFunnel > 0.35) return 2;                    // o
+  if (mouthSmile > 0.4 && jawOpen < 0.25) return 6;    // i/ɪ
+  if (jawOpen > 0.4) return 2;                         // open vowel → o-ish
+  if (jawOpen > 0.2) return 1;                         // mid vowel → e-ish
+  return 15;                                            // default consonant cluster
 }
 
 interface Props {
@@ -73,9 +134,13 @@ export function VisemePlayer({ word, compact, className }: Props) {
   const [mouthPucker, setMouthPucker] = useState(0);
   const [mouthSmile, setMouthSmile] = useState(0);
 
+  // Current 2D viseme ID (0-21) for the lip-shape image overlay.
+  const [currentVisemeId, setCurrentVisemeId] = useState(0);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const visemesRef = useRef<VisemeBatch[]>([]);
   const flatFramesRef = useRef<{ t: number; v: number[] }[]>([]);
+  const lipEventsRef = useRef<{ t: number; id: number }[]>([]);
   const rafRef = useRef(0);
 
   // Three.js refs (kept null until/unless the GLB head loads successfully)
@@ -119,6 +184,7 @@ export function VisemePlayer({ word, compact, className }: Props) {
 
   // ── Animation loop: pick the latest blend-shape row ≤ audio.currentTime ──
   const startAnimationLoop = useCallback(() => {
+    let lastLipId = -1; // avoid spamming React with redundant state updates
     const tick = () => {
       const audio = audioRef.current;
       const frames = flatFramesRef.current;
@@ -142,6 +208,26 @@ export function VisemePlayer({ word, compact, className }: Props) {
       setMouthPucker(clamp01(row[20]));
       setMouthSmile(clamp01(((row[23] || 0) + (row[24] || 0)) / 2));
 
+      // Pick the latest 2D viseme event with t ≤ tMs for the lip-image overlay.
+      const events = lipEventsRef.current;
+      let lipId = 0;
+      if (events.length > 0) {
+        let elo = 0, ehi = events.length - 1, eidx = -1;
+        while (elo <= ehi) {
+          const mid = (elo + ehi) >> 1;
+          if (events[mid].t <= tMs) { eidx = mid; elo = mid + 1; }
+          else { ehi = mid - 1; }
+        }
+        lipId = eidx >= 0 ? events[eidx].id : 0;
+      } else {
+        // Old responses without visemeId — fall back to deriving from blendShapes.
+        lipId = deriveVisemeIdFromBlendShapes(row);
+      }
+      if (lipId !== lastLipId) {
+        lastLipId = lipId;
+        setCurrentVisemeId(lipId);
+      }
+
       if (audio.paused || audio.ended) {
         setPlaying(false);
         // Settle to neutral.
@@ -149,6 +235,7 @@ export function VisemePlayer({ word, compact, className }: Props) {
         setJawOpen(0);
         setMouthPucker(0);
         setMouthSmile(0);
+        setCurrentVisemeId(0);
         return;
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -173,6 +260,8 @@ export function VisemePlayer({ word, compact, className }: Props) {
 
       visemesRef.current = Array.isArray(data.visemes) ? data.visemes : [];
       flatFramesRef.current = flattenFrames(visemesRef.current);
+      lipEventsRef.current = extractLipEvents(visemesRef.current);
+      setCurrentVisemeId(0);
 
       audio.onended = () => setPlaying(false);
       audio.onerror = () => {
@@ -257,6 +346,11 @@ export function VisemePlayer({ word, compact, className }: Props) {
         )}
       </button>
 
+      {/* 2D lip-shape overlay, driven by Azure's per-phoneme viseme ID. */}
+      {!compact && (
+        <LipImageOverlay visemeId={currentVisemeId} playing={playing} />
+      )}
+
       {!compact && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Volume2 className="w-3 h-3" />
@@ -296,6 +390,63 @@ function flattenFrames(
   }
   out.sort((a, b) => a.t - b.t);
   return out;
+}
+
+/**
+ * Pull Azure's 2D viseme events (one per phoneme) out of the batched track.
+ * Returns an empty list if the response predates the visemeId field — the
+ * animation loop then falls back to deriveVisemeIdFromBlendShapes.
+ */
+function extractLipEvents(
+  batches: VisemeBatch[]
+): { t: number; id: number }[] {
+  const out: { t: number; id: number }[] = [];
+  let sawVisemeId = false;
+  for (const b of batches) {
+    if (!b) continue;
+    if (typeof b.visemeId === "number") {
+      sawVisemeId = true;
+      out.push({ t: b.audioOffset, id: b.visemeId });
+    }
+  }
+  if (!sawVisemeId) return [];
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+
+// ─── 2D lip-shape overlay ──────────────────────────────────────────────
+// Shows a small reference photograph of the mouth shape for the current
+// phoneme. Driven by Azure's 2D visemeId (0-21). Hidden during silence so
+// it doesn't flash distractingly between syllables.
+
+function LipImageOverlay({
+  visemeId,
+  playing,
+}: {
+  visemeId: number;
+  playing: boolean;
+}) {
+  const entry =
+    visemeId >= 0 && visemeId < LIP_IMAGES.length ? LIP_IMAGES[visemeId] : null;
+  const visible = playing && !!entry?.src;
+  return (
+    <div
+      aria-hidden={!visible}
+      className={cn(
+        "w-20 h-20 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 transition-opacity duration-100",
+        visible ? "opacity-100" : "opacity-0 pointer-events-none"
+      )}
+    >
+      {entry?.src && (
+        <img
+          src={entry.src}
+          alt={entry.alt}
+          className="w-full h-full object-contain"
+          draggable={false}
+        />
+      )}
+    </div>
+  );
 }
 
 // ─── SVG fallback mouth ─────────────────────────────────────────────────

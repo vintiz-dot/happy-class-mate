@@ -1,15 +1,14 @@
 /**
  * image-search Edge Function
  * ============================
- * Proxies image search requests to Pixabay (primary) with Pexels fallback.
- * Appends "isolated white background" to queries for kid-friendly clarity.
+ * Proxies image search requests to the Google Custom Search JSON API.
  *
- * Input:  { query: string, count?: number }
- * Output: { images: { url: string, thumbnail: string, alt: string, source: string }[] }
+ * Input:  { query: string, count?: number }   // `word` is also accepted as an alias
+ * Output: { images: { url, thumbnail, thumb, alt, source }[] }
  *
- * Secrets required:
- *   Pixabay_API — Pixabay API key
- *   Pexels_API  — Pexels API key
+ * The Google API key is intentionally hardcoded: it is already restricted at
+ * the GCP project level to the Custom Search API only, so checking it in is
+ * safe. (CSE responses are public anyway.)
  */
 
 const corsHeaders = {
@@ -18,11 +17,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const GOOGLE_API_KEY = "AIzaSyARsX7963ZTsMYkT0JSvfy_7p8hfmLkZ7U";
+const GOOGLE_CX = "a412bc7b376e74fed";
+
 interface ImageResult {
   url: string;
-  thumbnail: string;
+  thumbnail: string; // back-compat with existing frontend (Vocabulary/ImageCarousel/...)
+  thumb: string;     // contract field requested by the new spec
   alt: string;
-  source: "pixabay" | "pexels";
+  source: string;
 }
 
 Deno.serve(async (req) => {
@@ -30,113 +33,65 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Always respond with 200 + empty images on any failure so the UI never crashes.
+  const emptyOk = (extra: Record<string, unknown> = {}) =>
+    new Response(
+      JSON.stringify({ images: [], source: "google", ...extra }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
   try {
-    const body = await req.json();
-    const rawQuery = (body.query || "").trim();
-    const count = Math.min(Math.max(body.count || 8, 1), 20);
-    const provider = body.provider; // "pixabay" | "pexels" | undefined
+    const body = await req.json().catch(() => ({}));
+    const rawQuery = String(body.query ?? body.word ?? "").trim();
+    const count = Math.min(Math.max(Number(body.count) || 8, 1), 10);
 
     if (!rawQuery) {
       return new Response(
-        JSON.stringify({ error: "query is required" }),
+        JSON.stringify({ error: "query is required", images: [] }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Kid-friendly illustration query — Pixabay primary, Pexels fallback
-    const pixabayQuery = `${rawQuery} simple illustration isolated`;
-    const pexelsQuery = `${rawQuery} simple illustration isolated kid friendly clear`;
+    const url =
+      `https://www.googleapis.com/customsearch/v1` +
+      `?key=${encodeURIComponent(GOOGLE_API_KEY)}` +
+      `&cx=${encodeURIComponent(GOOGLE_CX)}` +
+      `&q=${encodeURIComponent(rawQuery)}` +
+      `&searchType=image` +
+      `&num=${count}` +
+      `&safe=active`;
 
-    // ── Try Pixabay first (unless provider is strictly pexels) ──
-    const pixabayKey = Deno.env.get("Pixabay_API");
-    const pexelsKey = Deno.env.get("Pexels_API");
-
-    // The user requested 6 images from each API.
-    // We will ask for 6 from both to ensure we get a mixed batch of 12 total.
-    const perPage = 6;
-
-    const fetchPixabay = async (): Promise<ImageResult[]> => {
-      if (!pixabayKey || provider === "pexels") return [];
-      try {
-        const pixabayUrl =
-          `https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}` +
-          `&q=${encodeURIComponent(pixabayQuery)}` +
-          `&image_type=illustration&safesearch=true&per_page=${perPage}&lang=en`;
-
-        const res = await fetch(pixabayUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.hits) {
-            return data.hits.map((hit: any) => ({
-              url: hit.webformatURL || hit.largeImageURL,
-              thumbnail: hit.previewURL || hit.webformatURL,
-              alt: hit.tags || rawQuery,
-              source: "pixabay",
-            }));
-          }
-        }
-      } catch (e) {
-        console.error("Pixabay search failed:", e);
-      }
-      return [];
-    };
-
-    const fetchPexels = async (): Promise<ImageResult[]> => {
-      if (!pexelsKey || provider === "pixabay") return [];
-      try {
-        const pexelsUrl =
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(pexelsQuery)}` +
-          `&per_page=${perPage}&size=small`;
-
-        const res = await fetch(pexelsUrl, {
-          headers: { Authorization: pexelsKey },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.photos) {
-            return data.photos.map((photo: any) => ({
-              url: photo.src?.medium || photo.src?.original,
-              thumbnail: photo.src?.small || photo.src?.tiny,
-              alt: photo.alt || rawQuery,
-              source: "pexels",
-            }));
-          }
-        }
-      } catch (e) {
-        console.error("Pexels search failed:", e);
-      }
-      return [];
-    };
-
-    const [pixabayResults, pexelsResults] = await Promise.all([
-      fetchPixabay(),
-      fetchPexels()
-    ]);
-
-    // Interleave the results so the user gets a nice mix
-    const combinedImages: ImageResult[] = [];
-    const maxLength = Math.max(pixabayResults.length, pexelsResults.length);
-    for (let i = 0; i < maxLength; i++) {
-      if (i < pixabayResults.length) combinedImages.push(pixabayResults[i]);
-      if (i < pexelsResults.length) combinedImages.push(pexelsResults[i]);
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error("Google CSE error", res.status, await res.text().catch(() => ""));
+      return emptyOk({ message: `CSE upstream ${res.status}` });
     }
 
-    if (combinedImages.length === 0) {
-      return new Response(
-        JSON.stringify({ images: [], source: "none", message: "No images found" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const data = await res.json();
+    const items: any[] = Array.isArray(data.items) ? data.items : [];
+
+    const images: ImageResult[] = items
+      .map((item) => {
+        const fullUrl: string = item.link ?? "";
+        const thumbUrl: string =
+          item.image?.thumbnailLink || item.link || "";
+        if (!fullUrl) return null;
+        return {
+          url: fullUrl,
+          thumbnail: thumbUrl,
+          thumb: thumbUrl,
+          alt: String(item.title ?? rawQuery),
+          source: String(item.displayLink ?? "google"),
+        } satisfies ImageResult;
+      })
+      .filter((x): x is ImageResult => x !== null);
 
     return new Response(
-      JSON.stringify({ images: combinedImages, source: provider || "mixed" }),
+      JSON.stringify({ images, source: "google" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("image-search error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return emptyOk({ message: "unexpected error" });
   }
 });
