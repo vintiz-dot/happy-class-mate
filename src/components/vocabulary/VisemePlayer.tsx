@@ -357,9 +357,16 @@ interface HeadApi {
   dispose: () => void;
 }
 
+// Three.js is loaded from CDN at runtime so it doesn't need to be in the npm
+// lockfile. Vite passes absolute-URL dynamic imports straight through to the
+// browser unchanged (no bundling, no lockfile entry needed).
+const THREE_CDN = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
+const GLTF_CDN =
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js";
+
 async function initThreeHead(canvas: HTMLCanvasElement, url: string): Promise<HeadApi> {
-  const THREE = await import("three");
-  const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+  const THREE = await import(/* @vite-ignore */ THREE_CDN);
+  const { GLTFLoader } = await import(/* @vite-ignore */ GLTF_CDN);
 
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
