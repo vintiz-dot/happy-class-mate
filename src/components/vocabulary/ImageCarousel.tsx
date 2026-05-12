@@ -1,16 +1,28 @@
 /**
- * ImageCarousel — horizontally-scrolling, lazy-loaded image strip for a
- * vocabulary word. Aggregates results from every configured image provider
- * (Pixabay, Pexels, Wikimedia, Google CSE, Unsplash) and de-dupes by URL
- * server-side. Each thumbnail uses native loading="lazy" + async decoding
- * + a width/height hint so the carousel paints instantly without layout
- * shift, and only fetches images that scroll into view.
+ * ImageCarousel — horizontally-scrolling image strip for a vocabulary word.
+ *
+ * Strict lazy loading
+ * -------------------
+ *   - We render the carousel shell + skeleton tiles as soon as the parent
+ *     mounts, so the enrichment text is never blocked on image bytes.
+ *   - Each tile uses IntersectionObserver to defer its <img src> assignment
+ *     until that tile enters the viewport (with a 200px rootMargin so the
+ *     swap feels instant). Native `loading="lazy"` is a safety net, but the
+ *     observer is the contract — we never set src for off-screen tiles.
+ *   - A "still loading X / N pictures" badge stays visible until every
+ *     decoded image either renders or errors out, so students see clear
+ *     progress without being distracted by a noisy spinner.
+ *
+ * Aggregates results from every configured image provider (Pixabay, Pexels,
+ * Wikimedia, Google CSE, Unsplash) and de-dupes by URL server-side. Server
+ * also stores results in `vocab_image_cache` so repeat queries skip the
+ * provider fan-out entirely.
  *
  * Optional onPick callback lets parents (e.g. WordExplorer's Save flow)
  * capture which image the student associates with their saved entry.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, ImageOff, Check } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,15 +58,20 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Count of tiles that have not yet finished loading (either loaded or
+  // errored). Drives the "still loading X more" indicator.
+  const [pending, setPending] = useState(0);
 
   useEffect(() => {
     if (!query.trim()) {
       setImages([]);
+      setPending(0);
       return;
     }
     let cancelled = false;
     (async () => {
       setImages([]);
+      setPending(0);
       setLoading(true);
       setError(null);
       try {
@@ -68,7 +85,9 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
           setError("Could not load images");
           return;
         }
-        setImages(Array.isArray(data?.images) ? data.images : []);
+        const list: ImageItem[] = Array.isArray(data?.images) ? data.images : [];
+        setImages(list);
+        setPending(list.length);
       } catch (err) {
         if (!cancelled) {
           console.error("Image fetch error:", err);
@@ -81,11 +100,16 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
     return () => { cancelled = true; };
   }, [query]);
 
+  const handleTileResolved = useCallback(() => {
+    setPending((p) => (p > 0 ? p - 1 : 0));
+  }, []);
+
+  // ── Loading shell (text is already on screen by the time we reach here) ──
   if (loading) {
     return (
       <div className={cn("space-y-2", className)}>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-          <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Finding pictures...
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" /> Finding pictures…
         </p>
         <div className="flex overflow-hidden gap-3 p-1">
           {[1, 2, 3, 4].map((i) => (
@@ -107,77 +131,161 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
 
   if (images.length === 0) return null;
 
+  const totalImages = images.length;
+  const showProgress = pending > 0;
+
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-        🖼️ Pictures for this word
-        {onPick && <span className="ml-2 normal-case font-medium text-muted-foreground">— tap one to pick</span>}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          🖼️ Pictures for this word
+          {onPick && <span className="ml-2 normal-case font-medium text-muted-foreground">— tap one to pick</span>}
+        </p>
+        {showProgress && (
+          <div
+            className="flex items-center gap-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-full px-2 py-0.5"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Loading {pending} / {totalImages}</span>
+          </div>
+        )}
+      </div>
       <ScrollArea className="w-full whitespace-nowrap rounded-xl">
         <div className="flex w-max gap-3 p-1">
-          {images.map((img, i) => {
-            const picked = pickedUrl && img.url === pickedUrl;
-            const badge = SOURCE_BADGE[img.source] ?? { label: img.source, bg: "bg-slate-500/85" };
-            const isClickable = !!onPick;
-            const Wrapper: any = isClickable ? "button" : "div";
-            return (
-              <Wrapper
-                key={`${img.url}-${i}`}
-                {...(isClickable
-                  ? { type: "button", onClick: () => onPick!(img), "aria-pressed": picked }
-                  : {})}
-                className={cn(
-                  "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 shadow-sm border-2 transition-all",
-                  isClickable && "cursor-pointer hover:scale-[1.02]",
-                  picked
-                    ? "border-violet-500 ring-2 ring-violet-300"
-                    : "border-slate-200 dark:border-slate-700 hover:border-violet-400",
-                )}
-              >
-                <img
-                  src={img.thumb || img.thumbnail || img.url}
-                  alt={img.alt}
-                  width={140}
-                  height={105}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                  draggable={false}
-                  onError={(e) => {
-                    // Swap to the larger url if thumb 404s, then hide on second failure.
-                    const el = e.currentTarget;
-                    if (el.dataset.fallback !== "1" && img.url && el.src !== img.url) {
-                      el.dataset.fallback = "1";
-                      el.src = img.url;
-                    } else {
-                      el.style.visibility = "hidden";
-                    }
-                  }}
-                />
-                <div className="absolute top-1.5 right-1.5">
-                  <span
-                    className={cn(
-                      "text-[9px] font-bold px-1.5 py-0.5 rounded-sm backdrop-blur-md text-white shadow-sm uppercase tracking-wider",
-                      badge.bg,
-                    )}
-                  >
-                    {badge.label}
-                  </span>
-                </div>
-                {picked && (
-                  <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                    <div className="bg-violet-600 text-white rounded-full p-1 shadow-lg">
-                      <Check className="w-4 h-4" />
-                    </div>
-                  </div>
-                )}
-              </Wrapper>
-            );
-          })}
+          {images.map((img, i) => (
+            <CarouselTile
+              key={`${img.url}-${i}`}
+              img={img}
+              picked={!!pickedUrl && img.url === pickedUrl}
+              onPick={onPick}
+              onResolved={handleTileResolved}
+            />
+          ))}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
     </div>
+  );
+}
+
+interface TileProps {
+  img: ImageItem;
+  picked: boolean;
+  onPick?: (img: ImageItem) => void;
+  onResolved: () => void;
+}
+
+function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [inView, setInView] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+  const [didFallback, setDidFallback] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const resolvedRef = useRef(false);
+
+  // Notify parent exactly once per tile (whether it loaded or errored).
+  const resolve = useCallback(() => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    onResolved();
+  }, [onResolved]);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+
+    // Browsers that don't support IntersectionObserver still get the image —
+    // we just paint it immediately (graceful degradation, no console noise).
+    if (typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            setInView(true);
+            obs.disconnect();
+            return;
+          }
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!inView) return;
+    setSrc(img.thumb || img.thumbnail || img.url);
+  }, [inView, img.thumb, img.thumbnail, img.url]);
+
+  const badge = SOURCE_BADGE[img.source] ?? { label: img.source, bg: "bg-slate-500/85" };
+  const isClickable = !!onPick;
+  const Wrapper: any = isClickable ? "button" : "div";
+
+  return (
+    <Wrapper
+      ref={ref}
+      {...(isClickable
+        ? { type: "button", onClick: () => onPick!(img), "aria-pressed": picked }
+        : {})}
+      className={cn(
+        "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 shadow-sm border-2 transition-all bg-slate-100 dark:bg-slate-800",
+        isClickable && "cursor-pointer hover:scale-[1.02]",
+        picked
+          ? "border-violet-500 ring-2 ring-violet-300"
+          : "border-slate-200 dark:border-slate-700 hover:border-violet-400",
+      )}
+    >
+      {/* Skeleton stays visible until the actual <img> paints or errors. */}
+      {!hidden && (src === null || (!resolvedRef.current && !didFallback)) && (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-200/70 to-slate-100/70 dark:from-slate-700/40 dark:to-slate-800/40 animate-pulse" />
+      )}
+      {src && !hidden && (
+        <img
+          src={src}
+          alt={img.alt}
+          width={140}
+          height={105}
+          className="relative w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onLoad={resolve}
+          onError={() => {
+            if (!didFallback && img.url && src !== img.url) {
+              setDidFallback(true);
+              setSrc(img.url);
+            } else {
+              setHidden(true);
+              resolve();
+            }
+          }}
+        />
+      )}
+      <div className="absolute top-1.5 right-1.5">
+        <span
+          className={cn(
+            "text-[9px] font-bold px-1.5 py-0.5 rounded-sm backdrop-blur-md text-white shadow-sm uppercase tracking-wider",
+            badge.bg,
+          )}
+        >
+          {badge.label}
+        </span>
+      </div>
+      {picked && (
+        <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+          <div className="bg-violet-600 text-white rounded-full p-1 shadow-lg">
+            <Check className="w-4 h-4" />
+          </div>
+        </div>
+      )}
+    </Wrapper>
   );
 }
 

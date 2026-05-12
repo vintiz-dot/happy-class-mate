@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen, Sparkles } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -110,6 +110,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: ListTodo, label: "Attendance", path: "/teacher/attendance" },
           { icon: NotebookPen, label: "Journal", path: "/teacher/journal" },
           { icon: FileBarChart2, label: "Exam Reports", path: "/teacher/exam-reports" },
+          { icon: Sparkles, label: "Vocabulary Audit", path: "/teacher/vocabulary-audit" },
           { icon: FolderOpen, label: "Resources", path: "/teacher/resources" },
         ];
       default:

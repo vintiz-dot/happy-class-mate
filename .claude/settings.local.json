@@ -9,7 +9,10 @@
       "Bash(gh --version)",
       "Bash(npx tsc *)",
       "Bash(xargs grep *)",
-      "Bash(xargs cat *)"
+      "Bash(xargs cat *)",
+      "Bash(git stash *)",
+      "Bash(npx vite *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

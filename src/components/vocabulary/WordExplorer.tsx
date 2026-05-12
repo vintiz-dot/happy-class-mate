@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   BookOpen, Volume2, Loader2, ArrowRightLeft, Save, CheckCircle2,
   GraduationCap, Languages, Sparkles, Image as ImageIcon, AlertTriangle, Pencil,
+  CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,11 +161,33 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
   // CEFR target from profile
   const [targetCefr, setTargetCefr] = useState<CefrLevel>("A1");
 
+  // Daily cap UI state — counter of words saved today + the limit.
+  const [savesToday, setSavesToday] = useState<number>(0);
+  const [dailyLimit, setDailyLimit] = useState<number>(10);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const c = await getCefrLevel(supabase, user?.id);
       if (!cancelled) setTargetCefr(c);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Pull current day's save count via the SECURITY DEFINER RPC. We tolerate
+  // its absence (older DB shape) — the server still enforces the cap.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      // Supabase generated types haven't been regenerated for this RPC yet —
+      // route through `rpc<…>("…" as never, …)` to bypass the typed name.
+      const { data, error } = await supabase.rpc(
+        "count_vocab_saves_today" as never,
+        { p_user_id: user.id } as never,
+      );
+      if (cancelled) return;
+      if (!error && typeof data === "number") setSavesToday(data);
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -325,10 +348,22 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
           setClassChoice({ open: true, classes: data.classes });
           return;
         }
+        if (data.reason === "daily_limit") {
+          if (typeof data.saves_today === "number") setSavesToday(data.saves_today);
+          if (typeof data.daily_limit === "number") setDailyLimit(data.daily_limit);
+          toast({
+            title: "🌙 Daily word cap reached",
+            description: data.message ||
+              `You've saved your ${data.daily_limit ?? 10} new words for today — come back tomorrow!`,
+            variant: "destructive",
+          });
+          return;
+        }
         if (data.reason === "no_valid_examples") {
           toast({
             title: "Try writing your own sentences",
-            description: data.message || "Your example looks copied from the suggestions.",
+            description: data.message ||
+              `Your example needs to use "${enrichment.root_word}" (or one of its forms) and be your own words.`,
             variant: "destructive",
           });
           return;
@@ -343,14 +378,24 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
       setSaved(true);
       setClassChoice(null);
+      if (typeof data?.saves_today === "number") setSavesToday(data.saves_today);
+      if (typeof data?.daily_limit === "number") setDailyLimit(data.daily_limit);
       const pointsText = data?.points_awarded
         ? ` +${data.points_awarded} pts!`
         : data?.already_saved
           ? " (already in your bank)"
           : "";
+      const remaining = typeof data?.saves_today === "number" && typeof data?.daily_limit === "number"
+        ? Math.max(0, data.daily_limit - data.saves_today)
+        : null;
+      const remainingText = remaining !== null && !data?.already_saved
+        ? remaining === 0
+          ? " That was your last word for today!"
+          : ` ${remaining} more new word${remaining === 1 ? "" : "s"} today.`
+        : "";
       toast({
         title: "✅ Word saved!",
-        description: `"${enrichment.root_word}" added to your word bank.${pointsText}`,
+        description: `"${enrichment.root_word}" added to your word bank.${pointsText}${remainingText}`,
       });
       if (data?.id) onWordSaved?.(data.id);
     } catch (err: any) {
@@ -377,8 +422,43 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
   const formUsages = enrichment?.form_usages || [];
   const cefrBadgeLevel = enrichment?.cefr || enrichment?.level || "A1";
 
+  const capReached = savesToday >= dailyLimit;
+  const remainingToday = Math.max(0, dailyLimit - savesToday);
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Daily-cap indicator — always-on so students can pace themselves. */}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-sm font-medium shadow-sm",
+          capReached
+            ? "bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-100"
+            : "bg-white/60 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200",
+        )}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <CalendarClock className="w-4 h-4 shrink-0" />
+          <span className="truncate">
+            {capReached
+              ? `Today's word cap reached (${dailyLimit}/${dailyLimit}) — practice keeps earning points!`
+              : `Today: ${savesToday} / ${dailyLimit} new words saved · ${remainingToday} left`}
+          </span>
+        </div>
+        <div className="flex items-center gap-1" aria-hidden="true">
+          {Array.from({ length: dailyLimit }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "h-1.5 w-3 rounded-full transition-colors",
+                i < savesToday
+                  ? "bg-violet-500"
+                  : "bg-slate-200 dark:bg-slate-700",
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Sentence Input */}
       <SentenceInput onSubmit={handleSentenceSubmit} loading={enrichmentLoading} />
 
@@ -715,10 +795,10 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
               ) : (
                 <Button
                   onClick={() => performSave()}
-                  disabled={saving || !hasAtLeastOneValid}
+                  disabled={saving || !hasAtLeastOneValid || capReached}
                   className={cn(
                     "w-full h-14 text-lg font-bold rounded-xl shadow-lg transition-all",
-                    hasAtLeastOneValid
+                    hasAtLeastOneValid && !capReached
                       ? "bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white hover:shadow-xl"
                       : "bg-slate-200 text-slate-500 cursor-not-allowed",
                   )}
@@ -728,9 +808,11 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                   ) : (
                     <>
                       <Save className="w-5 h-5 mr-2" />
-                      {hasAtLeastOneValid
-                        ? "Save to My Word Bank ✨"
-                        : "Write at least one example to save"}
+                      {capReached
+                        ? `Daily cap reached (${dailyLimit}/${dailyLimit}) — try again tomorrow`
+                        : hasAtLeastOneValid
+                          ? "Save to My Word Bank ✨"
+                          : "Write at least one example to save"}
                     </>
                   )}
                 </Button>
