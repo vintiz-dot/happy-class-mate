@@ -53,3 +53,15 @@ verify_jwt = false
 
 [functions.smart-dictation]
 verify_jwt = true
+
+[functions.pronounce-syllables]
+verify_jwt = false
+
+[functions.pronounce-viseme]
+verify_jwt = false
+
+[functions.image-search]
+verify_jwt = false
+
+[functions.word-enrichment]
+verify_jwt = false
