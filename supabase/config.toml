@@ -57,6 +57,12 @@ verify_jwt = true
 [functions.pronounce-syllables]
 verify_jwt = false
 
+[functions.record-practice]
+verify_jwt = false
+
+[functions.save-word]
+verify_jwt = false
+
 [functions.pronounce-viseme]
 verify_jwt = false
 

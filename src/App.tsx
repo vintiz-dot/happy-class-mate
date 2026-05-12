@@ -48,6 +48,7 @@ const TeacherResources = lazy(() => import("./pages/TeacherResources"));
 const StudentResources = lazy(() => import("./pages/StudentResources"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Vocabulary = lazy(() => import("./pages/Vocabulary"));
+const TeacherVocabularyAudit = lazy(() => import("./pages/TeacherVocabularyAudit"));
 const TuitionReviewQueue = lazy(() =>
   import("./components/admin/TuitionReviewQueue").then((m) => ({ default: m.TuitionReviewQueue }))
 );
@@ -110,6 +111,7 @@ function AppContent() {
                   <Route path="/teacher/exam-reports" element={<TeacherExamReports />} />
                   <Route path="/teacher/leaderboards" element={<TeacherLeaderboards />} />
                   <Route path="/teacher/resources" element={<TeacherResources />} />
+                  <Route path="/teacher/vocabulary-audit" element={<TeacherVocabularyAudit />} />
 
                   {/* Student routes */}
                   <Route path="/student/dashboard" element={<StudentDashboard />} />

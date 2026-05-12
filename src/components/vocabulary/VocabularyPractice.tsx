@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
-import { Volume2, Eye, EyeOff, RotateCcw, ArrowRight, Trophy, Brain, Sparkles } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Volume2, Eye, RotateCcw, Brain, Sparkles, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import type { VocabularyWord } from "@/hooks/useVocabularyStore";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ui/use-toast";
+import { ClassPointsPicker, type ClassOption } from "./ClassPointsPicker";
 
 interface Props {
   words: VocabularyWord[];
@@ -25,41 +29,108 @@ function speak(text: string, lang = "en-US", rate = 0.75) {
 }
 
 export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: Props) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [session, setSession] = useState<SessionState>("idle");
   const [deck, setDeck] = useState<VocabularyWord[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [results, setResults] = useState<{ correct: number; wrong: number }>({ correct: 0, wrong: 0 });
+  const [results, setResults] = useState<{ correct: number; wrong: number; points: number }>({ correct: 0, wrong: 0, points: 0 });
   const [mode, setMode] = useState<"en-to-vi" | "vi-to-en">("en-to-vi");
+  const [classChoice, setClassChoice] = useState<{ open: boolean; classes: ClassOption[]; pending: { word: string; correct: boolean } } | null>(null);
+
+  // Sticky class choice — once the student picks for this session, reuse it.
+  const sessionClassRef = useRef<string | undefined>(undefined);
 
   const currentCard = deck[currentIdx] || null;
   const progress = deck.length > 0 ? ((currentIdx) / deck.length) * 100 : 0;
 
   const startSession = useCallback((wordList: VocabularyWord[]) => {
     if (wordList.length === 0) return;
-    // Shuffle the deck
     const shuffled = [...wordList].sort(() => Math.random() - 0.5).slice(0, 20);
     setDeck(shuffled);
     setCurrentIdx(0);
     setFlipped(false);
-    setResults({ correct: 0, wrong: 0 });
+    setResults({ correct: 0, wrong: 0, points: 0 });
+    sessionClassRef.current = undefined;
     setSession("active");
   }, []);
 
-  const handleAnswer = (correct: boolean) => {
-    if (!currentCard) return;
-    onUpdateMastery(currentCard.id, correct);
-    setResults(prev => ({
-      correct: prev.correct + (correct ? 1 : 0),
-      wrong: prev.wrong + (correct ? 0 : 1),
-    }));
+  const recordPractice = useCallback(async (
+    word: string,
+    correct: boolean,
+    classIdOverride?: string,
+  ): Promise<{ resolved: boolean; pointsAwarded: number }> => {
+    if (!user?.id) return { resolved: true, pointsAwarded: 0 };
+    try {
+      const { data, error } = await supabase.functions.invoke("record-practice", {
+        body: {
+          user_id: user.id,
+          word,
+          correct,
+          class_id: classIdOverride ?? sessionClassRef.current,
+        },
+      });
+      if (error) {
+        console.warn("record-practice error:", error.message);
+        return { resolved: true, pointsAwarded: 0 };
+      }
+      if (data?.success === false && data.reason === "missing_class_choice" && Array.isArray(data.classes)) {
+        setClassChoice({ open: true, classes: data.classes, pending: { word, correct } });
+        return { resolved: false, pointsAwarded: 0 };
+      }
+      if (data?.class_id) sessionClassRef.current = data.class_id;
+      return { resolved: true, pointsAwarded: data?.points_awarded ?? 0 };
+    } catch (e) {
+      console.warn("record-practice exception:", e);
+      return { resolved: true, pointsAwarded: 0 };
+    }
+  }, [user?.id]);
 
+  const advance = useCallback(() => {
     if (currentIdx + 1 >= deck.length) {
       setSession("complete");
     } else {
-      setCurrentIdx(prev => prev + 1);
+      setCurrentIdx((prev) => prev + 1);
       setFlipped(false);
     }
+  }, [currentIdx, deck.length]);
+
+  const handleAnswer = async (correct: boolean) => {
+    if (!currentCard) return;
+    onUpdateMastery(currentCard.id, correct);
+
+    const { resolved, pointsAwarded } = await recordPractice(
+      currentCard.word,
+      correct,
+    );
+    setResults((prev) => ({
+      correct: prev.correct + (correct ? 1 : 0),
+      wrong: prev.wrong + (correct ? 0 : 1),
+      points: prev.points + pointsAwarded,
+    }));
+    if (pointsAwarded > 0) {
+      toast({ title: `+${pointsAwarded} pts`, description: "Class leaderboard updated." });
+    }
+
+    if (resolved) advance();
+    // If unresolved (multi-class modal opens), advance after the student picks.
+  };
+
+  const handleClassChoice = async (classId: string) => {
+    sessionClassRef.current = classId;
+    if (!classChoice) return;
+    const { word, correct } = classChoice.pending;
+    setClassChoice(null);
+    const { pointsAwarded } = await recordPractice(word, correct, classId);
+    setResults((prev) => ({
+      ...prev,
+      points: prev.points + pointsAwarded,
+    }));
+    if (pointsAwarded > 0) {
+      toast({ title: `+${pointsAwarded} pts`, description: "Class leaderboard updated." });
+    }
+    advance();
   };
 
   // --- IDLE STATE ---
@@ -170,6 +241,14 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
             <p className="text-3xl font-black text-red-500">{results.wrong}</p>
             <p className="text-sm text-muted-foreground">To Review</p>
           </div>
+          {results.points > 0 && (
+            <div className="text-center">
+              <p className="text-3xl font-black text-amber-500 flex items-center justify-center gap-1">
+                <Award className="w-7 h-7" /> {results.points}
+              </p>
+              <p className="text-sm text-muted-foreground">Points earned</p>
+            </div>
+          )}
         </div>
         <Progress value={pct} className="h-3 rounded-full" />
         <p className="text-muted-foreground">
@@ -288,6 +367,16 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
             Got It! ✅
           </Button>
         </motion.div>
+      )}
+
+      {/* Multi-class points picker */}
+      {classChoice && (
+        <ClassPointsPicker
+          open={classChoice.open}
+          classes={classChoice.classes}
+          onChoose={handleClassChoice}
+          onClose={() => setClassChoice(null)}
+        />
       )}
     </div>
   );
