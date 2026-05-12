@@ -3,6 +3,7 @@ import { VocabularyCreator } from "@/components/vocabulary/VocabularyCreator";
 import { VocabularyIndex } from "@/components/vocabulary/VocabularyIndex";
 import { VocabularyPractice } from "@/components/vocabulary/VocabularyPractice";
 import { WordExplorer } from "@/components/vocabulary/WordExplorer";
+import { ClassSelectorModal } from "@/components/vocabulary/ClassSelectorModal";
 import { useVocabularyStore } from "@/hooks/useVocabularyStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -68,14 +69,14 @@ export default function Vocabulary() {
     }
   };
 
-  // --- Test Azure Connection ---
+  // --- Test Audio (pronounce-syllables) ---
   const testAzure = async () => {
     setTestingAzure(true);
-    toast({ title: "Testing Azure...", description: "Connecting to Azure via Edge Function..." });
+    toast({ title: "Testing pronounce-syllables...", description: 'Synthesizing "impact" via Azure...' });
 
     try {
-      const { data, error } = await supabase.functions.invoke("pronounce-viseme", {
-        body: { word: "Azure connection successful.", sentence: true },
+      const { data, error } = await supabase.functions.invoke("pronounce-syllables", {
+        body: { word: "impact" },
       });
 
       if (error) {
@@ -84,40 +85,23 @@ export default function Vocabulary() {
 
       if (data?.error || data?.fallback) {
         toast({
-          title: "❌ Azure Connection Failed",
-          description: data.error || "Azure Speech is not configured in secrets (needs azure_key).",
+          title: "❌ Audio Test Failed",
+          description: data.error || "Azure Speech is not configured (needs azure_key).",
           variant: "destructive",
         });
         return;
       }
 
-      // Log visemes to console as requested. New shape:
-      //   { audioOffset: number (ms), blendShapes: number[55][] }
-      if (data.visemes && data.visemes.length > 0) {
-        console.log("(Azure Test) Viseme batches received from Edge Function:");
-        const totalFrames = data.visemes.reduce(
-          (n: number, b: any) => n + (b.blendShapes?.length || 0),
-          0
-        );
-        console.log(
-          `Batches: ${data.visemes.length}, frames: ${totalFrames}, ` +
-          `first batch audioOffset: ${data.visemes[0]?.audioOffset}ms`
-        );
-      } else {
-        console.log("(Azure Test) No visemes received.");
-      }
-
-      // Play the audio
-      const audioUrl = `data:${data.contentType || "audio/mpeg"};base64,${data.audioBase64}`;
+      const firstSyllable = Array.isArray(data?.syllables) ? data.syllables[0] : undefined;
+      const audioUrl = `data:${data.mime || "audio/mpeg"};base64,${data.audioBase64}`;
       const audio = new Audio(audioUrl);
-      
       audio.onplay = () => {
         toast({
-          title: "✅ Azure is Working!",
-          description: data.visemes?.length ? "Audio playing and visemes received." : "Audio playing but no visemes received.",
+          title: "✅ Audio Working!",
+          description: `Syllables: ${(data.syllables || []).join(" · ")}` +
+            (firstSyllable ? ` (first: ${firstSyllable})` : ""),
         });
       };
-
       audio.onerror = () => {
         toast({
           title: "❌ Audio Playback Failed",
@@ -125,11 +109,9 @@ export default function Vocabulary() {
           variant: "destructive",
         });
       };
-
       await audio.play();
-
     } catch (err: any) {
-      console.error("Azure test exception:", err);
+      console.error("Audio test exception:", err);
       toast({
         title: "❌ Connection Error",
         description: err.message || "Unknown error",
@@ -191,6 +173,7 @@ export default function Vocabulary() {
 
   return (
     <Layout title="Smart Vocabulary">
+      <ClassSelectorModal userId={user?.id} />
       <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -239,7 +222,7 @@ export default function Vocabulary() {
               className="rounded-xl gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
             >
               {testingAzure ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />}
-              Test Azure
+              Test Audio (pronounce-syllables)
             </Button>
             <Button
               variant="outline"
