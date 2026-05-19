@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 /**
  * grammarChecker.ts — Reliable grammar gate for Grade 1-4 EAL students.
  *
@@ -412,22 +413,11 @@ function checkBasicSubjectVerb(sentence: string): GrammarIssue | null {
 
 async function trySaplingLint(sentence: string): Promise<GrammarIssue[]> {
   try {
-    const response = await fetch('https://api.sapling.ai/api/v1/edits', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key: 'y1D1YkX4Wn8U9XSyMYkZm7jhzg82iGL_CSjAqLVAo4vkefd3GSS3HKQDHN1uPWWfEsZqRfLKF1gMNSQO331wwg==',
-        text: sentence,
-        session_id: 'happy-class-mate-user'
-      }),
+    const { data, error } = await supabase.functions.invoke('sapling-grammar', {
+      body: { sentence }
     });
 
-    if (!response.ok) return [];
-
-    const data = await response.json();
-    if (!data || !data.edits || data.edits.length === 0) return [];
+    if (error || !data || !data.edits || data.edits.length === 0) return [];
 
     return data.edits.map((edit: any) => {
       // Safely access properties, defaulting to 0 or sentence length if missing
