@@ -80,12 +80,12 @@ function buildOptions(
   correctWord: VocabularyWord,
   allWords: VocabularyWord[],
 ): { text: string; isCorrect: boolean }[] {
-  const correctDef = correctWord.meaning || "No definition available";
+  const correctDef = correctWord.englishMeaning || "No definition available";
 
   // Pull unique definitions from other words
   const otherDefs = allWords
-    .filter((w) => w.id !== correctWord.id && w.meaning && w.meaning !== correctDef)
-    .map((w) => w.meaning);
+    .filter((w) => w.id !== correctWord.id && w.englishMeaning && w.englishMeaning !== correctDef)
+    .map((w) => w.englishMeaning);
 
   // Deduplicate
   const uniqueOtherDefs = [...new Set(otherDefs)];

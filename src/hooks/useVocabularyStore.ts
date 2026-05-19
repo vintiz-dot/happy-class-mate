@@ -23,6 +23,7 @@ export interface VocabularyWord {
   partOfSpeech: string;
   cefr: string | null;
   meaning: string;          // VI definition preferred, falls back to EN
+  englishMeaning: string;   // EN definition preferred
   example: string;          // first user example (for legacy callers)
   examples: string[];       // student-written examples
   imageUrl: string;
@@ -64,6 +65,7 @@ function mapRowToWord(row: any): VocabularyWord {
     partOfSpeech: pos,
     cefr: row.cefr || null,
     meaning: row.definition_vi || row.definition_en || enrichment.definition_vi || enrichment.definition_en || "",
+    englishMeaning: row.definition_en || enrichment.definition_en || row.definition_vi || enrichment.definition_vi || "",
     example: examples[0] || "",
     examples,
     imageUrl: row.image_url || "",
