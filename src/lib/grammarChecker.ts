@@ -475,6 +475,35 @@ function extractSuggestion(lint: any): string | undefined {
 // ─── Public API ─────────────────────────────────────────────────────────
 
 /**
+ * Synchronous, instant grammar quality check. Runs ONLY the deterministic
+ * rule-based checks (no async Harper). Safe to call inside `useMemo`.
+ *
+ * Returns `null` if the sentence looks acceptable, or the first issue found.
+ * This is used for real-time feedback under each textarea.
+ */
+export function quickCheck(sentence: string): GrammarIssue | null {
+  const trimmed = sentence.trim();
+  if (trimmed.length < 3) return null; // too short to judge
+
+  const checks = [
+    checkAllSameWord(trimmed),
+    checkGibberish(trimmed),
+    checkMinWordCount(trimmed),
+    checkCapitalization(trimmed),
+    checkEndPunctuation(trimmed),
+    checkRepeatedWords(trimmed),
+    checkHasVerb(trimmed),
+    checkBasicSubjectVerb(trimmed),
+  ];
+
+  for (const issue of checks) {
+    if (issue) return issue;
+  }
+
+  return null;
+}
+
+/**
  * Runs grammar/spelling/structure checks on a student's sentence.
  *
  * Layer 1 (rule-based) ALWAYS runs and catches the most common issues.

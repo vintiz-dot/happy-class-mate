@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getCefrLevel, type CefrLevel } from "@/lib/cefr";
-import { checkGrammar, type GrammarIssue } from "@/lib/grammarChecker";
+import { checkGrammar, quickCheck, type GrammarIssue } from "@/lib/grammarChecker";
 
 import { SentenceInput } from "./SentenceInput";
 import { WordChip } from "./WordChip";
@@ -338,10 +338,13 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
   const exampleStatuses = useMemo(() => studentExamples.map((ex) => {
     const trimmed = ex.trim();
-    if (!trimmed) return "empty";
-    if (looksCopied(trimmed, suggestedExamples)) return "copied";
-    if (tokenize(trimmed).size < 3) return "tooShort";
-    return "ok";
+    if (!trimmed) return "empty" as const;
+    if (looksCopied(trimmed, suggestedExamples)) return "copied" as const;
+    if (tokenize(trimmed).size < 3) return "tooShort" as const;
+    // Run synchronous rule-based grammar checks (gibberish, structure, etc.)
+    const grammarIssue = quickCheck(trimmed);
+    if (grammarIssue) return { status: "grammar" as const, issue: grammarIssue };
+    return "ok" as const;
   }), [studentExamples, suggestedExamples]);
 
   const hasAtLeastOneValid = exampleStatuses.some((s) => s === "ok");
@@ -822,6 +825,8 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
               </div>
               {studentExamples.map((ex, i) => {
                 const status = exampleStatuses[i];
+                const statusKey = typeof status === "object" ? status.status : status;
+                const grammarIssue = typeof status === "object" ? status.issue : null;
                 return (
                   <div key={i} className="space-y-1">
                     <Textarea
@@ -835,20 +840,34 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                       rows={2}
                       className={cn(
                         "rounded-lg text-sm",
-                        status === "copied" && "border-rose-400 focus-visible:ring-rose-300",
-                        status === "ok" && "border-emerald-400 focus-visible:ring-emerald-300",
+                        statusKey === "copied" && "border-rose-400 focus-visible:ring-rose-300",
+                        statusKey === "grammar" && "border-amber-400 focus-visible:ring-amber-300",
+                        statusKey === "ok" && "border-emerald-400 focus-visible:ring-emerald-300",
                       )}
                     />
-                    {status === "copied" && (
+                    {statusKey === "copied" && (
                       <p className="text-xs text-rose-600 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Looks copied from a suggestion — write it in your own words.
                       </p>
                     )}
-                    {status === "tooShort" && ex.trim() && (
+                    {statusKey === "tooShort" && ex.trim() && (
                       <p className="text-[11px] text-muted-foreground">Add a few more words.</p>
                     )}
-                    {status === "ok" && (
+                    {statusKey === "grammar" && grammarIssue && (
+                      <div className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-2.5 py-1.5">
+                        <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                        <div>
+                          <p>{grammarIssue.message}</p>
+                          {grammarIssue.suggestion && (
+                            <p className="mt-0.5 text-[11px]">
+                              Try: <span className="font-mono bg-emerald-200/60 dark:bg-emerald-900/40 px-1 rounded">{grammarIssue.suggestion}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {statusKey === "ok" && (
                       <p className="text-xs text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
                         Looks great!
