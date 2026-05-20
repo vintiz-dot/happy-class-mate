@@ -30,15 +30,15 @@ export function WordChip({ word, isHighlighted, isActive, onClick }: Props) {
       type="button"
       onClick={() => onClick(word)}
       className={cn(
-        "group relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl",
+        "group relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl",
         "text-base font-semibold capitalize transition-all duration-200",
-        "border-2 shadow-sm hover:shadow-md active:scale-95",
+        "border-2 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
         isActive
-          ? "bg-gradient-to-br from-violet-500 to-blue-600 text-white border-violet-600 shadow-violet-200/50 dark:shadow-violet-900/30 scale-105"
+          ? "gemini-gradient gemini-glow-ring text-white border-violet-600 shadow-violet-200/50 dark:shadow-violet-900/30 scale-105"
           : isHighlighted
           ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-600 dark:hover:bg-amber-950/50"
-          : "bg-white text-slate-700 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-violet-950/30"
+          : "bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-violet-950/30"
       )}
     >
       {word}

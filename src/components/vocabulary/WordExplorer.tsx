@@ -514,7 +514,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
       {/* Daily-cap indicator — always-on so students can pace themselves. */}
       <div
         className={cn(
-          "flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-sm font-medium shadow-sm",
+          "flex items-center justify-between gap-3 rounded-3xl border px-5 py-3 text-sm font-medium shadow-sm",
           capReached
             ? "bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-100"
             : "bg-white/60 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200",
@@ -549,7 +549,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
       {/* Word Chips */}
       {words.length > 0 && (
         <div className="animate-in fade-in slide-in-from-top-3 duration-300">
-          <div className="flex flex-wrap gap-2 justify-center p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border shadow-sm">
+          <div className="flex flex-wrap gap-2 justify-center p-5 rounded-3xl glass-sm">
             {words.map((w, i) => (
               <WordChip
                 key={`${w}-${i}`}
@@ -566,9 +566,12 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
       {/* Loading */}
       {enrichmentLoading && (
         <div className="flex items-center justify-center py-12 animate-in fade-in duration-200">
-          <div className="text-center space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-violet-500 mx-auto" />
-            <p className="text-sm text-muted-foreground">
+          <div className="w-full max-w-md space-y-4 px-4">
+            <div className="gemini-skeleton h-8 w-3/4 mx-auto" />
+            <div className="gemini-skeleton h-5 w-full" />
+            <div className="gemini-skeleton h-5 w-5/6" />
+            <div className="gemini-skeleton h-24 w-full mt-2" />
+            <p className="text-sm text-muted-foreground text-center pt-2">
               Looking up "<span className="font-bold">{activeWord}</span>"...
             </p>
           </div>
@@ -577,12 +580,12 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
       {/* Enrichment Panel */}
       {enrichment && activeWord && !enrichmentLoading && (
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-violet-50/30 dark:from-slate-900 dark:to-violet-950/20 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <CardContent className="p-5 sm:p-6 space-y-5">
+        <Card className="border-0 shadow-xl rounded-3xl bg-gradient-to-br from-white/90 to-violet-50/20 dark:from-slate-900/90 dark:to-violet-950/10 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <CardContent className="p-6 sm:p-8 space-y-6">
 
             {/* CEFR badge + root word */}
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <div className="h-12 w-12 rounded-2xl gemini-gradient flex items-center justify-center shadow-lg">
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -604,9 +607,9 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
             {/* Definitions */}
             {(enrichment.definition_en || enrichment.definition_vi) && (
-              <div className="rounded-xl bg-white dark:bg-slate-800/50 border p-4 space-y-2">
+              <div className="rounded-2xl bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm border p-5 space-y-2">
                 {enrichment.definition_en && (
-                  <p className="text-base font-medium text-foreground leading-snug">
+                  <p className="text-base font-medium text-foreground leading-relaxed">
                     {enrichment.definition_en}
                   </p>
                 )}
@@ -634,7 +637,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                 type="button"
                 onClick={playPronunciation}
                 disabled={pronouncing || playingAudio}
-                className="rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white shadow-lg gap-2 h-12 px-6"
+                className="rounded-2xl gemini-gradient gemini-gradient-hover text-white shadow-lg gap-2 h-12 px-6"
               >
                 {pronouncing || playingAudio ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -668,7 +671,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {enrichment.synonyms.length > 0 && (
-                    <div className="bg-teal-50 dark:bg-teal-950/20 rounded-xl p-3.5 space-y-2 border border-teal-200 dark:border-teal-800">
+                    <div className="bg-teal-50 dark:bg-teal-950/20 rounded-2xl p-4 space-y-2 border border-teal-200 dark:border-teal-800">
                       <p className="text-xs font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider">
                         ✅ Similar Words
                       </p>
@@ -678,7 +681,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                             key={i}
                             type="button"
                             onClick={() => speak(s)}
-                            className="px-3 py-1.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 text-sm font-medium hover:bg-teal-200 transition-colors"
+                            className="px-3 py-1.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 text-sm font-medium hover:bg-teal-200 hover:scale-[1.03] transition-all"
                           >
                             {s}
                           </button>
@@ -687,7 +690,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                     </div>
                   )}
                   {enrichment.antonyms.length > 0 && (
-                    <div className="bg-rose-50 dark:bg-rose-950/20 rounded-xl p-3.5 space-y-2 border border-rose-200 dark:border-rose-800">
+                    <div className="bg-rose-50 dark:bg-rose-950/20 rounded-2xl p-4 space-y-2 border border-rose-200 dark:border-rose-800">
                       <p className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
                         <ArrowRightLeft className="w-3 h-3" /> Opposite Words
                       </p>
@@ -697,7 +700,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                             key={i}
                             type="button"
                             onClick={() => speak(a)}
-                            className="px-3 py-1.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-sm font-medium hover:bg-rose-200 transition-colors"
+                            className="px-3 py-1.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-sm font-medium hover:bg-rose-200 hover:scale-[1.03] transition-all"
                           >
                             {a}
                           </button>
@@ -839,7 +842,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                       placeholder={`Example ${i + 1} — your own sentence using "${enrichment.root_word}"`}
                       rows={2}
                       className={cn(
-                        "rounded-lg text-sm",
+                        "rounded-2xl text-sm",
                         statusKey === "copied" && "border-rose-400 focus-visible:ring-rose-300",
                         statusKey === "grammar" && "border-amber-400 focus-visible:ring-amber-300",
                         statusKey === "ok" && "border-emerald-400 focus-visible:ring-emerald-300",
@@ -855,7 +858,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                       <p className="text-[11px] text-muted-foreground">Add a few more words.</p>
                     )}
                     {statusKey === "grammar" && grammarIssue && (
-                      <div className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-2.5 py-1.5">
+                      <div className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1 bg-amber-50 dark:bg-amber-950/30 rounded-2xl px-3 py-2">
                         <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                         <div>
                           <p>{grammarIssue.message}</p>
@@ -887,7 +890,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
             {/* Grammar Issues */}
             {grammarIssues.length > 0 && (
-              <div className="rounded-xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-amber-600" />
                   <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
@@ -919,7 +922,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
             {/* Duplicate Detection Banner */}
             {isDuplicate && (
-              <div className="rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 dark:border-emerald-800 p-5 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 dark:border-emerald-800 p-6 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
                     <PartyPopper className="w-6 h-6 text-emerald-600" />
@@ -939,12 +942,12 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
             {/* Save Button */}
             <div className="pt-2">
               {saved ? (
-                <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-emerald-700 dark:text-emerald-300 font-bold">
+                <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl text-emerald-700 dark:text-emerald-300 font-bold">
                   <CheckCircle2 className="w-5 h-5" />
                   Word saved to your bank!
                 </div>
               ) : isDuplicate ? (
-                <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-emerald-700 dark:text-emerald-300 font-bold">
+                <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl text-emerald-700 dark:text-emerald-300 font-bold">
                   <PartyPopper className="w-5 h-5" />
                   Already in your Word Bank — go practice it! 🚀
                 </div>
@@ -953,9 +956,9 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                   onClick={() => performSave()}
                   disabled={saving || grammarChecking || !hasAtLeastOneValid || capReached}
                   className={cn(
-                    "w-full h-14 text-lg font-bold rounded-xl shadow-lg transition-all",
+                    "w-full h-16 text-lg font-bold rounded-2xl shadow-lg transition-all",
                     hasAtLeastOneValid && !capReached
-                      ? "bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white hover:shadow-xl"
+                      ? "gemini-gradient gemini-gradient-hover text-white hover:shadow-xl"
                       : "bg-slate-200 text-slate-500 cursor-not-allowed",
                   )}
                 >

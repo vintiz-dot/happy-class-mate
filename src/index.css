@@ -711,6 +711,71 @@ All colors MUST be HSL.
   }
 }
 
+/* ====================================================================
+   Gemini-style design utilities — iridescent glow, shimmer skeletons
+   ==================================================================== */
+
+/* Iridescent glow pulse for focus/active states */
+@keyframes gemini-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(139, 92, 246, 0.12),
+      0 0 40px rgba(59, 130, 246, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(139, 92, 246, 0.22),
+      0 0 64px rgba(6, 182, 212, 0.10);
+  }
+}
+
+/* Gradient shimmer for skeleton loaders */
+@keyframes gemini-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@layer utilities {
+  /* Animated glow ring — apply on containers/cards for active/focus state */
+  .gemini-glow-ring {
+    animation: gemini-glow 3s ease-in-out infinite;
+  }
+
+  /* Content skeleton shimmer block */
+  .gemini-skeleton {
+    background: linear-gradient(
+      90deg,
+      hsla(var(--muted), 0.6) 0%,
+      hsla(var(--primary), 0.08) 40%,
+      hsla(var(--muted), 0.6) 60%,
+      hsla(var(--primary), 0.08) 100%
+    );
+    background-size: 400% 100%;
+    animation: gemini-shimmer 2s ease-in-out infinite;
+    border-radius: 0.75rem;
+  }
+
+  /* Iridescent gradient for primary CTAs */
+  .gemini-gradient {
+    background: linear-gradient(135deg,
+      hsl(265 80% 58%) 0%,
+      hsl(230 80% 58%) 40%,
+      hsl(195 80% 50%) 100%);
+  }
+
+  .gemini-gradient-hover:hover {
+    background: linear-gradient(135deg,
+      hsl(265 80% 52%) 0%,
+      hsl(230 80% 52%) 40%,
+      hsl(195 80% 45%) 100%);
+  }
+
+  /* Soft float animation for empty-state icons */
+  .gemini-float {
+    animation: float-gentle 4s ease-in-out infinite;
+  }
+}
+
 /* Touch-friendly interactive elements */
 @media (hover: none) {
   button:not(.no-touch-target), 

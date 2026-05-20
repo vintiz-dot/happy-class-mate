@@ -26,7 +26,7 @@ interface Props {
 export function ClassPointsPicker({ open, classes, onChoose, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5 text-violet-600" />
@@ -42,7 +42,7 @@ export function ClassPointsPicker({ open, classes, onChoose, onClose }: Props) {
             <Button
               key={c.id}
               variant="outline"
-              className="justify-start h-12 text-base font-semibold"
+              className="justify-start h-12 text-base font-semibold rounded-2xl hover:scale-[1.01] transition-all"
               onClick={() => onChoose(c.id)}
             >
               {c.name}

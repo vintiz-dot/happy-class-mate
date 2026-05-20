@@ -123,7 +123,7 @@ export function ClassSelectorModal({ userId, forceOpen, onForceOpenChange, onSel
         if (!next) onForceOpenChange?.(false);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-violet-600" />
@@ -143,7 +143,7 @@ export function ClassSelectorModal({ userId, forceOpen, onForceOpenChange, onSel
             <Label
               key={opt.value}
               htmlFor={`grade-${opt.value}`}
-              className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/30 has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/30"
+              className="flex items-center gap-2 rounded-2xl border p-3 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/30 has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/30 transition-all hover:scale-[1.01]"
             >
               <RadioGroupItem id={`grade-${opt.value}`} value={opt.value} />
               <div className="flex-1">
@@ -157,7 +157,7 @@ export function ClassSelectorModal({ userId, forceOpen, onForceOpenChange, onSel
         <Button
           onClick={handleSubmit}
           disabled={!selectedValue || loading}
-          className="w-full"
+          className="w-full rounded-2xl gemini-gradient gemini-gradient-hover text-white h-12 text-base font-semibold"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
         </Button>

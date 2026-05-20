@@ -349,7 +349,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
     if (totalCount === 0) {
       return (
         <div className="text-center py-20 space-y-4">
-          <div className="text-6xl">🧠</div>
+          <div className="text-6xl gemini-float">🧠</div>
           <h3 className="text-xl font-bold">No Words to Practice</h3>
           <p className="text-muted-foreground max-w-md mx-auto">
             Add words to your vocabulary bank first, then come back to practice
@@ -362,7 +362,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
     return (
       <div className="max-w-lg mx-auto space-y-6 py-8">
         <div className="text-center space-y-2">
-          <div className="text-5xl mb-4">🎯</div>
+          <div className="text-5xl mb-4 gemini-float">🎯</div>
           <h2 className="text-2xl font-bold text-foreground">
             Multiple Choice Quiz
           </h2>
@@ -375,12 +375,12 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
         <div className="space-y-3">
           {dueCount > 0 && (
             <Card
-              className="border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 cursor-pointer hover:shadow-lg transition-all"
+              className="border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 cursor-pointer hover:shadow-lg transition-all rounded-3xl lift"
               onClick={() => startSession(wordsForReview)}
             >
               <CardContent className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-2xl bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
                     <Brain className="w-6 h-6 text-violet-600" />
                   </div>
                   <div>
@@ -400,12 +400,12 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
           )}
 
           <Card
-            className="cursor-pointer hover:shadow-lg transition-all"
+            className="cursor-pointer hover:shadow-lg transition-all rounded-3xl lift"
             onClick={() => startSession(words)}
           >
             <CardContent className="p-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-2xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
@@ -432,12 +432,12 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
     const total = results.correct + results.wrong;
     const pct = total > 0 ? Math.round((results.correct / total) * 100) : 0;
     return (
-      <div className="max-w-md mx-auto text-center py-12 space-y-6">
+      <div className="max-w-md mx-auto text-center py-16 space-y-6">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 15 }}
-          className="text-7xl"
+          className="text-7xl gemini-float"
         >
           {pct >= 80 ? "🏆" : pct >= 50 ? "💪" : "📚"}
         </motion.div>
@@ -476,7 +476,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
           <Button
             variant="outline"
             onClick={() => setSession("idle")}
-            className="rounded-xl"
+            className="rounded-2xl"
           >
             <RotateCcw className="w-4 h-4 mr-2" /> New Session
           </Button>
@@ -499,7 +499,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
 
       {/* Progress */}
       <div className="flex items-center gap-3">
-        <Progress value={progress} className="flex-1 h-2.5 rounded-full" />
+        <Progress value={progress} className="flex-1 h-3 rounded-full" />
         <span className="text-sm text-muted-foreground font-medium whitespace-nowrap">
           {currentIdx + 1} / {deck.length}
         </span>
@@ -514,8 +514,8 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="border-2 border-violet-200 dark:border-violet-800 shadow-xl rounded-3xl overflow-hidden">
-            <CardContent className="p-6 sm:p-8 space-y-6">
+          <Card className="border-2 border-violet-200 dark:border-violet-800 shadow-xl rounded-3xl overflow-hidden gemini-glow-ring">
+            <CardContent className="p-8 sm:p-10 space-y-6">
               {/* Word display */}
               <div className="text-center space-y-3">
                 {currentCard.imageUrl && (
@@ -531,7 +531,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                 <p className="text-sm text-muted-foreground font-medium">
                   What does this word mean?
                 </p>
-                <h2 className="text-4xl font-black text-foreground text-center capitalize">
+                <h2 className="text-5xl font-extrabold tracking-tight text-foreground text-center capitalize">
                   {currentCard.word}
                 </h2>
                 {currentCard.cefr && (
@@ -576,7 +576,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                         "w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 flex items-start gap-3",
                         // Default state
                         !isInFeedback &&
-                          "border-slate-200 dark:border-slate-700 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 hover:shadow-md cursor-pointer active:scale-[0.98]",
+                          "border-slate-200 dark:border-slate-700 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 hover:scale-[1.01] hover:shadow-lg cursor-pointer active:scale-[0.98]",
                         // Correct answer highlight
                         showCorrectHighlight &&
                           "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 shadow-md shadow-emerald-100 dark:shadow-emerald-900/20",
@@ -637,7 +637,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                 >
                   <div
                     className={cn(
-                      "rounded-xl p-4 text-center",
+                      "rounded-2xl p-4 text-center",
                       wasCorrect
                         ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800"
                         : "bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800",
@@ -670,7 +670,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                   <Button
                     onClick={advance}
                     disabled={recording}
-                    className="w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-bold text-base shadow-lg"
+                    className="w-full h-12 rounded-2xl gemini-gradient gemini-gradient-hover text-white font-bold text-base shadow-lg"
                   >
                     {recording ? (
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />

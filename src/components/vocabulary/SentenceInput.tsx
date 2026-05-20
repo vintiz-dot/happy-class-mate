@@ -35,9 +35,9 @@ export function SentenceInput({ onSubmit, loading }: Props) {
     <form onSubmit={handleSubmit} className="w-full">
       <div className="relative group">
         {/* Glow ring on focus */}
-        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 via-blue-500/20 to-emerald-500/20 opacity-0 group-focus-within:opacity-100 blur transition-opacity duration-500" />
+        <div className="gemini-glow-ring absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-500/20 via-blue-500/20 to-emerald-500/20 opacity-30 group-focus-within:opacity-100 blur transition-opacity duration-500" />
 
-        <div className="relative flex items-center gap-2 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-slate-200 dark:border-slate-700 group-focus-within:border-violet-400 dark:group-focus-within:border-violet-500 transition-colors p-1.5">
+        <div className="relative flex items-center gap-2 bg-white dark:bg-slate-800 rounded-3xl shadow-lg border-2 border-slate-200 dark:border-slate-700 group-focus-within:border-violet-400 dark:group-focus-within:border-violet-500 transition-colors p-1.5">
           <div className="flex items-center pl-3 text-violet-500">
             <Sparkles className="w-5 h-5" />
           </div>
@@ -57,8 +57,8 @@ export function SentenceInput({ onSubmit, loading }: Props) {
             type="submit"
             disabled={!value.trim() || loading}
             className={cn(
-              "rounded-xl h-10 px-5 gap-2 font-bold text-sm transition-all",
-              "bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700",
+              "rounded-2xl h-10 px-5 gap-2 font-bold text-sm transition-all",
+              "gemini-gradient gemini-gradient-hover",
               "text-white shadow-md hover:shadow-lg",
               "disabled:opacity-40 disabled:cursor-not-allowed"
             )}

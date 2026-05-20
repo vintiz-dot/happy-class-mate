@@ -128,7 +128,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-center py-20 space-y-4">
-        <div className="text-6xl">📚</div>
+        <div className="text-6xl gemini-float">📚</div>
         <h3 className="text-xl font-bold text-foreground">Your Word Bank is Empty</h3>
         <p className="text-muted-foreground max-w-md mx-auto">
           Use the <strong>Explore</strong> tab to look up a word, write your own examples, and save it here. 🚀
@@ -140,14 +140,14 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm p-3 rounded-2xl shadow-sm border">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between glass-sm p-4 rounded-3xl">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search words..."
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl"
+            className="pl-9 h-10 rounded-2xl"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -164,7 +164,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
               {MASTERY_LABELS[level]}
             </button>
           ))}
-          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-xl h-8">
+          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-2xl h-8">
             {sortOrder === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpZA className="w-4 h-4" />}
           </Button>
         </div>
@@ -176,7 +176,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
           {pageItems.map((item) => (
             <Card
               key={item.id}
-              className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl bg-white dark:bg-slate-800"
+              className="group overflow-hidden border-0 shadow-md lift transition-all duration-300 rounded-3xl bg-white dark:bg-slate-800"
             >
               <div className="relative h-36 w-full overflow-hidden bg-muted">
                 {item.imageUrl ? (
@@ -192,7 +192,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-950/30 dark:to-blue-950/30" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                 <Button
                   size="icon"
                   variant="ghost"
@@ -212,7 +212,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                 </div>
               </div>
 
-              <CardContent className="p-4 space-y-3">
+              <CardContent className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <MasteryStars level={item.masteryLevel} />
                   <Badge variant="secondary" className={cn("text-[10px]", MASTERY_COLORS[item.masteryLevel])}>
@@ -238,7 +238,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg text-xs gap-1"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-2xl text-xs gap-1"
                     onClick={() => pronounceWord(item)}
                   >
                     <Volume2 className="w-3.5 h-3.5" /> Listen
@@ -286,7 +286,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
       {totalPages > 1 && (
         <div className="flex justify-center pt-4">
           <Pagination>
-            <PaginationContent className="bg-white/80 dark:bg-slate-800/80 backdrop-blur p-1.5 rounded-2xl shadow-sm border">
+            <PaginationContent className="glass-sm p-1.5 rounded-3xl">
               <PaginationItem>
                 <PaginationPrevious
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -370,7 +370,7 @@ function EditWordDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl">
         <DialogHeader>
           <DialogTitle className="capitalize">Edit: {word.word}</DialogTitle>
           <DialogDescription>
@@ -410,7 +410,7 @@ function EditWordDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-violet-600 hover:bg-violet-700">
+          <Button onClick={handleSubmit} disabled={saving} className="gemini-gradient gemini-gradient-hover text-white">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" />Save changes</>}
           </Button>
         </DialogFooter>

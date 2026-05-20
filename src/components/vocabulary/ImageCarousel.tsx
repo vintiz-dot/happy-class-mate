@@ -113,7 +113,7 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
         </p>
         <div className="flex overflow-hidden gap-3 p-1">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="w-[140px] h-[105px] rounded-xl shrink-0" />
+            <div key={i} className="w-[140px] h-[105px] rounded-2xl shrink-0 gemini-skeleton" />
           ))}
         </div>
       </div>
@@ -152,7 +152,7 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
           </div>
         )}
       </div>
-      <ScrollArea className="w-full whitespace-nowrap rounded-xl">
+      <ScrollArea className="w-full whitespace-nowrap rounded-2xl">
         <div className="flex w-max gap-3 p-1">
           {images.map((img, i) => (
             <CarouselTile
@@ -235,8 +235,8 @@ function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
         ? { type: "button", onClick: () => onPick!(img), "aria-pressed": picked }
         : {})}
       className={cn(
-        "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 shadow-sm border-2 transition-all bg-slate-100 dark:bg-slate-800",
-        isClickable && "cursor-pointer hover:scale-[1.02]",
+        "relative rounded-2xl overflow-hidden w-[140px] h-[105px] shrink-0 shadow-sm border-2 transition-all bg-slate-100 dark:bg-slate-800",
+        isClickable && "cursor-pointer hover:scale-[1.03] hover:shadow-md",
         picked
           ? "border-violet-500 ring-2 ring-violet-300"
           : "border-slate-200 dark:border-slate-700 hover:border-violet-400",
@@ -244,7 +244,7 @@ function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
     >
       {/* Skeleton stays visible until the actual <img> paints or errors. */}
       {!hidden && (src === null || (!resolvedRef.current && !didFallback)) && (
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-200/70 to-slate-100/70 dark:from-slate-700/40 dark:to-slate-800/40 animate-pulse" />
+        <div className="absolute inset-0 gemini-skeleton rounded-none" />
       )}
       {src && !hidden && (
         <img
