@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { StudentNavBar } from "@/components/student/StudentNavBar";
 import { AdminTopBar } from "@/components/AdminTopBar";
 import { ClassroomToolsLauncher } from "@/components/classroom-tools/ClassroomToolsLauncher";
+import { PWAInstallButton } from "./PWAInstallButton";
 
 interface LayoutProps {
   children: ReactNode;
@@ -137,6 +138,7 @@ const Layout = ({ children, title }: LayoutProps) => {
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
+              <PWAInstallButton variant="outline" />
               <ProfileSwitcher />
               <NotificationBell />
               {userName && (
@@ -259,6 +261,7 @@ const Layout = ({ children, title }: LayoutProps) => {
               <span className="text-sm font-medium truncate">{userName}</span>
             </div>
           )}
+          <PWAInstallButton className="w-full" sidebarOpen={sidebarOpen} variant="ghost" />
           <Button
             variant="ghost"
             className={cn("w-full justify-start gap-3 text-muted-foreground group", !sidebarOpen && "justify-center px-2")}
@@ -319,6 +322,7 @@ const Layout = ({ children, title }: LayoutProps) => {
                   </Button>
                 );
               })}
+              <PWAInstallButton className="w-full" variant="ghost" />
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 text-muted-foreground group"
