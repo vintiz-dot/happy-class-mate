@@ -421,10 +421,11 @@ export default function TeacherBooks() {
 
   return (
     <Layout title="Flipbooks & Presentations" hideNavigation={true}>
-      <div className="min-h-screen bg-gradient-to-br from-warmGray/10 to-royalGreen/5 p-4 md:p-6 flex flex-col gap-6 w-full">
-        {/* Back and Title Bar */}
-        <div className="flex items-center justify-between border-b pb-4 shrink-0">
-          <div className="flex items-center gap-3">
+      <div className="min-h-screen bg-gradient-to-br from-warmGray/10 to-royalGreen/5 p-4 md:p-6 flex flex-col w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 gap-6 w-full">
+          {/* Back and Title Bar */}
+          <div className="flex items-center justify-between border-b pb-4 shrink-0">
+            <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
@@ -445,7 +446,7 @@ export default function TeacherBooks() {
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+          <div className="w-auto">
             <TabsList className="bg-card shadow-sm border rounded-xl p-1 gap-1">
               <TabsTrigger
                 value="present"
@@ -462,7 +463,7 @@ export default function TeacherBooks() {
                 Settings (CRUD)
               </TabsTrigger>
             </TabsList>
-          </Tabs>
+          </div>
         </div>
 
         {/* Tab 1: Presenter Mode */}
@@ -633,6 +634,7 @@ export default function TeacherBooks() {
             </CardContent>
           </Card>
         </TabsContent>
+        </Tabs>
       </div>
 
       {/* CRUD dialog modal */}
