@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen, Sparkles } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen, Sparkles, BookOpen } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -18,11 +18,12 @@ import { PWAInstallButton } from "./PWAInstallButton";
 interface LayoutProps {
   children: ReactNode;
   title?: string;
+  hideNavigation?: boolean;
 }
 
 const SIDEBAR_KEY = "sidebar-collapsed";
 
-const Layout = ({ children, title }: LayoutProps) => {
+const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,6 +82,14 @@ const Layout = ({ children, title }: LayoutProps) => {
     return <>{children}</>;
   }
 
+  if (hideNavigation) {
+    return (
+      <div className="min-h-screen bg-background w-full flex flex-col">
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+    );
+  }
+
   const getNavigationItems = () => {
     switch (role) {
       case "admin":
@@ -100,6 +109,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: Settings2, label: "Automation", path: "/admin?tab=automation" },
           { icon: HardDrive, label: "Data", path: "/admin?tab=data" },
           { icon: Megaphone, label: "Announcements", path: "/admin?tab=announcements" },
+          { icon: BookOpen, label: "Flipbooks", path: "/teacher/books" },
         ];
       case "teacher":
         return [
@@ -113,6 +123,7 @@ const Layout = ({ children, title }: LayoutProps) => {
           { icon: FileBarChart2, label: "Exam Reports", path: "/teacher/exam-reports" },
           { icon: Sparkles, label: "Vocabulary Audit", path: "/teacher/vocabulary-audit" },
           { icon: FolderOpen, label: "Resources", path: "/teacher/resources" },
+          { icon: BookOpen, label: "Flipbooks", path: "/teacher/books" },
         ];
       default:
         return [];
