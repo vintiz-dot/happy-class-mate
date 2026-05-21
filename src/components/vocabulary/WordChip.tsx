@@ -30,22 +30,21 @@ export function WordChip({ word, isHighlighted, isActive, onClick }: Props) {
       type="button"
       onClick={() => onClick(word)}
       className={cn(
-        "group relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl",
-        "text-base font-semibold capitalize transition-all duration-200",
-        "border-2 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
+        "group relative inline-flex items-center gap-1.5 px-4 py-2 rounded-full",
+        "text-sm font-medium capitalize transition-all duration-200",
+        "border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(265_50%_45%)]",
         isActive
-          ? "gemini-gradient gemini-glow-ring text-white border-violet-600 shadow-violet-200/50 dark:shadow-violet-900/30 scale-105"
+          ? "bg-[hsl(265_50%_18%)] border-[hsl(265_50%_30%)] text-violet-200 shadow-[0_0_16px_rgba(139,92,246,0.12)]"
           : isHighlighted
-          ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-600 dark:hover:bg-amber-950/50"
-          : "bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-violet-950/30"
+          ? "bg-[hsl(38_30%_14%)] border-[hsl(38_30%_22%)] text-amber-300/80 hover:text-amber-200"
+          : "bg-[hsl(240_8%_12%)] border-[hsl(240_8%_18%)] text-foreground/60 hover:text-foreground/80 hover:bg-[hsl(240_8%_15%)] hover:border-[hsl(240_8%_22%)]"
       )}
     >
       {word}
       <Volume2
         className={cn(
-          "w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity",
-          isActive ? "text-white/70" : "text-violet-400"
+          "w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity",
+          isActive ? "text-violet-300" : "text-foreground/40"
         )}
         onClick={(e) => {
           e.stopPropagation();
@@ -55,7 +54,7 @@ export function WordChip({ word, isHighlighted, isActive, onClick }: Props) {
 
       {/* Active indicator dot */}
       {isActive && (
-        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-400/60" />
       )}
     </button>
   );

@@ -45,12 +45,12 @@ const ITEMS_PER_PAGE = 30;
 
 const MASTERY_LABELS = ["New", "Seen", "Learning", "Familiar", "Known", "Mastered"];
 const MASTERY_COLORS = [
-  "bg-slate-100 text-slate-600",
-  "bg-red-100 text-red-700",
-  "bg-orange-100 text-orange-700",
-  "bg-yellow-100 text-yellow-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-violet-100 text-violet-700",
+  "bg-[hsl(240_8%_16%)] text-foreground/50",
+  "bg-[hsl(0_30%_14%)] text-red-400/70",
+  "bg-[hsl(25_30%_14%)] text-orange-400/70",
+  "bg-[hsl(45_30%_14%)] text-yellow-400/70",
+  "bg-[hsl(155_25%_14%)] text-emerald-400/70",
+  "bg-[hsl(265_25%_16%)] text-violet-400/70",
 ];
 
 function speak(text: string, lang = "en-US", rate = 0.8) {
@@ -69,7 +69,7 @@ function MasteryStars({ level }: { level: number }) {
           key={i}
           className={cn(
             "w-3.5 h-3.5 transition-colors",
-            i < level ? "fill-amber-400 text-amber-400" : "fill-transparent text-slate-300",
+            i < level ? "fill-amber-400/60 text-amber-400/60" : "fill-transparent text-[hsl(240_8%_22%)]",
           )}
         />
       ))}
@@ -140,14 +140,14 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between glass-sm p-4 rounded-3xl">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[hsl(240_8%_10%)] border border-[hsl(240_8%_16%)] p-4 rounded-2xl">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search words..."
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9 h-10 rounded-2xl"
+            className="pl-9 h-10 rounded-xl bg-[hsl(240_8%_12%)] border-[hsl(240_8%_18%)]"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -164,7 +164,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
               {MASTERY_LABELS[level]}
             </button>
           ))}
-          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-2xl h-8">
+          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-xl h-8 border-[hsl(240_8%_18%)] bg-transparent hover:bg-[hsl(240_8%_14%)]">
             {sortOrder === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpZA className="w-4 h-4" />}
           </Button>
         </div>
@@ -176,7 +176,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
           {pageItems.map((item) => (
             <Card
               key={item.id}
-              className="group overflow-hidden border-0 shadow-md lift transition-all duration-300 rounded-3xl bg-white dark:bg-slate-800"
+              className="group overflow-hidden border border-[hsl(240_8%_16%)] shadow-none hover:border-[hsl(240_8%_22%)] transition-all duration-300 rounded-2xl bg-[hsl(240_8%_10%)]"
             >
               <div className="relative h-36 w-full overflow-hidden bg-muted">
                 {item.imageUrl ? (
@@ -190,9 +190,9 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                     decoding="async"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-950/30 dark:to-blue-950/30" />
+                  <div className="w-full h-full bg-gradient-to-br from-[hsl(265_20%_12%)] to-[hsl(220_15%_12%)]" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <Button
                   size="icon"
                   variant="ghost"
@@ -203,7 +203,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                   <Volume2 className="w-4 h-4" />
                 </Button>
                 <div className="absolute bottom-2 left-3 right-3">
-                  <h3 className="text-xl font-black text-white capitalize truncate drop-shadow-md">
+                  <h3 className="text-lg font-semibold text-white capitalize truncate drop-shadow-md">
                     {item.word}
                   </h3>
                   <span className="text-white/70 text-xs font-medium">
@@ -212,7 +212,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                 </div>
               </div>
 
-              <CardContent className="p-5 space-y-3">
+              <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <MasteryStars level={item.masteryLevel} />
                   <Badge variant="secondary" className={cn("text-[10px]", MASTERY_COLORS[item.masteryLevel])}>
@@ -238,7 +238,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-2xl text-xs gap-1"
+                    className="text-foreground/50 hover:text-foreground/80 hover:bg-transparent rounded-xl text-xs gap-1"
                     onClick={() => pronounceWord(item)}
                   >
                     <Volume2 className="w-3.5 h-3.5" /> Listen
@@ -286,7 +286,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
       {totalPages > 1 && (
         <div className="flex justify-center pt-4">
           <Pagination>
-            <PaginationContent className="glass-sm p-1.5 rounded-3xl">
+            <PaginationContent className="bg-[hsl(240_8%_10%)] border border-[hsl(240_8%_16%)] p-1.5 rounded-2xl">
               <PaginationItem>
                 <PaginationPrevious
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -370,7 +370,7 @@ function EditWordDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-[hsl(240_8%_10%)] border-[hsl(240_8%_18%)]">
         <DialogHeader>
           <DialogTitle className="capitalize">Edit: {word.word}</DialogTitle>
           <DialogDescription>
@@ -410,7 +410,7 @@ function EditWordDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="gemini-gradient gemini-gradient-hover text-white">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-[hsl(265_40%_16%)] hover:bg-[hsl(265_40%_20%)] text-violet-200 border border-[hsl(265_40%_24%)]">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" />Save changes</>}
           </Button>
         </DialogFooter>

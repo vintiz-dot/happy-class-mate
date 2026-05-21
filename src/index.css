@@ -410,83 +410,80 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Premium Kids EduTech - Dark mode with playful depth */
-    --background: 260 35% 8%;
-    --foreground: 250 20% 95%;
+    /* Gemini Dark Aesthetic — deep charcoal, muted accents */
+    --background: 240 10% 7%;
+    --foreground: 220 10% 85%;
 
-    --card: 260 30% 12%;
-    --card-foreground: 250 20% 95%;
-    --card-glass: 260 30% 12% / 0.6;
+    --card: 240 10% 10%;
+    --card-foreground: 220 10% 85%;
+    --card-glass: 240 10% 10% / 0.7;
 
-    --popover: 260 30% 12%;
-    --popover-foreground: 250 20% 95%;
-    --popover-glass: 260 30% 12% / 0.7;
+    --popover: 240 10% 10%;
+    --popover-foreground: 220 10% 85%;
+    --popover-glass: 240 10% 10% / 0.8;
 
-    --primary: 265 85% 65%;
+    --primary: 265 60% 62%;
     --primary-foreground: 0 0% 100%;
-    --primary-glass: 265 85% 65% / 0.15;
+    --primary-glass: 265 60% 62% / 0.12;
 
-    --secondary: 180 40% 15%;
-    --secondary-foreground: 180 50% 90%;
-    --secondary-glass: 180 40% 15% / 0.5;
+    --secondary: 240 8% 14%;
+    --secondary-foreground: 220 10% 80%;
+    --secondary-glass: 240 8% 14% / 0.5;
 
-    --muted: 260 25% 15%;
-    --muted-foreground: 250 15% 60%;
-    --muted-glass: 260 25% 15% / 0.4;
+    --muted: 240 8% 14%;
+    --muted-foreground: 220 10% 50%;
+    --muted-glass: 240 8% 14% / 0.4;
 
-    --accent: 175 70% 50%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glass: 175 70% 50% / 0.12;
+    --accent: 220 10% 18%;
+    --accent-foreground: 220 10% 85%;
+    --accent-glass: 220 10% 18% / 0.12;
 
-    --destructive: 0 80% 60%;
+    --destructive: 0 60% 50%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-glass: 0 80% 60% / 0.15;
-    
-    --success: 155 70% 50%;
+    --destructive-glass: 0 60% 50% / 0.12;
+
+    --success: 155 50% 42%;
     --success-foreground: 0 0% 100%;
-    --success-glass: 155 70% 50% / 0.15;
-    
-    --warning: 38 90% 55%;
+    --success-glass: 155 50% 42% / 0.1;
+
+    --warning: 38 70% 50%;
     --warning-foreground: 0 0% 100%;
-    --warning-glass: 38 90% 55% / 0.15;
+    --warning-glass: 38 70% 50% / 0.1;
 
-    --border: 260 25% 22%;
-    --border-glass: 0 0% 100% / 0.1;
-    --input: 260 25% 15%;
-    --ring: 265 85% 65%;
+    --border: 240 8% 18%;
+    --border-glass: 240 8% 22% / 0.5;
+    --input: 240 8% 12%;
+    --ring: 265 50% 55%;
 
-    --shadow-glass: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
-    --shadow-glass-sm: 0 4px 20px 0 rgba(0, 0, 0, 0.35);
-    --shadow-glass-lg: 0 24px 60px 0 rgba(0, 0, 0, 0.6);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    --shadow-glass-sm: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+    --shadow-glass-lg: 0 16px 48px 0 rgba(0, 0, 0, 0.5);
 
-    --sidebar-background: 260 30% 10%;
-    --sidebar-foreground: 250 20% 90%;
-    --sidebar-primary: 265 85% 65%;
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 265 60% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 180 35% 15%;
-    --sidebar-accent-foreground: 180 45% 90%;
-    --sidebar-border: 260 25% 18%;
-    --sidebar-ring: 265 85% 65%;
-    --sidebar-glass: 260 30% 10% / 0.6;
-    
-    /* Playful gradient colors - dark mode spectrum */
-    --gradient-start: 265 85% 65%;
-    --gradient-middle: 220 80% 60%;
-    --gradient-end: 175 70% 55%;
-    --gradient-accent: 38 90% 55%;
-    
-    /* Leaderboard fun theme - dark */
-    --leaderboard-pink: 265 85% 55%;
+    --sidebar-accent: 240 8% 14%;
+    --sidebar-accent-foreground: 220 10% 80%;
+    --sidebar-border: 240 8% 16%;
+    --sidebar-ring: 265 50% 55%;
+    --sidebar-glass: 240 10% 8% / 0.6;
+
+    --gradient-start: 265 60% 62%;
+    --gradient-middle: 220 50% 55%;
+    --gradient-end: 195 50% 50%;
+    --gradient-accent: 38 70% 50%;
+
+    --leaderboard-pink: 265 60% 55%;
     --leaderboard-text: 0 0% 100%;
 
-    /* Royal Monitor Theme — dark mode */
-    --monitor-gold: 45 100% 58%;
-    --monitor-gold-dark: 38 85% 48%;
-    --monitor-gold-light: 48 100% 72%;
-    --monitor-crown: 35 90% 52%;
-    --monitor-glow: 45 100% 60% / 0.3;
-    --monitor-bg: 260 30% 14%;
-    --monitor-border: 42 75% 50%;
+    --monitor-gold: 45 90% 55%;
+    --monitor-gold-dark: 38 80% 45%;
+    --monitor-gold-light: 48 90% 68%;
+    --monitor-crown: 35 85% 50%;
+    --monitor-glow: 45 90% 55% / 0.25;
+    --monitor-bg: 240 10% 12%;
+    --monitor-border: 42 70% 48%;
   }
 }
 
@@ -504,6 +501,15 @@ All colors MUST be HSL.
     background-attachment: fixed;
     position: relative;
     overflow-x: hidden;
+  }
+
+  /* Gemini dark body — subtle blue vignette at top */
+  .dark body {
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      hsla(230, 30%, 14%, 0.5) 0%,
+      transparent 70%
+    );
   }
 
   body::before {
@@ -773,6 +779,49 @@ All colors MUST be HSL.
   /* Soft float animation for empty-state icons */
   .gemini-float {
     animation: float-gentle 4s ease-in-out infinite;
+  }
+}
+
+/* ====================================================================
+   Premium Gemini animations — smooth reveals, scale-ins, breathing
+   ==================================================================== */
+
+@keyframes gemini-reveal-kf {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gemini-scale-in-kf {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes gemini-breathe-kf {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.7; }
+}
+
+@layer utilities {
+  /* Smooth entrance reveal — fade up */
+  .gemini-reveal {
+    animation: gemini-reveal-kf 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Orchestrated stagger container — children with gemini-reveal get delays */
+  .gemini-stagger > .gemini-reveal:nth-child(1) { animation-delay: 0ms; }
+  .gemini-stagger > .gemini-reveal:nth-child(2) { animation-delay: 80ms; }
+  .gemini-stagger > .gemini-reveal:nth-child(3) { animation-delay: 160ms; }
+  .gemini-stagger > .gemini-reveal:nth-child(4) { animation-delay: 240ms; }
+  .gemini-stagger > .gemini-reveal:nth-child(5) { animation-delay: 320ms; }
+
+  /* Smooth scale entrance for cards */
+  .gemini-scale-in {
+    animation: gemini-scale-in-kf 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Subtle breathing for active glows */
+  .gemini-breathe {
+    animation: gemini-breathe-kf 3s ease-in-out infinite;
   }
 }
 
