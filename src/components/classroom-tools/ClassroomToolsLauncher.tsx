@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Timer, Disc3, Volume2, Bell, Users, Dices, TrafficCone, Hash } from "lucide-react";
+import { Sparkles, Timer, Disc3, Volume2, Bell, Users, Dices, TrafficCone, Hash, ClipboardCheck, Trophy } from "lucide-react";
 import { VisualTimer } from "./VisualTimer";
 import { WheelSpinner } from "./WheelSpinner";
 import { NoiseMeter } from "./NoiseMeter";
@@ -17,6 +17,8 @@ import { GroupMaker } from "./GroupMaker";
 import { DiceRoller } from "./DiceRoller";
 import { TrafficLight } from "./TrafficLight";
 import { RandomPicker } from "./RandomPicker";
+import { AttendanceTool } from "./AttendanceTool";
+import { LeaderboardTool } from "./LeaderboardTool";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/contexts/TimerContext";
 import { useNoiseMeter } from "@/contexts/NoiseMeterContext";
@@ -30,6 +32,8 @@ const TOOLS = [
   { id: "dice", label: "Dice", icon: Dices },
   { id: "traffic", label: "Light", icon: TrafficCone },
   { id: "random", label: "Pick", icon: Hash },
+  { id: "attendance", label: "Attend", icon: ClipboardCheck },
+  { id: "leaderboard", label: "Board", icon: Trophy },
 ] as const;
 
 type ToolId = (typeof TOOLS)[number]["id"];
@@ -194,6 +198,12 @@ export function ClassroomToolsLauncher() {
               </TabsContent>
               <TabsContent value="random" className="m-0 focus-visible:outline-none">
                 {active === "random" && <RandomPicker />}
+              </TabsContent>
+              <TabsContent value="attendance" className="m-0 focus-visible:outline-none">
+                {active === "attendance" && <AttendanceTool />}
+              </TabsContent>
+              <TabsContent value="leaderboard" className="m-0 focus-visible:outline-none">
+                {active === "leaderboard" && <LeaderboardTool />}
               </TabsContent>
             </div>
           </Tabs>
