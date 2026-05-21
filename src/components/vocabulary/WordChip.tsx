@@ -34,10 +34,10 @@ export function WordChip({ word, isHighlighted, isActive, onClick }: Props) {
         "text-sm font-medium capitalize transition-all duration-200",
         "border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(265_50%_45%)]",
         isActive
-          ? "bg-[hsl(265_50%_18%)] border-[hsl(265_50%_30%)] text-violet-200 shadow-[0_0_16px_rgba(139,92,246,0.12)]"
+          ? "bg-violet-100 dark:bg-[hsl(265_50%_18%)] border-violet-200 dark:border-[hsl(265_50%_30%)] text-violet-700 dark:text-violet-200 shadow-[0_0_16px_rgba(139,92,246,0.12)]"
           : isHighlighted
-          ? "bg-[hsl(38_30%_14%)] border-[hsl(38_30%_22%)] text-amber-300/80 hover:text-amber-200"
-          : "bg-[hsl(240_8%_12%)] border-[hsl(240_8%_18%)] text-foreground/60 hover:text-foreground/80 hover:bg-[hsl(240_8%_15%)] hover:border-[hsl(240_8%_22%)]"
+          ? "bg-amber-50 dark:bg-[hsl(38_30%_14%)] border-amber-200 dark:border-[hsl(38_30%_22%)] text-amber-700 dark:text-amber-300/80 hover:text-amber-800 dark:hover:text-amber-200"
+          : "bg-slate-50 dark:bg-[hsl(240_8%_12%)] border-slate-200 dark:border-[hsl(240_8%_18%)] text-slate-600 dark:text-foreground/60 hover:text-slate-800 dark:hover:text-foreground/80 hover:bg-slate-100 dark:hover:bg-[hsl(240_8%_15%)] hover:border-slate-300 dark:hover:border-[hsl(240_8%_22%)]"
       )}
     >
       {word}

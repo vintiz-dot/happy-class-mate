@@ -113,7 +113,7 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
         </p>
         <div className="flex overflow-hidden gap-3 p-1">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-[140px] h-[105px] rounded-xl shrink-0 bg-[hsl(240_8%_12%)] animate-pulse" />
+            <div key={i} className="w-[140px] h-[105px] rounded-xl shrink-0 bg-slate-100 dark:bg-[hsl(240_8%_12%)] animate-pulse" />
           ))}
         </div>
       </div>
@@ -235,16 +235,16 @@ function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
         ? { type: "button", onClick: () => onPick!(img), "aria-pressed": picked }
         : {})}
       className={cn(
-        "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 border transition-all bg-[hsl(240_8%_10%)]",
-        isClickable && "cursor-pointer hover:border-[hsl(240_8%_24%)]",
+        "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 border transition-all bg-slate-50 dark:bg-[hsl(240_8%_10%)]",
+        isClickable && "cursor-pointer hover:border-slate-300 dark:hover:border-[hsl(240_8%_24%)]",
         picked
-          ? "border-violet-500/50 ring-1 ring-violet-500/30"
-          : "border-[hsl(240_8%_18%)] hover:border-[hsl(240_8%_24%)]",
+          ? "border-violet-500 ring-2 ring-violet-500/35"
+          : "border-slate-200 dark:border-[hsl(240_8%_18%)] hover:border-slate-300 dark:hover:border-[hsl(240_8%_24%)]",
       )}
     >
       {/* Skeleton stays visible until the actual <img> paints or errors. */}
       {!hidden && (src === null || (!resolvedRef.current && !didFallback)) && (
-        <div className="absolute inset-0 bg-[hsl(240_8%_12%)] animate-pulse" />
+        <div className="absolute inset-0 bg-slate-100 dark:bg-[hsl(240_8%_12%)] animate-pulse" />
       )}
       {src && !hidden && (
         <img

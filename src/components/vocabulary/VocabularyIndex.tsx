@@ -45,12 +45,12 @@ const ITEMS_PER_PAGE = 30;
 
 const MASTERY_LABELS = ["New", "Seen", "Learning", "Familiar", "Known", "Mastered"];
 const MASTERY_COLORS = [
-  "bg-[hsl(240_8%_16%)] text-foreground/50",
-  "bg-[hsl(0_30%_14%)] text-red-400/70",
-  "bg-[hsl(25_30%_14%)] text-orange-400/70",
-  "bg-[hsl(45_30%_14%)] text-yellow-400/70",
-  "bg-[hsl(155_25%_14%)] text-emerald-400/70",
-  "bg-[hsl(265_25%_16%)] text-violet-400/70",
+  "bg-slate-100 text-slate-500 dark:bg-[hsl(240_8%_16%)] dark:text-foreground/50",
+  "bg-red-50 text-red-600 dark:bg-[hsl(0_30%_14%)] dark:text-red-400/70",
+  "bg-orange-50 text-orange-600 dark:bg-[hsl(25_30%_14%)] dark:text-orange-400/70",
+  "bg-yellow-50 text-yellow-600 dark:bg-[hsl(45_30%_14%)] dark:text-yellow-400/70",
+  "bg-emerald-50 text-emerald-600 dark:bg-[hsl(155_25%_14%)] dark:text-emerald-400/70",
+  "bg-violet-50 text-violet-600 dark:bg-[hsl(265_25%_16%)] dark:text-violet-400/70",
 ];
 
 function speak(text: string, lang = "en-US", rate = 0.8) {
@@ -140,14 +140,14 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[hsl(240_8%_10%)] border border-[hsl(240_8%_16%)] p-4 rounded-2xl">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white dark:bg-[hsl(240_8%_10%)] border border-slate-200/80 dark:border-[hsl(240_8%_16%)] p-4 rounded-2xl shadow-sm">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search words..."
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-[hsl(240_8%_12%)] border-[hsl(240_8%_18%)]"
+            className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200 dark:bg-[hsl(240_8%_12%)] dark:border-[hsl(240_8%_18%)]"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -164,7 +164,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
               {MASTERY_LABELS[level]}
             </button>
           ))}
-          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-xl h-8 border-[hsl(240_8%_18%)] bg-transparent hover:bg-[hsl(240_8%_14%)]">
+          <Button variant="outline" size="sm" onClick={toggleSort} className="rounded-xl h-8 border-slate-200 hover:bg-slate-50 dark:border-[hsl(240_8%_18%)] dark:bg-transparent dark:hover:bg-[hsl(240_8%_14%)]">
             {sortOrder === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpZA className="w-4 h-4" />}
           </Button>
         </div>
@@ -176,7 +176,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
           {pageItems.map((item) => (
             <Card
               key={item.id}
-              className="group overflow-hidden border border-[hsl(240_8%_16%)] shadow-none hover:border-[hsl(240_8%_22%)] transition-all duration-300 rounded-2xl bg-[hsl(240_8%_10%)]"
+              className="group overflow-hidden border border-slate-200 dark:border-[hsl(240_8%_16%)] shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-[hsl(240_8%_22%)] transition-all duration-300 rounded-2xl bg-white dark:bg-[hsl(240_8%_10%)]"
             >
               <div className="relative h-36 w-full overflow-hidden bg-muted">
                 {item.imageUrl ? (
@@ -286,7 +286,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
       {totalPages > 1 && (
         <div className="flex justify-center pt-4">
           <Pagination>
-            <PaginationContent className="bg-[hsl(240_8%_10%)] border border-[hsl(240_8%_16%)] p-1.5 rounded-2xl">
+            <PaginationContent className="bg-white dark:bg-[hsl(240_8%_10%)] border border-slate-200 dark:border-[hsl(240_8%_16%)] p-1.5 rounded-2xl shadow-sm">
               <PaginationItem>
                 <PaginationPrevious
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -370,7 +370,7 @@ function EditWordDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-[hsl(240_8%_10%)] border-[hsl(240_8%_18%)]">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-[hsl(240_8%_10%)] border-slate-200 dark:border-[hsl(240_8%_18%)]">
         <DialogHeader>
           <DialogTitle className="capitalize">Edit: {word.word}</DialogTitle>
           <DialogDescription>
@@ -410,7 +410,7 @@ function EditWordDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-[hsl(265_40%_16%)] hover:bg-[hsl(265_40%_20%)] text-violet-200 border border-[hsl(265_40%_24%)]">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-violet-600 hover:bg-violet-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-violet-200 dark:border-[hsl(265_40%_24%)]">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" />Save changes</>}
           </Button>
         </DialogFooter>

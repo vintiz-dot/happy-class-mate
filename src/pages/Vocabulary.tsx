@@ -15,16 +15,6 @@ export default function Vocabulary() {
   const stats = store.getStats();
   const wordsForReview = store.getWordsForReview();
 
-  // Force dark mode on this page for the Gemini aesthetic
-  useEffect(() => {
-    const html = document.documentElement;
-    const wasDark = html.classList.contains("dark");
-    html.classList.add("dark");
-    return () => {
-      if (!wasDark) html.classList.remove("dark");
-    };
-  }, []);
-
   return (
     <Layout title="Smart Vocabulary">
       <ClassSelectorModal userId={user?.id} />
@@ -41,27 +31,27 @@ export default function Vocabulary() {
           </p>
         </div>
 
-        {/* Tabs — dark minimal pill */}
+        {/* Tabs — minimal pill */}
         <Tabs defaultValue="explore" className="w-full">
           <div className="flex justify-center mb-8 gemini-reveal" style={{ animationDelay: "80ms" }}>
-            <TabsList className="grid w-full max-w-md grid-cols-3 p-1 bg-[hsl(240_8%_12%)] border border-[hsl(240_8%_18%)] rounded-full h-11">
+            <TabsList className="grid w-full max-w-md grid-cols-3 p-1 bg-slate-100 dark:bg-[hsl(240_8%_12%)] border border-slate-200/60 dark:border-[hsl(240_8%_18%)] rounded-full h-11">
               <TabsTrigger
                 value="explore"
-                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all duration-300 gap-1.5"
+                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-white dark:data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-300 gap-1.5"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Explore</span>
               </TabsTrigger>
               <TabsTrigger
                 value="bank"
-                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all duration-300 gap-1.5"
+                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-white dark:data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-300 gap-1.5"
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Word Bank</span>
               </TabsTrigger>
               <TabsTrigger
                 value="practice"
-                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all duration-300 gap-1.5 relative"
+                className="rounded-full text-sm font-medium text-muted-foreground data-[state=active]:bg-white dark:data-[state=active]:bg-[hsl(240_8%_18%)] data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-300 gap-1.5 relative"
               >
                 <Brain className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Practice</span>
