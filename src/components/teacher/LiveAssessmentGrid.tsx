@@ -260,7 +260,7 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
   return (
     <div className="space-y-4">
       {/* Bulk Selection Controls */}
-      <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-muted/50">
+      <div className="flex flex-wrap items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-muted/40 to-muted/20 border border-border/30 backdrop-blur-sm">
         <Button
           variant={bulkMode ? "default" : "outline"}
           size="sm"
@@ -268,7 +268,10 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
             setBulkMode(!bulkMode);
             if (!bulkMode) selectNone();
           }}
-          className="gap-2"
+          className={cn(
+            "gap-2 rounded-xl transition-all",
+            bulkMode && "shadow-md"
+          )}
         >
           {bulkMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
           Bulk Mode
@@ -276,14 +279,14 @@ export function LiveAssessmentGrid({ classId, sessionId }: LiveAssessmentGridPro
         
         {bulkMode && (
           <>
-            <Button variant="ghost" size="sm" onClick={selectAll}>
+            <Button variant="ghost" size="sm" onClick={selectAll} className="rounded-xl text-xs">
               Select All
             </Button>
-            <Button variant="ghost" size="sm" onClick={selectNone}>
+            <Button variant="ghost" size="sm" onClick={selectNone} className="rounded-xl text-xs">
               Clear
             </Button>
             {selectedStudents.size > 0 && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
                 {selectedStudents.size} selected
               </span>
             )}
