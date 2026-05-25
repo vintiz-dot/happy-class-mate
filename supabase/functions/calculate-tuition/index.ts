@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       supabase
         .from("invoices")
         .select("total_amount, month, recorded_payment, class_breakdown")
-        .lt("month", month)
+        .neq("month", month)
         .eq("student_id", studentId)
         .order("month", { ascending: true }),
       supabase
@@ -357,7 +357,9 @@ Deno.serve(async (req) => {
 
     // ---------- Payments and carryovers ----------
     // Prior charges and current month invoice already fetched in Wave 1
-    const priorInvoicesDetailed: any[] = priorInvoicesRes.data ?? [];
+    const otherInvoicesDetailed: any[] = priorInvoicesRes.data ?? [];
+    const priorInvoicesDetailed = otherInvoicesDetailed.filter(inv => inv.month < month);
+    const futureInvoicesDetailed = otherInvoicesDetailed.filter(inv => inv.month > month);
     const priorCharges = priorInvoicesDetailed.reduce((s, r) => s + Number(r.total_amount ?? 0), 0);
     const priorPayments = priorInvoicesDetailed.reduce(
       (s, inv) => s + Number(inv.recorded_payment ?? 0),
@@ -464,6 +466,18 @@ Deno.serve(async (req) => {
         : balanceStatus === "debt"
           ? `Bạn còn nợ ${carryOutDebt.toLocaleString("vi-VN")} ₫ cần thanh toán.`
           : "Tháng này đã thanh toán đầy đủ.";
+
+    let settledInMonth: string | null = null;
+    if (carryOutDebt > 0 && futureInvoicesDetailed.length > 0) {
+      let runningBalance = -carryOutDebt;
+      for (const fInv of futureInvoicesDetailed) {
+        runningBalance += Number(fInv.recorded_payment ?? 0) - Number(fInv.total_amount ?? 0);
+        if (runningBalance >= 0) {
+          settledInMonth = fInv.month;
+          break;
+        }
+      }
+    }
 
     // Build per-class breakdown for multi-enrollment students
     // Calculate per-class discounts for net_amount_vnd
@@ -615,6 +629,7 @@ Deno.serve(async (req) => {
         carryInDebt,
         carryOutCredit,
         carryOutDebt,
+        settledInMonth,
         status: balanceStatus, // 'credit' | 'debt' | 'settled'
         message: balanceMessage, // show in UI
       },

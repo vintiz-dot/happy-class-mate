@@ -16,6 +16,7 @@ interface LiveTuitionItem {
   carry_in_credit: number;
   carry_in_debt: number;
   priorBalance: number;
+  settled_in_month: string | null;
   status: string;
   confirmation_status: string;
   students: {
@@ -138,7 +139,8 @@ export function useLiveTuitionData(month: string) {
           carry_in_credit: data.carry?.carryInCredit ?? 0,
           carry_in_debt: data.carry?.carryInDebt ?? 0,
           priorBalance: (data.carry?.carryInCredit ?? 0) - (data.carry?.carryInDebt ?? 0),
-          status: data.invoiceStatus || "open",
+          settled_in_month: data.carry?.settledInMonth ?? null,
+          status: data.invoiceStatus || data.carry?.status || "open",
           confirmation_status: data.confirmationStatus || "needs_review",
           students: student,
           classes: studentClasses.get(student.id) || [],

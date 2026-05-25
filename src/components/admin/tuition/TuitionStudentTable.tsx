@@ -72,6 +72,7 @@ export function TuitionStudentTable({
                 carryOutCredit: item.carry_out_credit ?? 0,
                 totalAmount: item.total_amount ?? 0,
                 monthPayments: item.recorded_payment ?? 0,
+                settledInMonth: item.settled_in_month,
               });
               const studentName = (item.students as any)?.full_name ?? "—";
               const classNames = (item as any).classes?.map((c: any) => c.name).join(", ") || "No class";
@@ -124,7 +125,7 @@ export function TuitionStudentTable({
                   <TableCell className="type-micro text-muted-foreground truncate max-w-[200px]">
                     {classNames}
                   </TableCell>
-                  <TableCell>{getTuitionStatusBadge(status)}</TableCell>
+                  <TableCell>{getTuitionStatusBadge(status, item.settled_in_month)}</TableCell>
                   <TableCell className="text-right tabular-nums font-medium">
                     {fmt(item.finalPayable)}
                   </TableCell>

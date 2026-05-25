@@ -53,6 +53,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       carryOutCredit: item.carry_out_credit ?? 0,
       totalAmount: item.total_amount ?? 0,
       monthPayments: item.recorded_payment ?? 0,
+      settledInMonth: item.settled_in_month,
     });
 
     const settledCount = tuitionData.filter((i) => getStatus(i) === 'settled').length;
@@ -89,6 +90,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       carryOutCredit: item.carry_out_credit ?? 0,
       totalAmount: item.total_amount ?? 0,
       monthPayments: item.recorded_payment ?? 0,
+      settledInMonth: item.settled_in_month,
     });
     
     const overpaid = tuitionData.filter((i) => getStatus(i) === 'overpaid').length;
@@ -117,6 +119,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
       carryOutCredit: item.carry_out_credit ?? 0,
       totalAmount: item.total_amount ?? 0,
       monthPayments: item.recorded_payment ?? 0,
+      settledInMonth: item.settled_in_month,
     });
 
     let filtered = tuitionData;

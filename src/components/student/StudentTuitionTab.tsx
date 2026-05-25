@@ -102,7 +102,8 @@ export function StudentTuitionTab({ studentId }: { studentId: string }) {
     carryOutCredit: tuitionData.carryOutCredit,
     totalAmount: tuitionData.totalAmount,
     monthPayments: tuitionData.monthPayments,
-  })) : null;
+    settledInMonth: tuitionData.settledInMonth,
+  }), tuitionData.settledInMonth) : null;
 
   if (isLoading) {
     return (
