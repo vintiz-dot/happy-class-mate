@@ -375,13 +375,13 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
         <div className="space-y-3">
           {dueCount > 0 && (
             <Card
-              className="border border-violet-200 dark:border-[hsl(265_30%_18%)] bg-violet-50/40 dark:bg-[hsl(265_20%_11%)] cursor-pointer hover:border-violet-300 dark:hover:border-[hsl(265_30%_24%)] transition-all duration-200 rounded-2xl"
+              className="border border-blue-200 dark:border-[hsl(265_30%_18%)] bg-blue-50/40 dark:bg-[hsl(265_20%_11%)] cursor-pointer hover:border-blue-300 dark:hover:border-[hsl(265_30%_24%)] transition-all duration-200 rounded-2xl"
               onClick={() => startSession(wordsForReview)}
             >
               <CardContent className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-violet-100/60 dark:bg-[hsl(265_30%_16%)] flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-violet-600 dark:text-violet-400/80" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100/60 dark:bg-[hsl(265_30%_16%)] flex items-center justify-center">
+                    <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400/80" />
                   </div>
                   <div>
                     <p className="font-bold text-foreground">
@@ -392,7 +392,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                     </p>
                   </div>
                 </div>
-                <Badge className="bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-500/30 text-sm px-3">
+                <Badge className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 text-sm px-3">
                   {dueCount}
                 </Badge>
               </CardContent>
@@ -670,7 +670,7 @@ export function VocabularyPractice({ words, wordsForReview, onUpdateMastery }: P
                   <Button
                     onClick={advance}
                     disabled={recording}
-                    className="w-full h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-violet-200 dark:border dark:border-[hsl(265_40%_24%)] font-medium text-sm shadow-sm"
+                    className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-blue-200 dark:border dark:border-[hsl(265_40%_24%)] font-medium text-sm shadow-sm"
                   >
                     {recording ? (
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />

@@ -427,7 +427,7 @@ function RankRow({
         "group relative flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl cursor-pointer transition-all overflow-hidden",
         "bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10",
         isSelf && "ring-2 ring-amber-300/60 bg-amber-300/10",
-        isSelected && !isSelf && "ring-2 ring-violet-400/60 bg-violet-400/10",
+        isSelected && !isSelf && "ring-2 ring-blue-400/60 bg-blue-400/10",
         movement === "up" && "arena-row-rise",
         movement === "down" && "arena-row-fall"
       )}
@@ -444,7 +444,7 @@ function RankRow({
         >
           <Checkbox
             checked={isSelected}
-            className="h-4 w-4 sm:h-5 sm:w-5 border-2 border-white/40 bg-white/10 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500"
+            className="h-4 w-4 sm:h-5 sm:w-5 border-2 border-white/40 bg-white/10 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
           />
         </div>
       )}
@@ -522,7 +522,7 @@ function RankRow({
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.7, ease: "easeOut", delay: 0.05 + index * 0.01 }}
-            className="h-full rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300"
+            className="h-full rounded-full bg-gradient-to-r from-blue-400 via-sky-400 to-amber-300"
           />
         </div>
       </div>
@@ -561,7 +561,7 @@ function SelfPinnedCard({ entry, onClick }: { entry: ArenaEntry; onClick: () => 
       initial={{ y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 200, damping: 22, delay: 0.5 }}
-      className="sticky bottom-3 left-3 right-3 z-20 mx-3 sm:mx-6 mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 p-0.5 shadow-2xl"
+      className="sticky bottom-3 left-3 right-3 z-20 mx-3 sm:mx-6 mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-500 via-sky-500 to-amber-400 p-0.5 shadow-2xl"
     >
       <div className="flex w-full items-center gap-3 rounded-[14px] bg-slate-900/95 px-3 py-2.5 backdrop-blur-md">
         <Avatar className="h-10 w-10 ring-2 ring-amber-300 shrink-0">
@@ -587,7 +587,7 @@ function SelfPinnedCard({ entry, onClick }: { entry: ArenaEntry; onClick: () => 
           </div>
           <div className="mt-1 h-1 w-full rounded-full bg-white/10 overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400"
+              className="h-full rounded-full bg-gradient-to-r from-amber-300 to-sky-400"
               style={{ width: `${pct}%` }}
             />
           </div>

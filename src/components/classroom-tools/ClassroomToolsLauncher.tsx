@@ -86,7 +86,7 @@ export function ClassroomToolsLauncher() {
           "fixed bottom-5 right-5 md:bottom-6 md:right-6 z-40 h-14 w-14 rounded-full shadow-q3 lift",
           alarming
             ? "bg-gradient-to-br from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white animate-bounce"
-            : "bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+            : "bg-gradient-to-br from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white",
         )}
       >
         {alarming ? (
@@ -143,7 +143,7 @@ export function ClassroomToolsLauncher() {
         >
           <SheetHeader className="px-5 py-4 border-b">
             <SheetTitle className="flex items-center gap-2 type-h2">
-              <Sparkles className="h-4 w-4 text-violet-500" />
+              <Sparkles className="h-4 w-4 text-blue-500" />
               Classroom Tools
             </SheetTitle>
             <SheetDescription className="type-micro">

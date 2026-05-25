@@ -108,7 +108,7 @@ export function TuitionStudentTable({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium truncate">{studentName}</span>
                           {item.hasDiscount && (
-                            <Badge variant="outline" className="h-4 px-1 gap-0.5 text-[10px] border-violet-300 text-violet-700">
+                            <Badge variant="outline" className="h-4 px-1 gap-0.5 text-[10px] border-blue-300 text-blue-700">
                               <Percent className="h-2.5 w-2.5" />
                             </Badge>
                           )}

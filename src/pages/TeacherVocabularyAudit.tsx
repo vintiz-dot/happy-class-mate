@@ -229,7 +229,7 @@ export default function TeacherVocabularyAudit() {
     return (
       <Layout title="Vocabulary Audit">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
         </div>
       </Layout>
     );
@@ -252,8 +252,8 @@ export default function TeacherVocabularyAudit() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500/20 to-blue-500/10 flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-violet-600" />
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-blue-600" />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vocabulary Audit</h1>
@@ -314,7 +314,7 @@ export default function TeacherVocabularyAudit() {
 
             <TabsContent value="macro" className="mt-6">
               {loadingData ? (
-                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-violet-500" /></div>
+                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
               ) : (
                 <MacroView stats={macroStats} members={members} />
               )}
@@ -333,7 +333,7 @@ export default function TeacherVocabularyAudit() {
                   </SelectContent>
                 </Select>
                 {loadingData ? (
-                  <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-violet-500" /></div>
+                  <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
                 ) : (
                   <MicroView entries={microData.entries} activity={microData.activity} />
                 )}
@@ -397,7 +397,7 @@ function MacroView({
                   )}>{i + 1}</span>
                   <span className="flex-1 font-medium">{memberName(row.studentId)}</span>
                   <span className="text-xs text-muted-foreground">{row.saves} saves · {row.correct}/{row.correct + row.incorrect} correct</span>
-                  <Badge className="bg-violet-600 hover:bg-violet-600 text-white">+{row.points} pts</Badge>
+                  <Badge className="bg-blue-600 hover:bg-blue-600 text-white">+{row.points} pts</Badge>
                 </div>
               ))}
             </div>
@@ -417,7 +417,7 @@ function StatCard({
   accent: "violet" | "emerald" | "rose" | "amber";
 }) {
   const colors: Record<string, string> = {
-    violet: "bg-violet-50 text-violet-700 dark:bg-violet-950/30",
+    violet: "bg-blue-50 text-blue-700 dark:bg-blue-950/30",
     emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30",
     rose: "bg-rose-50 text-rose-700 dark:bg-rose-950/30",
     amber: "bg-amber-50 text-amber-700 dark:bg-amber-950/30",

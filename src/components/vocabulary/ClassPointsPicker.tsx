@@ -29,7 +29,7 @@ export function ClassPointsPicker({ open, classes, onChoose, onClose }: Props) {
       <DialogContent className="sm:max-w-md rounded-2xl bg-white dark:bg-[hsl(240_8%_10%)] border-slate-200 dark:border-[hsl(240_8%_18%)]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-violet-600" />
+            <Users className="w-5 h-5 text-blue-600" />
             Which class earns the points?
           </DialogTitle>
           <DialogDescription>

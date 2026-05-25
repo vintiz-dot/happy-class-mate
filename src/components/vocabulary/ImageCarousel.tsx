@@ -143,7 +143,7 @@ export function ImageCarousel({ query, className, pickedUrl, onPick }: Props) {
         </p>
         {showProgress && (
           <div
-            className="flex items-center gap-1.5 text-[11px] font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-full px-2 py-0.5"
+            className="flex items-center gap-1.5 text-[11px] font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5"
             role="status"
             aria-live="polite"
           >
@@ -238,7 +238,7 @@ function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
         "relative rounded-xl overflow-hidden w-[140px] h-[105px] shrink-0 border transition-all bg-slate-50 dark:bg-[hsl(240_8%_10%)]",
         isClickable && "cursor-pointer hover:border-slate-300 dark:hover:border-[hsl(240_8%_24%)]",
         picked
-          ? "border-violet-500 ring-2 ring-violet-500/35"
+          ? "border-blue-500 ring-2 ring-blue-500/35"
           : "border-slate-200 dark:border-[hsl(240_8%_18%)] hover:border-slate-300 dark:hover:border-[hsl(240_8%_24%)]",
       )}
     >
@@ -279,8 +279,8 @@ function CarouselTile({ img, picked, onPick, onResolved }: TileProps) {
         </span>
       </div>
       {picked && (
-        <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-          <div className="bg-violet-600 text-white rounded-full p-1 shadow-lg">
+        <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+          <div className="bg-blue-600 text-white rounded-full p-1 shadow-lg">
             <Check className="w-4 h-4" />
           </div>
         </div>

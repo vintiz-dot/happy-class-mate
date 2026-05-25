@@ -93,7 +93,7 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
     <div
       className={cn(
         "group relative flex flex-col rounded-2xl border-2 bg-card overflow-hidden",
-        "transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-violet-400",
+        "transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-blue-400",
         "cursor-pointer active:scale-[0.98]",
       )}
       onClick={handleOpen}
@@ -105,7 +105,7 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
       <div
         className={cn(
           "flex items-center justify-center py-6",
-          "bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20",
+          "bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/20",
         )}
       >
         <span className="text-5xl drop-shadow-md transition-transform group-hover:scale-110">
@@ -177,7 +177,7 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
               size="sm"
               className={cn(
                 "gap-1.5 rounded-xl font-bold text-xs h-10",
-                "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+                "bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white",
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -210,7 +210,7 @@ export function ResourceCard({ resource, compact = false, classNameMap }: Props)
             size="lg"
             className={cn(
               "w-full gap-2 rounded-xl font-bold text-sm h-11",
-              "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white",
+              "bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white",
             )}
             onClick={(e) => {
               e.stopPropagation();

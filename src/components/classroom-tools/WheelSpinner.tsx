@@ -175,7 +175,7 @@ export function WheelSpinner() {
           onClick={spin}
           disabled={entries.length < 2 || spinning}
           size="lg"
-          className="gap-2 h-12 px-6 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+          className="gap-2 h-12 px-6 bg-gradient-to-br from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600"
         >
           {spinning ? <RotateCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {spinning ? "Spinning…" : "SPIN"}

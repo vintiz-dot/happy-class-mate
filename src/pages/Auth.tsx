@@ -148,14 +148,14 @@ const Auth = () => {
       {/* ───── LEFT — brand panel (desktop only) ───── */}
       <aside className="relative hidden lg:flex flex-col justify-between p-10 xl:p-14 overflow-hidden">
         {/* aurora accents */}
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/30 blur-3xl pointer-events-none" />
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-500/40 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-sky-500/30 blur-3xl pointer-events-none" />
         <div className="absolute top-1/2 left-1/3 h-72 w-72 rounded-full bg-amber-400/15 blur-3xl pointer-events-none" />
 
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-aurora flex items-center justify-center shadow-q3">
-              <GraduationCap className="h-6 w-6 text-white" />
+            <div className="h-12 w-12 rounded-2xl bg-aurora flex items-center justify-center shadow-q3 overflow-hidden p-1">
+              <img src="/favicon.jpg" alt="HEC Logo" className="h-full w-full object-contain rounded-xl" />
             </div>
             <div>
               <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-white/60">
@@ -198,8 +198,8 @@ const Auth = () => {
         <div className="relative w-full max-w-sm">
           {/* Mobile brand */}
           <div className="lg:hidden mb-8 flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-aurora flex items-center justify-center shadow-q3">
-              <GraduationCap className="h-5 w-5 text-white" />
+            <div className="h-11 w-11 rounded-2xl bg-aurora flex items-center justify-center shadow-q3 overflow-hidden p-1">
+              <img src="/favicon.jpg" alt="HEC Logo" className="h-full w-full object-contain rounded-xl" />
             </div>
             <div>
               <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground">
@@ -316,7 +316,7 @@ const Auth = () => {
                 <Button
                   type="button"
                   variant="link"
-                  className="h-auto p-0 text-sm font-semibold text-violet-600 dark:text-violet-300"
+                  className="h-auto p-0 text-sm font-semibold text-blue-600 dark:text-blue-300"
                   onClick={() => setMode("forgot")}
                 >
                   Forgot?
@@ -351,7 +351,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setMode("signup")}
-                  className="font-bold text-violet-600 dark:text-violet-300 hover:underline"
+                  className="font-bold text-blue-600 dark:text-blue-300 hover:underline"
                 >
                   Sign up
                 </button>
@@ -362,7 +362,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setMode("login")}
-                  className="font-bold text-violet-600 dark:text-violet-300 hover:underline"
+                  className="font-bold text-blue-600 dark:text-blue-300 hover:underline"
                 >
                   Sign in
                 </button>
@@ -392,8 +392,8 @@ function FeatureTile({
 }) {
   const map = {
     amber: "from-amber-400/30 to-orange-500/20 text-amber-200",
-    rose: "from-rose-400/30 to-pink-500/20 text-rose-200",
-    violet: "from-violet-400/30 to-fuchsia-500/20 text-violet-200",
+    rose: "from-rose-400/30 to-sky-500/20 text-rose-200",
+    violet: "from-blue-400/30 to-indigo-500/20 text-blue-200",
   } as const;
   return (
     <div

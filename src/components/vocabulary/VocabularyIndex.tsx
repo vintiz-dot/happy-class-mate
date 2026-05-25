@@ -50,7 +50,7 @@ const MASTERY_COLORS = [
   "bg-orange-50 text-orange-600 dark:bg-[hsl(25_30%_14%)] dark:text-orange-400/70",
   "bg-yellow-50 text-yellow-600 dark:bg-[hsl(45_30%_14%)] dark:text-yellow-400/70",
   "bg-emerald-50 text-emerald-600 dark:bg-[hsl(155_25%_14%)] dark:text-emerald-400/70",
-  "bg-violet-50 text-violet-600 dark:bg-[hsl(265_25%_16%)] dark:text-violet-400/70",
+  "bg-blue-50 text-blue-600 dark:bg-[hsl(265_25%_16%)] dark:text-blue-400/70",
 ];
 
 function speak(text: string, lang = "en-US", rate = 0.8) {
@@ -247,7 +247,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-violet-600"
+                      className="h-7 w-7 text-muted-foreground hover:text-blue-600"
                       onClick={() => setEditing(item)}
                       aria-label="Edit word"
                     >
@@ -410,7 +410,7 @@ function EditWordDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving} className="bg-violet-600 hover:bg-violet-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-violet-200 dark:border-[hsl(265_40%_24%)]">
+          <Button onClick={handleSubmit} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-blue-200 dark:border-[hsl(265_40%_24%)]">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" />Save changes</>}
           </Button>
         </DialogFooter>

@@ -79,11 +79,11 @@ export default function StudentResources() {
         {/* ---- Header ---- */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center shadow-lg">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400">
+          <h1 className="text-2xl sm:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-sky-600 dark:from-blue-400 dark:to-sky-400">
             My Resources
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export default function StudentResources() {
               setQuery(e.target.value);
               setPage(1);
             }}
-            className="pl-12 h-12 text-base rounded-xl border-2 focus-visible:border-violet-400"
+            className="pl-12 h-12 text-base rounded-xl border-2 focus-visible:border-blue-400"
           />
         </div>
 
@@ -113,7 +113,7 @@ export default function StudentResources() {
               className={cn(
                 "px-4 py-2 rounded-full text-sm font-bold transition-all",
                 !classFilter
-                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md scale-105"
+                  ? "bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-md scale-105"
                   : "bg-muted hover:bg-muted/80 text-muted-foreground",
               )}
             >
@@ -126,7 +126,7 @@ export default function StudentResources() {
                 className={cn(
                   "px-4 py-2 rounded-full text-sm font-bold transition-all",
                   classFilter === c.id
-                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md scale-105"
+                    ? "bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-md scale-105"
                     : "bg-muted hover:bg-muted/80 text-muted-foreground",
                 )}
               >
@@ -139,7 +139,7 @@ export default function StudentResources() {
         {/* ---- Cards Grid ---- */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-violet-400" />
+            <Loader2 className="h-10 w-10 animate-spin text-blue-400" />
           </div>
         ) : paged.length === 0 ? (
           <div className="text-center py-16 space-y-4">

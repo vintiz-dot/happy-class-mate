@@ -101,7 +101,7 @@ export function PWAInstallButton({ className, variant = "outline", sidebarOpen =
       )}
       title="Install Happy English App"
     >
-      <Download className="h-4 w-4 text-violet-600 dark:text-violet-400 animate-bounce" />
+      <Download className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-bounce" />
       {sidebarOpen && <span>Install App</span>}
     </Button>
   );

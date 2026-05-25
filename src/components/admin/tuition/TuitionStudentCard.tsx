@@ -96,7 +96,7 @@ export function TuitionStudentCard({
                 <span className="font-semibold text-sm truncate">{studentName}</span>
                 {getTuitionStatusBadge(status)}
                 {item.hasDiscount && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-violet-300 text-violet-700">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-blue-300 text-blue-700">
                     <Percent className="h-2.5 w-2.5" /> Disc
                   </Badge>
                 )}

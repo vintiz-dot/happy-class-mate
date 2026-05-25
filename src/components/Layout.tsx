@@ -140,8 +140,8 @@ const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
         <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
           <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center overflow-hidden">
+                <img src="/favicon.jpg" alt="HEC Logo" className="h-full w-full object-cover" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-base md:text-xl font-bold text-foreground">{title || "Education Manager"}</h1>
@@ -194,8 +194,8 @@ const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
         <div className="p-4 border-b flex items-center justify-between">
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                <GraduationCap className="h-5 w-5 text-primary" />
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center overflow-hidden">
+                <img src="/favicon.jpg" alt="HEC Logo" className="h-full w-full object-cover" />
               </div>
               <span className="font-semibold text-sm">Happy English</span>
             </div>

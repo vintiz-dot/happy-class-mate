@@ -56,7 +56,7 @@ export default function Vocabulary() {
                 <Brain className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Practice</span>
                 {stats.dueForReview > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-violet-500/80 text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-500/80 text-white text-[9px] font-bold flex items-center justify-center">
                     {stats.dueForReview > 9 ? "9+" : stats.dueForReview}
                   </span>
                 )}

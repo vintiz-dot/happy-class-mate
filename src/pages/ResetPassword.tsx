@@ -91,7 +91,7 @@ const ResetPassword = () => {
               If this takes too long, your reset link may have expired.{" "}
               <button
                 onClick={() => navigate("/auth")}
-                className="text-violet-300 hover:underline font-semibold"
+                className="text-blue-300 hover:underline font-semibold"
               >
                 Request a new one
               </button>
@@ -126,8 +126,8 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen bg-night text-white flex items-center justify-center p-5">
       {/* Aurora accents */}
-      <div className="fixed -top-32 -left-32 h-96 w-96 rounded-full bg-violet-500/30 blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/20 blur-3xl pointer-events-none" />
+      <div className="fixed -top-32 -left-32 h-96 w-96 rounded-full bg-blue-500/30 blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-sky-500/20 blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-sm">
         {/* Brand */}

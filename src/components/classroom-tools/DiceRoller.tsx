@@ -14,8 +14,8 @@ const DOT_POSITIONS: Record<number, [number, number][]> = {
 };
 
 const DICE_COLORS = [
-  "from-violet-500 to-indigo-600",
-  "from-rose-500 to-pink-600",
+  "from-blue-500 to-indigo-600",
+  "from-rose-500 to-sky-600",
   "from-emerald-500 to-teal-600",
 ];
 
@@ -126,7 +126,7 @@ export function DiceRoller() {
           onClick={roll}
           disabled={rolling}
           size="lg"
-          className="gap-2 h-12 px-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+          className="gap-2 h-12 px-8 bg-gradient-to-br from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600"
         >
           <Dices className="h-5 w-5" />
           {rolling ? "Rolling…" : "ROLL"}

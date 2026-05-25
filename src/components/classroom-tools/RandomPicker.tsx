@@ -95,7 +95,7 @@ export function RandomPicker() {
         {/* Result display */}
         <div className="flex flex-col items-center gap-2 py-2">
           <div
-            className={`w-28 h-28 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg ${
+            className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center shadow-lg ${
               picking ? "animate-pulse" : ""
             }`}
           >
@@ -108,7 +108,7 @@ export function RandomPicker() {
         <Button
           onClick={pick}
           disabled={picking}
-          className="w-full h-11 gap-2 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+          className="w-full h-11 gap-2 bg-gradient-to-br from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600"
         >
           <RefreshCw className={`h-4 w-4 ${picking ? "animate-spin" : ""}`} />
           {picking ? "Picking…" : "Pick Number"}

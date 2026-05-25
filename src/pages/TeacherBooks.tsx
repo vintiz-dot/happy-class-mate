@@ -411,7 +411,7 @@ export default function TeacherBooks() {
       <Layout title="Flipbooks & Presentations" hideNavigation={true}>
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+            <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
             <p className="text-muted-foreground font-semibold">Loading presentation center...</p>
           </div>
         </div>
@@ -436,8 +436,8 @@ export default function TeacherBooks() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent flex items-center gap-2">
-                <BookOpen className="h-6 w-6 text-violet-600" />
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-sky-600 bg-clip-text text-transparent flex items-center gap-2">
+                <BookOpen className="h-6 w-6 text-blue-600" />
                 Flipbook Presentation Center
               </h1>
               <p className="text-xs text-muted-foreground">
@@ -450,14 +450,14 @@ export default function TeacherBooks() {
             <TabsList className="bg-card shadow-sm border rounded-xl p-1 gap-1">
               <TabsTrigger
                 value="present"
-                className="rounded-lg gap-1.5 data-[state=active]:bg-violet-500 data-[state=active]:text-white font-medium text-xs py-1.5 px-3"
+                className="rounded-lg gap-1.5 data-[state=active]:bg-blue-500 data-[state=active]:text-white font-medium text-xs py-1.5 px-3"
               >
                 <Presentation className="h-3.5 w-3.5" />
                 Presenter
               </TabsTrigger>
               <TabsTrigger
                 value="manage"
-                className="rounded-lg gap-1.5 data-[state=active]:bg-violet-500 data-[state=active]:text-white font-medium text-xs py-1.5 px-3"
+                className="rounded-lg gap-1.5 data-[state=active]:bg-blue-500 data-[state=active]:text-white font-medium text-xs py-1.5 px-3"
               >
                 <Settings className="h-3.5 w-3.5" />
                 Settings (CRUD)
@@ -497,7 +497,7 @@ export default function TeacherBooks() {
               <div className="flex items-center gap-2">
                 <Button
                   onClick={triggerPresentMode}
-                  className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl shadow-md gap-2"
+                  className="bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white rounded-xl shadow-md gap-2"
                 >
                   <Maximize2 className="h-4 w-4" />
                   Present Fullscreen
@@ -546,7 +546,7 @@ export default function TeacherBooks() {
               </p>
               <Button
                 variant="outline"
-                className="mt-4 rounded-xl border border-violet-500/35 hover:bg-violet-50 text-violet-600"
+                className="mt-4 rounded-xl border border-blue-500/35 hover:bg-blue-50 text-blue-600"
                 onClick={() => setActiveTab("manage")}
               >
                 Add Your First Book
@@ -567,7 +567,7 @@ export default function TeacherBooks() {
               </div>
               <Button
                 onClick={() => handleOpenDialog()}
-                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl gap-1.5 text-xs py-1.5 px-3"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-1.5 text-xs py-1.5 px-3"
               >
                 <Plus className="h-4 w-4" />
                 Add Book Link
@@ -610,7 +610,7 @@ export default function TeacherBooks() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 hover:bg-violet-100 hover:text-violet-700 text-muted-foreground"
+                                className="h-8 w-8 hover:bg-blue-100 hover:text-blue-700 text-muted-foreground"
                                 onClick={() => handleOpenDialog(b)}
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
@@ -643,7 +643,7 @@ export default function TeacherBooks() {
           <form onSubmit={handleSaveBook}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-violet-500" />
+                <BookOpen className="h-5 w-5 text-blue-500" />
                 {editingBook ? "Edit Flipbook Details" : "Add New Flipbook"}
               </DialogTitle>
               <DialogDescription className="text-xs">
@@ -726,7 +726,7 @@ export default function TeacherBooks() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl min-w-[80px]"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl min-w-[80px]"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

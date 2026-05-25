@@ -113,13 +113,13 @@ export function StudentNavBar() {
                   <Icon
                     className={cn(
                       "relative h-5 w-5 transition-colors",
-                      active ? "text-violet-600 dark:text-violet-300" : "text-muted-foreground"
+                      active ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground"
                     )}
                   />
                   <span
                     className={cn(
                       "relative text-[10px] font-semibold transition-colors",
-                      active ? "text-violet-700 dark:text-violet-200" : "text-muted-foreground"
+                      active ? "text-blue-700 dark:text-blue-200" : "text-muted-foreground"
                     )}
                   >
                     {item.label}
@@ -133,7 +133,7 @@ export function StudentNavBar() {
               className={cn(
                 "relative flex flex-col items-center gap-0.5 px-3 pt-2 pb-1.5 rounded-2xl transition-all min-w-[64px] tap-44",
                 (isMoreActive || moreOpen)
-                  ? "text-violet-600 dark:text-violet-300"
+                  ? "text-blue-600 dark:text-blue-300"
                   : "text-muted-foreground"
               )}
             >

@@ -13,10 +13,10 @@ interface StatTileProps {
 }
 
 const TONES: Record<NonNullable<StatTileProps["tone"]>, { bg: string; ring: string; text: string }> = {
-  violet:  { bg: "from-violet-500/15 to-fuchsia-500/5",   ring: "ring-violet-500/20",  text: "text-violet-600 dark:text-violet-300" },
+  violet:  { bg: "from-blue-500/15 to-sky-500/5",   ring: "ring-blue-500/20",  text: "text-blue-600 dark:text-blue-300" },
   amber:   { bg: "from-amber-500/15 to-orange-500/5",     ring: "ring-amber-500/20",   text: "text-amber-600 dark:text-amber-300" },
   emerald: { bg: "from-emerald-500/15 to-teal-500/5",     ring: "ring-emerald-500/20", text: "text-emerald-600 dark:text-emerald-300" },
-  rose:    { bg: "from-rose-500/15 to-pink-500/5",        ring: "ring-rose-500/20",    text: "text-rose-600 dark:text-rose-300" },
+  rose:    { bg: "from-rose-500/15 to-sky-500/5",        ring: "ring-rose-500/20",    text: "text-rose-600 dark:text-rose-300" },
   sky:     { bg: "from-sky-500/15 to-cyan-500/5",         ring: "ring-sky-500/20",     text: "text-sky-600 dark:text-sky-300" },
 };
 

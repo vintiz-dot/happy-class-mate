@@ -82,11 +82,11 @@ interface ControlPanelProps {
 }
 
 function ControlPanel({ icon: Icon, title, description, tone, delay = 0, children }: ControlPanelProps) {
-  const toneRing = tone === "amber" ? "ring-amber-500/15" : "ring-violet-500/15";
+  const toneRing = tone === "amber" ? "ring-amber-500/15" : "ring-blue-500/15";
   const toneIcon =
     tone === "amber"
       ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-      : "bg-violet-500/15 text-violet-600 dark:text-violet-300";
+      : "bg-blue-500/15 text-blue-600 dark:text-blue-300";
   return (
     <motion.div {...fadeUp} transition={{ duration: 0.3, delay }}>
       <div className={`surface-2 rounded-2xl p-5 ring-1 ${toneRing} shadow-q1 lift`}>

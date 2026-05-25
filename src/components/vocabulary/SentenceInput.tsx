@@ -41,14 +41,14 @@ export function SentenceInput({ onSubmit, loading }: Props) {
           {/* Blue/Indigo Blob */}
           <div className="absolute top-1/2 right-[5%] -translate-y-1/2 w-[340px] h-[160px] rounded-full bg-gradient-to-r from-blue-500/50 via-indigo-400/40 to-slate-300/10 blur-2xl gemini-glow-2" />
           {/* Violet/Indigo Center Blob */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[140px] rounded-full bg-gradient-to-r from-violet-500/45 via-indigo-450/35 to-blue-400/10 blur-3xl gemini-glow-3" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[140px] rounded-full bg-gradient-to-r from-blue-500/45 via-indigo-450/35 to-blue-400/10 blur-3xl gemini-glow-3" />
         </div>
 
         <div
           className={cn(
             "relative z-10 flex items-center gap-2 rounded-full p-1.5 transition-all duration-300",
             "bg-white dark:bg-[hsl(240_8%_12%)] border border-slate-200 dark:border-[hsl(240_8%_20%)] shadow-[0_2px_12px_rgba(0,0,0,0.04)]",
-            "group-focus-within:border-violet-400/80 dark:group-focus-within:border-[hsl(265_50%_40%)]",
+            "group-focus-within:border-blue-400/80 dark:group-focus-within:border-[hsl(265_50%_40%)]",
             "group-focus-within:shadow-[0_4px_24px_rgba(139,92,246,0.12)]"
           )}
         >

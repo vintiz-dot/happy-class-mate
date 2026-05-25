@@ -218,7 +218,7 @@ export function ResourceUploadDialog({ open, onOpenChange, editResource }: Props
               </>
             ) : (
               <>
-                <Upload className="h-5 w-5 text-violet-500" />
+                <Upload className="h-5 w-5 text-blue-500" />
                 Upload Resource
               </>
             )}
@@ -263,7 +263,7 @@ export function ResourceUploadDialog({ open, onOpenChange, editResource }: Props
               onClick={() => fileInputRef.current?.click()}
               className={cn(
                 "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors",
-                "hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-900/10",
+                "hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10",
                 file ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10" : "border-muted-foreground/25",
               )}
             >
@@ -293,7 +293,7 @@ export function ResourceUploadDialog({ open, onOpenChange, editResource }: Props
                 <div className="space-y-2">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    Drag & drop a file, or <span className="text-violet-600 font-medium">click to browse</span>
+                    Drag & drop a file, or <span className="text-blue-600 font-medium">click to browse</span>
                   </p>
                   {isEdit && editResource?.file_name && (
                     <p className="text-xs text-muted-foreground">
@@ -365,7 +365,7 @@ export function ResourceUploadDialog({ open, onOpenChange, editResource }: Props
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer transition-colors",
                     selectedClasses.includes(c.id)
-                      ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                       : "hover:bg-muted/60",
                   )}
                 >
@@ -515,7 +515,7 @@ export function ResourceUploadDialog({ open, onOpenChange, editResource }: Props
             <Button
               onClick={handleSubmit}
               disabled={isSaving}
-              className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+              className="gap-2 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700"
             >
               {isSaving ? (
                 <span className="animate-spin">⏳</span>

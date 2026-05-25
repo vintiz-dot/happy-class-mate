@@ -248,7 +248,7 @@ export function QuickPayPanel({ month }: QuickPayPanelProps) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-amber-500/10 border-b">
+      <CardHeader className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-amber-500/10 border-b">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <CardTitle className="flex items-center gap-2">

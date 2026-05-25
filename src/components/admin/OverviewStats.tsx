@@ -125,7 +125,7 @@ export function OverviewStats() {
       value: financeSummary?.totalCollected || 0,
       icon: DollarSign,
       description: `${financeSummary?.collectionRate || 0}% collected of ${((financeSummary?.totalTuition || 0) / 1000000).toFixed(1)}M billed`,
-      gradient: "from-rose-500 to-pink-500",
+      gradient: "from-rose-500 to-sky-500",
       bgGlow: "bg-rose-500/20",
       trend: financeSummary?.collectionRate !== undefined ? `${financeSummary.collectionRate}%` : null,
       trendUp: financeSummary?.collectionRate !== undefined ? (financeSummary.collectionRate >= 80 ? true : financeSummary.collectionRate < 50 ? false : null) : null,

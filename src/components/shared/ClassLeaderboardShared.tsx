@@ -379,7 +379,7 @@ export function ClassLeaderboardShared({
           <Button
             size="sm"
             onClick={() => setShowBulkDialog(true)}
-            className="bg-violet-500 hover:bg-violet-400"
+            className="bg-blue-500 hover:bg-blue-400"
           >
             <Trophy className="h-4 w-4 mr-1" />
             Add Points

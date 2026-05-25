@@ -129,7 +129,7 @@ export default function TeacherResources() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FolderOpen className="h-6 w-6 text-violet-500" />
+              <FolderOpen className="h-6 w-6 text-blue-500" />
               Resource Hub
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -141,7 +141,7 @@ export default function TeacherResources() {
               setEditResource(null);
               setUploadOpen(true);
             }}
-            className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-md"
+            className="gap-2 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 shadow-md"
           >
             <Plus className="h-4 w-4" />
             Upload Resource

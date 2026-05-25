@@ -535,7 +535,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
               className={cn(
                 "h-1.5 w-3 rounded-full transition-colors",
                 i < savesToday
-                  ? "bg-violet-500"
+                  ? "bg-blue-500"
                   : "bg-slate-200 dark:bg-[hsl(240_8%_18%)]",
               )}
             />
@@ -585,8 +585,8 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
 
             {/* CEFR badge + root word */}
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-violet-50 dark:bg-[hsl(265_40%_16%)] flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-violet-600 dark:text-violet-400/80" />
+              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-[hsl(265_40%_16%)] flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400/80" />
               </div>
               <div>
                 <h2 className="text-xl font-semibold capitalize text-foreground/90">
@@ -652,7 +652,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                     <span key={i} className="flex items-center gap-1.5">
                       <Badge
                         variant="outline"
-                        className="text-sm font-bold px-3 py-1 bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-300"
+                        className="text-sm font-bold px-3 py-1 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300"
                       >
                         {syl}
                       </Badge>
@@ -740,7 +740,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 rounded-full text-violet-500 hover:bg-violet-50"
+                            className="h-7 w-7 rounded-full text-blue-500 hover:bg-blue-50"
                             onClick={() => speak(wf.form)}
                             aria-label={`Pronounce ${wf.form}`}
                           >
@@ -776,7 +776,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                       className="rounded-xl border bg-white dark:bg-slate-800/50 p-4 space-y-2"
                     >
                       <div className="flex items-start gap-2">
-                        <span className="text-sm font-black text-violet-500 shrink-0 mt-0.5">
+                        <span className="text-sm font-black text-blue-500 shrink-0 mt-0.5">
                           {i + 1}.
                         </span>
                         <p className="text-sm font-medium text-foreground flex-1">
@@ -958,7 +958,7 @@ export function WordExplorer({ onWordSaved }: Props = {}) {
                   className={cn(
                     "w-full h-12 text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm",
                     hasAtLeastOneValid && !capReached
-                      ? "bg-violet-600 hover:bg-violet-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-violet-200 dark:border dark:border-[hsl(265_40%_24%)] hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]"
+                      ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-[hsl(265_40%_16%)] dark:hover:bg-[hsl(265_40%_20%)] dark:text-blue-200 dark:border dark:border-[hsl(265_40%_24%)] hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]"
                       : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed",
                   )}
                 >
