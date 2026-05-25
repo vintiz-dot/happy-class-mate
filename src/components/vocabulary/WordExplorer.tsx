@@ -77,7 +77,7 @@ const LEVEL_COLORS: Record<string, string> = {
   "A2": "bg-blue-100 text-blue-700 border-blue-300",
   "B1": "bg-amber-100 text-amber-700 border-amber-300",
   "B2": "bg-rose-100 text-rose-700 border-rose-300",
-  "C1": "bg-purple-100 text-purple-700 border-purple-300",
+  "C1": "bg-blue-100 text-blue-700 border-blue-300",
   "C2": "bg-slate-100 text-slate-700 border-slate-300",
 };
 

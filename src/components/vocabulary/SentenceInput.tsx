@@ -38,8 +38,8 @@ export function SentenceInput({ onSubmit, loading }: Props) {
         <div className="absolute inset-0 z-0 overflow-visible pointer-events-none opacity-90 dark:opacity-70 select-none">
           {/* Blue/Cyan Blob */}
           <div className="absolute top-1/2 left-[5%] -translate-y-1/2 w-[340px] h-[160px] rounded-full bg-gradient-to-r from-blue-500/50 via-cyan-400/40 to-teal-300/10 blur-2xl gemini-glow-1" />
-          {/* Purple/Pink Blob */}
-          <div className="absolute top-1/2 right-[5%] -translate-y-1/2 w-[340px] h-[160px] rounded-full bg-gradient-to-r from-purple-500/50 via-pink-400/40 to-indigo-300/10 blur-2xl gemini-glow-2" />
+          {/* Blue/Indigo Blob */}
+          <div className="absolute top-1/2 right-[5%] -translate-y-1/2 w-[340px] h-[160px] rounded-full bg-gradient-to-r from-blue-500/50 via-indigo-400/40 to-slate-300/10 blur-2xl gemini-glow-2" />
           {/* Violet/Indigo Center Blob */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[140px] rounded-full bg-gradient-to-r from-violet-500/45 via-indigo-450/35 to-blue-400/10 blur-3xl gemini-glow-3" />
         </div>

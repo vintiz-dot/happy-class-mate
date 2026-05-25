@@ -97,7 +97,7 @@ export function StudentAnalyticsModal({ open, onOpenChange, student, classId, se
               transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
             >
               {/* Header Section - Character Profile */}
-              <div className="relative p-6 pb-8 bg-gradient-to-br from-primary/20 via-background to-purple-500/10 border-b border-border/50">
+              <div className="relative p-6 pb-8 bg-gradient-to-br from-primary/20 via-background to-blue-500/10 border-b border-border/50">
                 {/* Background sparkles */}
                 <div className="absolute inset-0 overflow-hidden">
                   {Array.from({ length: 20 }).map((_, i) => (

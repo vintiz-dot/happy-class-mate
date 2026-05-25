@@ -194,11 +194,11 @@ export default function NotificationBell() {
                       <div className="flex items-start gap-3">
                         <div className={`rounded-full p-2 ${
                           isHomework ? 'bg-blue-100 dark:bg-blue-900/30' : 
-                          isJournal ? 'bg-purple-100 dark:bg-purple-900/30' :
+                          isJournal ? 'bg-blue-100 dark:bg-blue-900/30' :
                           'bg-muted'
                         }`}>
                           {isHomework && <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
-                          {isJournal && <Bell className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+                          {isJournal && <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                           {!isHomework && !isJournal && <Bell className="h-4 w-4" />}
                         </div>
                         
