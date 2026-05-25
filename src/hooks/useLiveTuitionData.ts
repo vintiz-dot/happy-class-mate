@@ -132,7 +132,7 @@ export function useLiveTuitionData(month: string) {
           total_amount: data.totalAmount ?? 0,
           recorded_payment: data.payments?.monthPayments ?? 0,
           finalPayable: data.totalAmount + (data.carry?.carryInDebt ?? 0) - (data.carry?.carryInCredit ?? 0),
-          balance: data.carry?.carryOutDebt ?? -(data.carry?.carryOutCredit ?? 0),
+          balance: (data.carry?.carryOutDebt || 0) - (data.carry?.carryOutCredit || 0),
           carry_out_credit: data.carry?.carryOutCredit ?? 0,
           carry_out_debt: data.carry?.carryOutDebt ?? 0,
           carry_in_credit: data.carry?.carryInCredit ?? 0,
