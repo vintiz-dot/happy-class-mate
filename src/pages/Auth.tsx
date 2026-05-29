@@ -85,6 +85,21 @@ const Auth = () => {
     checkForAdmins();
   }, []);
 
+  const handleDemoLogin = async (demoEmail: string, demoPass: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPass });
+      if (error) throw error;
+      toast.success("Welcome to the demo!");
+      const state = location.state as { redirectTo?: string } | null;
+      navigate(state?.redirectTo || "/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "Demo login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -368,6 +383,49 @@ const Auth = () => {
                 </button>
               </>
             )}
+          </div>
+
+          {/* Demo Login Section */}
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <p className="text-sm font-semibold text-center mb-4 text-white/80">Try a demo account</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="h-10 border-white/20 bg-white/5 hover:bg-white/10 text-xs font-semibold"
+                onClick={() => handleDemoLogin('admin@demo.com', 'admin123')}
+                disabled={loading}
+              >
+                Admin Demo
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="h-10 border-white/20 bg-white/5 hover:bg-white/10 text-xs font-semibold"
+                onClick={() => handleDemoLogin('teacher@demo.com', 'teacher123')}
+                disabled={loading}
+              >
+                Teacher Demo
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="h-10 border-white/20 bg-white/5 hover:bg-white/10 text-xs font-semibold"
+                onClick={() => handleDemoLogin('student@demo.com', 'student123')}
+                disabled={loading}
+              >
+                Student Demo
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="h-10 border-white/20 bg-white/5 hover:bg-white/10 text-xs font-semibold"
+                onClick={() => handleDemoLogin('family@demo.com', 'family123')}
+                disabled={loading}
+              >
+                Family Demo
+              </Button>
+            </div>
           </div>
 
           {/* Trust marker */}
