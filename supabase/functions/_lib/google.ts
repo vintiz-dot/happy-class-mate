@@ -195,7 +195,8 @@ export interface CseImage {
  * GOOGLE_CSE_API_KEY secret so existing deployments keep working.
  */
 export async function customSearchImages(query: string, count = 3): Promise<CseImage[]> {
-  const rawCreds = Deno.env.get("CUSTOMIMAGE");
+  // The deployed secret is lowercase `customimage`; accept both spellings.
+  const rawCreds = Deno.env.get("CUSTOMIMAGE") ?? Deno.env.get("customimage");
   const num = Math.min(Math.max(count, 1), 10);
 
   let cx = Deno.env.get("GOOGLE_CSE_ID") || "";

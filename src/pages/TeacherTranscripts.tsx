@@ -214,7 +214,7 @@ export default function TeacherTranscripts() {
               </Button>
             </div>
             <Textarea
-              placeholder={'Paste the transcript here…\n\nSupported: Zoom/Teams WebVTT, SRT, or plain lines like\n"Anna: I go to the park yesterday"'}
+              placeholder={'Paste the transcript here…\n\nWorks with raw classroom-recorder transcripts (no speaker labels needed — students are identified from names called out in class), or labeled formats: Zoom/Teams WebVTT, SRT, "Anna: I go to the park yesterday"'}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               className="min-h-[120px] font-mono text-xs"

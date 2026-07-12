@@ -20,8 +20,8 @@ OpenAI credential is ever readable by the browser.
 | Secret | Content | Used by |
 |---|---|---|
 | `GOOGLE_CREDENTIALS` | Raw JSON string of the Cloud Vision service account (`lms-ocr@…`) | `ocr-student-work`, `ocr-vocab-scan` |
-| `CUSTOMIMAGE` | Raw JSON of the Custom Search credentials (service-account JSON, or `{"api_key":"…","cx":"…"}`) | `ocr-vocab-scan`, `image-search` |
-| `GOOGLE_CSE_ID` | Custom Search Engine ID (`cx`) — required when `CUSTOMIMAGE` is a service-account JSON | `ocr-vocab-scan`, `image-search` |
+| `CUSTOMIMAGE` (or lowercase `customimage` — both are accepted; the deployed secret uses lowercase) | Raw JSON of the Custom Search credentials (service-account JSON, or `{"api_key":"…","cx":"…"}`) | `ocr-vocab-scan`, `image-search` |
+| `GOOGLE_CSE_ID` | Custom Search Engine ID (`cx`) — required when `CUSTOMIMAGE` is a service-account JSON (already set) | `ocr-vocab-scan`, `image-search` |
 | `OPENAI_API_KEY` | OpenAI key (already set — reused by transcript analysis & report generation) | `analyze-transcript`, `generate-student-report`, existing dictionary functions |
 
 ## Setting the secrets

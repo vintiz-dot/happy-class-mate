@@ -96,6 +96,58 @@ function parseTranscript(raw: string): Utterance[] {
   return out.filter((u) => u.text);
 }
 
+/**
+ * Classes are offline: a room recorder captures all audio, and the teacher
+ * (or students) call out a student's name before they speak — so raw
+ * recorder transcripts usually have NO "Name:" speaker labels. When the
+ * structural parser finds no usable speaker turns, this LLM pass attributes
+ * utterances to roster names based on those call-outs.
+ */
+async function llmDiarize(
+  rawText: string,
+  rosterNames: string[],
+  teacherNames: string[],
+): Promise<Utterance[]> {
+  const key = Deno.env.get("OPENAI_API_KEY");
+  if (!key) throw new Error("OPENAI_API_KEY is not configured");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      max_tokens: 6000,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You segment a raw classroom audio-recording transcript into speaker turns. " +
+            "This is an offline English class for Vietnamese school students: one recorder " +
+            "captured everyone, and the teacher usually calls a student's NAME right before " +
+            "that student speaks (e.g. \"Anna, can you read this?\" → the next utterance is Anna's). " +
+            "Students may also call out each other's names.\n\n" +
+            `Known students: ${rosterNames.join(", ") || "(unknown)"}.\n` +
+            `Teacher(s): ${teacherNames.join(", ") || "Teacher"}.\n\n` +
+            "Attribute every utterance to the most likely speaker. Use the student names " +
+            'exactly as listed, "Teacher" for the teacher, and "Unknown" only when genuinely ' +
+            "unattributable. Split turns at natural speaker changes; keep the original wording.\n\n" +
+            'Return JSON: {"utterances": [{"speaker": string, "text": string}]}',
+        },
+        { role: "user", content: rawText.slice(0, 20000) },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI diarization error (${res.status}): ${await res.text()}`);
+  const data = await res.json();
+  const parsed = JSON.parse(data.choices?.[0]?.message?.content || "{}");
+  const utts: any[] = Array.isArray(parsed.utterances) ? parsed.utterances : [];
+  return utts
+    .map((u) => ({ speaker: String(u.speaker || "Unknown").trim(), text: String(u.text || "").trim() }))
+    .filter((u) => u.text);
+}
+
 interface SpeakerStats {
   label: string;
   utterances: string[];
@@ -197,12 +249,7 @@ Deno.serve(async (req) => {
       .single();
     if (trErr || !tr) return respond({ success: false, error: "transcript not found" }, 404);
 
-    // ── 1 + 2. Parse and compute deterministic metrics ───────────────────
-    const utterances = parseTranscript(tr.raw_text);
-    if (!utterances.length) throw new Error("could not parse any speaker turns from the transcript");
-    const stats = computeStats(utterances);
-
-    // ── 3. Roster match ──────────────────────────────────────────────────
+    // ── 1. Roster + teachers (needed both for parsing fallback & matching)
     const { data: enrollRows } = await sb
       .from("enrollments")
       .select("students(id, full_name)")
@@ -217,12 +264,30 @@ Deno.serve(async (req) => {
       .select("teachers(full_name)")
       .eq("class_id", tr.class_id)
       .limit(20);
-    const teacherNames = new Set(
-      (teacherRows || [])
-        .map((r: any) => r.teachers?.full_name)
-        .filter(Boolean)
-        .map((n: string) => normName(n)),
-    );
+    const rawTeacherNames = [
+      ...new Set(
+        (teacherRows || []).map((r: any) => r.teachers?.full_name).filter(Boolean) as string[],
+      ),
+    ];
+    const teacherNames = new Set(rawTeacherNames.map((n) => normName(n)));
+    teacherNames.add("teacher"); // diarization labels the teacher generically
+
+    // ── 2. Parse into speaker turns ──────────────────────────────────────
+    // Structural parse first (Zoom/Teams VTT, SRT, "Name: line"). Offline
+    // classes use a room recorder with no labels — when the parse yields
+    // fewer than 2 distinct speakers, fall back to LLM diarization keyed on
+    // names called out in class.
+    let utterances = parseTranscript(tr.raw_text);
+    const distinctSpeakers = new Set(utterances.map((u) => normName(u.speaker))).size;
+    if (!utterances.length || distinctSpeakers < 2) {
+      utterances = await llmDiarize(
+        tr.raw_text,
+        roster.map((s) => s.full_name),
+        rawTeacherNames,
+      );
+    }
+    if (!utterances.length) throw new Error("could not attribute any speaker turns in the transcript");
+    const stats = computeStats(utterances);
 
     const matchStudent = (label: string) => {
       const n = normName(label);
