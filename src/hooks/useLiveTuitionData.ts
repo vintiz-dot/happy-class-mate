@@ -104,17 +104,30 @@ export function useLiveTuitionData(month: string) {
           .map((s) => s.id)
       );
 
-      // Call bulk endpoint - single call instead of N calls
+      // Call bulk endpoint in batches. calculate-tuition-bulk caps its input
+      // at 200 student ids per request (and can time out on very large
+      // batches), so a roster above that must be chunked — otherwise the
+      // single call returns a non-2xx and the whole tuition tab errors.
       const studentIdsToProcess = studentsWithEnrollments.map((s) => s.id);
-      
-      const { data: bulkData, error: bulkError } = await supabase.functions.invoke(
-        "calculate-tuition-bulk",
-        { body: { studentIds: studentIdsToProcess, month } }
+
+      const BATCH_SIZE = 150;
+      const batches: string[][] = [];
+      for (let i = 0; i < studentIdsToProcess.length; i += BATCH_SIZE) {
+        batches.push(studentIdsToProcess.slice(i, i + BATCH_SIZE));
+      }
+
+      const batchResultArrays = await Promise.all(
+        batches.map((ids) =>
+          supabase.functions
+            .invoke("calculate-tuition-bulk", { body: { studentIds: ids, month } })
+            .then(({ data, error }) => {
+              if (error) throw error;
+              return (data?.results as any[]) || [];
+            })
+        )
       );
 
-      if (bulkError) throw bulkError;
-
-      const bulkResults = bulkData?.results || [];
+      const bulkResults = batchResultArrays.flat();
       const resultMap = new Map<string, any>(bulkResults.map((r: any) => [r.studentId, r]));
 
       // Map to LiveTuitionItem[]

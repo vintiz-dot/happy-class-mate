@@ -42,7 +42,7 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
   }, [density]);
 
   // Use live tuition data from calculate-tuition edge function
-  const { data: tuitionData, isLoading, refetch, isRefetching } = useLiveTuitionData(month);
+  const { data: tuitionData, isLoading, isError, error, refetch, isRefetching } = useLiveTuitionData(month);
 
   // Calculate summary statistics
   const stats = useMemo(() => {
@@ -241,10 +241,25 @@ export const AdminTuitionListEnhanced = ({ month }: AdminTuitionListEnhancedProp
         </div>
       </div>
 
+      {/* Error state — surfaces edge-function failures instead of crashing */}
+      {isError && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-destructive">Couldn't load tuition</p>
+            <p className="text-sm text-muted-foreground">
+              {(error as any)?.message || "The tuition calculation service returned an error."}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
+            {isRefetching ? "Retrying…" : "Retry"}
+          </Button>
+        </div>
+      )}
+
       {/* Summary Cards — sticky compact strip when scrolled */}
       <div className="sticky top-[72px] md:top-[64px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
         <div className="surface-2 backdrop-blur-md supports-[backdrop-filter]:bg-card/80 rounded-xl">
-          <TuitionSummaryCards stats={stats!} isLoading={isLoading} />
+          <TuitionSummaryCards stats={stats} isLoading={isLoading} />
         </div>
       </div>
 

@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type AttendanceStatus = "Present" | "Absent" | "Excused";
+type AttendanceStatus = "Present" | "Absent" | "Excused" | "Late";
 
 function getDayOfWeek(dateStr: string): number {
   const date = new Date(`${dateStr}T12:00:00+07:00`);
@@ -292,7 +292,9 @@ Deno.serve(async (req) => {
           const defaultRate = Number(classInfo?.session_rate_vnd ?? 0);
           const overrideRate = enrollment.rate_override_vnd;
           const actualRate = overrideRate ?? defaultRate;
-          const billable = att === "Present" || att === "Absent";
+          // Late students attended, so they are billed like Present. Only
+          // Excused (forgiven) absences are non-billable.
+          const billable = att === "Present" || att === "Absent" || att === "Late";
 
           if (billable && actualRate > 0) {
             baseAmount += defaultRate;

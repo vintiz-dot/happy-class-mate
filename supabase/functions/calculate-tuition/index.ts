@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type AttendanceStatus = "Present" | "Absent" | "Excused";
+type AttendanceStatus = "Present" | "Absent" | "Excused" | "Late";
 
 interface SessionRow {
   id: string;
@@ -206,8 +206,8 @@ Deno.serve(async (req) => {
       const actualRate = overrideRate ?? defaultRate;
       const className = classNameMap.get(s.class_id) || 'Unknown';
 
-      // Only bill sessions with explicit Present or Absent attendance
-      const billable = att === "Present" || att === "Absent";
+      // Bill Present, Absent, or Late (all attended/charged); Excused is forgiven.
+      const billable = att === "Present" || att === "Absent" || att === "Late";
       if (billable && actualRate > 0) {
         // Calculate expected using default rate
         expectedClassTuition += defaultRate;
