@@ -71,3 +71,15 @@ verify_jwt = false
 
 [functions.word-enrichment]
 verify_jwt = false
+
+[functions.ocr-student-work]
+verify_jwt = true
+
+[functions.ocr-vocab-scan]
+verify_jwt = true
+
+[functions.analyze-transcript]
+verify_jwt = true
+
+[functions.generate-student-report]
+verify_jwt = true

@@ -14,6 +14,7 @@ import { ClassLeaderboardShared } from "@/components/shared/ClassLeaderboardShar
 import { ManualPointsDialog } from "@/components/shared/ManualPointsDialog";
 import { SetMonitorControl } from "@/components/teacher/SetMonitorControl";
 import { ClassEconomySettings } from "@/components/teacher/ClassEconomySettings";
+import { LiveEngagementHUD } from "@/components/teacher/LiveEngagementHUD";
 import { Settings } from "lucide-react";
 
 export default function TeacherClassDetail() {
@@ -204,6 +205,10 @@ export default function TeacherClassDetail() {
 
   return (
     <Layout title={classData.name}>
+      {/* Real-time engagement telemetry — always visible during class */}
+      <div className="mb-4">
+        <LiveEngagementHUD classId={id!} />
+      </div>
       <Tabs defaultValue="calendar" className="space-y-4">
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>

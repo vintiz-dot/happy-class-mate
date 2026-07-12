@@ -50,6 +50,9 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Vocabulary = lazy(() => import("./pages/Vocabulary"));
 const TeacherVocabularyAudit = lazy(() => import("./pages/TeacherVocabularyAudit"));
 const TeacherBooks = lazy(() => import("./pages/TeacherBooks"));
+const TeacherSmartUpload = lazy(() => import("./pages/TeacherSmartUpload"));
+const TeacherTranscripts = lazy(() => import("./pages/TeacherTranscripts"));
+const StudentMyWork = lazy(() => import("./pages/StudentMyWork"));
 const TuitionReviewQueue = lazy(() =>
   import("./components/admin/TuitionReviewQueue").then((m) => ({ default: m.TuitionReviewQueue }))
 );
@@ -114,12 +117,15 @@ function AppContent() {
                   <Route path="/teacher/resources" element={<TeacherResources />} />
                   <Route path="/teacher/vocabulary-audit" element={<TeacherVocabularyAudit />} />
                   <Route path="/teacher/books" element={<TeacherBooks />} />
+                  <Route path="/teacher/smart-upload" element={<TeacherSmartUpload />} />
+                  <Route path="/teacher/transcripts" element={<TeacherTranscripts />} />
 
                   {/* Student routes */}
                   <Route path="/student/dashboard" element={<StudentDashboard />} />
                   <Route path="/student/assignments" element={<StudentAssignments />} />
                   <Route path="/student/journal" element={<StudentJournal />} />
                   <Route path="/student/resources" element={<StudentResources />} />
+                  <Route path="/student/my-work" element={<StudentMyWork />} />
 
                   {/* Shared routes */}
                   <Route path="/schedule" element={<Schedule />} />

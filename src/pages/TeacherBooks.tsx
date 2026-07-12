@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,6 +72,7 @@ interface ClassItem {
 export default function TeacherBooks() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Data State
   const [teacherId, setTeacherId] = useState<string | null>(null);
@@ -430,7 +432,10 @@ export default function TeacherBooks() {
               variant="outline"
               size="icon"
               className="rounded-full shadow-sm hover:bg-muted"
-              onClick={() => window.history.back()}
+              // The embedded flipbook iframe pushes its internal page turns
+              // into browser history, so history.back() traps the teacher on
+              // this page. Navigate explicitly instead.
+              onClick={() => navigate("/teacher/dashboard")}
               title="Return to LMS"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -534,7 +539,7 @@ export default function TeacherBooks() {
                 />
 
                 {/* Overlaid classroom tools launcher */}
-                <ClassroomToolsLauncher container={presentationContainerRef.current} />
+                <ClassroomToolsLauncher />
               </div>
             </div>
           ) : (

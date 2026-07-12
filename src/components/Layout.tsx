@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen, Sparkles, BookOpen } from "lucide-react";
+import { GraduationCap, LogOut, UserCog, BookOpenCheck, CalendarDays, TrendingUp, PiggyBank, LayoutGrid, FileText, ListTodo, NotebookPen, Trophy, Menu, X, ChevronLeft, ChevronRight, Building2, Receipt, Settings2, HardDrive, UsersRound, School, Megaphone, FileBarChart2, FolderOpen, Sparkles, BookOpen, ScanText, AudioLines } from "lucide-react";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import { ChangePassword } from "@/components/auth/ChangePassword";
 import NotificationBell from "@/components/NotificationBell";
@@ -14,6 +14,7 @@ import { StudentNavBar } from "@/components/student/StudentNavBar";
 import { AdminTopBar } from "@/components/AdminTopBar";
 import { ClassroomToolsLauncher } from "@/components/classroom-tools/ClassroomToolsLauncher";
 import { PWAInstallButton } from "./PWAInstallButton";
+import { CommandPalette } from "@/components/CommandPalette";
 
 interface LayoutProps {
   children: ReactNode;
@@ -109,6 +110,8 @@ const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
           { icon: Settings2, label: "Automation", path: "/admin?tab=automation" },
           { icon: HardDrive, label: "Data", path: "/admin?tab=data" },
           { icon: Megaphone, label: "Announcements", path: "/admin?tab=announcements" },
+          { icon: ScanText, label: "Smart Upload", path: "/teacher/smart-upload" },
+          { icon: AudioLines, label: "Transcripts", path: "/teacher/transcripts" },
           { icon: BookOpen, label: "Flipbooks", path: "/teacher/books" },
         ];
       case "teacher":
@@ -122,6 +125,8 @@ const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
           { icon: NotebookPen, label: "Journal", path: "/teacher/journal" },
           { icon: FileBarChart2, label: "Exam Reports", path: "/teacher/exam-reports" },
           { icon: Sparkles, label: "Vocabulary Audit", path: "/teacher/vocabulary-audit" },
+          { icon: ScanText, label: "Smart Upload", path: "/teacher/smart-upload" },
+          { icon: AudioLines, label: "Transcripts", path: "/teacher/transcripts" },
           { icon: FolderOpen, label: "Resources", path: "/teacher/resources" },
           { icon: BookOpen, label: "Flipbooks", path: "/teacher/books" },
         ];
@@ -183,6 +188,8 @@ const Layout = ({ children, title, hideNavigation = false }: LayoutProps) => {
   // Admin/Teacher layout with sidebar
   return (
     <div className="min-h-screen bg-background flex w-full">
+      {/* Global Cmd+K / Ctrl+K command bar */}
+      <CommandPalette />
       {/* Desktop Sidebar */}
       <aside
         className={cn(

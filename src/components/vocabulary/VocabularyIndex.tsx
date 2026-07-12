@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import type { VocabularyWord } from "@/hooks/useVocabularyStore";
 import { ImageCarousel, type ImageItem } from "./ImageCarousel";
+import { WordDetailSheet } from "./WordDetailSheet";
 
 interface Props {
   items: VocabularyWord[];
@@ -83,6 +84,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
   const [page, setPage] = useState(1);
   const [filterMastery, setFilterMastery] = useState<number | null>(null);
   const [editing, setEditing] = useState<VocabularyWord | null>(null);
+  const [detail, setDetail] = useState<VocabularyWord | null>(null);
 
   const fuse = useMemo(() => new Fuse(items, {
     keys: ["word", "meaning", "example"],
@@ -178,7 +180,12 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
               key={item.id}
               className="group overflow-hidden border border-slate-200 dark:border-[hsl(240_8%_16%)] shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-[hsl(240_8%_22%)] transition-all duration-300 rounded-2xl bg-white dark:bg-[hsl(240_8%_10%)]"
             >
-              <div className="relative h-36 w-full overflow-hidden bg-muted">
+              <div
+                className="relative h-36 w-full overflow-hidden bg-muted cursor-pointer"
+                onClick={() => setDetail(item)}
+                role="button"
+                aria-label={`Open ${item.word}`}
+              >
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
@@ -197,7 +204,7 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
                   size="icon"
                   variant="ghost"
                   className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-sm"
-                  onClick={() => pronounceWord(item)}
+                  onClick={(e) => { e.stopPropagation(); pronounceWord(item); }}
                   aria-label="Listen to word"
                 >
                   <Volume2 className="w-4 h-4" />
@@ -316,6 +323,9 @@ export function VocabularyIndex({ items, onDelete, onUpdate }: Props) {
           </Pagination>
         </div>
       )}
+
+      {/* Immersive word detail + micro-quiz */}
+      <WordDetailSheet word={detail} bank={items} onClose={() => setDetail(null)} />
 
       {/* Edit modal */}
       {editing && (
