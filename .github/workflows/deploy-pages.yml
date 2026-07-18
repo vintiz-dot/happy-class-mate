@@ -1,0 +1,71 @@
+# Deploy the app to GitHub Pages at https://user.hanoienglish.com
+# ================================================================
+# GitHub Pages only serves static files — it does not build Vite apps —
+# so this workflow builds on every push to main and publishes dist/.
+#
+# The "connection to the backend" needs no wiring here: the committed
+# .env holds the publishable VITE_SUPABASE_* values, Vite bakes them into
+# the bundle at build time, and the served app talks to Supabase directly
+# from the browser regardless of which domain hosts the files.
+#
+# Requirements outside this file (one-time):
+#   - Repo Settings -> Pages -> Source: "GitHub Actions"
+#   - DNS: CNAME record for user.hanoienglish.com -> <owner>.github.io
+#   - Supabase Auth URL configuration updated to the new domain
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # SPA fallback: GitHub Pages serves 404.html for unknown paths, so a
+      # copy of index.html lets React Router handle deep links like
+      # /teacher/transcripts on hard refresh.
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      # Keeps the custom domain bound to the Pages deployment.
+      - name: Add CNAME
+        run: echo "user.hanoienglish.com" > dist/CNAME
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
