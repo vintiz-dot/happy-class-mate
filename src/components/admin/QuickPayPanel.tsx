@@ -116,16 +116,17 @@ export function QuickPayPanel({ month }: QuickPayPanelProps) {
         const alreadyPaid = (item as any).recorded_payment ?? 0;
         const newTotalPaid = alreadyPaid + enteredAmount;
         const payable = (item as any).finalPayable ?? 0;
-        const isPlaceholder = (item as any).id?.startsWith("placeholder-");
+        const invoiceId = String((item as any).id ?? "");
+        const isPersistedInvoice = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(invoiceId);
 
         let newStatus: string;
         if (newTotalPaid >= payable && payable > 0) newStatus = "paid";
         else if (newTotalPaid > 0) newStatus = "partial";
-        else newStatus = "open";
+        else newStatus = "issued";
 
         try {
-          if (isPlaceholder) {
-            const { error } = await supabase.from("invoices").insert([{
+          if (!isPersistedInvoice) {
+            const { error } = await supabase.from("invoices").upsert([{
               student_id: item.student_id,
               month,
               base_amount: (item as any).base_amount || 0,
@@ -137,8 +138,9 @@ export function QuickPayPanel({ month }: QuickPayPanelProps) {
               carry_in_credit: (item as any).carry_in_credit || 0,
               carry_in_debt: (item as any).carry_in_debt || 0,
               created_by: user?.id,
-            }]);
+            }], { onConflict: "student_id,month" });
             if (error) throw error;
+
           } else {
             const { error } = await supabase
               .from("invoices")
@@ -148,13 +150,13 @@ export function QuickPayPanel({ month }: QuickPayPanelProps) {
                 updated_at: new Date().toISOString(),
                 updated_by: user?.id,
               })
-              .eq("id", (item as any).id);
+              .eq("id", invoiceId);
             if (error) throw error;
           }
 
           await supabase.from("audit_log").insert({
             entity: "invoice",
-            entity_id: isPlaceholder ? item.student_id : (item as any).id,
+            entity_id: isPersistedInvoice ? invoiceId : item.student_id,
             action: "quickpay_record_payment",
             actor_user_id: user?.id,
             diff: {

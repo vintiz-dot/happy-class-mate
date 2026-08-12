@@ -3134,6 +3134,56 @@ export type Database = {
           },
         ]
       }
+      student_access_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          login_email: string
+          revoked_at: string | null
+          student_id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          login_email: string
+          revoked_at?: string | null
+          student_id: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          login_email?: string
+          revoked_at?: string | null
+          student_id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_access_codes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_attendance_streaks: {
         Row: {
           bonuses_awarded: number | null
@@ -3649,6 +3699,7 @@ export type Database = {
           email: string | null
           family_id: string | null
           full_name: string
+          has_synthetic_login: boolean
           id: string
           is_active: boolean
           linked_user_id: string | null
@@ -3669,6 +3720,7 @@ export type Database = {
           email?: string | null
           family_id?: string | null
           full_name: string
+          has_synthetic_login?: boolean
           id?: string
           is_active?: boolean
           linked_user_id?: string | null
@@ -3689,6 +3741,7 @@ export type Database = {
           email?: string | null
           family_id?: string | null
           full_name?: string
+          has_synthetic_login?: boolean
           id?: string
           is_active?: boolean
           linked_user_id?: string | null
@@ -4361,6 +4414,7 @@ export type Database = {
         Args: { p_job: string; p_month: string }
         Returns: boolean
       }
+      can_read_student_work_file: { Args: { _path: string }; Returns: boolean }
       can_view_classmate: {
         Args: { student_id_to_view: string; viewer_user_id: string }
         Returns: boolean
