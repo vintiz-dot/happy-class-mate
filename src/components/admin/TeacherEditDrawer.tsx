@@ -12,9 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PayRateFields } from "@/components/admin/staff/PayRateFields";
+import { payRateError, payRateTypeOf, type PayRateType } from "@/lib/payRate";
 
 interface TeacherEditDrawerProps {
   teacher: any;
@@ -23,37 +36,59 @@ interface TeacherEditDrawerProps {
 
 export function TeacherEditDrawer({ teacher, onClose }: TeacherEditDrawerProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
+  const [payRateType, setPayRateType] = useState<PayRateType>("hourly");
+  const [rate, setRate] = useState("");
   const [bio, setBio] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (teacher) {
       setFullName(teacher.full_name || "");
       setEmail(teacher.email || "");
       setPhone(teacher.phone || "");
-      setHourlyRate(teacher.hourly_rate_vnd?.toString() || "");
+      const type = payRateTypeOf(teacher);
+      setPayRateType(type);
+      setRate(
+        (type === "per_session" ? teacher.per_session_rate_vnd : teacher.hourly_rate_vnd)
+          ?.toString() || "",
+      );
       setBio(teacher.bio || "");
       setIsActive(teacher.is_active ?? true);
     }
   }, [teacher]);
 
+  const rateError = payRateError(payRateType, rate);
+
   const handleSave = async () => {
     if (!teacher?.id) return;
+    if (rateError) {
+      toast.error(rateError);
+      return;
+    }
 
     setIsSaving(true);
     try {
+      // Both rate columns are written every time, with the one that is not
+      // in force set to 0. Leaving the old number behind would mean a
+      // teacher switched to per-session still carries an hourly rate that
+      // every payroll screen would be free to display.
+      const amount = Math.round(Number(rate));
       const { error } = await supabase
         .from("teachers")
         .update({
           full_name: fullName,
           email,
           phone,
-          hourly_rate_vnd: parseInt(hourlyRate),
+          pay_rate_type: payRateType,
+          hourly_rate_vnd: payRateType === "hourly" ? amount : 0,
+          per_session_rate_vnd: payRateType === "per_session" ? amount : 0,
           bio,
           is_active: isActive,
         })
@@ -68,6 +103,35 @@ export function TeacherEditDrawer({ teacher, onClose }: TeacherEditDrawerProps) 
       toast.error(error.message || "Failed to update teacher");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!teacher?.id) return;
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase
+        .from("teachers")
+        .delete()
+        .eq("id", teacher.id)
+        .select("id");
+      if (error) {
+        if (error.code === "23503") {
+          throw new Error(
+            "This teacher has lessons or classes on record, so they can't be deleted. Set them to inactive instead."
+          );
+        }
+        throw error;
+      }
+      if (!data || data.length === 0) throw new Error("You don't have permission to delete this teacher.");
+      toast.success("Teacher deleted");
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      onClose();
+      navigate("/teachers");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete teacher");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -108,15 +172,13 @@ export function TeacherEditDrawer({ teacher, onClose }: TeacherEditDrawerProps) 
             />
           </div>
 
-          <div>
-            <Label htmlFor="hourlyRate">Hourly Rate (VND)</Label>
-            <Input
-              id="hourlyRate"
-              type="number"
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-            />
-          </div>
+          <PayRateFields
+            idPrefix="teacher-pay"
+            payRateType={payRateType}
+            onPayRateTypeChange={setPayRateType}
+            rate={rate}
+            onRateChange={setRate}
+          />
 
           <div>
             <Label htmlFor="bio">Bio</Label>
@@ -137,12 +199,43 @@ export function TeacherEditDrawer({ teacher, onClose }: TeacherEditDrawerProps) 
             />
           </div>
 
-          <Button onClick={handleSave} disabled={isSaving} className="w-full">
+          <Button onClick={handleSave} disabled={isSaving || !!rateError} className="w-full">
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
+
+          <Button
+            variant="destructive"
+            className="w-full"
+            disabled={isDeleting}
+            onClick={() => setConfirmOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? "Deleting..." : "Delete Teacher"}
+          </Button>
         </div>
       </SheetContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="z-[100]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {teacher?.full_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the teacher. Teachers who have lessons or classes on record
+              can't be deleted — set them to inactive instead so payroll history stays intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
