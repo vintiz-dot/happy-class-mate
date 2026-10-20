@@ -1434,6 +1434,8 @@ export type Database = {
           date: string
           id: string
           memo: string | null
+          source_kind: string | null
+          source_key: string | null
           updated_at: string
         }
         Insert: {
@@ -1444,6 +1446,8 @@ export type Database = {
           date?: string
           id?: string
           memo?: string | null
+          source_kind?: string | null
+          source_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -1454,6 +1458,8 @@ export type Database = {
           date?: string
           id?: string
           memo?: string | null
+          source_kind?: string | null
+          source_key?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2613,6 +2619,134 @@ export type Database = {
           },
         ]
       }
+      payroll_adjustments: {
+        Row: {
+          amount_vnd: number
+          assistant_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          origin_month: string
+          reason: string
+          teacher_id: string | null
+        }
+        Insert: {
+          amount_vnd: number
+          assistant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          origin_month: string
+          reason: string
+          teacher_id?: string | null
+        }
+        Update: {
+          amount_vnd?: number
+          assistant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          origin_month?: string
+          reason?: string
+          teacher_id?: string | null
+        }
+        Relationships: []
+      }
+      payroll_lines: {
+        Row: {
+          assistant_id: string | null
+          created_at: string
+          created_by: string | null
+          hourly_rate_vnd: number
+          id: string
+          month: string
+          pay_rate_type: string
+          per_session_rate_vnd: number
+          sessions_count: number
+          staff_name: string
+          teacher_id: string | null
+          total_amount_vnd: number
+          total_minutes: number
+        }
+        Insert: {
+          assistant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          hourly_rate_vnd?: number
+          id?: string
+          month: string
+          pay_rate_type: string
+          per_session_rate_vnd?: number
+          sessions_count?: number
+          staff_name: string
+          teacher_id?: string | null
+          total_amount_vnd?: number
+          total_minutes?: number
+        }
+        Update: {
+          assistant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          hourly_rate_vnd?: number
+          id?: string
+          month?: string
+          pay_rate_type?: string
+          per_session_rate_vnd?: number
+          sessions_count?: number
+          staff_name?: string
+          teacher_id?: string | null
+          total_amount_vnd?: number
+          total_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_lines_month_fkey"
+            columns: ["month"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["month"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          created_at: string
+          locked_at: string | null
+          locked_by: string | null
+          month: string
+          note: string | null
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          month: string
+          note?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          month?: string
+          note?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       payroll_summaries: {
         Row: {
           created_at: string
@@ -2901,6 +3035,24 @@ export type Database = {
           uploaded_by?: string
           visibility?: string
           vocab_tags?: string[] | null
+        }
+        Relationships: []
+      }
+      schedule_runner: {
+        Row: {
+          id: number
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          token?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4753,17 +4905,13 @@ export type Database = {
           reset_count: number
         }[]
       }
-      assistant_rate_on: {
-        Args: { p_assistant_id: string; p_date: string }
-        Returns: Json
-      }
-      teacher_rate_on: {
-        Args: { p_date: string; p_teacher_id: string }
-        Returns: Json
-      }
       assert_job_lock: {
         Args: { p_job: string; p_month: string }
         Returns: boolean
+      }
+      assistant_rate_on: {
+        Args: { p_assistant_id: string; p_date: string }
+        Returns: Json
       }
       can_read_student_work_file: { Args: { _path: string }; Returns: boolean }
       can_view_classmate: {
@@ -4855,6 +5003,10 @@ export type Database = {
         Returns: Json
       }
       normalize_session_statuses: { Args: { p_month: string }; Returns: Json }
+      payroll_month_is_locked: {
+        Args: { p_month: string }
+        Returns: boolean
+      }
       pause_enrollment: {
         Args: {
           p_class_id: string
@@ -4881,6 +5033,10 @@ export type Database = {
       }
       revert_invalid_held_sessions: {
         Args: { p_month: string; p_now: string; p_today: string }
+        Returns: Json
+      }
+      teacher_rate_on: {
+        Args: { p_date: string; p_teacher_id: string }
         Returns: Json
       }
     }
