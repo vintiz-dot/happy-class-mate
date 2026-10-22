@@ -32,10 +32,11 @@ import {
   describeRate,
   lengthAffectsPay,
   payRateTypeOf,
-  totalPayVnd,
   varianceCostVnd,
   type StaffPayRate,
 } from "@/lib/payRate";
+import { indexPayRates, rateOnDate } from "@/lib/payHistory";
+import { canBookPayroll, datedPayrollTotal } from "@/lib/payrollCalculation";
 
 interface StaffPayroll {
   staff: {
@@ -65,6 +66,25 @@ interface StaffPayroll {
    * so there is no overpayment to report even when the length is wrong.
    */
   varianceAmount: number;
+  /**
+   * Whether an over-long lesson costs this person money IN THE MONTH
+   * being viewed.
+   *
+   * Not lengthAffectsPay(staff): that reads the basis on the staff row,
+   * which is today's. Since pay became effective-dated, somebody hourly
+   * in September can be per-session now - and the screen would then
+   * price a real September overpayment at the September rate while
+   * telling the reader, from the current basis, that length costs them
+   * nothing. The two halves of the same card contradicted each other.
+   */
+  lengthCostsMoney: boolean;
+  /**
+   * How this person was paid IN the month: "Per hour", "Per session", or
+   * "Mixed" when the basis changed partway through it. The staff row only
+   * knows today's basis, which is a different question once pay is
+   * effective-dated.
+   */
+  payBasisInMonth: string;
   varianceMinutes: number;
   mismatchedSessions: {
     id: string;
@@ -81,6 +101,18 @@ export function PayrollTab() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format("YYYY-MM"));
   const queryClient = useQueryClient();
 
+  const { data: period, isSuccess: periodLoaded } = useQuery({
+    queryKey: ["payroll-period", selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payroll_periods")
+        .select("month, status, locked_at, locked_by, reopened_at, reopen_reason")
+        .eq("month", selectedMonth).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const bookingAllowed = canBookPayroll(period?.status, periodLoaded);
+
   const { data: payrollData, isLoading } = useQuery({
     queryKey: ["admin-payroll", selectedMonth],
     queryFn: async () => {
@@ -88,7 +120,7 @@ export function PayrollTab() {
       const monthEnd = dayjs(monthStart).add(1, "month").format("YYYY-MM-DD");
 
       // Fetch teachers, TAs, sessions, and session_participants in parallel
-      const [teachersRes, tasRes, sessionsRes, participantsRes, versionsRes] = await Promise.all([
+      const [teachersRes, tasRes, sessionsRes, participantsRes, versionsRes, ratesRes] = await Promise.all([
         // Deliberately NOT filtered by is_active. Archiving a teacher must
         // not erase the lessons they already taught this month — with the
         // filter on the query, archiving someone on the 20th silently
@@ -111,17 +143,31 @@ export function PayrollTab() {
           .lt("date", monthEnd)
           .in("status", ["Held", "Scheduled"])
           .order("date", { ascending: true }),
+        // .neq("attended", false) matches calculate-payroll's assistant
+        // query exactly (20261022090000). Without it this screen pays for
+        // lessons the edge function skips, and PayrollMonthLock then reads
+        // the gap as drift and offers to carry it into the next month -
+        // paying the assistant for lessons they did not work.
         supabase
           .from("session_participants")
           .select("session_id, teaching_assistant_id")
-          .eq("participant_type", "teaching_assistant"),
+          .eq("participant_type", "teaching_assistant")
+          .neq("attended", false),
         // Every class's timetable history, in one read. Fetched whole rather
         // than filtered to the month: a session in July is judged against
         // the version in force in July, which may have started years before.
         supabase
           .from("class_schedule_versions")
           .select("class_id, effective_from, weekly_slots, default_session_length_minutes"),
+        supabase.from("staff_pay_rates")
+          .select("teacher_id, assistant_id, effective_from, pay_rate_type, hourly_rate_vnd, per_session_rate_vnd"),
       ]);
+
+      // Never turn a failed history/roster read into invented correction amounts.
+      for (const result of [teachersRes, tasRes, sessionsRes, participantsRes, versionsRes, ratesRes]) {
+        if (result.error) throw result.error;
+      }
+      const ratesByStaff = indexPayRates(ratesRes.data);
 
       const teachers = teachersRes.data || [];
       const tas = tasRes.data || [];
@@ -153,10 +199,11 @@ export function PayrollTab() {
       // agrees exactly with calculate-payroll. The two had drifted: that
       // function rolls a non-positive span over midnight, this one produced a
       // negative figure and silently subtracted it from the teacher's pay.
-      const calculateAmount = (sessionsList: typeof allSessions, staff: StaffPayRate) =>
-        totalPayVnd(
+      const calculateAmount = (sessionsList: typeof allSessions, staff: StaffPayRate & { id: string }) =>
+        datedPayrollTotal(
+          sessionsList.map((s) => ({ date: s.date, minutes: durationMinutes(s.start_time, s.end_time) ?? 0 })),
+          ratesByStaff.get(staff.id) ?? [],
           staff,
-          sessionsList.map((s) => durationMinutes(s.start_time, s.end_time) ?? 0),
         );
 
       /**
@@ -204,12 +251,14 @@ export function PayrollTab() {
        * is correct rather than a coincidence: their pay does not depend on
        * the length, so re-costing at a different length changes nothing.
        */
-      const calculateExpectedAmount = (sessionsList: typeof allSessions, staff: StaffPayRate) =>
-        totalPayVnd(
+      const calculateExpectedAmount = (sessionsList: typeof allSessions, staff: StaffPayRate & { id: string }) =>
+        datedPayrollTotal(
+          sessionsList.map((s) => ({
+            date: s.date,
+            minutes: payableExpectedMinutes(checkOf(s)) ?? (durationMinutes(s.start_time, s.end_time) ?? 0),
+          })),
+          ratesByStaff.get(staff.id) ?? [],
           staff,
-          sessionsList.map(
-            (s) => payableExpectedMinutes(checkOf(s)) ?? (durationMinutes(s.start_time, s.end_time) ?? 0),
-          ),
         );
 
       /**
@@ -221,7 +270,22 @@ export function PayrollTab() {
        * problem and the screens read deltaAmount to decide whether to show
        * a cost at all.
        */
-      const findMismatches = (sessionsList: typeof allSessions, staff: StaffPayRate) =>
+      // True when any session in the month was priced on a basis where
+      // length matters. Per-session staff are unaffected by length, so a
+      // month entirely on that basis costs nothing for a long lesson.
+      const lengthCostsMoneyIn = (sessionsList: typeof allSessions, staff: StaffPayRate & { id: string }) =>
+        sessionsList.some((s) => lengthAffectsPay(rateOnDate(ratesByStaff.get(staff.id), s.date, staff)));
+
+      const payBasisIn = (sessionsList: typeof allSessions, staff: StaffPayRate & { id: string }) => {
+        const bases = new Set(
+          sessionsList.map((s) => payRateTypeOf(rateOnDate(ratesByStaff.get(staff.id), s.date, staff))),
+        );
+        if (bases.size > 1) return "Mixed";
+        const only = [...bases][0] ?? payRateTypeOf(staff);
+        return only === "per_session" ? "Per session" : "Per hour";
+      };
+
+      const findMismatches = (sessionsList: typeof allSessions, staff: StaffPayRate & { id: string }) =>
         sessionsList.flatMap((s) => {
           const variance = varianceFromCheck(checkOf(s));
           if (!variance) return [];
@@ -232,7 +296,7 @@ export function PayrollTab() {
             actualMinutes: variance.actualMinutes,
             expectedMinutes: variance.expectedMinutes,
             deltaMinutes: variance.deltaMinutes,
-            deltaAmount: varianceCostVnd(staff, variance.deltaMinutes),
+            deltaAmount: varianceCostVnd(rateOnDate(ratesByStaff.get(staff.id), s.date, staff), variance.deltaMinutes),
           }];
         });
 
@@ -261,6 +325,8 @@ export function PayrollTab() {
           totalProjected: totalHeld + totalScheduled,
           expectedProjected,
           varianceAmount: totalHeld + totalScheduled - expectedProjected,
+          lengthCostsMoney: lengthCostsMoneyIn(sessions, teacher),
+          payBasisInMonth: payBasisIn(sessions, teacher),
           varianceMinutes: mismatched.reduce((n, m) => n + m.deltaMinutes, 0),
           mismatchedSessions: mismatched,
         });
@@ -292,6 +358,8 @@ export function PayrollTab() {
           totalProjected: totalHeld + totalScheduled,
           expectedProjected,
           varianceAmount: totalHeld + totalScheduled - expectedProjected,
+          lengthCostsMoney: lengthCostsMoneyIn(taSessions, ta),
+          payBasisInMonth: payBasisIn(taSessions, ta),
           varianceMinutes: mismatched.reduce((n, m) => n + m.deltaMinutes, 0),
           mismatchedSessions: mismatched,
         });
@@ -303,6 +371,13 @@ export function PayrollTab() {
 
   const addToExpendituresMutation = useMutation({
     mutationFn: async () => {
+      // Re-read on click: another admin may have closed the month since render.
+      const { data: currentPeriod, error: periodError } = await supabase.from("payroll_periods")
+        .select("status").eq("month", selectedMonth).maybeSingle();
+      if (periodError) throw periodError;
+      if (!canBookPayroll(currentPeriod?.status, true)) {
+        throw new Error("Payroll is closed. Reopen the month before changing its expenditures.");
+      }
       if (!payrollData) return;
       const items = payrollData.filter(p => p.totalEarned > 0);
       if (items.length === 0) throw new Error("No earned payroll to record");
@@ -344,7 +419,9 @@ export function PayrollTab() {
         p.staff.full_name,
         p.staffType === "ta" ? "TA" : "Teacher",
         p.staff.is_active === false ? "Archived" : "Active",
-        payRateTypeOf(p.staff) === "per_session" ? "Per session" : "Per hour",
+        // The basis that applied in this month, not the one on the staff
+        // row today - the money in the columns beside it is dated.
+        p.payBasisInMonth,
         payRateTypeOf(p.staff) === "per_session"
           ? p.staff.per_session_rate_vnd ?? 0
           : p.staff.hourly_rate_vnd,
@@ -391,7 +468,7 @@ export function PayrollTab() {
       staffName: p.staff.full_name,
       // Whether this particular mismatch costs anything depends on how the
       // person teaching it is paid, not on the session.
-      costsMoney: lengthAffectsPay(p.staff),
+      costsMoney: p.lengthCostsMoney,
     })),
   ) || [];
   const freeMismatches = allMismatches.filter((m) => !m.costsMoney).length;
@@ -421,7 +498,7 @@ export function PayrollTab() {
           </SelectContent>
         </Select>
         <div className="flex gap-2">
-          <Button onClick={() => addToExpendituresMutation.mutate()} variant="outline" size="sm" disabled={addToExpendituresMutation.isPending || !payrollData?.some(p => p.totalEarned > 0)}>
+          <Button onClick={() => addToExpendituresMutation.mutate()} variant="outline" size="sm" disabled={!bookingAllowed || addToExpendituresMutation.isPending || !payrollData?.some(p => p.totalEarned > 0)}>
             <Receipt className="h-4 w-4 mr-2" />
             Add to Expenditures
           </Button>
@@ -599,7 +676,7 @@ export function PayrollTab() {
                     <TableCell className="text-right">
                       {payroll.mismatchedSessions.length === 0 ? (
                         <span className="text-xs text-muted-foreground">matches</span>
-                      ) : !lengthAffectsPay(payroll.staff) ? (
+                      ) : !payroll.lengthCostsMoney ? (
                         <span
                           className="inline-flex items-center gap-1 text-xs text-muted-foreground"
                           title={`${payroll.mismatchedSessions.length} session(s) differ from the configured class length, but this person is paid per session so the pay is unaffected`}
