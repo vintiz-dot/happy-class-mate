@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { checkRateLimit, getClientIP, rateLimitResponse } from '../_lib/rate-limit.ts';
 import { requireRole } from "../_lib/auth.ts";
+import { resolveSiblingStates } from "../_lib/sibling-state.ts";
+import { isBillableTuitionSession } from "../_lib/tuition-session.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,9 +76,14 @@ Deno.serve(async (req) => {
     const InputSchema = z.object({
       studentId: z.string().uuid('Invalid student ID format'),
       month: z.string().regex(/^\d{4}-\d{2}$/, 'Invalid month format. Expected YYYY-MM'),
+      // Internal preview used by the sibling calculator to avoid recursion/writes.
+      siblingPreview: z.boolean().optional().default(false),
     });
 
-    const { studentId, month } = InputSchema.parse(await req.json());
+    const { studentId, month, siblingPreview } = InputSchema.parse(await req.json());
+    if (siblingPreview && !gate.isServiceRole) {
+      return new Response(JSON.stringify({ error: 'Internal preview only' }), { status: 403, headers: corsHeaders });
+    }
     if (!studentId || !month) throw new Error("Missing studentId or month (YYYY-MM)");
 
     const { startDate, nextMonthStart } = monthRange(month);
@@ -149,12 +156,8 @@ Deno.serve(async (req) => {
         .lt("date", nextMonthStart)
         .in("status", ["Scheduled", "Held"]),
       family?.id
-        ? supabase
-            .from("sibling_discount_state")
-            .select("status, winner_student_id, winner_class_id, sibling_percent, reason")
-            .eq("family_id", family.id)
-            .eq("month", month)
-            .maybeSingle()
+        ? resolveSiblingStates(supabase, [family.id], month, !siblingPreview)
+            .then(states => ({ data: states[0] ?? null }))
         : Promise.resolve({ data: null as any }),
     ]);
     const { data: sessions, error: sessErr } = sessionsRes;
@@ -214,7 +217,7 @@ Deno.serve(async (req) => {
       const className = classNameMap.get(s.class_id) || 'Unknown';
 
       // Bill Present, Absent, or Late (all attended/charged); Excused is forgiven.
-      const billable = att === "Present" || att === "Absent" || att === "Late";
+      const billable = isBillableTuitionSession(s.status, att);
       if (billable && actualRate > 0) {
         // Calculate expected using default rate
         expectedClassTuition += defaultRate;
@@ -585,7 +588,7 @@ Deno.serve(async (req) => {
 
     let invoiceUpsertOk = true;
     let invoiceErrorMsg = "";
-    try {
+    if (!siblingPreview) try {
       const { error: invoiceErr1 } = await supabase
         .from("invoices")
         .upsert(invoicePayloadExtended, { onConflict: "student_id,month" });
@@ -598,7 +601,7 @@ Deno.serve(async (req) => {
       invoiceErrorMsg = e?.message ?? String(e);
     }
 
-    if (!invoiceUpsertOk) {
+    if (!siblingPreview && !invoiceUpsertOk) {
       // fallback minimal upsert (existing schema in your earlier code)
       const { error: invoiceErr2 } = await supabase.from("invoices").upsert(
         {
@@ -614,6 +617,7 @@ Deno.serve(async (req) => {
       );
       if (invoiceErr2) {
         console.error("Invoice upsert failed (both attempts):", invoiceErrorMsg, invoiceErr2.message);
+        throw new Error('Unable to refresh tuition invoice');
       }
     }
 

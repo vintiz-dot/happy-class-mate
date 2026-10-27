@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { requireRole } from "../_lib/auth.ts";
+import { resolveSiblingStates } from "../_lib/sibling-state.ts";
+import { isBillableTuitionSession } from "../_lib/tuition-session.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -188,12 +190,7 @@ Deno.serve(async (req) => {
     const familyIds = [...new Set(students.map(s => s.family_id).filter(Boolean))];
     let siblingStates: any[] = [];
     if (familyIds.length > 0) {
-      siblingStates = await fetchChunked(
-        supabase, "sibling_discount_state",
-        "family_id, status, winner_student_id, winner_class_id, sibling_percent, reason",
-        "family_id", familyIds,
-        (q: any) => q.eq("month", month)
-      );
+      siblingStates = await resolveSiblingStates(supabase, familyIds, month);
     }
     const siblingStateMap = new Map(siblingStates.map(s => [s.family_id, s]));
 
@@ -272,7 +269,7 @@ Deno.serve(async (req) => {
           const actualRate = overrideRate ?? defaultRate;
           // Late students attended, so they are billed like Present. Only
           // Excused (forgiven) absences are non-billable.
-          const billable = att === "Present" || att === "Absent" || att === "Late";
+          const billable = isBillableTuitionSession(s.status, att);
 
           if (billable && actualRate > 0) {
             baseAmount += defaultRate;
